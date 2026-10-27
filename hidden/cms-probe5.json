@@ -1,0 +1,59 @@
+{
+  "linkHref": "http://www.leadong.com/website.html",
+  "finalUrl": "https://www.leadong.com/website.html",
+  "form": {
+    "inputs": [
+      {
+        "type": "hidden",
+        "name": "is40Page",
+        "placeholder": ""
+      },
+      {
+        "type": "hidden",
+        "name": "isNewEditorPage",
+        "placeholder": ""
+      },
+      {
+        "type": "hidden",
+        "name": "noSearchOption",
+        "placeholder": ""
+      },
+      {
+        "type": "hidden",
+        "name": "encodeFormId",
+        "placeholder": ""
+      },
+      {
+        "type": "hidden",
+        "name": "resultPage",
+        "placeholder": ""
+      },
+      {
+        "type": "text",
+        "name": "extend1",
+        "placeholder": "*名称"
+      },
+      {
+        "type": "text",
+        "name": "extend2",
+        "placeholder": "*手机号"
+      },
+      {
+        "type": "text",
+        "name": "extend3",
+        "placeholder": "*公司"
+      },
+      {
+        "type": "text",
+        "name": "extend4",
+        "placeholder": "*邮箱"
+      },
+      {
+        "type": "radio",
+        "name": "extend5",
+        "placeholder": ""
+      }
+    ],
+    "text": "邮箱验证后，可用于快速找回密码，方便接收系统邮件提醒。 立即开启 为了获得更好的体验效果，建议使用谷歌浏览器或火狐浏览器浏览本网站。 温馨提示：经检测，您当前网络为境外网络，后台服务器部署在境内，建议您使用境内网络访问，以获取最佳访问速度体验。 首页 外贸建站 跨境建站 网站运营 产品方案 行业方案 客户案例 学习中心 关于领动 999+ demo-xujiying demo-xujiying PIN码：5IRFR 平台管理 我的应用 服务市场 访客雷达 MoliAI 客源智搜 询盘助手 AI-"
+  }
+}

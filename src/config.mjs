@@ -1,0 +1,69 @@
+import dotenv from 'dotenv';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const envPath = path.join(projectRoot, '.env');
+
+// dotenv does not replace variables already supplied by the process, so CI or
+// shell values retain precedence over the local .env file.
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== '');
+}
+
+function parseBoolean(value, name) {
+  if (typeof value === 'boolean') return value;
+  const normalized = String(value).trim().toLowerCase();
+  if (['true', '1', 'yes'].includes(normalized)) return true;
+  if (['false', '0', 'no'].includes(normalized)) return false;
+  throw new Error(`${name} must be true or false; received ${JSON.stringify(value)}`);
+}
+
+/**
+ * Load the parameterized block test configuration.
+ * Values from process.env take precedence over the project .env file.
+ */
+export function loadConfig() {
+  const blockId = firstDefined(process.env.BLOCK_ID)?.trim();
+  if (!blockId) {
+    throw new Error('BLOCK_ID is required. Set BLOCK_ID in .env or process.env (for example: BLOCK_ID=40838).');
+  }
+
+  const moduleType = firstDefined(process.env.MODULE_TYPE, 'review').trim().toLowerCase();
+  if (!['develop', 'review', 'online'].includes(moduleType)) {
+    throw new Error(`MODULE_TYPE must be one of develop, review, online; received ${JSON.stringify(moduleType)}`);
+  }
+
+  return {
+    blockId,
+    profile: (firstDefined(process.env.PROFILE) || '').trim(),
+    targetPage: firstDefined(process.env.TARGET_PAGE, 'products').trim(),
+    // Page kind: 'system' (default) or 'custom'. The runner resolves the
+    // final value from the block profile when the env var is absent; see run.mjs.
+    targetPageKind: (firstDefined(process.env.TARGET_PAGE_KIND) || '').trim().toLowerCase(),
+    siteDomain: firstDefined(process.env.SITE_DOMAIN, 'https://www.leadong.com').trim().replace(/\/$/, ''),
+    account: firstDefined(
+      process.env.ACCOUNT,
+      process.env.PLAYWRIGHT_ACCOUNT,
+      process.env.PLAYWRIGHT_USERNAME,
+      '',
+    ).trim(),
+    password: firstDefined(process.env.PASSWORD, process.env.PLAYWRIGHT_PASSWORD, ''),
+    moduleType,
+    browser: firstDefined(process.env.BROWSER, 'firefox').trim().toLowerCase(),
+    ignoreHTTPSErrors: parseBoolean(firstDefined(process.env.IGNORE_HTTPS_ERRORS, 'true'), 'IGNORE_HTTPS_ERRORS'),
+    httpsProxy: firstDefined(process.env.HTTPS_PROXY, process.env.https_proxy, ''),
+    editSiteUrl: firstDefined(process.env.EDIT_SITE_URL, process.env.PLAYWRIGHT_EDIT_SITE_URL, ''),
+    storageState: firstDefined(process.env.STORAGE_STATE, ''),
+    // Force one baseline application even when the block is already on the
+    // page (re-apply the profile baseline to a block already in place).
+    applyBaseline: parseBoolean((firstDefined(process.env.APPLY_BASELINE) || '').trim() || 'false', 'APPLY_BASELINE'),
+    reportDir: firstDefined(process.env.REPORT_DIR, 'reports').trim(),
+    screenshotDir: firstDefined(process.env.SCREENSHOT_DIR, 'screenshots').trim(),
+  };
+}

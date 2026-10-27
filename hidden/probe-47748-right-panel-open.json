@@ -1,0 +1,39 @@
+{
+  "blockId": "47748",
+  "panel": {
+    "panels": [
+      {
+        "visible": false,
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        },
+        "text": " ID 区块ID：12494保持原有版本切换到最新版本  背景背景颜色▼PC端移动端更多\t上传图片\t\t\t\t\t\t\t\t\t\t平铺\t\t\t横向平铺\t\t\t纵向平铺\t\t\t不平铺\t\t\t\t\t\t\t\t\t\t\t垂直居中\t\t\t底部居中\t\t\t顶部居中\t\t\t左居中\t\t\t右居中\t\t\t左上方\t\t\t右上方\t\t\t左下方\t\t\t右下方\t\t\t\t\t\t\t\t\t\t\t原始尺寸\t\t\t填充\t\t\t适应\t\t\t    是否随网页滚动:            是                        否            \t本地上传\t\t资料库上传\t\t\t\t\t\t\t\t平铺\t\t\t横向平铺\t\t\t纵向平铺\t\t\t不平铺\t\t\t\t\t\t\t\t\t\t\t垂直居中\t\t\t底部居中\t\t\t顶部居中\t\t\t左居中\t\t\t右居中\t\t\t左上方\t\t\t右上方\t\t\t左下方\t\t\t右下方\t\t\t\t\t\t\t\t\t\t\t原始尺寸\t\t\t填充\t\t\t适应\t\t\t    是否随网页滚动:            是                        否            \t移除\t保存  配色\t颜色\t▼▼▼\t\t\t\t重置\t\t保存\t  内边距PC端上边距 pxPC端下边距px移动端上边距px移动端下边距px保存取消  上移  下移  复制  删除"
+      },
+      {
+        "visible": true,
+        "rect": {
+          "x": 1492,
+          "y": 146,
+          "w": 30,
+          "h": 247
+        },
+        "text": " ID \n  \n  \n  \n  \n  \n  \n  "
+      },
+      {
+        "visible": false,
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        },
+        "text": " ID 区块ID：40838  背景背景颜色▼PC端移动端更多\t上传图片\t\t\t\t\t\t\t\t\t\t平铺\t\t\t横向平铺\t\t\t纵向平铺\t\t\t不平铺\t\t\t\t\t\t\t\t\t\t\t垂直居中\t\t\t底部居中\t\t\t顶部居中\t\t\t左居中\t\t\t右居中\t\t\t左上方\t\t\t右上方\t\t\t左下方\t\t\t右下方\t\t\t\t\t\t\t\t\t\t\t原始尺寸\t\t\t填充\t\t\t适应\t\t\t    是否随网页滚动:            是                        否            \t本地上传\t\t资料库上传\t\t\t\t\t\t\t\t平铺\t\t\t横向平铺\t\t\t纵向平铺\t\t\t不平铺\t\t\t\t\t\t\t\t\t\t\t垂直居中\t\t\t底部居中\t\t\t顶部居中\t\t\t左居中\t\t\t右居中\t\t\t左上方\t\t\t右上方\t\t\t左下方\t\t\t右下方\t\t\t\t\t\t\t\t\t\t\t原始尺寸\t\t\t填充\t\t\t适应\t\t\t    是否随网页滚动:            是                        否            \t移除\t保存  配色\t颜色\t▼▼▼\t\t\t\t重置\t\t保存\t  内边距PC端上边距 pxPC端下边距px移动端上边距px移动端下边距px保存取消  上移  下移  复制  删除"
+      }
+    ],
+    "controls": []
+  },
+  "screenshot": "screenshots/probe-47748-right-panel-open.png"
+}

@@ -1,0 +1,12 @@
+{
+  "colorTest": {
+    "found": true,
+    "before": "rgb(139, 0, 0)",
+    "hasJQuery": true,
+    "hasSpectrum": true,
+    "afterSet": "rgb(1, 2, 3)",
+    "afterRestore": "rgb(139, 0, 0)"
+  },
+  "boxOpen": true,
+  "afterSaveClick": false
+}

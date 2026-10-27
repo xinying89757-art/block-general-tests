@@ -1,0 +1,45 @@
+{
+  "steps": [
+    {
+      "0": {
+        "tag": "DIV",
+        "cls": "backstage-dialog-cont backstage-dialog-resizable newPageTemp",
+        "text": "页面 空白 首页 产品列表 产品详情 文章列表 文章详情 关于我们 联系我们 营销单页 产品集合页 其他 空白 + 添加"
+      },
+      "1": {
+        "tag": "DIV",
+        "cls": "pageTemp-content",
+        "text": "空白 + 添加空白页 首页 产品列表 产品详情 文章列表 文章详情 关于我们 联系我们 营销单页 产品集合页 其他"
+      },
+      "2": {
+        "tag": "LI",
+        "cls": "content-item",
+        "text": "空白 + 添加空白页"
+      },
+      "3": {
+        "tag": "DIV",
+        "cls": "add-blank-page temp-view",
+        "text": "+ 添加空白页"
+      },
+      "step": "template-cards"
+    },
+    {
+      "step": "card-visible",
+      "visible": true
+    },
+    {
+      "step": "after-card-click",
+      "dialogText": "新建页面 页面 空白 首页 产品列表 产品详情 文章列表 文章详情 关于我们 联系我们 营销单页 产品集合页 其他 空白 + 添加空白页 首页 产品列表 产品详情 文章列表 文章详情 关于我们 联系我们 营销单页 产品集合页 其他 取消 选取"
+    },
+    {
+      "step": "after-confirm",
+      "dialogClosed": true,
+      "url": "https://website.leadong.com/phoenix/pagebuilder/layout",
+      "canvas": 1
+    },
+    {
+      "step": "list-pages-error",
+      "message": "locator.click: Timeout 10000ms exceeded.\nCall log:\n  - waiting for getByText('页面:', { exact: true }).first()\n    - locator resolved to <span class=\"backstage-title\">页面:</span>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enable"
+    }
+  ]
+}

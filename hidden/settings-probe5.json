@@ -1,0 +1,406 @@
+{
+  "found": [
+    {
+      "idx": 0,
+      "tag": "LI",
+      "cls": "",
+      "rect": [
+        -255,
+        188,
+        235,
+        41
+      ],
+      "icons": [
+        "icon-cogs",
+        "fa fa-question-circle"
+      ],
+      "text": "当前页面设置"
+    },
+    {
+      "idx": 1,
+      "tag": "SPAN",
+      "cls": "phoenix_help_help_page_setting_0 tooltipstered",
+      "rect": [
+        -32,
+        202,
+        12,
+        17
+      ],
+      "icons": [
+        "fa fa-question-circle"
+      ],
+      "text": ""
+    },
+    {
+      "idx": 2,
+      "tag": "LI",
+      "cls": "",
+      "rect": [
+        -255,
+        229,
+        235,
+        41
+      ],
+      "icons": [
+        "icon-adjust",
+        "fa fa-question-circle"
+      ],
+      "text": "当前页面背景"
+    },
+    {
+      "idx": 3,
+      "tag": "SPAN",
+      "cls": "phoenix_help_help_page_setting_background_0 tooltipstered",
+      "rect": [
+        -32,
+        243,
+        12,
+        17
+      ],
+      "icons": [
+        "fa fa-question-circle"
+      ],
+      "text": ""
+    },
+    {
+      "idx": 4,
+      "tag": "LI",
+      "cls": "",
+      "rect": [
+        -255,
+        270,
+        235,
+        41
+      ],
+      "icons": [
+        "icon-magic",
+        "fa fa-question-circle"
+      ],
+      "text": "当前页面特效"
+    },
+    {
+      "idx": 5,
+      "tag": "SPAN",
+      "cls": "phoenix_help_help_page_setting_effect_0 tooltipstered",
+      "rect": [
+        -32,
+        284,
+        12,
+        17
+      ],
+      "icons": [
+        "fa fa-question-circle"
+      ],
+      "text": ""
+    },
+    {
+      "idx": 6,
+      "tag": "LI",
+      "cls": "",
+      "rect": [
+        -255,
+        311,
+        235,
+        41
+      ],
+      "icons": [
+        "icon-suitcase",
+        "fa fa-question-circle"
+      ],
+      "text": "所有页面管理"
+    },
+    {
+      "idx": 7,
+      "tag": "SPAN",
+      "cls": "phoenix_help_help_page_allpagemanagement_0 tooltipstered",
+      "rect": [
+        -32,
+        325,
+        12,
+        17
+      ],
+      "icons": [
+        "fa fa-question-circle"
+      ],
+      "text": ""
+    },
+    {
+      "idx": 8,
+      "tag": "LI",
+      "cls": "",
+      "rect": [
+        -255,
+        188,
+        235,
+        41
+      ],
+      "icons": [
+        "icon-th",
+        "fa fa-question-circle"
+      ],
+      "text": "产品管理"
+    },
+    {
+      "idx": 9,
+      "tag": "SPAN",
+      "cls": "phoenix_help_help_content_product_management_0 tooltipstered",
+      "rect": [
+        -32,
+        202,
+        12,
+        17
+      ],
+      "icons": [
+        "fa fa-question-circle"
+      ],
+      "text": ""
+    },
+    {
+      "idx": 10,
+      "tag": "LI",
+      "cls": "",
+      "rect": [
+        -255,
+        229,
+        235,
+        41
+      ],
+      "icons": [
+        "icon-list-ul",
+        "fa fa-question-circle"
+      ],
+      "text": "文章管理"
+    },
+    {
+      "idx": 11,
+      "tag": "SPAN",
+      "cls": "phoenix_help_help_content_article_management_0 tooltipstered",
+      "rect": [
+        -32,
+        243,
+        12,
+        17
+      ],
+      "icons": [
+        "fa fa-question-circle"
+      ],
+      "text": ""
+    }
+  ],
+  "after": {
+    "icon0": [
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "当前页面设置\n当前页面背景\n当前页面特效\n所有页面管理"
+      },
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "产品管理\n文章管理\n视频管理\n关键词管理\n表单管理\n询盘管理\n资料库管理\n下载管理\nFAQ管理\n营销弹窗管理\n会员管理\n订单管理\n收款管理\n运费管理\n税费管理\n促销\n图册管理\n评价管理\n设置"
+      },
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "更改配色\n更换背景\n更换字体\n更改源代码\n更换网站主题\n节日装扮"
+      },
+      {
+        "where": "main",
+        "tag": "LI",
+        "cls": "backstage-siteTool-setting",
+        "src": "",
+        "text": "设置\n\n网站设置\n \n\n你可以 设置浏览器图标， 禁止鼠标右键， 禁止拷贝， 设置防同行 功能，对所有页面添加 Head标签、 Body标签， 管理网站备份，查看 组件回收站， 小语种翻译\n\n网站全局设置\n弱网访问优化设置\n轻App设置\n管理网站备份\n组件&区块回收站\n小语种翻译\n管理txt文件\n隐私设置\n批量替换\n网站下线"
+      },
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "网站全局设置\n弱网访问优化设置\n轻App设置\n管理网站备份\n组件&区块回收站\n小语种翻译\n管理txt文件\n隐私设置\n批量替换\n网站下线"
+      },
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "全局SEO推广代码设置\n网站地图Sitemap\n提交搜索引擎收录\nRobots文件配置\n页面/URL重定向\n关键词分析工具\n第三方代码\n网站测评\n设置死链\n结构化数据\n智能KW内链系统\nCanonical标签管理"
+      },
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "Facebook分享优化\nTwitter分享优化\nLinkedin分享优化\nPinterest分享优化\n微信分享优化\n运营专员一键分享\n微信公众平台"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "siteblocks-setting-wrap aaUKfApLWZTO_20231115101426 siteblocks-TiAfUKpBVQEO-20240218105312",
+        "src": "",
+        "text": "Home\nProducts\nSolution\n测试私有属性\nServices & Support\nNews\nAbout Us\n一级Anti Static Packaging Materials\n二级Others Hydraulic cylinder\n三级Container Liner Bag\nEnglish\nEmail\nFollow\nSearch\nEnergy\nMining\nWater Treatment\nGeneral Industry\nWarranty Training\nDownload\nFAQ\nVideo\nCompany Introduction\nCorporate Culture\nDevelopment History"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "siteblocks-setting-wrap dkKpUAfEKINd_20260716205103 siteblocks-rmKfApUDeJln-20261023112612 outline-style",
+        "src": "",
+        "text": "Series\nAll\nAnti Static Packaging Materials\nFitness resistance\nHydraulic adapter\nHydraulic cylinder\nHydraulic manifold block\nHydraulic power unit\nHYDRAULIC ROD ENDS\nLinear Actuator / Electric cylinder\nMesh Fence\nMulti-Function Packing Machine\nMultilateral Sealing Bag\nother\nPackaging Bags\nPacking Machinery Parts\nPet Food Bag\nPlastic Film\nRoll Film\nShrink Film\nSnack Bag\nSpecial Shaped Bag\nSpout Pouch\nStand Up Pouch\nStorage Cage\nTelescopic hydraulic cylinder\nU Shaped Container Bag\nVacuum Packing Bag"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "siteblocks-setting-operateTools rowsOpts",
+        "src": "",
+        "text": " ID \n  \n  \n  \n  \n  \n  "
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap ",
+        "src": "",
+        "text": "Telephone\n+86-138-6868-6868"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap ",
+        "src": "",
+        "text": "Email\nservice@mail.com"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap ",
+        "src": "",
+        "text": "​Copyright © 2026 FlowControl Co., Ltd. All Rights Reserved."
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap",
+        "src": "",
+        "text": "Products\n请点击组件“设置”，添加页面链接"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap",
+        "src": "",
+        "text": "Solution\nEnergy\nMining\nWater Treatment\nGeneral Industry"
+      }
+    ],
+    "icon1": [
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "当前页面设置\n当前页面背景\n当前页面特效\n所有页面管理"
+      },
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "产品管理\n文章管理\n视频管理\n关键词管理\n表单管理\n询盘管理\n资料库管理\n下载管理\nFAQ管理\n营销弹窗管理\n会员管理\n订单管理\n收款管理\n运费管理\n税费管理\n促销\n图册管理\n评价管理\n设置"
+      },
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "更改配色\n更换背景\n更换字体\n更改源代码\n更换网站主题\n节日装扮"
+      },
+      {
+        "where": "main",
+        "tag": "LI",
+        "cls": "backstage-siteTool-setting",
+        "src": "",
+        "text": "设置\n\n网站设置\n \n\n你可以 设置浏览器图标， 禁止鼠标右键， 禁止拷贝， 设置防同行 功能，对所有页面添加 Head标签、 Body标签， 管理网站备份，查看 组件回收站， 小语种翻译\n\n网站全局设置\n弱网访问优化设置\n轻App设置\n管理网站备份\n组件&区块回收站\n小语种翻译\n管理txt文件\n隐私设置\n批量替换\n网站下线"
+      },
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "网站全局设置\n弱网访问优化设置\n轻App设置\n管理网站备份\n组件&区块回收站\n小语种翻译\n管理txt文件\n隐私设置\n批量替换\n网站下线"
+      },
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "全局SEO推广代码设置\n网站地图Sitemap\n提交搜索引擎收录\nRobots文件配置\n页面/URL重定向\n关键词分析工具\n第三方代码\n网站测评\n设置死链\n结构化数据\n智能KW内链系统\nCanonical标签管理"
+      },
+      {
+        "where": "main",
+        "tag": "DIV",
+        "cls": "backstage-siteTool-settingscont",
+        "src": "",
+        "text": "Facebook分享优化\nTwitter分享优化\nLinkedin分享优化\nPinterest分享优化\n微信分享优化\n运营专员一键分享\n微信公众平台"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "siteblocks-setting-wrap aaUKfApLWZTO_20231115101426 siteblocks-TiAfUKpBVQEO-20240218105312",
+        "src": "",
+        "text": "Home\nProducts\nSolution\n测试私有属性\nServices & Support\nNews\nAbout Us\n一级Anti Static Packaging Materials\n二级Others Hydraulic cylinder\n三级Container Liner Bag\nEnglish\nEmail\nFollow\nSearch\nEnergy\nMining\nWater Treatment\nGeneral Industry\nWarranty Training\nDownload\nFAQ\nVideo\nCompany Introduction\nCorporate Culture\nDevelopment History"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "siteblocks-setting-wrap dkKpUAfEKINd_20260716205103 siteblocks-rmKfApUDeJln-20261023112612",
+        "src": "",
+        "text": "Series\nAll\nAnti Static Packaging Materials\nFitness resistance\nHydraulic adapter\nHydraulic cylinder\nHydraulic manifold block\nHydraulic power unit\nHYDRAULIC ROD ENDS\nLinear Actuator / Electric cylinder\nMesh Fence\nMulti-Function Packing Machine\nMultilateral Sealing Bag\nother\nPackaging Bags\nPacking Machinery Parts\nPet Food Bag\nPlastic Film\nRoll Film\nShrink Film\nSnack Bag\nSpecial Shaped Bag\nSpout Pouch\nStand Up Pouch\nStorage Cage\nTelescopic hydraulic cylinder\nU Shaped Container Bag\nVacuum Packing Bag"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap ",
+        "src": "",
+        "text": "Telephone\n+86-138-6868-6868"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap ",
+        "src": "",
+        "text": "Email\nservice@mail.com"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap ",
+        "src": "",
+        "text": "​Copyright © 2026 FlowControl Co., Ltd. All Rights Reserved."
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap",
+        "src": "",
+        "text": "Products\n请点击组件“设置”，添加页面链接"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap",
+        "src": "",
+        "text": "Solution\nEnergy\nMining\nWater Treatment\nGeneral Industry"
+      },
+      {
+        "where": "canvas",
+        "tag": "DIV",
+        "cls": "backstage-stwidgets-settingwrap",
+        "src": "",
+        "text": "Support\nWater Treatment\nDownload\nVideo\nFAQ\nPrivacy Policy\nSitemap"
+      }
+    ]
+  }
+}

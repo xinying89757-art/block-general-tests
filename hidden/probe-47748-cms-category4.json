@@ -1,0 +1,247 @@
+{
+  "total": "共 11 条",
+  "rows": [
+    {
+      "name": "测试产品A",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n\t\t\t\t\t\t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"shelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t                    ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"ENULQuzRFl",
+      "cells": [
+        "",
+        "",
+        "测试产品A",
+        "",
+        "-",
+        "款式",
+        "测试分类",
+        "2026-08-03 11:05:50",
+        "2026-10-23 16:13:27",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0) 编辑产品详情页面 (未编辑)"
+      ]
+    },
+    {
+      "name": "测试产品芋圆1",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n\t\t\t\t\t\t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"shelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t                    ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"vmfgbGpQiP",
+      "cells": [
+        "",
+        "",
+        "测试产品芋圆1",
+        "",
+        "-",
+        "款式",
+        "测试分类",
+        "2026-08-05 10:21:26",
+        "2026-08-24 14:56:08",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0) 编辑产品详情页面 (未编辑)"
+      ]
+    },
+    {
+      "name": "3号",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"offShelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t        ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"yTfVQvpImq",
+      "cells": [
+        "",
+        "",
+        "3号",
+        "",
+        "$ 100.00",
+        "款式",
+        "测试分类",
+        "2026-08-05 16:19:10",
+        "2026-08-05 16:20:32",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0)"
+      ]
+    },
+    {
+      "name": "测试6号",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n\t\t\t\t\t\t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"shelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t                    ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"BWUBvQpndj",
+      "cells": [
+        "",
+        "",
+        "测试6号",
+        "",
+        "$ 0.00",
+        "款式",
+        "测试分类",
+        "2026-08-05 16:19:11",
+        "2026-08-05 16:19:22",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0) 编辑产品详情页面 (未编辑)"
+      ]
+    },
+    {
+      "name": "测试5号",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n\t\t\t\t\t\t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"shelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t                    ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"ALpVbQAnwd",
+      "cells": [
+        "",
+        "",
+        "测试5号",
+        "",
+        "$ 0.00",
+        "款式",
+        "测试分类",
+        "2026-08-05 16:19:11",
+        "2026-08-05 16:19:21",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0) 编辑产品详情页面 (未编辑)"
+      ]
+    },
+    {
+      "name": "100\"-40\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n\t\t\t\t\t\t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"shelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t                    ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"FmKLvlfnwR",
+      "cells": [
+        "",
+        "",
+        "100\"-40\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
+        "HFS20191129",
+        "$ 100.00",
+        "款式",
+        "测试分类",
+        "2026-08-05 16:19:11",
+        "2026-08-05 16:19:20",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0) 编辑产品详情页面 (未编辑)"
+      ]
+    },
+    {
+      "name": "80\"-30\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"offShelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t        ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"ygKVlbAIwH",
+      "cells": [
+        "",
+        "",
+        "80\"-30\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
+        "",
+        "$ 100.00",
+        "款式",
+        "测试分类",
+        "2026-08-05 16:19:11",
+        "2026-08-05 16:19:19",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0)"
+      ]
+    },
+    {
+      "name": "4号",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"offShelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t        ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"qLKgbGAncV",
+      "cells": [
+        "",
+        "",
+        "4号",
+        "",
+        "$ 100.00",
+        "款式",
+        "测试分类",
+        "2026-08-05 16:19:10",
+        "2026-08-05 16:19:15",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0)"
+      ]
+    },
+    {
+      "name": "2号",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"offShelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t        ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"wopgQvAIHV",
+      "cells": [
+        "",
+        "",
+        "2号",
+        "",
+        "$ 100.00",
+        "款式",
+        "测试分类",
+        "2026-08-05 16:19:10",
+        "2026-08-05 16:19:13",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0)"
+      ]
+    },
+    {
+      "name": "产品7",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n\t\t\t\t\t\t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"shelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t                    ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"oEKqvbfltO",
+      "cells": [
+        "",
+        "",
+        "产品7",
+        "型号1",
+        "-",
+        "款式",
+        "测试分类",
+        "2026-08-05 10:34:08",
+        "2026-08-05 15:04:47",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0) 编辑产品详情页面 (未编辑)"
+      ]
+    },
+    {
+      "name": "测试产品hap",
+      "shelfText": "",
+      "shelfHtml": "\n               \t\t   \t\t\n               \t\t   \t\t\t\n\t\t\t\t\t\t\t\t\t\t<a action=\"prod_shelve\" href=\"javascript:;\" class=\"shelve\"></a>\n               \t\t   \t\t\t\n               \t\t   \t\t\t\n               \t\t   \t\t\n\t                    ",
+      "imgHtml": "\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\n\t\t\t\t\t    \t\t<span class=\"en\"><a style=\" width: 60px;height: 60px;text-align: center;vertical-align: middle;display: table-cell;\" href=\"javascript:void(0)\" action=\"prod_new_update\" prodid=\"lNALvlfpet",
+      "cells": [
+        "",
+        "",
+        "测试产品hap",
+        "",
+        "-",
+        "款式",
+        "测试分类",
+        "2026-08-03 14:06:28",
+        "2026-08-05 14:52:45",
+        "徐继迎",
+        "",
+        "0",
+        "",
+        "添加评价 (0) 编辑产品详情页面 (未编辑)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,885 @@
+{
+  "fields": {
+    "测试单选按钮A": {
+      "labelText": "测试单选按钮A",
+      "labelTag": "TH.",
+      "rowText": "测试单选按钮A 单选1-10 单选2-10 单选3-10 单选4-10 单选5-10 单选6-10 单选7-10 单选8-10 单选9-10 单选10-10",
+      "controls": [
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "1",
+          "checked": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "2",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "3",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "4",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "5",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "6",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "7",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "8",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "9",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "10",
+          "checked": false
+        }
+      ]
+    },
+    "测试下拉列表": {
+      "labelText": "测试下拉列表",
+      "labelTag": "TR.drag_tr",
+      "rowText": "测试单选按钮A 单选1-10 单选2-10 单选3-10 单选4-10 单选5-10 单选6-10 单选7-10 单选8-10 单选9-10 单选10-10 测试下拉列表 Series-xiala 测试文本 测试单选2 product 1 product 2 product 3 测试文本域 测试色卡 ▼ 这是下载文件 本地上传 选择文件 - 大小不超过30M 测试色卡2 ▼ 测试色卡3 ▼ 测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2 test1分类 test2分类 测试多选-改为文本 测试多选2 Se",
+      "controls": [
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "1",
+          "checked": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "2",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "3",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "4",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "5",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "6",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "7",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "8",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "9",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "10",
+          "checked": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "value": "1",
+          "options": [
+            {
+              "t": "下拉列表1-10",
+              "v": "1",
+              "sel": true
+            },
+            {
+              "t": "下拉列表21-10",
+              "v": "2",
+              "sel": false
+            },
+            {
+              "t": "下拉列表3-10",
+              "v": "3",
+              "sel": false
+            },
+            {
+              "t": "下拉列表4-10",
+              "v": "4",
+              "sel": false
+            },
+            {
+              "t": "下拉列表5-10",
+              "v": "5",
+              "sel": false
+            },
+            {
+              "t": "下拉列表6-10",
+              "v": "6",
+              "sel": false
+            },
+            {
+              "t": "下拉列表7-10",
+              "v": "7",
+              "sel": false
+            },
+            {
+              "t": "下拉列表8-10",
+              "v": "8",
+              "sel": false
+            },
+            {
+              "t": "下拉列表9-10",
+              "v": "9",
+              "sel": false
+            },
+            {
+              "t": "下拉列表10-10",
+              "v": "10",
+              "sel": false
+            }
+          ]
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "value": "1",
+          "options": [
+            {
+              "t": "Capacitor series with high",
+              "v": "1",
+              "sel": true
+            },
+            {
+              "t": "Resistor series",
+              "v": "2",
+              "sel": false
+            },
+            {
+              "t": "Resistor series with high ",
+              "v": "3",
+              "sel": false
+            },
+            {
+              "t": "Diode series",
+              "v": "4",
+              "sel": false
+            },
+            {
+              "t": "Inductor series",
+              "v": "5",
+              "sel": false
+            },
+            {
+              "t": "Transistor series",
+              "v": "6",
+              "sel": false
+            },
+            {
+              "t": "Connector series",
+              "v": "7",
+              "sel": false
+            },
+            {
+              "t": "PCB series",
+              "v": "8",
+              "sel": false
+            },
+            {
+              "t": "Sensor series with high Se",
+              "v": "9",
+              "sel": false
+            },
+            {
+              "t": "Integrated circuit seriesI",
+              "v": "10",
+              "sel": false
+            }
+          ]
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_829424",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_829824",
+          "value": "1",
+          "checked": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_829824",
+          "value": "2",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_829824",
+          "value": "3",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "color_831074",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "color_879814",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "color_879824",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "value": "1",
+          "options": [
+            {
+              "t": "product 1",
+              "v": "1",
+              "sel": true
+            },
+            {
+              "t": "product 2",
+              "v": "2",
+              "sel": false
+            },
+            {
+              "t": "product 3",
+              "v": "3",
+              "sel": false
+            }
+          ]
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "value": "1",
+          "options": [
+            {
+              "t": "aaa",
+              "v": "1",
+              "sel": true
+            },
+            {
+              "t": "bbb",
+              "v": "2",
+              "sel": false
+            },
+            {
+              "t": "ccc",
+              "v": "3",
+              "sel": false
+            }
+          ]
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "value": "1",
+          "options": [
+            {
+              "t": "xxx",
+              "v": "1",
+              "sel": true
+            },
+            {
+              "t": "bbb",
+              "v": "2",
+              "sel": false
+            },
+            {
+              "t": "vvv",
+              "v": "3",
+              "sel": false
+            }
+          ]
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_826564",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_829834",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_826604",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_826594",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898458",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898528",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898588",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898608",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898658",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_902148",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "product.fieldValueJson",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "sortStatus",
+          "value": "0",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "fieldSortJson",
+          "value": "{\"826554\":\"0\",\"826564\":\"13\",\"82657",
+          "checked": false
+        }
+      ]
+    },
+    "test1分类": {
+      "labelText": "test1分类",
+      "labelTag": "TR.drag_tr",
+      "rowText": "测试单选按钮A 单选1-10 单选2-10 单选3-10 单选4-10 单选5-10 单选6-10 单选7-10 单选8-10 单选9-10 单选10-10 测试下拉列表 Series-xiala 测试文本 测试单选2 product 1 product 2 product 3 测试文本域 测试色卡 ▼ 这是下载文件 本地上传 选择文件 - 大小不超过30M 测试色卡2 ▼ 测试色卡3 ▼ 测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2 test1分类 test2分类 测试多选-改为文本 测试多选2 Se",
+      "controls": [
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "1",
+          "checked": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "2",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "3",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "4",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "5",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "6",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "7",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "8",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "9",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "value": "10",
+          "checked": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "value": "1",
+          "options": [
+            {
+              "t": "下拉列表1-10",
+              "v": "1",
+              "sel": true
+            },
+            {
+              "t": "下拉列表21-10",
+              "v": "2",
+              "sel": false
+            },
+            {
+              "t": "下拉列表3-10",
+              "v": "3",
+              "sel": false
+            },
+            {
+              "t": "下拉列表4-10",
+              "v": "4",
+              "sel": false
+            },
+            {
+              "t": "下拉列表5-10",
+              "v": "5",
+              "sel": false
+            },
+            {
+              "t": "下拉列表6-10",
+              "v": "6",
+              "sel": false
+            },
+            {
+              "t": "下拉列表7-10",
+              "v": "7",
+              "sel": false
+            },
+            {
+              "t": "下拉列表8-10",
+              "v": "8",
+              "sel": false
+            },
+            {
+              "t": "下拉列表9-10",
+              "v": "9",
+              "sel": false
+            },
+            {
+              "t": "下拉列表10-10",
+              "v": "10",
+              "sel": false
+            }
+          ]
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "value": "1",
+          "options": [
+            {
+              "t": "Capacitor series with high",
+              "v": "1",
+              "sel": true
+            },
+            {
+              "t": "Resistor series",
+              "v": "2",
+              "sel": false
+            },
+            {
+              "t": "Resistor series with high ",
+              "v": "3",
+              "sel": false
+            },
+            {
+              "t": "Diode series",
+              "v": "4",
+              "sel": false
+            },
+            {
+              "t": "Inductor series",
+              "v": "5",
+              "sel": false
+            },
+            {
+              "t": "Transistor series",
+              "v": "6",
+              "sel": false
+            },
+            {
+              "t": "Connector series",
+              "v": "7",
+              "sel": false
+            },
+            {
+              "t": "PCB series",
+              "v": "8",
+              "sel": false
+            },
+            {
+              "t": "Sensor series with high Se",
+              "v": "9",
+              "sel": false
+            },
+            {
+              "t": "Integrated circuit seriesI",
+              "v": "10",
+              "sel": false
+            }
+          ]
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_829424",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_829824",
+          "value": "1",
+          "checked": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_829824",
+          "value": "2",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_829824",
+          "value": "3",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "color_831074",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "color_879814",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "color_879824",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "value": "1",
+          "options": [
+            {
+              "t": "product 1",
+              "v": "1",
+              "sel": true
+            },
+            {
+              "t": "product 2",
+              "v": "2",
+              "sel": false
+            },
+            {
+              "t": "product 3",
+              "v": "3",
+              "sel": false
+            }
+          ]
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "value": "1",
+          "options": [
+            {
+              "t": "aaa",
+              "v": "1",
+              "sel": true
+            },
+            {
+              "t": "bbb",
+              "v": "2",
+              "sel": false
+            },
+            {
+              "t": "ccc",
+              "v": "3",
+              "sel": false
+            }
+          ]
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "value": "1",
+          "options": [
+            {
+              "t": "xxx",
+              "v": "1",
+              "sel": true
+            },
+            {
+              "t": "bbb",
+              "v": "2",
+              "sel": false
+            },
+            {
+              "t": "vvv",
+              "v": "3",
+              "sel": false
+            }
+          ]
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_826564",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_829834",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_826604",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_826594",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898458",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898528",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898588",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898608",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898658",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_902148",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "product.fieldValueJson",
+          "value": "",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "sortStatus",
+          "value": "0",
+          "checked": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "fieldSortJson",
+          "value": "{\"826554\":\"0\",\"826564\":\"13\",\"82657",
+          "checked": false
+        }
+      ]
+    }
+  }
+}

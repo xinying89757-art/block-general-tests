@@ -1,0 +1,92 @@
+{
+  "blockId": "40838",
+  "compareBefore": [
+    {
+      "label": "关闭",
+      "checked": true
+    },
+    {
+      "label": "开启",
+      "checked": false
+    }
+  ],
+  "brandBefore": {
+    "checked": false,
+    "disabled": false
+  },
+  "compareAfterSave": [
+    {
+      "label": "关闭",
+      "checked": false
+    },
+    {
+      "label": "开启",
+      "checked": true
+    }
+  ],
+  "brandAfterSave": true,
+  "preview": {
+    "cmp": [],
+    "productCount": 20,
+    "firstItemHtml": "<div class=\"one-pruduct-item prodlist-box-hover\" data-prodid=\"165976598\"> <div class=\"prodTabList-wrapper\"> <div class=\"prodTabList-bag\"> <div class=\"tabList-wrapper-inner\"> <div class=\"prodTabList-cell\"> <a href=\"/2-pd104320438.html\" title=\"测试产品小何2\"> <img src=\"//a0.leadongcdn.com/cloud/plBpjKpoljSRplkommlkkm/Camera_1040g3k031gf92qch38005pm87ajncd8ph9dpgeg-460-460.jpg\" alt=\"测试产品小何2\"> </a> </div> <div class=\"tabList-wrapper-inner-compare-flex\"> <div class=\"compared-input-wrap\"> <input data-proid=\"NmKqGFoHbPJy\" class=\"compared-input\" type=\"checkbox\" name=\"\">Add to Compare </div> </div> </div> <div class=\"prodlist-flex\"> <div class=\"prodlist-pro-name\"> <a href=\"/2-pd104320438.html\" title=\"测试产品小何2\">测试产品小何2</a> </div> <div class=\"prodlist-btn-one\"> <a href=\"/2-pd104320438.html\" title=\"测试产品小何2\">Learn More</a> <a class=\"inquiry_form\" href=\"javascript:void(0)\">Inquiry</a> </div> </div> </div> <div class=\"tabList-wrapper-inner-compare-flex\"> <div class=\"compared-input-wrap\"> <input data-proid=\"NmKqGFoHbPJy\" class=\"compared-input\" type=\"checkbox\" name=\"\">Add to Compare </div> </div> <div class=\"prodBrief-one\"></div> <div class=\"prodlist-btn\"> <a href=\"/2-pd104320438.html\" title=\"测试产品小何2\">Learn More</a> <a class=\"inquiry_form\" href=\"javascript:void(0)\">Inquiry</a> </div> </div> <div class=\"prodTabList-sitewidget\"> <div class=\"prodTabList-sitewidget_top\"> <div class=\"type_text\" title=\"Brand小狗狗\"> <div class=\"type_text_left\"> <span>Brand</span> </div> <div class=\"type_text_right\" data-url="
+  },
+  "pageScan": {
+    "hits": [],
+    "url": "http://en-site40083596.preview.leadong.com/products.html"
+  },
+  "addControlCount": 0,
+  "clicks": [],
+  "bottomBar": {
+    "hits": [
+      {
+        "tag": "DIV",
+        "cls": "one-pruduct-item prodlist-box-hover",
+        "text": "Add to Compare 测试产品小何2 Learn More Inquiry Brand 小狗狗"
+      },
+      {
+        "tag": "DIV",
+        "cls": "prodTabList-wrapper",
+        "text": "Add to Compare 测试产品小何2 Learn More Inquiry"
+      },
+      {
+        "tag": "DIV",
+        "cls": "prodTabList-bag",
+        "text": "Add to Compare 测试产品小何2"
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner",
+        "text": "Add to Compare"
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare"
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare"
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare"
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare"
+      }
+    ],
+    "url": "http://en-site40083596.preview.leadong.com/products.html"
+  },
+  "submitCount": 1,
+  "submitError": "locator.scrollIntoViewIfNeeded: Timeout 4969.991000000009ms exceeded.\nCall log:\n  - attempting scroll into view action\n    2 × waiting for element to be stable\n      - element is not visible\n    - retrying scroll into view action\n    - waiting 20ms\n    2 × waiting for element to be stable\n      - el",
+  "afterSubmit": {
+    "url": "http://en-site40083596.preview.leadong.com/products.html",
+    "title": "【权限】产品全文搜索、图片搜索",
+    "bodyStart": "Home Products Solution 测试私有属性 Services & Support News About Us 一级Anti Static Packaging Materials 二级Others Hydraulic cylinder 三级Container Liner Bag Email Follow Search Energy Mining Water Treatment General Industry Warranty Training Download FAQ Video Company Introduction Corporate Culture Development History New Machine Anti Static Packaging Materials Fitness resistance Hydraulic adapter Hydraulic cylinder Hydraulic manifold block Hydraulic power unit HYDRAULIC ROD ENDS Linear Actuator / Electri"
+  },
+  "restored": true
+}

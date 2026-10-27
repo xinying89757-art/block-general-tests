@@ -1,0 +1,66 @@
+{
+  "blockId": "47748",
+  "dom": {
+    "disabled": false,
+    "readOnly": false,
+    "checked": false,
+    "type": "radio",
+    "name": "826554",
+    "value": "826554_1",
+    "rect": {
+      "x": 132,
+      "y": 2181,
+      "w": 16,
+      "h": 16
+    },
+    "computed": {
+      "pointerEvents": "none",
+      "opacity": "1"
+    },
+    "topAtCenter": null,
+    "ancestors": [
+      {
+        "tag": "INPUT",
+        "cls": "",
+        "pointerEvents": "none",
+        "display": "block",
+        "visibility": "visible"
+      },
+      {
+        "tag": "LABEL",
+        "cls": "pf-opt",
+        "pointerEvents": "none",
+        "display": "flex",
+        "visibility": "visible"
+      },
+      {
+        "tag": "DIV",
+        "cls": "pf-field-body",
+        "pointerEvents": "none",
+        "display": "block",
+        "visibility": "visible"
+      },
+      {
+        "tag": "DIV",
+        "cls": "pf-field-group open",
+        "pointerEvents": "none",
+        "display": "block",
+        "visibility": "visible"
+      },
+      {
+        "tag": "FORM",
+        "cls": "prodfield-form",
+        "pointerEvents": "none",
+        "display": "block",
+        "visibility": "visible"
+      },
+      {
+        "tag": "DIV",
+        "cls": "pf-filter-wrap prodfield-container backstage-blocksEditor-wrap",
+        "pointerEvents": "none",
+        "display": "block",
+        "visibility": "visible"
+      }
+    ]
+  }
+}

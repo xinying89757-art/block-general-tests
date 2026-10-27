@@ -1,0 +1,78 @@
+{
+  "frameUrl": "https://website.leadong.com/prod",
+  "filterDump": {
+    "selects": [
+      {
+        "name": "searchShowFlag",
+        "id": "searchShowFlag",
+        "cls": "search-newsCategory",
+        "label": "上架状态：",
+        "options": [
+          "请选择上架状态",
+          "所有",
+          "上架",
+          "下架"
+        ]
+      },
+      {
+        "name": "publisher",
+        "id": "publisher",
+        "cls": "search-newsCategory",
+        "label": "负责人：",
+        "options": [
+          "请选择负责人",
+          "徐继迎",
+          "xuxu",
+          "yy",
+          "徐继迎"
+        ]
+      },
+      {
+        "name": "searchSkuState",
+        "id": "searchSkuState",
+        "cls": "search-newsCategory",
+        "label": "SKU状态：",
+        "options": [
+          "请选择状态",
+          "Pre Order"
+        ]
+      }
+    ],
+    "inputs": [
+      {
+        "placeholder": "请输入图片Alt属性",
+        "name": ""
+      },
+      {
+        "placeholder": "请输入图片Title属性",
+        "name": ""
+      },
+      {
+        "placeholder": "x",
+        "name": ""
+      },
+      {
+        "placeholder": "y",
+        "name": ""
+      },
+      {
+        "placeholder": "width",
+        "name": ""
+      },
+      {
+        "placeholder": "height",
+        "name": ""
+      },
+      {
+        "placeholder": "rotate",
+        "name": ""
+      },
+      {
+        "placeholder": "请选择标签",
+        "name": "lf_checkboxvalue"
+      }
+    ],
+    "head": "产品 管理产品 添加产品 产品排序 管理产品分类 产品分类排序 添加产品分类 管理自定义字段 产品标签 SKU状态 设置产品图片水印 产品回收站 管理产品 添加产品 批量导入 产品导出 搜索： 上架状态： 分类： 请选择产品分类 更新时间： 负责人： 产品标签： SKU状态： 页面URL: 查询 重置 批量设置 标签设置 分类设置 删除 下载产品链接二维码 分配负责人 批量编辑 产品图片 产品名称 型号 产品价格 SKU 产品分类 添加时间 更新时间 负责人 上架 收藏 标签 操作 测试产品小何2 11123456 - 款式 Ungrouped 2026-08-03 11:33:17 2026-10-23 16:17:30 徐继迎 0 添加评价 (0) 编辑产品详情页面 (未编辑) 测试产品小何1 - 款式 Ungrouped 2026-08-03 11:14:58 2026-10-23 16:16:41 徐继迎 0 添加评价 (0) 编辑产品详情页面 (未编辑) 测试产品A - 款式 测试分类 2026-08-03 11:05:50 2026-10-23 16:13:27 徐继迎 0 添加评价 (0) 编辑产品详情页面 (未编辑) 测试数字--10 - 款式 Ungrouped 2026-09-04 15:48:50 2026-10-08 16:28:26 徐继迎 0 添加评价 (0) 编辑产品详情页面 (未编辑) 测试数字--9 - 款式 Ungrouped 2026-09-04 15:48:34 2026-09-04 15:48:34 徐继迎 0 添加评价 (0) 编辑产品详情页面 (未编辑) 测试数字--8 - 款式 Ungrouped 2026-09-04 15:48:25 2026-09-04 15:48:25 徐继迎 0 添加评价 (0) 编辑产品详情页面 ("
+  },
+  "categorySelect": null
+}

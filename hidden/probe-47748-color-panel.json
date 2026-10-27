@@ -1,0 +1,17 @@
+{
+  "blockId": "47748",
+  "colorPanel": [
+    {
+      "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+      "rect": {
+        "x": 1312,
+        "y": 239,
+        "w": 180,
+        "h": 148
+      },
+      "text": "颜色\n重置\n保存",
+      "html": "<div class=\"siteblocks-setting-operateColor backstage-container-layout-setting\">\t<div class=\"blocks-color-hd\">颜色</div>\t<ul class=\"fix\"><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal1\" class=\"siteblocks-setting-color\" value=\"#1C4587\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgb(28, 69, 135);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li>\t</ul>\t<div class=\"siteblocks-background-operate\">\t\t<span class=\"siteblocks-color-operateReset\">重置</span>\t\t<span class=\"siteblocks-background-operateSave\">保存</span>\t</div></div>"
+    }
+  ],
+  "afterTelescopic": []
+}

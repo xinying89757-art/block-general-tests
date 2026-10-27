@@ -1,0 +1,17 @@
+{
+  "name": "block-general-tests",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:block": "node src/run.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "17.4.2",
+    "playwright-core": "1.56.1"
+  }
+}

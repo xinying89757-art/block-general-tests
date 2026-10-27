@@ -1,0 +1,248 @@
+{
+  "frameUrl": "https://website.leadong.com/prod",
+  "options": [
+    {
+      "text": "请选择产品分类",
+      "valueid": "",
+      "visible": true
+    },
+    {
+      "text": "Anti Static Packaging Materials",
+      "valueid": "uvpKVzbGTgst",
+      "visible": true
+    },
+    {
+      "text": "Chemical Bag",
+      "valueid": "prpKVevGJgWt",
+      "visible": true
+    },
+    {
+      "text": "Container Liner Bag",
+      "valueid": "CNpUgzQvdolE",
+      "visible": true
+    },
+    {
+      "text": "Cosmetic Packaging Bag",
+      "valueid": "nLpUBelGJgVE",
+      "visible": true
+    },
+    {
+      "text": "Clutch and brake",
+      "valueid": "rLfUgoHsSTAO",
+      "visible": true
+    },
+    {
+      "text": "COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS",
+      "valueid": "GIpABJHDdemj",
+      "visible": true
+    },
+    {
+      "text": "Composite Packaging Materials",
+      "valueid": "mgpULevQzAqZ",
+      "visible": true
+    },
+    {
+      "text": "Custom hydraulic cylinder",
+      "valueid": "wvKfLelQzMtE",
+      "visible": true
+    },
+    {
+      "text": "Fitness resistance",
+      "valueid": "upKAVobGeqJO",
+      "visible": true
+    },
+    {
+      "text": "Hydraulic adapter",
+      "valueid": "vWAfqJRiIzYZ",
+      "visible": true
+    },
+    {
+      "text": "Hydraulic cylinder",
+      "valueid": "AdpALTGbJglj",
+      "visible": true
+    },
+    {
+      "text": "Others Hydraulic cylinder",
+      "valueid": "qWpABJvbeCht",
+      "visible": true
+    },
+    {
+      "text": "Standard Welded hydraulic cylinder",
+      "valueid": "AvpfBzQbeqdj",
+      "visible": true
+    },
+    {
+      "text": "Tie Rod Hydraulic Cylinder",
+      "valueid": "ARAUgovGJLcZ",
+      "visible": true
+    },
+    {
+      "text": "Hydraulic manifold block",
+      "valueid": "qLKAVzbGoWYj",
+      "visible": true
+    },
+    {
+      "text": "Hydraulic power unit",
+      "valueid": "mApfVeQlJMKj",
+      "visible": true
+    },
+    {
+      "text": "HYDRAULIC ROD ENDS",
+      "valueid": "BFfKLTRiIzaj",
+      "visible": true
+    },
+    {
+      "text": "Linear Actuator / Electric cylinder",
+      "valueid": "BTAUqeHDdogZ",
+      "visible": true
+    },
+    {
+      "text": "Mesh Fence",
+      "valueid": "vVKfgomiSJOj",
+      "visible": true
+    },
+    {
+      "text": "Multi-Function Packing Machine",
+      "valueid": "HbApgJvQdeIO",
+      "visible": true
+    },
+    {
+      "text": "Multilateral Sealing Bag",
+      "valueid": "nNpKgTvQoAUt",
+      "visible": true
+    },
+    {
+      "text": "other",
+      "valueid": "CPfKBemNnzQZ",
+      "visible": true
+    },
+    {
+      "text": "Packaging Bags",
+      "valueid": "sZAUBoGveKEt",
+      "visible": true
+    },
+    {
+      "text": "Packing Machinery Parts",
+      "valueid": "HRfAVzGQdowt",
+      "visible": true
+    },
+    {
+      "text": "Pet Food Bag",
+      "valueid": "vGfUBovlJgjt",
+      "visible": true
+    },
+    {
+      "text": "Plastic Film",
+      "valueid": "CIfpBTGvJAeZ",
+      "visible": true
+    },
+    {
+      "text": "Roll Film",
+      "valueid": "yHAKVJGQzplt",
+      "visible": true
+    },
+    {
+      "text": "Shrink Film",
+      "valueid": "uEKfqzGlJgat",
+      "visible": true
+    },
+    {
+      "text": "Snack Bag",
+      "valueid": "tdpAqevlJBUO",
+      "visible": true
+    },
+    {
+      "text": "Special Shaped Bag",
+      "valueid": "rEfAqJvGTKNO",
+      "visible": true
+    },
+    {
+      "text": "Spout Pouch",
+      "valueid": "wRpAqzQleUuE",
+      "visible": true
+    },
+    {
+      "text": "Stand Up Pouch",
+      "valueid": "nLpfVebloKCE",
+      "visible": true
+    },
+    {
+      "text": "Storage Cage",
+      "valueid": "vifKLewDyTMO",
+      "visible": true
+    },
+    {
+      "text": "Telescopic hydraulic cylinder",
+      "valueid": "qsKUBJQGeWqE",
+      "visible": true
+    },
+    {
+      "text": "U Shaped Container Bag",
+      "valueid": "KdKfgJGQyToE",
+      "visible": true
+    },
+    {
+      "text": "Vacuum Packing Bag",
+      "valueid": "sAKpgoGQJUIZ",
+      "visible": true
+    },
+    {
+      "text": "Valve Integrated hydraulic cylinder",
+      "valueid": "yTAKLowDcdUO",
+      "visible": true
+    },
+    {
+      "text": "Zipper Bag",
+      "valueid": "wkfAgJlGeUHE",
+      "visible": true
+    },
+    {
+      "text": "PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high",
+      "valueid": "EJKUqzlQiRTj",
+      "visible": true
+    },
+    {
+      "text": "Basic resistor series",
+      "valueid": "pNfUgolbsyAE",
+      "visible": true
+    },
+    {
+      "text": "Circular mil - spec connector series for aerospace applications",
+      "valueid": "zPpUqolQNnmZ",
+      "visible": true
+    },
+    {
+      "text": "Pressure sensor series for industrial applications",
+      "valueid": "ukAfLJbQDIYE",
+      "visible": true
+    },
+    {
+      "text": "Resettable polymeric positive temperature coefficient fuse series",
+      "valueid": "pWAKLebQiyVj",
+      "visible": true
+    },
+    {
+      "text": "测试分类",
+      "valueid": "mzKfhBkROUgn",
+      "visible": true
+    },
+    {
+      "text": "未分组",
+      "valueid": "GvUApKfKKUAU",
+      "visible": true
+    }
+  ],
+  "picked": {
+    "valueid": "mzKfhBkROUgn"
+  },
+  "triggerAfterPick": "测试分类",
+  "queried": true,
+  "filtered": {
+    "rowCount": 0,
+    "rows": [],
+    "totalHint": [
+      "共 11 条"
+    ],
+    "head": "产品 管理产品 添加产品 产品排序 管理产品分类 产品分类排序 添加产品分类 管理自定义字段 产品标签 SKU状态 设置产品图片水印 产品回收站 管理产品 添加产品 批量导入 产品导出 搜索： 上架状态： 分类： 测试分类 更新时间： 负责人： 产品标签： SKU状态： 页面URL: 查询 重置 批量设置 标签设置 分类设置 删除 下载产品链接二维码 分配负责人 批量编辑 产品图片 产品名称 型号"
+  }
+}

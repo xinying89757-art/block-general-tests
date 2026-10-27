@@ -1,0 +1,77 @@
+{
+  "blockId": "47748",
+  "width": {
+    "hits": [
+      {
+        "where": "descendant",
+        "tag": "DIV",
+        "cls": "location_blockCon47648_pack hasDefaultWidth container",
+        "maxWidth": "1440px",
+        "width": 1440
+      },
+      {
+        "where": "descendant",
+        "tag": "DIV",
+        "cls": "blockCon47648 pf-collecting",
+        "maxWidth": "1440px",
+        "width": 1360
+      }
+    ],
+    "widths": {
+      "wrap": 1600,
+      "list": 976,
+      "cate": 360,
+      "btn": 360
+    },
+    "viewportWidth": 1600
+  },
+  "cateClickError": "locator.click: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.siteblocks-setting-wrap[data-appid=\"47748\"]').first().locator('.pf-cate-wrap a').filter({ hasText: 'Hydraulic cylinder' }).first()\n    - locator resolved to <a groupid=\"19738974\" href=\"/COMPONENTS-PARTS-FOR-HYDRAULIC-CYLINDERS-pl41905197.html\">COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS</a>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 100ms\n    18 × waiting for element to be visible, enabled and stable\n       - element is not visible\n     - retrying click action\n       - waiting 500ms\n",
+  "afterCategoryClick": {
+    "all": [
+      {
+        "text": "Anti Static Packaging Material",
+        "color": "rgb(34, 34, 34)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "cls": ""
+      },
+      {
+        "text": "Chemical Bag",
+        "color": "rgb(34, 34, 34)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "cls": ""
+      },
+      {
+        "text": "Clutch and brake",
+        "color": "rgb(34, 34, 34)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "cls": ""
+      },
+      {
+        "text": "COMPONENTS / PARTS FOR HYDRAUL",
+        "color": "rgb(34, 34, 34)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "cls": ""
+      },
+      {
+        "text": "Composite Packaging Materials",
+        "color": "rgb(34, 34, 34)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "cls": ""
+      },
+      {
+        "text": "Custom hydraulic cylinder",
+        "color": "rgb(34, 34, 34)",
+        "bg": "rgba(0, 0, 0, 0)",
+        "cls": ""
+      }
+    ],
+    "listHead": [
+      "测试产品小何2",
+      "测试产品小何1",
+      "测试产品A",
+      "测试数字--10",
+      "测试数字--9"
+    ],
+    "url": "http://en-site40083596.preview.leadong.com/products.html"
+  }
+}

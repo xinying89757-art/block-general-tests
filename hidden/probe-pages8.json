@@ -1,0 +1,137 @@
+{
+  "steps": [
+    {
+      "step": "overlay-state",
+      "overlays": [
+        {
+          "cls": "backstage-dialog-overlay hide",
+          "display": "block",
+          "visibility": "visible",
+          "opacity": "0.36",
+          "pointerEvents": "auto"
+        }
+      ],
+      "visibleDialogs": [
+        "backstage-dialog hide backstage-dialog-halfscreen ui-draggable"
+      ],
+      "pageLabelClickable": "DIV.backstage-dialog-overlay hide"
+    },
+    {
+      "0": {
+        "name": "Home",
+        "title": "Home",
+        "pageurl": "http://en-site40083596.ldyjz.com/index.html",
+        "href": "/phoenix/pagebuilder/ETKfOPuWNzod"
+      },
+      "1": {
+        "name": "About Us",
+        "title": "About Us",
+        "pageurl": "http://en-site40083596.ldyjz.com/aboutus.html",
+        "href": "/phoenix/pagebuilder/qTKfOaFMjAZy"
+      },
+      "2": {
+        "name": "Solution",
+        "title": "Solution",
+        "pageurl": "http://en-site40083596.ldyjz.com/Solution.html",
+        "href": "/phoenix/pagebuilder/jLKpOkaWjgtI"
+      },
+      "3": {
+        "name": "Energy",
+        "title": "Energy",
+        "pageurl": "http://en-site40083596.ldyjz.com/Energy.html",
+        "href": "/phoenix/pagebuilder/oZKfjPaCtgby"
+      },
+      "4": {
+        "name": "Mining",
+        "title": "Mining",
+        "pageurl": "http://en-site40083596.ldyjz.com/Mining.html",
+        "href": "/phoenix/pagebuilder/nCpKtPuMjBmd"
+      },
+      "5": {
+        "name": "Water Treatment",
+        "title": "Water Treatment",
+        "pageurl": "http://en-site40083596.ldyjz.com/Water-Treatment.html",
+        "href": "/phoenix/pagebuilder/tmpfEauWjBnd"
+      },
+      "6": {
+        "name": "General Industry",
+        "title": "General Industry",
+        "pageurl": "http://en-site40083596.ldyjz.com/General-Industry.html",
+        "href": "/phoenix/pagebuilder/skpKtPuWEqTd"
+      },
+      "7": {
+        "name": "Warranty Training",
+        "title": "Warranty Training",
+        "pageurl": "http://en-site40083596.ldyjz.com/Warranty-Training.html",
+        "href": "/phoenix/pagebuilder/kPfpOakhErKI"
+      },
+      "8": {
+        "name": "Video",
+        "title": "Video",
+        "pageurl": "http://en-site40083596.ldyjz.com/240126204504.html",
+        "href": "/phoenix/pagebuilder/oyKfZuaCOhVI"
+      },
+      "9": {
+        "name": "定制区块",
+        "title": "定制区块",
+        "pageurl": "http://en-site40083596.ldyjz.com/index124.html",
+        "href": "/phoenix/pagebuilder/kaUfjuFWZtMO"
+      },
+      "10": {
+        "name": "1545",
+        "title": "1545",
+        "pageurl": "http://en-site40083596.ldyjz.com/1545.html",
+        "href": "/phoenix/pagebuilder/rEfAjFPtzhuZ"
+      },
+      "11": {
+        "name": "ceshicp",
+        "title": null,
+        "pageurl": "http://en-site40083596.ldyjz.com/ceshicp.html",
+        "href": null
+      },
+      "12": {
+        "name": "测试私有属性",
+        "title": "测试私有属性",
+        "pageurl": "http://en-site40083596.ldyjz.com/cssy0.html",
+        "href": "/phoenix/pagebuilder/ENpKOkdHjQJI"
+      },
+      "13": {
+        "name": "测试私有4.0",
+        "title": null,
+        "pageurl": "http://en-site40083596.ldyjz.com/4cssy-0.html",
+        "href": null
+      },
+      "14": {
+        "name": "测试1531",
+        "title": "测试1531",
+        "pageurl": "http://en-site40083596.ldyjz.com/1531.html",
+        "href": "/phoenix/pagebuilder/pDpUOGBnWyKd"
+      },
+      "15": {
+        "name": "2042",
+        "title": null,
+        "pageurl": "http://en-site40083596.ldyjz.com/2042.html",
+        "href": null
+      },
+      "16": {
+        "name": "1542",
+        "title": "1542",
+        "pageurl": "http://en-site40083596.ldyjz.com/1542.html",
+        "href": "/phoenix/pagebuilder/uyKUjGOziNAS"
+      },
+      "17": {
+        "name": "0940",
+        "title": "0940",
+        "pageurl": "http://en-site40083596.ldyjz.com/0940.html",
+        "href": "/phoenix/pagebuilder/stAUjlFVLuJn"
+      },
+      "18": {
+        "name": "1539",
+        "title": "1539",
+        "pageurl": "http://en-site40083596.ldyjz.com/1539.html",
+        "href": "/phoenix/pagebuilder/tPfAtGbcUuDy"
+      },
+      "step": "custom-list-after"
+    }
+  ]
+}

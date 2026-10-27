@@ -1,0 +1,357 @@
+// Block style spec: design-file conformance + breakage checks.
+//
+// The capability is generic: every expected value lives in the profile
+// (capability.styleSpec), never in this file. Each block has its own design
+// file and its own values; a new block only needs a styleSpec entry, produced
+// by scripts/figma-style-extract.mjs and confirmed once by a human (mapping
+// Figma node -> DOM selector, which items are hard asserts vs record).
+//
+// Viewports: pc compares against the design frame; pad/mobile have no design
+// frame for 47748 (styleSpec.designFrames lists only "pc"), so those run
+// breakage checks only (horizontal overflow, sticking out, overlap, text
+// clipping, image distortion) plus screenshots for human review.
+// Two assertion kinds: computed values (fontSize/color/...) and geometry
+// (e.g. text centered in its box — lineHeight/textAlign are NOT compared
+// when flex does the centering, per the 47748 button/pagination lesson).
+import { previewSelector } from './shared.mjs';
+
+const SUITE = 'capability:block-style-spec';
+
+function result(id, status, detail, evidence) {
+  return {
+    id, name: NAMES[id], suite: SUITE, status, detail,
+    ...(evidence === undefined ? {} : { evidence }),
+  };
+}
+
+const NAMES = {
+  'bss-button-text': '按钮文字样式',
+  'bss-button-bg': '按钮背景样式',
+  'bss-nav-parent': '分类导航父级样式',
+  'bss-nav-leaf': '分类导航叶子样式',
+  'bss-filter-title': '筛选组标题样式',
+  'bss-filter-option': '筛选值样式',
+  'bss-product-name': '产品名样式',
+  'bss-product-name-clamp': '产品名行数限制',
+  'bss-details-link': '产品卡 details 链接',
+  'bss-pagination-current': '分页当前页样式',
+  'bss-pagination-other': '分页非当前页样式',
+  'bss-breakage-pc': 'PC 端样式错乱检查',
+  'bss-breakage-pad': 'Pad 端样式错乱检查',
+  'bss-breakage-mobile': '移动端样式错乱检查',
+};
+
+const normColor = (c) => {
+  const m = (c || '').match(/rgba?\(([^)]+)\)/);
+  if (!m) return (c || '').toLowerCase();
+  const [r, g, b] = m[1].split(',').map((x) => parseInt(x.trim(), 10));
+  return '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('');
+};
+const px = (v) => {
+  const n = parseFloat(String(v ?? '').replace('px', ''));
+  return Number.isFinite(n) ? n : null;
+};
+const close = (a, b, tol) => a != null && b != null && Math.abs(a - b) <= tol;
+
+function compareProps(expected, actual, tolPx) {
+  const diffs = [];
+  for (const [k, want] of Object.entries(expected)) {
+    const got = actual[k];
+    let ok;
+    if (typeof want === 'number') ok = close(got, want, tolPx);
+    else ok = String(got ?? '').toLowerCase() === String(want).toLowerCase();
+    if (!ok) diffs.push(`${k}: 设计 ${want} / 实测 ${got}`);
+  }
+  return diffs;
+}
+
+// Read the elements one styleSpec item needs, inside the block root.
+async function readItem(frame, rootSel, item) {
+  return frame.evaluate(({ rootSel, item }) => {
+    const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
+    const root = document.querySelector(rootSel);
+    if (!root) return { error: `预览里没有找到区块根节点 ${rootSel}` };
+    const cs = (el) => getComputedStyle(el);
+    const num = (el, prop) => { const n = parseFloat(cs(el)[prop]); return Number.isFinite(n) ? n : null; };
+    const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && cs(el).visibility !== 'hidden'; };
+    const styleOf = (el) => ({
+      fontSize: num(el, 'fontSize'),
+      fontWeight: parseInt(cs(el).fontWeight, 10) || null,
+      lineHeight: num(el, 'lineHeight'),
+      color: cs(el).color,
+      backgroundColor: cs(el).backgroundColor,
+      borderColor: cs(el).borderColor,
+      borderRadius: num(el, 'borderRadius'),
+      textAlign: cs(el).textAlign,
+      letterSpacing: num(el, 'letterSpacing'),
+      width: Math.round(el.getBoundingClientRect().width),
+      height: Math.round(el.getBoundingClientRect().height),
+    });
+    const centered = (el) => {
+      const range = document.createRange();
+      const textNode = [...el.childNodes].find((n) => n.nodeType === 3 && norm(n.textContent));
+      if (!textNode) return null;
+      range.selectNodeContents(textNode);
+      const t = range.getBoundingClientRect();
+      const o = el.getBoundingClientRect();
+      if (!t.width || !t.height) return null;
+      return {
+        dxLeft: +(t.left - o.left).toFixed(1), dxRight: +(o.right - t.right).toFixed(1),
+        dyTop: +(t.top - o.top).toFixed(1), dyBottom: +(o.bottom - t.bottom).toFixed(1),
+      };
+    };
+    const out = { elements: [] };
+    const push = (el, label) => {
+      const entry = { label, ...styleOf(el) };
+      if (item.geometry?.centered) entry.centered = centered(el);
+      out.elements.push(entry);
+    };
+    switch (item.kind) {
+      case 'text': {
+        const el = [...root.querySelectorAll(item.selector)].find((x) => norm(x.innerText) === item.text);
+        if (el) push(el, item.text);
+        break;
+      }
+      case 'first': {
+        const el = root.querySelector(item.selector);
+        if (el) push(el, item.selector);
+        break;
+      }
+      case 'sample': {
+        const els = [...root.querySelectorAll(item.selector)].filter(vis).slice(0, item.sample ?? 2);
+        els.forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
+        break;
+      }
+      case 'nav-parent': {
+        const links = [...root.querySelectorAll('.pf-cate-wrap a')].filter(vis);
+        const parents = links.filter((a) => {
+          const li = a.closest('li');
+          return li && li.parentElement?.closest('li') == null && li.querySelector('ul');
+        });
+        parents.slice(0, 2).forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
+        break;
+      }
+      case 'nav-leaf': {
+        const links = [...root.querySelectorAll('.pf-cate-wrap a')].filter(vis);
+        const leaves = links.filter((a) => {
+          const li = a.closest('li');
+          return li && !li.querySelector('ul');
+        });
+        leaves.slice(0, 2).forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
+        break;
+      }
+      case 'presence': {
+        const found = [...root.querySelectorAll('a, button, span')].filter((el) => norm(el.innerText).toLowerCase() === String(item.text).toLowerCase() && vis(el));
+        out.count = found.length;
+        out.cardCount = [...root.querySelectorAll('.prodlist-pro-name')].filter(vis).length;
+        break;
+      }
+      default:
+        out.error = `未知 styleSpec kind: ${item.kind}`;
+    }
+    return out;
+  }, { rootSel, item });
+}
+
+// Breakage checks (no design frame needed): horizontal overflow, elements
+// sticking out of the block wrap, overlapping leaf text, clipped text,
+// distorted images. Returns findings; empty means clean.
+async function breakage(frame, rootSel) {
+  return frame.evaluate((rootSel) => {
+    const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
+    const root = document.querySelector(rootSel);
+    if (!root) return { error: 'no root' };
+    const res = { viewportWidth: window.innerWidth, docScrollWidth: document.documentElement.scrollWidth, horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1 };
+    const wrapBox = root.getBoundingClientRect();
+    const sticking = [];
+    for (const el of root.querySelectorAll('*')) {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      if (r.right > wrapBox.right + 1.5 || r.left < wrapBox.left - 1.5) {
+        const t = norm(el.innerText).slice(0, 30);
+        if (t || el.tagName === 'IMG') sticking.push({ tag: el.tagName, text: t, overRight: Math.round(r.right - wrapBox.right), overLeft: Math.round(wrapBox.left - r.left) });
+        if (sticking.length >= 10) break;
+      }
+    }
+    res.stickingOut = sticking;
+    const leaves = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const hasTextChild = [...node.childNodes].some((n) => n.nodeType === 3 && norm(n.textContent));
+      const hasElChildWithText = [...node.children].some((c) => norm(c.innerText));
+      if (!hasTextChild || hasElChildWithText) continue;
+      const r = node.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      const s = getComputedStyle(node);
+      if (s.visibility === 'hidden' || s.display === 'none') continue;
+      leaves.push({ text: norm(node.innerText).slice(0, 24), box: r });
+    }
+    const overlaps = [];
+    for (let i = 0; i < leaves.length; i++) {
+      for (let j = i + 1; j < leaves.length; j++) {
+        const a = leaves[i].box, b = leaves[j].box;
+        const ix = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+        const iy = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+        const inter = ix * iy;
+        const smaller = Math.min(a.width * a.height, b.width * b.height);
+        if (smaller > 0 && inter / smaller > 0.3) {
+          overlaps.push({ a: leaves[i].text, b: leaves[j].text, ratio: +(inter / smaller).toFixed(2) });
+          if (overlaps.length >= 10) break;
+        }
+      }
+      if (overlaps.length >= 10) break;
+    }
+    res.overlaps = overlaps;
+    const clipped = [];
+    for (const el of root.querySelectorAll('*')) {
+      if (el.scrollWidth > el.clientWidth + 1) {
+        const s = getComputedStyle(el);
+        if (s.overflowX === 'hidden' || s.overflowX === 'clip' || s.textOverflow === 'ellipsis') {
+          clipped.push({ tag: el.tagName, text: norm(el.innerText).slice(0, 30) });
+          if (clipped.length >= 10) break;
+        }
+      }
+    }
+    res.textClipped = clipped;
+    const imgs = [];
+    for (const img of root.querySelectorAll('img')) {
+      if (!img.naturalWidth || !img.complete) continue;
+      const r = img.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      const fit = getComputedStyle(img).objectFit;
+      const disp = r.width / r.height, nat = img.naturalWidth / img.naturalHeight;
+      if (fit !== 'cover' && Math.abs(disp - nat) / nat > 0.05) {
+        imgs.push({ src: (img.currentSrc || img.src).slice(-40), disp: +disp.toFixed(2), nat: +nat.toFixed(2), fit });
+        if (imgs.length >= 10) break;
+      }
+    }
+    res.imgDistorted = imgs;
+    return res;
+  }, rootSel);
+}
+
+function breakageFindings(b) {
+  const f = [];
+  if (b.horizontalOverflow) f.push(`页面横向溢出（文档宽 ${b.docScrollWidth} > 视口宽 ${b.viewportWidth}）`);
+  if (b.stickingOut?.length) f.push(`超框 ${b.stickingOut.length} 处：${b.stickingOut.map((x) => x.text || x.tag).join('、')}`);
+  if (b.overlaps?.length) f.push(`重叠 ${b.overlaps.length} 处：${b.overlaps.map((x) => `「${x.a}」压「${x.b}」`).join('、')}`);
+  if (b.textClipped?.length) f.push(`文字被截 ${b.textClipped.length} 处：${b.textClipped.map((x) => x.text).join('、')}`);
+  if (b.imgDistorted?.length) f.push(`图片失真 ${b.imgDistorted.length} 处`);
+  return f;
+}
+
+export async function runFrontLayer({ frame, previewPage, config, capability }) {
+  const spec = capability?.styleSpec;
+  const skipAll = (reason) => Object.keys(NAMES).map((id) => result(id, 'skip', reason));
+  if (!spec?.items?.length) return skipAll('画像里没有 styleSpec，未做样式比对。');
+  const tolPx = spec.tolerances?.px ?? 0.6;
+  const viewports = spec.viewports || { pc: 1440, pad: 768, mobile: 375 };
+  const checks = [];
+  const rootSel = previewSelector(config.blockId);
+  const shots = [];
+  const shot = async (name) => {
+    if (!previewPage) return;
+    try {
+      await frame.evaluate((rootSel) => {
+        const root = document.querySelector(rootSel);
+        if (root) window.scrollTo(0, Math.max(0, root.getBoundingClientRect().top + window.scrollY - 120));
+      }, rootSel);
+      await frame.waitForTimeout(1000);
+      await previewPage.screenshot({ path: `screenshots/style-${config.blockId}-${name}.png` });
+      shots.push(name);
+    } catch {}
+  };
+  try {
+    // PC: compare against the design frame.
+    if (previewPage) {
+      await previewPage.setViewportSize({ width: viewports.pc, height: 900 });
+      await frame.waitForTimeout(2500);
+    }
+    for (const item of spec.items) {
+      const checkId = `bss-${item.id}`;
+      if (!NAMES[checkId]) { checks.push(result(checkId, 'skip', `未知检查 ${item.id}`)); continue; }
+      // Leaf nav links live in collapsed submenus by default; expand the
+      // first parent before reading them (the arrow toggles the submenu,
+      // it does not navigate).
+      if (item.kind === 'nav-leaf') {
+        await frame.evaluate((rootSel) => {
+          const root = document.querySelector(rootSel);
+          const arrow = root?.querySelector('.pf-cate-wrap .slight-submenu-button');
+          arrow?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        }, rootSel);
+        await frame.waitForTimeout(1200);
+      }
+      if (item.kind === 'presence') {
+        const read = await readItem(frame, rootSel, item);
+        if (read.error) { checks.push(result(checkId, 'skip', read.error)); continue; }
+        checks.push(result(checkId, read.count > 0 ? 'pass' : 'fail',
+          read.count > 0 ? `找到 ${read.count} 个「${item.text}」（产品卡 ${read.cardCount} 个）。`
+            : `设计稿要求每张卡下有「${item.text}」，预览里一个都没找到（产品卡 ${read.cardCount} 个）。`,
+          { found: read.count, cards: read.cardCount }));
+        continue;
+      }
+      const read = await readItem(frame, rootSel, item);
+      if (read.error) { checks.push(result(checkId, 'skip', read.error)); continue; }
+      if (!read.elements.length) { checks.push(result(checkId, 'skip', `预览里没有找到 ${item.selector || item.kind} 对应的元素。`)); continue; }
+      const diffs = [];
+      const evidence = { elements: read.elements.map((el) => ({ ...el, color: el.color ? normColor(el.color) : el.color, backgroundColor: el.backgroundColor ? normColor(el.backgroundColor) : el.backgroundColor })) };
+      for (const el of read.elements) {
+        const actual = { ...el };
+        if (actual.color) actual.color = normColor(actual.color);
+        if (actual.backgroundColor) actual.backgroundColor = normColor(actual.backgroundColor);
+        if (actual.borderColor) actual.borderColor = normColor(actual.borderColor);
+        diffs.push(...compareProps(item.props || {}, actual, tolPx).map((d) => `「${el.label}」${d}`));
+        if (item.geometry?.centered) {
+          const c = el.centered;
+          if (!c) diffs.push(`「${el.label}」无法量到文字位置，居中未验证`);
+          else if (Math.abs(c.dxLeft - c.dxRight) > 2 || Math.abs(c.dyTop - c.dyBottom) > 2) {
+            diffs.push(`「${el.label}」文字不在框正中（左右 ${c.dxLeft}/${c.dxRight}，上下 ${c.dyTop}/${c.dyBottom}）`);
+          }
+        }
+        if (item.recordProps) {
+          evidence.recorded = evidence.recorded || {};
+          for (const k of Object.keys(item.recordProps)) evidence.recorded[k] = el[k];
+        }
+      }
+      checks.push(result(checkId, diffs.length ? 'fail' : 'pass',
+        diffs.length ? diffs.join('；') : `与设计稿一致（${read.elements.length} 个元素）。`, evidence));
+      // Product-name line clamp: design annotation 居中 最多2行隐藏.
+      if (item.id === 'product-name' && item.clamp) {
+        const clampDiffs = [];
+        const clamps = await frame.evaluate((rootSel) => {
+          const root = document.querySelector(rootSel);
+          return [...root.querySelectorAll('.prodlist-pro-name')].filter((el) => el.getClientRects().length).slice(0, 2)
+            .map((el) => ({ text: (el.innerText || '').trim().slice(0, 20), clamp: getComputedStyle(el).webkitLineClamp, overflow: getComputedStyle(el).overflow, display: getComputedStyle(el).display }));
+        }, rootSel);
+        for (const c of clamps) {
+          if (String(c.clamp) !== String(item.clamp)) clampDiffs.push(`「${c.text}」line-clamp: ${c.clamp}（设计 ${item.clamp} 行）`);
+        }
+        checks.push(result('bss-product-name-clamp', clampDiffs.length ? 'fail' : 'pass',
+          clampDiffs.length ? clampDiffs.join('；') : `产品名最多 ${item.clamp} 行，超出隐藏（设计稿文字说明：居中 最多2行隐藏）。`, { clamps }));
+      }
+    }
+    const pcFailed = checks.some((c) => c.status === 'fail');
+    const pcBreak = await breakage(frame, rootSel);
+    const pcFindings = breakageFindings(pcBreak);
+    checks.push(result('bss-breakage-pc', pcFindings.length ? 'fail' : 'pass',
+      pcFindings.length ? pcFindings.join('；') : 'PC 端无横向溢出、超框、重叠、截断与图片失真。', pcBreak));
+    if (pcFailed || pcFindings.length) await shot('pc');
+    // Pad / Mobile: no design frames -> breakage only.
+    for (const vp of ['pad', 'mobile']) {
+      if (!previewPage) { checks.push(result(`bss-breakage-${vp}`, 'skip', '未提供 previewPage，无法切换视口。')); continue; }
+      await previewPage.setViewportSize({ width: viewports[vp], height: vp === 'pad' ? 1024 : 667 });
+      await frame.waitForTimeout(2500);
+      const b = await breakage(frame, rootSel);
+      const findings = breakageFindings(b);
+      checks.push(result(`bss-breakage-${vp}`, findings.length ? 'fail' : 'pass',
+        findings.length ? findings.join('；') : `设计稿无${vp === 'pad' ? 'Pad' : '移动'}端画板，只查错乱：无横向溢出、超框、重叠、截断与图片失真。`, b));
+      if (findings.length) await shot(vp);
+    }
+  } finally {
+    if (previewPage) {
+      try { await previewPage.setViewportSize({ width: viewports.pc, height: 900 }); } catch {}
+    }
+  }
+  return checks;
+}

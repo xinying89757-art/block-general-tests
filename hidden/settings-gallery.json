@@ -1,0 +1,477 @@
+{
+  "dialog": {
+    "rootCls": "backstage-dialog hide backstage-dialog-widgetsettinsframe ui-draggable",
+    "text": "设置产品列表\n内容\n分页展示\n 是  否\n每页产品数量 （最多设置每页100个产品）\n选择产品属性及自定义字段（拖动可调整字段顺序）\n选择的字段将展示在产品列表中，您可至内容管理后台-管理自定义字段维护字段信息\n  全选\n Brand\n Product Code\n Model\n Brief\n 测试单选按钮A\n 测试下拉列表\n Series-xiala\n 测试文本\n 测试单选2\n 测试文本域\n 测试色卡\n 这是下载文件\n 测试色卡2\n 测试色卡3\n 测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2\n test1分类\n test2分类\n 测试多选-改为文本\n 测试多选2\n Series-duoxuan\n Series-danxuan\n 202608241522\n 多选1542\n 多选1705\n 55555555\n 自定义字段\n 测试数字\n产品对比\n关闭 开启\n取消\n保存",
+    "controls": [
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "value": "1",
+        "checked": true,
+        "context": "是"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "value": "0",
+        "checked": false,
+        "context": "否"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "value": "20",
+        "checked": false,
+        "context": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "on",
+        "checked": false,
+        "context": "全选 Brand Product Code Model Brief 测试单选按钮A 测试下拉列表 Series-xiala 测试文本 测试单选2 测试文本域 测试色卡 这是下载文件"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "-3",
+        "checked": false,
+        "context": "Brand"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "-4",
+        "checked": false,
+        "context": "Product Code"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "-5",
+        "checked": false,
+        "context": "Model"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "-9",
+        "checked": false,
+        "context": "Brief"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826554",
+        "checked": false,
+        "context": "测试单选按钮A"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826574",
+        "checked": false,
+        "context": "测试下拉列表"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826614",
+        "checked": false,
+        "context": "Series-xiala"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "829424",
+        "checked": false,
+        "context": "测试文本"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "829824",
+        "checked": false,
+        "context": "测试单选2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "830944",
+        "checked": false,
+        "context": "测试文本域"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "831074",
+        "checked": false,
+        "context": "测试色卡"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "875184",
+        "checked": false,
+        "context": "这是下载文件"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "879814",
+        "checked": false,
+        "context": "测试色卡2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "879824",
+        "checked": false,
+        "context": "测试色卡3"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "829844",
+        "checked": false,
+        "context": "测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "890114",
+        "checked": false,
+        "context": "test1分类"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "890124",
+        "checked": false,
+        "context": "test2分类"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826564",
+        "checked": false,
+        "context": "测试多选-改为文本"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "829834",
+        "checked": false,
+        "context": "测试多选2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826604",
+        "checked": false,
+        "context": "Series-duoxuan"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826594",
+        "checked": false,
+        "context": "Series-danxuan"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "898458",
+        "checked": false,
+        "context": "202608241522"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "898528",
+        "checked": false,
+        "context": "多选1542"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "898588",
+        "checked": false,
+        "context": "多选1705"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "898608",
+        "checked": false,
+        "context": "55555555"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "898658",
+        "checked": false,
+        "context": "自定义字段"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "902148",
+        "checked": false,
+        "context": "测试数字"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "value": "0",
+        "checked": true,
+        "context": "关闭"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "value": "1",
+        "checked": false,
+        "context": "开启"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "-3",
+        "checked": false,
+        "context": "Brand"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "-4",
+        "checked": false,
+        "context": "Product Code"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "-5",
+        "checked": false,
+        "context": "Model"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "-9",
+        "checked": false,
+        "context": "Brief"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826554",
+        "checked": false,
+        "context": "测试单选按钮A"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826574",
+        "checked": false,
+        "context": "测试下拉列表"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826614",
+        "checked": false,
+        "context": "Series-xiala"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "829424",
+        "checked": false,
+        "context": "测试文本"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "829824",
+        "checked": false,
+        "context": "测试单选2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "830944",
+        "checked": false,
+        "context": "测试文本域"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "831074",
+        "checked": false,
+        "context": "测试色卡"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "875184",
+        "checked": false,
+        "context": "这是下载文件"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "879814",
+        "checked": false,
+        "context": "测试色卡2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "879824",
+        "checked": false,
+        "context": "测试色卡3"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "829844",
+        "checked": false,
+        "context": "测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "890114",
+        "checked": false,
+        "context": "test1分类"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "890124",
+        "checked": false,
+        "context": "test2分类"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826564",
+        "checked": false,
+        "context": "测试多选-改为文本"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "829834",
+        "checked": false,
+        "context": "测试多选2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826604",
+        "checked": false,
+        "context": "Series-duoxuan"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "826594",
+        "checked": false,
+        "context": "Series-danxuan"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "898458",
+        "checked": false,
+        "context": "202608241522"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "898528",
+        "checked": false,
+        "context": "多选1542"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "898588",
+        "checked": false,
+        "context": "多选1705"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "898608",
+        "checked": false,
+        "context": "55555555"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "898658",
+        "checked": false,
+        "context": "自定义字段"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "value": "902148",
+        "checked": false,
+        "context": "测试数字"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "value": "",
+        "checked": false,
+        "context": "设置产品列表 内容 分页展示 是 否 每页产品数量 （最多设置每页100个产品） 选择产品属性及自定义字段（拖动可调整字段顺序） 选择的字段将展示在产品列表中，您可至内容管理后台-"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "value": "0",
+        "checked": false,
+        "context": "设置产品列表 内容 分页展示 是 否 每页产品数量 （最多设置每页100个产品） 选择产品属性及自定义字段（拖动可调整字段顺序） 选择的字段将展示在产品列表中，您可至内容管理后台-"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "value": "38344",
+        "checked": false,
+        "context": "设置产品列表 内容 分页展示 是 否 每页产品数量 （最多设置每页100个产品） 选择产品属性及自定义字段（拖动可调整字段顺序） 选择的字段将展示在产品列表中，您可至内容管理后台-"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "value": "ELpuzTPfkJNy",
+        "checked": false,
+        "context": "设置产品列表 内容 分页展示 是 否 每页产品数量 （最多设置每页100个产品） 选择产品属性及自定义字段（拖动可调整字段顺序） 选择的字段将展示在产品列表中，您可至内容管理后台-"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "value": "ac5a8d18-fa8e-40cd-8274-3bb465bb25c6",
+        "checked": false,
+        "context": "设置产品列表 内容 分页展示 是 否 每页产品数量 （最多设置每页100个产品） 选择产品属性及自定义字段（拖动可调整字段顺序） 选择的字段将展示在产品列表中，您可至内容管理后台-"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "value": "0",
+        "checked": false,
+        "context": "设置产品列表 内容 分页展示 是 否 每页产品数量 （最多设置每页100个产品） 选择产品属性及自定义字段（拖动可调整字段顺序） 选择的字段将展示在产品列表中，您可至内容管理后台-"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "value": "",
+        "checked": false,
+        "context": "设置产品列表 内容 分页展示 是 否 每页产品数量 （最多设置每页100个产品） 选择产品属性及自定义字段（拖动可调整字段顺序） 选择的字段将展示在产品列表中，您可至内容管理后台-"
+      }
+    ]
+  }
+}

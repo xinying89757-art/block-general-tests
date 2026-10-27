@@ -1,0 +1,53 @@
+{
+  "found": {
+    "url": "https://website.leadong.com/prod",
+    "sample": "产品 管理产品 添加产品 产品排序 管理产品分类 产品分类排序 添加产品分类 管理自定义字段 产品标签 SKU状态 设置产品图片水印 产品回收站 数据载入中..."
+  },
+  "allFrames": [
+    "https://website.leadong.com/phoenix/pagebuilder/layout",
+    "https://website.leadong.com/phoenix/pagebuilder?_=919f8ea7125f4e408e4565a2559514d1",
+    "about:blank",
+    "about:blank",
+    "about:blank",
+    "about:blank",
+    "about:blank",
+    "about:blank",
+    "about:blank",
+    "about:blank",
+    "about:blank",
+    "about:blank",
+    "about:blank",
+    "about:blank"
+  ],
+  "listDump": {
+    "rows": [
+      "状态标签：",
+      "状态信息："
+    ],
+    "toolbar": [
+      "取消",
+      "确定",
+      "管理产品",
+      "添加产品",
+      "产品排序",
+      "管理产品分类",
+      "产品分类排序",
+      "添加产品分类",
+      "管理自定义字段",
+      "产品标签",
+      "SKU状态",
+      "设置产品图片水印",
+      "产品回收站",
+      "取消",
+      "保存",
+      "16:9",
+      "4:3",
+      "1:1",
+      "2:3",
+      "自由",
+      "取消",
+      "完成"
+    ],
+    "textHead": "产品 管理产品 添加产品 产品排序 管理产品分类 产品分类排序 添加产品分类 管理自定义字段 产品标签 SKU状态 设置产品图片水印 产品回收站 数据载入中..."
+  }
+}

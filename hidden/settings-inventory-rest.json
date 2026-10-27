@@ -1,0 +1,22 @@
+{
+  "dialogs": [
+    {
+      "index": 1,
+      "editorType": "phoenix_blocks_gallery",
+      "btnId": "editorBtn-ELpuzTPfkJNy-ac5a8d18-fa8e-40cd-8274-3bb465bb25c6",
+      "dump": {
+        "rootCls": "backstage-dialog-bottom",
+        "text": "取消\n保存",
+        "controls": []
+      }
+    },
+    {
+      "index": 2,
+      "editorType": "phoenix_blocks_button",
+      "btnId": "editorBtn-ELpuzTPfkJNy-26899278-4cd2-4b20-a849-5f877fd2b9e8",
+      "dump": {
+        "error": "dialog root not found"
+      }
+    }
+  ]
+}

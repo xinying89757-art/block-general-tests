@@ -1,0 +1,21 @@
+{
+  "inter": {
+    "r1": "clicked",
+    "r2": "clicked",
+    "names": [
+      "测试产品小何1",
+      "测试产品A"
+    ],
+    "pass": false
+  },
+  "union": {
+    "r1": "clicked",
+    "r2": "clicked",
+    "names": [
+      "测试产品小何1",
+      "测试产品A"
+    ],
+    "pass": false
+  },
+  "restored": true
+}

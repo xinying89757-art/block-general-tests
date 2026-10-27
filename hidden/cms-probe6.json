@@ -1,0 +1,188 @@
+{
+  "editorUrl": "https://website.leadong.com/phoenix/pagebuilder/layout",
+  "cookieDomains": [
+    ".micstatic.com",
+    ".fa.micstatic.com",
+    ".leadongcdn.com",
+    "www.leadong.com",
+    ".leadong.com",
+    ".www.leadong.com",
+    "website.leadong.com",
+    ".made-in-china.com",
+    ".hm.baidu.com",
+    "kefu.trademessenger.com",
+    ".leadongcdn.cn"
+  ],
+  "origins": [
+    {
+      "origin": "https://website.leadong.com",
+      "lsKeys": [
+        "backendDomain",
+        "prodPreviewHistory",
+        "iconTimestamp",
+        "editorLang",
+        "previewDomain",
+        "AEGIS_ID",
+        "cdnDomainRecord"
+      ]
+    },
+    {
+      "origin": "https://www.leadong.com",
+      "lsKeys": [
+        "Hm_lvt_b22881fcdcb21ffd032e9a8ccf15f7b1",
+        "navigationCurrent",
+        "AEGIS_ID",
+        "landedPage",
+        "webSiteLanguageMsg",
+        "demo-xujiying",
+        "Hm_lvt_f9633ca8f671f282402f6c6ca608b126",
+        "_LOGIN_REGIST_REFERER"
+      ]
+    },
+    {
+      "origin": "https://www.made-in-china.com",
+      "lsKeys": [
+        "trackLocalData"
+      ]
+    }
+  ],
+  "layoutLinks": [
+    {
+      "text": "",
+      "href": "https://website.leadong.com/phoenix/confirm/edit"
+    },
+    {
+      "text": "Checkout",
+      "href": "https://website.leadong.com/phoenix/confirm/edit"
+    },
+    {
+      "text": "预览",
+      "href": "http://website.leadong.com/phoenix/pagebuilder/preview"
+    },
+    {
+      "text": "查看帮助",
+      "href": "https://www.leadong.com/help.html"
+    },
+    {
+      "text": "+ 提交工单",
+      "href": "https://website.leadong.com/phoenix/workorder/submit"
+    },
+    {
+      "text": "我的工单",
+      "href": "https://website.leadong.com/phoenix/workorder/list"
+    },
+    {
+      "text": "联系在线客服",
+      "href": "http://kefu.trademessenger.com/chat?domain=leadong&businessType=HisI7Xng2J4"
+    },
+    {
+      "text": "cp页编辑器",
+      "href": "https://website.leadong.com/phoenix/pagebuilder/layout"
+    },
+    {
+      "text": "如何使用网站导航组件",
+      "href": "https://website.leadong.com/phoenix/help/id51064.html"
+    },
+    {
+      "text": "如何使用快速导航组件",
+      "href": "https://website.leadong.com/phoenix/help/id38894.html"
+    },
+    {
+      "text": "如何使用图片集组件",
+      "href": "https://website.leadong.com/phoenix/help/id79094.html"
+    },
+    {
+      "text": "如何使用面包屑导航组件？",
+      "href": "https://website.leadong.com/phoenix/help/id32253.html"
+    },
+    {
+      "text": "如何使用文本组件？",
+      "href": "https://website.leadong.com/phoenix/help/id1392.html"
+    },
+    {
+      "text": "如何使用按钮组件？",
+      "href": "https://website.leadong.com/phoenix/help/id57133.html"
+    },
+    {
+      "text": "如何使用幻灯片组件",
+      "href": "https://website.leadong.com/phoenix/help/id88033.html"
+    },
+    {
+      "text": "如何使用图文展示组件？",
+      "href": "https://website.leadong.com/phoenix/help/id80613.html"
+    },
+    {
+      "text": "如何使用图片组件？",
+      "href": "https://website.leadong.com/phoenix/help/id69613.html"
+    },
+    {
+      "text": "如何使用快速联系组件？",
+      "href": "https://website.leadong.com/phoenix/help/id43503.html"
+    },
+    {
+      "text": "如何使用分享组件",
+      "href": "https://website.leadong.com/phoenix/help/id55373.html"
+    },
+    {
+      "text": "如何使用语言栏组件？",
+      "href": "https://website.leadong.com/phoenix/help/id45373.html"
+    },
+    {
+      "text": "如何使用视频组件？",
+      "href": "https://website.leadong.com/phoenix/help/id25373.html"
+    },
+    {
+      "text": "如何使用百度地图组件？",
+      "href": "https://website.leadong.com/phoenix/help/id15373.html"
+    },
+    {
+      "text": "如何使用社交关注组件？",
+      "href": "https://website.leadong.com/phoenix/help/id05373.html"
+    },
+    {
+      "text": "如何使用Google地图组件？",
+      "href": "https://website.leadong.com/phoenix/help/id95373.html"
+    },
+    {
+      "text": "如何使用高级幻灯片？",
+      "href": "https://website.leadong.com/phoenix/help/id78033.html"
+    },
+    {
+      "text": "如何使用链接组件？",
+      "href": "https://website.leadong.com/phoenix/help/id24930.html"
+    },
+    {
+      "text": "如何使用纵向导航？",
+      "href": "https://website.leadong.com/phoenix/help/id53930.html"
+    },
+    {
+      "text": "如何使用图文页签组件？",
+      "href": "https://website.leadong.com/phoenix/help/id520084.html"
+    },
+    {
+      "text": "如何使用公告组件？",
+      "href": "https://website.leadong.com/phoenix/help/id577834.html"
+    },
+    {
+      "text": "如何使用邮件订阅组件？",
+      "href": "https://website.leadong.com/phoenix/help/id584761.html"
+    }
+  ],
+  "tries": [
+    {
+      "u": "https://website.leadong.com/phoenix/admin/user/index",
+      "finalUrl": "https://website.leadong.com/phoenix/admin/user/index",
+      "text": "很抱歉，您访问的页面无法找到。 请核实您输入的网址是否正确。 您还可以： 返回首页"
+    },
+    {
+      "u": "https://website.leadong.com/phoenix/admin/home",
+      "finalUrl": "https://website.leadong.com/phoenix/admin/home",
+      "text": "很抱歉，您访问的页面无法找到。 请核实您输入的网址是否正确。 您还可以： 返回首页"
+    },
+    {
+      "u": "https://website.leadong.com/",
+      "finalUrl": "https://website.leadong.com/phoenix/pagebuilder/layout",
+      "text": "语种: 英语 页面: Home 智能优化当前页面 保存 预览 发布 .. 页面 页面 可执行编辑页面标题、URL，更换页面版式，展开/收缩页面组件，添加/删除页面等操作。 当前页面设置 当前页面背景 当前页面特效 所有页面管理 添加页面 内容 后台内容管理 你可以在后台集中添加你的产品、文章、图片、表单等内容，对应的组件中会自动显示对应内容。 产品管理 文章管理 视频管理 关键词管理 表单管理 询盘管理 资料库管理 下载管理 FAQ管理"
+    }
+  ]
+}

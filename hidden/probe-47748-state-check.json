@@ -1,0 +1,78 @@
+{
+  "blockId": "47748",
+  "dialogs": [
+    {
+      "title": "设置产品分类",
+      "radios": [
+        "选择所有产品分类 (0)"
+      ],
+      "checkedBoxes": [
+        "全选 Anti Static Packaging Materials Chemi",
+        "Anti Static Packaging Materials Chemical",
+        "Chemical Bag Container Liner Bag Cosmeti",
+        "Container Liner Bag Cosmetic Packaging B",
+        "Cosmetic Packaging Bag",
+        "Clutch and brake",
+        "COMPONENTS / PARTS FOR HYDRAULIC CYLINDE",
+        "Composite Packaging Materials",
+        "Custom hydraulic cylinder",
+        "Fitness resistance",
+        "Hydraulic adapter",
+        "Hydraulic cylinder Others Hydraulic cyli",
+        "Others Hydraulic cylinder",
+        "Standard Welded hydraulic cylinder",
+        "Tie Rod Hydraulic Cylinder",
+        "Hydraulic manifold block",
+        "Hydraulic power unit",
+        "HYDRAULIC ROD ENDS",
+        "Linear Actuator / Electric cylinder",
+        "Mesh Fence",
+        "Multi-Function Packing Machine",
+        "Multilateral Sealing Bag",
+        "other",
+        "Packaging Bags",
+        "Packing Machinery Parts",
+        "Pet Food Bag",
+        "Plastic Film",
+        "Roll Film",
+        "Shrink Film",
+        "Snack Bag",
+        "Special Shaped Bag",
+        "Spout Pouch",
+        "Stand Up Pouch",
+        "Storage Cage",
+        "Telescopic hydraulic cylinder",
+        "U Shaped Container Bag",
+        "Vacuum Packing Bag",
+        "Valve Integrated hydraulic cylinder",
+        "Zipper Bag",
+        "PCB series with high - thermal conductiv",
+        "Basic resistor series",
+        "Circular mil - spec connector series for",
+        "Pressure sensor series for industrial ap",
+        "Resettable polymeric positive temperatur",
+        "测试分类"
+      ],
+      "numbers": []
+    },
+    {
+      "title": "设置自定义字段筛选",
+      "radios": [],
+      "checkedBoxes": [],
+      "numbers": []
+    },
+    {
+      "title": "设置与选取数据",
+      "radios": [
+        "所有产品 (0)",
+        "否 (0)"
+      ],
+      "checkedBoxes": [
+        "Brand"
+      ],
+      "numbers": [
+        "=20"
+      ]
+    }
+  ]
+}

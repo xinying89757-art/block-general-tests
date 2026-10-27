@@ -1,0 +1,51 @@
+{
+  "iframeBox": {
+    "x": 75,
+    "y": 50,
+    "width": 1525,
+    "height": 950
+  },
+  "blockBox": {
+    "x": 75,
+    "y": 193,
+    "width": 1525,
+    "height": 589
+  },
+  "center": [
+    837.5,
+    487.5
+  ],
+  "mainPoint": {
+    "tag": "IFRAME",
+    "cls": "backstage-pc-proview",
+    "html": "<iframe class=\"backstage-pc-proview\" src=\"/phoenix/pagebuilder/lrKUZkaMtfvI?_=1792733840956\" frameborder=\"0\" width=\"100%\" name=\"backstage-innerpage\" id=\"backstage-innerpage\"></iframe>"
+  },
+  "framePoint": [
+    {
+      "tag": "DIV",
+      "cls": "backstage-blocksEditor-wrapLayer edit-normal",
+      "html": "<div class=\"backstage-blocksEditor-wrapLayer edit-normal\"></div>"
+    },
+    {
+      "tag": "DIV",
+      "cls": "prodfield-container backstage-blocksEditor-wrap",
+      "html": "<div class=\"prodfield-container backstage-blocksEditor-wrap\" data-wrap-type=\"1\" data-relate-appid=\"SqpUfKAZVUtd\" data-storage=\"1\" data-blockseditor-type=\"phoenix_blocks_filterStyle\" data-auto_uuid=\"11e0ab53-2422-4c5e-b3f"
+    },
+    {
+      "tag": "DIV",
+      "cls": "",
+      "html": "<div id=\"location_ELpuzTPfkJNy\">\n\n\t\t\t<!-- ============ 筛选区（融合自 39234 filterStyle，保留全字段类型）============ -->\n\t\t\t<div class=\"prodfield-container backstage-blocksEditor-wrap\" data-wrap-type=\"1\" data-relate-appid=\"SqpUfKAZVUtd"
+    },
+    {
+      "tag": "DIV",
+      "cls": "prodCategoty-with-submenu hasDefaultWidth container container40838",
+      "html": "<div class=\"prodCategoty-with-submenu hasDefaultWidth container container40838\" data-container-openstate=\"false\" data-defaule-width=\"1440\">\n\t\t<div id=\"location_ELpuzTPfkJNy\">\n\n\t\t\t<!-- ============ 筛选区（融合自 39234 filterSty"
+    },
+    {
+      "tag": "DIV",
+      "cls": "LA40838 ELpuzTPfkJNy",
+      "html": "<div class=\"LA40838 ELpuzTPfkJNy\">\n\t<div class=\"prodCategoty-with-submenu hasDefaultWidth container container40838\" data-container-openstate=\"false\" data-defaule-width=\"1440\">\n\t\t<div id=\"location_ELpuzTPfkJNy\">\n\n\t\t\t<!-- "
+    }
+  ],
+  "band": []
+}

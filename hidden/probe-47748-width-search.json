@@ -1,0 +1,205 @@
+{
+  "blockId": "47748",
+  "railSearch": {
+    "htmlLen": 12742,
+    "hits": [
+      {
+        "kw": "width",
+        "ctx": "href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-DUfuJedNaPBy\">&nbsp;<i class=\"icon-exchange 66\"></i>&nbsp;<span>模块展开</span></a><div class=\"moduleWidth\"><div class=\"globalWidth-title\"></div><div class=\"global-box progress-box-mobile\"><p><label><input type=\"radio\" name=\"modulewidth\" value=\"1\">1200px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"2\">1440px</label></p><p><labe"
+      },
+      {
+        "kw": "1440",
+        "ctx": "s-box-mobile\"><p><label><input type=\"radio\" name=\"modulewidth\" value=\"1\">1200px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"2\">1440px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"3\">1600px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"4\">1920px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"-2\">全屏</label></p><p><"
+      },
+      {
+        "kw": "1200",
+        "ctx": "uleWidth\"><div class=\"globalWidth-title\"></div><div class=\"global-box progress-box-mobile\"><p><label><input type=\"radio\" name=\"modulewidth\" value=\"1\">1200px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"2\">1440px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"3\">1600px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"4\">1920px</label></p><"
+      }
+    ],
+    "inputs": [
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "",
+        "value": "#ffffff",
+        "cls": "siteblocks-setting-bgColor"
+      },
+      {
+        "tag": "INPUT",
+        "type": "file",
+        "name": "filedata",
+        "value": "",
+        "cls": ""
+      },
+      {
+        "tag": "SELECT",
+        "type": "",
+        "name": "",
+        "value": "repeat",
+        "cls": ""
+      },
+      {
+        "tag": "SELECT",
+        "type": "",
+        "name": "",
+        "value": "center center",
+        "cls": ""
+      },
+      {
+        "tag": "SELECT",
+        "type": "",
+        "name": "",
+        "value": "initial",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "attachment_DUfuJedNaPBy",
+        "value": "on",
+        "cls": "picture-attachment-radio1"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "attachment_DUfuJedNaPBy",
+        "value": "on",
+        "cls": "picture-attachment-radio2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "file",
+        "name": "filedata",
+        "value": "",
+        "cls": ""
+      },
+      {
+        "tag": "SELECT",
+        "type": "",
+        "name": "",
+        "value": "repeat",
+        "cls": ""
+      },
+      {
+        "tag": "SELECT",
+        "type": "",
+        "name": "",
+        "value": "center center",
+        "cls": ""
+      },
+      {
+        "tag": "SELECT",
+        "type": "",
+        "name": "",
+        "value": "initial",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "mobile_attachment_DUfuJedNaPBy",
+        "value": "on",
+        "cls": "picture-attachment-radio1"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "mobile_attachment_DUfuJedNaPBy",
+        "value": "on",
+        "cls": "picture-attachment-radio2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "modulewidth",
+        "value": "1",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "modulewidth",
+        "value": "2",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "modulewidth",
+        "value": "3",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "modulewidth",
+        "value": "4",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "modulewidth",
+        "value": "-2",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "modulewidth",
+        "value": "-1",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "",
+        "name": "",
+        "value": "",
+        "cls": "customizeVal"
+      },
+      {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "name": "globalApply",
+        "value": "on",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "colorVal1",
+        "value": "#1C4587",
+        "cls": "siteblocks-setting-color"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "",
+        "value": "0",
+        "cls": "inputnum num"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "",
+        "value": "0",
+        "cls": "inputnum num"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "",
+        "value": "0",
+        "cls": "inputnum num"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "",
+        "value": "0",
+        "cls": "inputnum num"
+      }
+    ]
+  },
+  "afterIdClick": []
+}

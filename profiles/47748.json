@@ -1,0 +1,1080 @@
+{
+  "blockId": "47748",
+  "capabilities": [
+    {
+      "id": "button-link",
+      "reuseNote": "结构与 40838 相同，只换值：文本 New Machine、链接 javascript:void(0)。",
+      "settingName": "按钮链接",
+      "status": "implemented-v1"
+    },
+    {
+      "dialogTitle": "设置产品分类",
+      "id": "product-category-select",
+      "oracle": {
+        "category": "测试分类",
+        "cmsTotal": 11,
+        "note": "内容管理后台产品管理上方分类筛选 2026-10-26 实测：测试分类共 11 条；前台只展示上架（CMS 上架列 shelve）产品，下架（offShelve：3号、80\"-30\"、4号、2号）不展示。夹具数据若变（增删产品、上下架），同步更新 onShelf。",
+        "offShelf": [
+          "3号",
+          "80\"-30\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
+          "4号",
+          "2号"
+        ],
+        "onShelf": [
+          "测试产品A",
+          "测试产品芋圆1",
+          "测试6号",
+          "测试5号",
+          "100\"-40\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
+          "产品7",
+          "测试产品hap"
+        ],
+        "source": "内容管理后台产品管理上方分类筛选"
+      },
+      "reuseNote": "全新能力，40838 没有。选择方式 radio + 44 个分类多选；分类在“所有”模式下 disabled，闭环先切“部分”再操作。",
+      "settingName": "产品分类选择",
+      "status": "implemented-v1",
+      "wrapIndex": 0
+    },
+    {
+      "fixedSettings": {
+        "note": "这三项在 47748 的编辑器弹窗里已隐藏、不展示，但取值为设计稿给定的这 3 个固定值（设计稿截图里第二项的标题是“筛选方式”）",
+        "source": "Figma 设计稿（设置项截图，2026-10-26 用户确认）",
+        "产品范围": "当前分类产品",
+        "筛选触发": "更改筛选项后自动筛选",
+        "筛选逻辑": "交集"
+      },
+      "id": "custom-filter-fields",
+      "reuseNote": "变体：只有字段多选；逻辑/触发/范围三项在弹窗里隐藏，取设计稿固定值（见 fixedSettings）。跳转页/背景颜色不存在。",
+      "settingName": "选择自定义筛选字段",
+      "status": "implemented-v1",
+      "variant": "fields-only"
+    },
+    {
+      "dialogTitle": "设置与选取数据",
+      "id": "product-list-display",
+      "oracle": {
+        "category": "测试分类",
+        "cmsTotal": 11,
+        "note": "内容管理后台产品管理上方分类筛选 2026-10-26 实测：测试分类共 11 条；前台只展示上架（CMS 上架列 shelve）产品，下架（offShelve：3号、80\"-30\"、4号、2号）不展示。夹具数据若变（增删产品、上下架），同步更新 onShelf。",
+        "offShelf": [
+          "3号",
+          "80\"-30\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
+          "4号",
+          "2号"
+        ],
+        "onShelf": [
+          "测试产品A",
+          "测试产品芋圆1",
+          "测试6号",
+          "测试5号",
+          "100\"-40\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
+          "产品7",
+          "测试产品hap"
+        ],
+        "source": "内容管理后台产品管理上方分类筛选"
+      },
+      "reuseNote": "变体：弹窗标题是“设置与选取数据”不是“设置产品列表”，且是第 2 个 gallery 子区域；新增数据来源选择 radio；分页默认否；无产品对比；展示字段 27 项（40838 是 31 项）。数量输入含义随分页变：分页=是时为每页产品数量，分页=否时为总数量（2026-10-26 用户确认）。",
+      "settingName": "产品列表设置",
+      "status": "implemented-v1",
+      "variant": "select-and-fetch-data",
+      "wrapIndex": 1
+    },
+    {
+      "id": "block-color-scheme",
+      "reuseNote": "区块级：右侧图标栏配色浮层，只有一个配色（#1C4587），生效范围为按钮文字、分页文字、自定义字段选中、产品分类选中（滑块暂不验），其他颜色写死。",
+      "settingName": "区块配色",
+      "status": "implemented-v1"
+    },
+    {
+      "id": "module-width",
+      "reuseNote": "区块级：右侧图标栏模块展开浮层，radio 1200/1440/1600/1920/全屏/自定义（≥1200px）；当前为自定义 1440（默认值以自定义形式存）。全局应用 checkbox 不碰。",
+      "settingName": "模块宽度",
+      "status": "implemented-v1"
+    },
+    {
+      "id": "block-style-spec",
+      "settingName": "区块样式",
+      "status": "implemented-v1",
+      "styleSpec": {
+        "breakage": {
+          "viewports": [
+            "pc",
+            "pad",
+            "mobile"
+          ]
+        },
+        "designFrames": [
+          "pc"
+        ],
+        "figma": {
+          "fileKey": "Vce7UhBgJPBqAwiYGdOUDv",
+          "frame": "pc端",
+          "node": "1281:2960"
+        },
+        "items": [
+          {
+            "geometry": {
+              "centered": true
+            },
+            "id": "button-text",
+            "kind": "text",
+            "note": "行高 54 与居中对齐由 flex 实现，不直接比 lineHeight/textAlign；注意：设计稿图层名是编辑器 DOM 的类名（backstage-component-btn），前台实际类名是 blocks-button，映射须按前台实测为准。",
+            "props": {
+              "color": "#ffffff",
+              "fontSize": 18,
+              "fontWeight": 700
+            },
+            "selector": "a.blocks-button",
+            "text": "New Machine"
+          },
+          {
+            "id": "button-bg",
+            "kind": "first",
+            "note": "注意：设计稿图层名是编辑器 DOM 的类名（backstage-component-btn），前台实际类名是 blocks-button，映射须按前台实测为准。",
+            "props": {
+              "backgroundColor": "#1c4587",
+              "borderRadius": 3
+            },
+            "selector": "a.blocks-button"
+          },
+          {
+            "id": "nav-parent",
+            "kind": "nav-parent",
+            "props": {
+              "fontSize": 16,
+              "fontWeight": 700,
+              "lineHeight": 45
+            }
+          },
+          {
+            "id": "nav-leaf",
+            "kind": "nav-leaf",
+            "note": "设计稿里带子级的二级链接行高 40（仅一例），只对叶子链接断言 44.8",
+            "props": {
+              "fontSize": 16,
+              "fontWeight": 400,
+              "lineHeight": 44.8
+            }
+          },
+          {
+            "id": "filter-title",
+            "kind": "sample",
+            "props": {
+              "color": "#232323",
+              "fontSize": 14,
+              "fontWeight": 600,
+              "lineHeight": 21
+            },
+            "recordProps": {
+              "letterSpacing": -0.15
+            },
+            "sample": 2,
+            "selector": ".pf-field-title"
+          },
+          {
+            "id": "filter-option",
+            "kind": "sample",
+            "props": {
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 21
+            },
+            "sample": 2,
+            "selector": ".pf-field-group label"
+          },
+          {
+            "clamp": 2,
+            "id": "product-name",
+            "kind": "sample",
+            "props": {
+              "color": "#222222",
+              "fontSize": 16,
+              "fontWeight": 400,
+              "lineHeight": 20,
+              "textAlign": "center"
+            },
+            "sample": 2,
+            "selector": ".prodlist-pro-name"
+          },
+          {
+            "id": "details-link",
+            "kind": "presence",
+            "note": "设计稿每张卡下有 details 链接；默认与 hover 后预览里均无",
+            "text": "details"
+          },
+          {
+            "id": "pagination-current",
+            "kind": "text",
+            "props": {
+              "backgroundColor": "#1c4587",
+              "color": "#ffffff",
+              "fontSize": 14,
+              "height": 28,
+              "width": 28
+            },
+            "selector": ".pagination span",
+            "text": "1"
+          },
+          {
+            "id": "pagination-other",
+            "kind": "sample",
+            "props": {
+              "color": "#898989",
+              "fontSize": 14,
+              "height": 28,
+              "width": 28
+            },
+            "sample": 2,
+            "selector": ".pagination a"
+          }
+        ],
+        "notes": [
+          "下拉字段（测试下拉列表/Series-xiala）：设计稿是 Please Select 下拉框（边框 #cbd5e0、圆角 4px、高 35px），预览里没有原生 select，疑似自定义下拉，选择器待确认，暂不进断言。",
+          "letterSpacing -0.15px 为亚像素值，只记录不判 fail。",
+          "映射教训：Figma 图层名来自编辑器 DOM，前台类名可能不同（如按钮：图层 backstage-component-btn，前台 blocks-button）；选择器一律以前台实测为准，不要直接照搬图层名。"
+        ],
+        "tolerances": {
+          "color": "exact",
+          "px": 0.6
+        },
+        "viewports": {
+          "mobile": 375,
+          "pad": 768,
+          "pc": 1440
+        }
+      }
+    }
+  ],
+  "category": "product-filter",
+  "dataMode": "dynamic",
+  "dataSource": {
+    "entities": [
+      "products",
+      "product-categories"
+    ],
+    "scope": "由区块组件设置中选择的产品/分类范围决定",
+    "system": "content-management"
+  },
+  "dynamicCheckCandidates": [
+    {
+      "assertionSource": "待确认",
+      "id": "filter-options-match-cms",
+      "name": "筛选项与内容管理中的分类/属性一致",
+      "status": "candidate"
+    },
+    {
+      "assertionSource": "内容管理后台产品管理上方分类筛选（pcs-category-front，v1.4）",
+      "id": "category-selection-limits-list",
+      "name": "选择部分产品分类后，列表与筛选只含所选分类的产品",
+      "status": "implemented"
+    }
+  ],
+  "figma": {
+    "fileKey": "Vce7UhBgJPBqAwiYGdOUDv",
+    "framesObserved": [
+      "Page 3 1281:2959",
+      "设置项 1281:3897"
+    ],
+    "status": "provided",
+    "url": "https://www.figma.com/design/Vce7UhBgJPBqAwiYGdOUDv/%E5%8C%BA%E5%9D%97%E6%A8%A1%E7%89%88-2025--Copy-?node-id=1281-2959&p=f&t=eaKJWPe9aG6Xdpdt-0"
+  },
+  "knownInteractions": [
+    "select-category",
+    "select-filter",
+    "reset",
+    "clear-filters",
+    "pagination"
+  ],
+  "name": "产品分类+筛选+列表区块",
+  "specificChecks": [],
+  "suites": {
+    "category": true,
+    "common": true,
+    "dynamicData": true,
+    "specific": true
+  },
+  "target": {
+    "language": "en",
+    "page": "products"
+  },
+  "testData": {
+    "requirements": [
+      "至少两个可区分的产品分类",
+      "可同时命中两个筛选条件的产品",
+      "只命中一个筛选条件的产品"
+    ],
+    "status": "to-be-defined"
+  },
+  "baseline": [
+    {
+      "title": null,
+      "type": "phoenix_blocks_button",
+      "wrapIndex": 0,
+      "want": [],
+      "skipped": "打开后 10 秒内未出现 widget dialog（可能打开的是画布内浮层而非设置弹窗）"
+    },
+    {
+      "title": "设置产品分类",
+      "type": "phoenix_blocks_gallery",
+      "wrapIndex": 0,
+      "want": [
+        {
+          "label": "选择所有产品分类",
+          "type": "radio",
+          "to": true
+        }
+      ],
+      "skippedDisabled": 45
+    },
+    {
+      "title": "设置自定义字段筛选",
+      "type": "phoenix_blocks_filterStyle",
+      "wrapIndex": 0,
+      "want": [
+        {
+          "label": "全选 测试单选按钮A 测试下拉列表 Series-xiala 测试文本 测试单选2 测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2 test1分类 test2分类 测试多选-改为文本 测试多选2 Series-duoxuan Series-danxuan 202608241522 多选1542 多选1705 55555555 自定义字段 测试数字",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试单选按钮A",
+          "type": "checkbox",
+          "to": true
+        },
+        {
+          "label": "单选1-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "单选2-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "单选3-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "单选4-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "单选5-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "单选6-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "单选7-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "单选8-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "单选9-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "单选10-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试下拉列表",
+          "type": "checkbox",
+          "to": true
+        },
+        {
+          "label": "下拉列表1-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "下拉列表21-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "下拉列表3-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "下拉列表4-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "下拉列表5-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "下拉列表6-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "下拉列表7-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "下拉列表8-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "下拉列表9-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "下拉列表10-10",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Series-xiala",
+          "type": "checkbox",
+          "to": true
+        },
+        {
+          "label": "Capacitor series with high vol",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Resistor series",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Resistor series with high - pr",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Diode series",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Inductor series",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Transistor series",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Connector series",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "PCB series",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Sensor series with high Sensor",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Integrated circuit seriesInteg",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试文本",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试单选2",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "product 1",
+          "type": "checkbox",
+          "value": "829824_1",
+          "to": false
+        },
+        {
+          "label": "product 2",
+          "type": "checkbox",
+          "value": "829824_2",
+          "to": false
+        },
+        {
+          "label": "product 3",
+          "type": "checkbox",
+          "value": "829824_3",
+          "to": false
+        },
+        {
+          "label": "测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "product 1",
+          "type": "checkbox",
+          "value": "829844_1",
+          "to": false
+        },
+        {
+          "label": "product 2",
+          "type": "checkbox",
+          "value": "829844_2",
+          "to": false
+        },
+        {
+          "label": "product 3",
+          "type": "checkbox",
+          "value": "829844_3",
+          "to": false
+        },
+        {
+          "label": "test1分类",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "aaa",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "bbb",
+          "type": "checkbox",
+          "value": "890114_2",
+          "to": false
+        },
+        {
+          "label": "ccc",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "test2分类",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "xxx",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "bbb",
+          "type": "checkbox",
+          "value": "890124_2",
+          "to": false
+        },
+        {
+          "label": "vvv",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试多选-改为文本",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试多选2",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Series-duoxuan",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Series-danxuan",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "202608241522",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "多选1542",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "多选1705",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "55555555",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "自定义字段",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试数字",
+          "type": "checkbox",
+          "to": false
+        }
+      ]
+    },
+    {
+      "title": "设置与选取数据",
+      "type": "phoenix_blocks_gallery",
+      "wrapIndex": 1,
+      "want": [
+        {
+          "label": "所有产品",
+          "type": "radio",
+          "to": true
+        },
+        {
+          "label": "热门产品",
+          "type": "checkbox",
+          "value": "",
+          "to": false
+        },
+        {
+          "label": "新产品",
+          "type": "checkbox",
+          "value": "",
+          "to": false
+        },
+        {
+          "label": "推荐产品",
+          "type": "checkbox",
+          "value": "",
+          "to": false
+        },
+        {
+          "label": "热门产品",
+          "type": "checkbox",
+          "value": "",
+          "to": false
+        },
+        {
+          "label": "新产品",
+          "type": "checkbox",
+          "value": "",
+          "to": false
+        },
+        {
+          "label": "推荐产品",
+          "type": "checkbox",
+          "value": "",
+          "to": false
+        },
+        {
+          "label": "搜索",
+          "type": "text",
+          "to": ""
+        },
+        {
+          "label": "共4,117页 到第页",
+          "type": "text",
+          "to": ""
+        },
+        {
+          "label": "全选 Anti Static Packaging Materials Chemical Bag Container Liner Bag Cosmetic Packaging Bag Clutch and brake COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS Composite Packaging Materials Custom hydraulic cylinder Fitness resistance Hydraulic adapter Hydraulic cylinder Others Hydraulic cylinder Standard Welded hydraulic cylinder Tie Rod Hydraulic Cylinder Hydraulic manifold block Hydraulic power unit HYDRAULIC ROD ENDS Linear Actuator / Electric cylinder Mesh Fence Multi-Function Packing Machine Multilateral Sealing Bag other Packaging Bags Packing Machinery Parts Pet Food Bag Plastic Film Roll Film Shrink Film Snack Bag Special Shaped Bag Spout Pouch Stand Up Pouch Storage Cage Telescopic hydraulic cylinder U Shaped Container Bag Vacuum Packing Bag Valve Integrated hydraulic cylinder Zipper Bag PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high Basic resistor series Circular mil - spec connector series for aerospace applications Pressure sensor series for industrial applications Resettable polymeric positive temperature coefficient fuse series 测试分类",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Anti Static Packaging Materials Chemical Bag Container Liner Bag Cosmetic Packaging Bag Clutch and brake COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS Composite Packaging Materials Custom hydraulic cylinder",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Chemical Bag Container Liner Bag Cosmetic Packaging Bag",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Container Liner Bag Cosmetic Packaging Bag",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Cosmetic Packaging Bag",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Clutch and brake",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Composite Packaging Materials",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Custom hydraulic cylinder",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Fitness resistance",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Hydraulic adapter",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Hydraulic cylinder Others Hydraulic cylinder Standard Welded hydraulic cylinder Tie Rod Hydraulic Cylinder",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Others Hydraulic cylinder",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Standard Welded hydraulic cylinder",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Tie Rod Hydraulic Cylinder",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Hydraulic manifold block",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Hydraulic power unit",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "HYDRAULIC ROD ENDS",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Linear Actuator / Electric cylinder",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Mesh Fence",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Multi-Function Packing Machine",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Multilateral Sealing Bag",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "other",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Packaging Bags",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Packing Machinery Parts",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Pet Food Bag",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Plastic Film",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Roll Film",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Shrink Film",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Snack Bag",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Special Shaped Bag",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Spout Pouch",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Stand Up Pouch",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Storage Cage",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Telescopic hydraulic cylinder",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "U Shaped Container Bag",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Vacuum Packing Bag",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Valve Integrated hydraulic cylinder",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Zipper Bag",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Basic resistor series",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Circular mil - spec connector series for aerospace applications",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Pressure sensor series for industrial applications",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Resettable polymeric positive temperature coefficient fuse series",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试分类",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "全选 Brand Product Code Model Brief 测试单选按钮A 测试下拉列表 Series-xiala 测试文本 测试单选2 测试文本域 测试色卡 这是下载文件 测试色卡2 测试色卡3 测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2 test1分类 test2分类 测试多选-改为文本 测试多选2 Series-duoxuan Series-danxuan 202608241522 多选1542 多选1705 55555555 自定义字段 测试数字",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Brand",
+          "type": "checkbox",
+          "to": true
+        },
+        {
+          "label": "Product Code",
+          "type": "checkbox",
+          "to": true
+        },
+        {
+          "label": "Model",
+          "type": "checkbox",
+          "to": true
+        },
+        {
+          "label": "Brief",
+          "type": "checkbox",
+          "to": true
+        },
+        {
+          "label": "测试单选按钮A",
+          "type": "checkbox",
+          "to": true
+        },
+        {
+          "label": "测试下拉列表",
+          "type": "checkbox",
+          "to": true
+        },
+        {
+          "label": "Series-xiala",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试文本",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试单选2",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试文本域",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试色卡",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "这是下载文件",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试色卡2",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试色卡3",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "test1分类",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "test2分类",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试多选-改为文本",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试多选2",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Series-duoxuan",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "Series-danxuan",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "202608241522",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "多选1542",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "多选1705",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "55555555",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "自定义字段",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "测试数字",
+          "type": "checkbox",
+          "to": false
+        },
+        {
+          "label": "是",
+          "type": "radio",
+          "to": true
+        }
+      ],
+      "skippedNoLabel": 1
+    }
+  ]
+}

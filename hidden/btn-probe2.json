@@ -1,0 +1,1053 @@
+{
+  "clickToolbar": "clicked",
+  "afterToolbar": {
+    "hits": [
+      {
+        "cls": "label-title cp edit-normal",
+        "len": 5,
+        "text": "链接网址"
+      },
+      {
+        "cls": "box-node pstRe edit-normal",
+        "len": 13,
+        "text": "链接网址 域名 邮箱地址"
+      },
+      {
+        "cls": "editor-box fix",
+        "len": 26,
+        "text": "链接网址 域名 邮箱地址 按钮文本 在新窗口打开"
+      }
+    ],
+    "rootInfo": {
+      "cls": "backstage-frontendpreview",
+      "inputs": [
+        {
+          "type": "text",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "text",
+          "value": "mailto:service@mail.com",
+          "visible": true,
+          "checked": false,
+          "ctx": "链接网址 域名 邮箱地址"
+        },
+        {
+          "type": "hidden",
+          "value": "eyJzdW1UeXBlIjoiMiIsImxpbmtUeXBlIjoiMiIs",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "text",
+          "value": "邮箱 - service@mail.com",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "text",
+          "value": " <i class=\"font-icon fa fa-envelope-o\"><",
+          "visible": true,
+          "checked": false,
+          "ctx": "按钮文本 在新窗口打开"
+        },
+        {
+          "type": "checkbox",
+          "value": "on",
+          "visible": true,
+          "checked": false,
+          "ctx": "在新窗口打开"
+        },
+        {
+          "type": "text",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "Home Products Solution 测试私有属性 Services & Suppo"
+        },
+        {
+          "type": "hidden",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "Home Products Solution 测试私有属性 Services & Suppo"
+        },
+        {
+          "type": "text",
+          "value": "#ffffff",
+          "visible": false,
+          "checked": false,
+          "ctx": "背景颜色▼"
+        },
+        {
+          "type": "file",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "上传图片"
+        },
+        {
+          "type": "radio",
+          "value": "on",
+          "visible": false,
+          "checked": true,
+          "ctx": "是"
+        },
+        {
+          "type": "radio",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": "否"
+        },
+        {
+          "type": "file",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "本地上传"
+        },
+        {
+          "type": "radio",
+          "value": "on",
+          "visible": false,
+          "checked": true,
+          "ctx": "是"
+        },
+        {
+          "type": "radio",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": "否"
+        },
+        {
+          "type": "text",
+          "value": "rgb(51, 51, 51)",
+          "visible": false,
+          "checked": false,
+          "ctx": "▼"
+        },
+        {
+          "type": "text",
+          "value": "rgb(10, 61, 173)",
+          "visible": false,
+          "checked": false,
+          "ctx": "▼"
+        },
+        {
+          "type": "text",
+          "value": "rgb(6, 45, 131)",
+          "visible": false,
+          "checked": false,
+          "ctx": "▼"
+        },
+        {
+          "type": "text",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "px"
+        },
+        {
+          "type": "text",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "px"
+        },
+        {
+          "type": "text",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "px"
+        },
+        {
+          "type": "text",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "px"
+        },
+        {
+          "type": "radio",
+          "value": "1",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px"
+        },
+        {
+          "type": "radio",
+          "value": "2",
+          "visible": false,
+          "checked": false,
+          "ctx": "1440px"
+        },
+        {
+          "type": "radio",
+          "value": "3",
+          "visible": false,
+          "checked": false,
+          "ctx": "1600px"
+        },
+        {
+          "type": "radio",
+          "value": "4",
+          "visible": false,
+          "checked": false,
+          "ctx": "1920px"
+        },
+        {
+          "type": "radio",
+          "value": "-2",
+          "visible": false,
+          "checked": false,
+          "ctx": "全屏"
+        },
+        {
+          "type": "radio",
+          "value": "-1",
+          "visible": false,
+          "checked": false,
+          "ctx": "自定义（需不小于1200px）"
+        },
+        {
+          "type": "text",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px1440px1600px1920px全屏自定义（需不小于1200px）px"
+        },
+        {
+          "type": "checkbox",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "text",
+          "value": "",
+          "visible": true,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "text",
+          "value": "",
+          "visible": true,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "1",
+          "visible": false,
+          "checked": false,
+          "ctx": "Series All Anti Static Packaging Materials Fit"
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "Series All Anti Static Packaging Materials Fit"
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "Series All Anti Static Packaging Materials Fit"
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "Series All Anti Static Packaging Materials Fit"
+        },
+        {
+          "type": "hidden",
+          "value": "默认产品列表页",
+          "visible": false,
+          "checked": false,
+          "ctx": "Series All Anti Static Packaging Materials Fit"
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "Series All Anti Static Packaging Materials Fit"
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "Series All Anti Static Packaging Materials Fit"
+        },
+        {
+          "type": "hidden",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "Series All Anti Static Packaging Materials Fit"
+        },
+        {
+          "type": "text",
+          "value": "#ffffff",
+          "visible": false,
+          "checked": false,
+          "ctx": "背景颜色▼"
+        },
+        {
+          "type": "file",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "上传图片"
+        },
+        {
+          "type": "radio",
+          "value": "on",
+          "visible": false,
+          "checked": true,
+          "ctx": "是"
+        },
+        {
+          "type": "radio",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": "否"
+        },
+        {
+          "type": "file",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "本地上传"
+        },
+        {
+          "type": "radio",
+          "value": "on",
+          "visible": false,
+          "checked": true,
+          "ctx": "是"
+        },
+        {
+          "type": "radio",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": "否"
+        },
+        {
+          "type": "text",
+          "value": "#c92b2f",
+          "visible": false,
+          "checked": false,
+          "ctx": "▼"
+        },
+        {
+          "type": "text",
+          "value": "#044F9F",
+          "visible": false,
+          "checked": false,
+          "ctx": "▼"
+        },
+        {
+          "type": "text",
+          "value": "rgba(4, 79, 159, 0.1)",
+          "visible": false,
+          "checked": false,
+          "ctx": "▼"
+        },
+        {
+          "type": "text",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "px"
+        },
+        {
+          "type": "text",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "px"
+        },
+        {
+          "type": "text",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "px"
+        },
+        {
+          "type": "text",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "px"
+        },
+        {
+          "type": "radio",
+          "value": "1",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px"
+        },
+        {
+          "type": "radio",
+          "value": "2",
+          "visible": false,
+          "checked": false,
+          "ctx": "1440px"
+        },
+        {
+          "type": "radio",
+          "value": "3",
+          "visible": false,
+          "checked": false,
+          "ctx": "1600px"
+        },
+        {
+          "type": "radio",
+          "value": "4",
+          "visible": false,
+          "checked": false,
+          "ctx": "1920px"
+        },
+        {
+          "type": "radio",
+          "value": "-2",
+          "visible": false,
+          "checked": false,
+          "ctx": "全屏"
+        },
+        {
+          "type": "radio",
+          "value": "-1",
+          "visible": false,
+          "checked": false,
+          "ctx": "自定义（需不小于1200px）"
+        },
+        {
+          "type": "text",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px1440px1600px1920px全屏自定义（需不小于1200px）px"
+        },
+        {
+          "type": "checkbox",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "radio",
+          "value": "1",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px"
+        },
+        {
+          "type": "radio",
+          "value": "2",
+          "visible": false,
+          "checked": false,
+          "ctx": "1440px"
+        },
+        {
+          "type": "radio",
+          "value": "3",
+          "visible": false,
+          "checked": false,
+          "ctx": "1600px"
+        },
+        {
+          "type": "radio",
+          "value": "4",
+          "visible": false,
+          "checked": false,
+          "ctx": "1920px"
+        },
+        {
+          "type": "radio",
+          "value": "-2",
+          "visible": false,
+          "checked": false,
+          "ctx": "全屏"
+        },
+        {
+          "type": "radio",
+          "value": "-1",
+          "visible": false,
+          "checked": false,
+          "ctx": "自定义（需不小于1200px）"
+        },
+        {
+          "type": "text",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px1440px1600px1920px全屏自定义（需不小于1200px）px"
+        },
+        {
+          "type": "checkbox",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "30",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "radio",
+          "value": "1",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px"
+        },
+        {
+          "type": "radio",
+          "value": "2",
+          "visible": false,
+          "checked": false,
+          "ctx": "1440px"
+        },
+        {
+          "type": "radio",
+          "value": "3",
+          "visible": false,
+          "checked": false,
+          "ctx": "1600px"
+        },
+        {
+          "type": "radio",
+          "value": "4",
+          "visible": false,
+          "checked": false,
+          "ctx": "1920px"
+        },
+        {
+          "type": "radio",
+          "value": "-2",
+          "visible": false,
+          "checked": false,
+          "ctx": "全屏"
+        },
+        {
+          "type": "radio",
+          "value": "-1",
+          "visible": false,
+          "checked": false,
+          "ctx": "自定义（需不小于1200px）"
+        },
+        {
+          "type": "text",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px1440px1600px1920px全屏自定义（需不小于1200px）px"
+        },
+        {
+          "type": "checkbox",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "30",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "radio",
+          "value": "1",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px"
+        },
+        {
+          "type": "radio",
+          "value": "2",
+          "visible": false,
+          "checked": false,
+          "ctx": "1440px"
+        },
+        {
+          "type": "radio",
+          "value": "3",
+          "visible": false,
+          "checked": false,
+          "ctx": "1600px"
+        },
+        {
+          "type": "radio",
+          "value": "4",
+          "visible": false,
+          "checked": false,
+          "ctx": "1920px"
+        },
+        {
+          "type": "radio",
+          "value": "-2",
+          "visible": false,
+          "checked": false,
+          "ctx": "全屏"
+        },
+        {
+          "type": "radio",
+          "value": "-1",
+          "visible": false,
+          "checked": false,
+          "ctx": "自定义（需不小于1200px）"
+        },
+        {
+          "type": "text",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px1440px1600px1920px全屏自定义（需不小于1200px）px"
+        },
+        {
+          "type": "checkbox",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "20",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "12",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "12",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "12",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "12",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "component_AvKPHbFUsWSd",
+          "visible": false,
+          "checked": false,
+          "ctx": "Subscribe"
+        },
+        {
+          "type": "hidden",
+          "value": "-1",
+          "visible": false,
+          "checked": false,
+          "ctx": "Subscribe"
+        },
+        {
+          "type": "hidden",
+          "value": "0",
+          "visible": false,
+          "checked": false,
+          "ctx": "Subscribe"
+        },
+        {
+          "type": "hidden",
+          "value": "-1",
+          "visible": false,
+          "checked": false,
+          "ctx": "Subscribe"
+        },
+        {
+          "type": "hidden",
+          "value": "lrKUZkaMtfvI",
+          "visible": false,
+          "checked": false,
+          "ctx": "Subscribe"
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "Subscribe"
+        },
+        {
+          "type": "email",
+          "value": "",
+          "visible": true,
+          "checked": false,
+          "ctx": "Subscribe"
+        },
+        {
+          "type": "radio",
+          "value": "1",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px"
+        },
+        {
+          "type": "radio",
+          "value": "2",
+          "visible": false,
+          "checked": false,
+          "ctx": "1440px"
+        },
+        {
+          "type": "radio",
+          "value": "3",
+          "visible": false,
+          "checked": false,
+          "ctx": "1600px"
+        },
+        {
+          "type": "radio",
+          "value": "4",
+          "visible": false,
+          "checked": false,
+          "ctx": "1920px"
+        },
+        {
+          "type": "radio",
+          "value": "-2",
+          "visible": false,
+          "checked": false,
+          "ctx": "全屏"
+        },
+        {
+          "type": "radio",
+          "value": "-1",
+          "visible": false,
+          "checked": false,
+          "ctx": "自定义（需不小于1200px）"
+        },
+        {
+          "type": "text",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px1440px1600px1920px全屏自定义（需不小于1200px）px"
+        },
+        {
+          "type": "checkbox",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "hidden",
+          "value": "30",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        },
+        {
+          "type": "radio",
+          "value": "1",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px"
+        },
+        {
+          "type": "radio",
+          "value": "2",
+          "visible": false,
+          "checked": false,
+          "ctx": "1440px"
+        },
+        {
+          "type": "radio",
+          "value": "3",
+          "visible": false,
+          "checked": false,
+          "ctx": "1600px"
+        },
+        {
+          "type": "radio",
+          "value": "4",
+          "visible": false,
+          "checked": false,
+          "ctx": "1920px"
+        },
+        {
+          "type": "radio",
+          "value": "-2",
+          "visible": false,
+          "checked": false,
+          "ctx": "全屏"
+        },
+        {
+          "type": "radio",
+          "value": "-1",
+          "visible": false,
+          "checked": false,
+          "ctx": "自定义（需不小于1200px）"
+        },
+        {
+          "type": "text",
+          "value": "",
+          "visible": false,
+          "checked": false,
+          "ctx": "1200px1440px1600px1920px全屏自定义（需不小于1200px）px"
+        },
+        {
+          "type": "checkbox",
+          "value": "on",
+          "visible": false,
+          "checked": false,
+          "ctx": ""
+        }
+      ]
+    }
+  },
+  "mainDoc": {
+    "hits": [],
+    "rootInfo": null
+  }
+}

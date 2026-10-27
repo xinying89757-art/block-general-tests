@@ -1,0 +1,1400 @@
+{
+  "fileKey": "Vce7UhBgJPBqAwiYGdOUDv",
+  "nodeId": "1281:2960",
+  "texts": [
+    {
+      "text": "New Machine",
+      "style": {
+        "fontSize": 18,
+        "fontFamily": "Poppins",
+        "fontWeight": 700,
+        "lineHeight": 54,
+        "color": "#ffffff",
+        "textAlign": "center"
+      },
+      "nodeId": "1281:2967",
+      "nodeName": ""
+    },
+    {
+      "text": "Used Paver",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 700,
+        "lineHeight": 45,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1340:131",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac Road 二级",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 40
+      },
+      "nodeId": "1281:3002",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac Road Roller 三级",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1340:137",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac Road Roller 四级",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1341:143",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac Road Roller 五级",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1341:146",
+      "nodeName": ""
+    },
+    {
+      "text": "Hamm Road Roller",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3005",
+      "nodeName": ""
+    },
+    {
+      "text": "Bomag Road Roller",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3008",
+      "nodeName": ""
+    },
+    {
+      "text": "Redline Road Roller",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3011",
+      "nodeName": ""
+    },
+    {
+      "text": "Used Paver",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 700,
+        "lineHeight": 45,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3017",
+      "nodeName": ""
+    },
+    {
+      "text": "品牌",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 600,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3035",
+      "nodeName": ""
+    },
+    {
+      "text": "LONGi",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3044",
+      "nodeName": ""
+    },
+    {
+      "text": "Trina Solar",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3051",
+      "nodeName": ""
+    },
+    {
+      "text": "Jinko Solar",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3058",
+      "nodeName": ""
+    },
+    {
+      "text": "Huawei",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3065",
+      "nodeName": ""
+    },
+    {
+      "text": "CATL",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3072",
+      "nodeName": ""
+    },
+    {
+      "text": "产地",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 600,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3077",
+      "nodeName": ""
+    },
+    {
+      "text": "Please Select",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": "normal",
+        "letterSpacing": -0.0762
+      },
+      "nodeId": "1281:3080",
+      "nodeName": ""
+    },
+    {
+      "text": "密封形式",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 600,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3085",
+      "nodeName": ""
+    },
+    {
+      "text": "全铝边框",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3095",
+      "nodeName": ""
+    },
+    {
+      "text": "双玻封装",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3104",
+      "nodeName": ""
+    },
+    {
+      "text": "玻璃-玻璃",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3113",
+      "nodeName": ""
+    },
+    {
+      "text": "重量",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 600,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3119",
+      "nodeName": ""
+    },
+    {
+      "text": "50",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "SF Pro",
+        "fontWeight": 400,
+        "lineHeight": "normal",
+        "letterSpacing": -0.1504
+      },
+      "nodeId": "1281:3125",
+      "nodeName": ""
+    },
+    {
+      "text": "—",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "SF Pro",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      },
+      "nodeId": "1281:3127",
+      "nodeName": ""
+    },
+    {
+      "text": "800",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "SF Pro",
+        "fontWeight": 400,
+        "lineHeight": "normal",
+        "letterSpacing": -0.1504
+      },
+      "nodeId": "1281:3130",
+      "nodeName": ""
+    },
+    {
+      "text": "details",
+      "style": {
+        "lineHeight": 27.2
+      },
+      "nodeId": "1281:3159",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac F2530CS Crawler Paver Dynapac Road Roller Dynapac F2530CS Crawler...",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      },
+      "nodeId": "1281:3164",
+      "nodeName": ""
+    },
+    {
+      "text": "details",
+      "style": {
+        "lineHeight": 27.2
+      },
+      "nodeId": "1343:170",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac F2530CS Crawler Paver",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      },
+      "nodeId": "1343:175",
+      "nodeName": ""
+    },
+    {
+      "text": "details",
+      "style": {
+        "lineHeight": 27.2
+      },
+      "nodeId": "1343:196",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac F2530CS Crawler Paver",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      },
+      "nodeId": "1343:201",
+      "nodeName": ""
+    },
+    {
+      "text": "details",
+      "style": {
+        "lineHeight": 27.2
+      },
+      "nodeId": "1343:378",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac F2530CS Crawler Paver",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      },
+      "nodeId": "1343:383",
+      "nodeName": ""
+    },
+    {
+      "text": "details",
+      "style": {
+        "lineHeight": 27.2
+      },
+      "nodeId": "1343:404",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac F2530CS Crawler Paver",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      },
+      "nodeId": "1343:409",
+      "nodeName": ""
+    },
+    {
+      "text": "details",
+      "style": {
+        "lineHeight": 27.2
+      },
+      "nodeId": "1343:430",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac F2530CS Crawler Paver",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      },
+      "nodeId": "1343:435",
+      "nodeName": ""
+    },
+    {
+      "text": "details",
+      "style": {
+        "lineHeight": 27.2
+      },
+      "nodeId": "1343:456",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac F2530CS Crawler Paver",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      },
+      "nodeId": "1343:461",
+      "nodeName": ""
+    },
+    {
+      "text": "details",
+      "style": {
+        "lineHeight": 27.2
+      },
+      "nodeId": "1343:482",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac F2530CS Crawler Paver",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      },
+      "nodeId": "1343:487",
+      "nodeName": ""
+    },
+    {
+      "text": "details",
+      "style": {
+        "lineHeight": 27.2
+      },
+      "nodeId": "1343:508",
+      "nodeName": ""
+    },
+    {
+      "text": "Dynapac F2530CS Crawler Paver",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      },
+      "nodeId": "1343:513",
+      "nodeName": ""
+    },
+    {
+      "text": "1",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 28,
+        "color": "#ffffff",
+        "textAlign": "center"
+      },
+      "nodeId": "1281:3370",
+      "nodeName": ""
+    },
+    {
+      "text": "2",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 28,
+        "textAlign": "center"
+      },
+      "nodeId": "1281:3373",
+      "nodeName": ""
+    },
+    {
+      "text": "3",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 28,
+        "textAlign": "center"
+      },
+      "nodeId": "1281:3376",
+      "nodeName": ""
+    },
+    {
+      "text": "»",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 28,
+        "textAlign": "center"
+      },
+      "nodeId": "1281:3379",
+      "nodeName": ""
+    }
+  ],
+  "containers": [
+    {
+      "nodeId": "1281:2966",
+      "name": "a.backstage-component-btn.4.backstage-component-btncolor.backstage-component-btncolorhover · New Machine",
+      "style": {
+        "borderRadius": 3
+      }
+    },
+    {
+      "nodeId": "1281:2967",
+      "name": "",
+      "style": {
+        "fontSize": 18,
+        "fontFamily": "Poppins",
+        "fontWeight": 700,
+        "lineHeight": 54,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1340:131",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 700,
+        "lineHeight": 45,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3002",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 40
+      }
+    },
+    {
+      "nodeId": "1340:137",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1341:143",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1341:146",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3005",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3008",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3011",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 44.8,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3017",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 700,
+        "lineHeight": 45,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3035",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 600,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3039",
+      "name": "Checkbox",
+      "style": {
+        "borderRadius": 2
+      }
+    },
+    {
+      "nodeId": "1281:3044",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3046",
+      "name": "Checkbox",
+      "style": {
+        "borderRadius": 2
+      }
+    },
+    {
+      "nodeId": "1281:3051",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3053",
+      "name": "Checkbox",
+      "style": {
+        "borderRadius": 2
+      }
+    },
+    {
+      "nodeId": "1281:3058",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3060",
+      "name": "Checkbox",
+      "style": {
+        "borderRadius": 2
+      }
+    },
+    {
+      "nodeId": "1281:3065",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3067",
+      "name": "Checkbox",
+      "style": {
+        "borderRadius": 2
+      }
+    },
+    {
+      "nodeId": "1281:3072",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3077",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 600,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3079",
+      "name": "Dropdown",
+      "style": {
+        "borderRadius": 4
+      }
+    },
+    {
+      "nodeId": "1281:3080",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": "normal",
+        "letterSpacing": -0.0762
+      }
+    },
+    {
+      "nodeId": "1281:3085",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 600,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3090",
+      "name": "Radio Button",
+      "style": {
+        "borderRadius": 8
+      }
+    },
+    {
+      "nodeId": "1281:3095",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3099",
+      "name": "Radio Button",
+      "style": {
+        "borderRadius": 8
+      }
+    },
+    {
+      "nodeId": "1281:3104",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3108",
+      "name": "Radio Button",
+      "style": {
+        "borderRadius": 8
+      }
+    },
+    {
+      "nodeId": "1281:3113",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3119",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "PingFang SC",
+        "fontWeight": 600,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3124",
+      "name": "Text Input",
+      "style": {
+        "borderRadius": 4
+      }
+    },
+    {
+      "nodeId": "1281:3125",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "SF Pro",
+        "fontWeight": 400,
+        "lineHeight": "normal",
+        "letterSpacing": -0.1504
+      }
+    },
+    {
+      "nodeId": "1281:3127",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "SF Pro",
+        "fontWeight": 400,
+        "lineHeight": 21,
+        "letterSpacing": -0.1504,
+        "whiteSpace": "nowrap"
+      }
+    },
+    {
+      "nodeId": "1281:3129",
+      "name": "Text Input",
+      "style": {
+        "borderRadius": 4
+      }
+    },
+    {
+      "nodeId": "1281:3130",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "SF Pro",
+        "fontWeight": 400,
+        "lineHeight": "normal",
+        "letterSpacing": -0.1504
+      }
+    },
+    {
+      "nodeId": "1281:3132",
+      "name": "Container",
+      "style": {
+        "borderRadius": 2
+      }
+    },
+    {
+      "nodeId": "1281:3133",
+      "name": "Container",
+      "style": {
+        "borderRadius": 2
+      }
+    },
+    {
+      "nodeId": "1281:3153",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1281:3157",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1281:3159",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1281:3164",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:164",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:168",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:170",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:175",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:190",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:194",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:196",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:201",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:372",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:376",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:378",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:383",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:398",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:402",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:404",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:409",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:424",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:428",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:430",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:435",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:450",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:454",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:456",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:461",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:476",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:480",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:482",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:487",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:502",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:506",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Inter",
+        "fontWeight": 400,
+        "lineHeight": 16,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:508",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1343:513",
+      "name": "",
+      "style": {
+        "fontSize": 16,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 20,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1281:3370",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 28,
+        "color": "#ffffff",
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1281:3373",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 28,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1281:3376",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 28,
+        "textAlign": "center"
+      }
+    },
+    {
+      "nodeId": "1281:3379",
+      "name": "",
+      "style": {
+        "fontSize": 14,
+        "fontFamily": "Poppins",
+        "fontWeight": 400,
+        "lineHeight": 28,
+        "textAlign": "center"
+      }
+    }
+  ]
+}

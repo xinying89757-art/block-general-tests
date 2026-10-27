@@ -1,0 +1,353 @@
+{
+  "steps": [
+    {
+      "step": "settings-dialog",
+      "inputs": [
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "form_token_value",
+          "placeholder": "",
+          "value": "pljkKBmqljRl1Sew5z7zh7e3SRqikmornpoqmnRmiSn",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "page.pageTitle",
+          "placeholder": "",
+          "value": "",
+          "cls": "medium"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "page.pageUrl",
+          "placeholder": "",
+          "value": "",
+          "cls": "medium"
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "pageTemplateId",
+          "placeholder": "",
+          "value": "-1",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "authType",
+          "placeholder": "",
+          "value": "0",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "authType",
+          "placeholder": "",
+          "value": "2",
+          "cls": ""
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-multiple",
+          "name": "userLevel",
+          "value": "",
+          "cls": "ms-offscreen"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "",
+          "placeholder": "",
+          "value": "-1",
+          "cls": ""
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "interactionType",
+          "value": "先填写表单后加载",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "authType",
+          "placeholder": "",
+          "value": "1",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "authPassword",
+          "placeholder": "6～20位英文字母或数字",
+          "value": "",
+          "cls": "medium"
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "interactionType",
+          "value": "先填写表单后加载",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "authType",
+          "placeholder": "",
+          "value": "3",
+          "cls": ""
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "interactionType",
+          "value": "先填写表单后加载",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "authType",
+          "placeholder": "",
+          "value": "4",
+          "cls": ""
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "formId",
+          "value": "-1",
+          "cls": "authFormSelect"
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "interactionType",
+          "value": "先填写表单后加载",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "",
+          "placeholder": "",
+          "value": "true",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "checkKeyword",
+          "placeholder": "",
+          "value": "true",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "keywords",
+          "placeholder": "",
+          "value": "",
+          "cls": "tiny fll mr10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "page.seoTitle",
+          "placeholder": "",
+          "value": "",
+          "cls": "mt10 w-80-p"
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "name": "page.seoKeyword",
+          "placeholder": "",
+          "value": "",
+          "cls": "wrap-wd-80 mt10"
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "name": "page.seoDesc",
+          "placeholder": "",
+          "value": "",
+          "cls": "wrap-wd-80 mt10"
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "name": "text.pageText",
+          "placeholder": "",
+          "value": "",
+          "cls": "wrap-wd-80 mt10"
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "name": "text.beforeBodyText",
+          "placeholder": "",
+          "value": "",
+          "cls": "wrap-wd-80 mt10"
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "name": "text.afterBodyText",
+          "placeholder": "",
+          "value": "",
+          "cls": "wrap-wd-80 mt10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "file",
+          "name": "filedata",
+          "placeholder": "",
+          "value": "",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "",
+          "placeholder": "",
+          "value": "【权限】产品全文搜索、图片搜索",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "",
+          "placeholder": "",
+          "value": "",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "",
+          "placeholder": "",
+          "value": "PAGE_NAME - SITE_TITLE",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "",
+          "placeholder": "",
+          "value": "PAGE_NAME , SITE_TITLE, KEYWORD_PAGE_1,KEYWORD_PAGE_2,KEYWORD_PAGE_3,KEYWORD_PAGE_4,KEYWORD_PAGE_5",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "",
+          "placeholder": "",
+          "value": "PAGE_NAME, SITE_TITLE",
+          "cls": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "hidden",
+          "name": "",
+          "placeholder": "",
+          "value": "",
+          "cls": ""
+        }
+      ],
+      "buttons": [
+        "帮助",
+        "基础设置",
+        "SEO推广代码",
+        "Head标签",
+        "Body标签",
+        "SMO标签",
+        "设置页面名称时需要注意什么？",
+        "更新TKD标签",
+        "+ 添加关键词",
+        "点击按钮按照当前SEO推广代码更新Title、Keywords、Description内容 更新TKD标签",
+        "管理我的关键词",
+        "High Density PCB Connectors(0)",
+        "High Performance Computer I/O Connectors(0)",
+        "High Density Server Backplane Connectors(0)",
+        "Durable Multi-Pin Connector Headers(0)",
+        "Durable Female PCB Header Connectors(0)",
+        "Durable Female PCB Header Connectors(0)",
+        "Hot Sale Big Jumbo FIBC Bulk Container Aluminum Foil Liner FIBC Bag(0)",
+        "Liner Bag(0)",
+        "Foil Bag(0)",
+        "Foil Bulk Aseptic Bags with Valve for Tomato Paste Apple Juice Oil(0)",
+        "Container FIBC Big Bulk Packing 1 Ton PP aluminum Liner Bags(0)",
+        "Multi-Function Full Automatic Screw Nails Counting Packaging Machine(0)",
+        "Packaging Machine(0)",
+        "Packing Machine(0)",
+        "Fastener Hardware Screws Bolts Nails Furniture Fittings Spare Parts Packing Machine(0)",
+        "Multi-Function Furniture Spare Parts Packaging Automatic Machinery(0)",
+        "Packaging(0)",
+        "Multi-Functional Automatic Plastic Bag Filling Machine Packing machine(0)",
+        "Food Packing Machine(0)",
+        "Multi Function Spare Parts Hardware Screws Bolt Packing Automatic Counting and Packing Machine(0)",
+        "本地上传",
+        "从资料库选择",
+        "清除",
+        "已开启 去开启",
+        "已开启 去开启",
+        "已开启 去开启",
+        "已开启 去开启",
+        "取消",
+        "确定"
+      ],
+      "labels": [
+        "无权限控制 所有人员均能访问",
+        "会员访问 登录会员后浏览网站",
+        "无级别",
+        "密码访问 输入密码后访问网站",
+        "员工访问 只有员工才能浏览网站",
+        "表单访问 在页面显示表单信息"
+      ]
+    },
+    {
+      "step": "filled",
+      "name": "测试-47748",
+      "url": "/test-47748.html"
+    },
+    {
+      "step": "settings-buttons",
+      "buttons": [
+        "帮助",
+        "基础设置",
+        "SEO推广代码",
+        "Head标签",
+        "Body标签",
+        "SMO标签",
+        "设置页面名称时需要注意什么？",
+        "点击按钮按照当前SEO推广代码更新Title、Keywords、Description内容 更新TKD标签",
+        "请选择会员级别",
+        "+ 添加关键词",
+        "点击按钮按照当前SEO推广代码更新Title、Keywords、Description内容 更新TKD标签",
+        "管理我的关键词"
+      ]
+    },
+    {
+      "step": "submit-visible",
+      "visible": true,
+      "text": "确定"
+    },
+    {
+      "step": "after-submit",
+      "url": "https://website.leadong.com/phoenix/pagebuilder/layout",
+      "topBar": "语种: 英语 页面: 测试-47748 智能优化当前页面 保存 预览 发布 ..",
+      "visibleDialogs": 0
+    },
+    {
+      "step": "custom-list-after"
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "rounds": [
+    "A set radio: set:并集（查询出所有满足的结果）",
+    "A select: clicked",
+    "B restore logic: set:交集（查询出共有的部分）",
+    "B set trigger: set:更改筛选项后自动筛选"
+  ],
+  "unionBaseline": [
+    {
+      "title": "Series",
+      "cls": "prodfield-single swiper-slide prodfield-col-series",
+      "values": [
+        "Anti Static Packaging Materials",
+        "Fitness resistance",
+        "Hydraulic adapter",
+        "Hydraulic cylinder",
+        "Hydraulic manifold block",
+        "Hydraulic power unit",
+        "HYDRAULIC ROD ENDS",
+        "Linear Actuator / Electric cylinder",
+        "Mesh Fence",
+        "Multi-Function Packing Machine",
+        "Multilateral Sealing Bag",
+        "other",
+        "Packaging Bags",
+        "Packing Machinery Parts",
+        "Pet Food Bag",
+        "Plastic Film",
+        "Roll Film",
+        "Shrink Film",
+        "Snack Bag",
+        "Special Shaped Bag",
+        "Spout Pouch",
+        "Stand Up Pouch",
+        "Storage Cage",
+        "Telescopic hydraulic cylinder",
+        "U Shaped Container Bag",
+        "Vacuum Packing Bag",
+        "Valve Integrated hydraulic cylinder",
+        "Zipper Bag",
+        "PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high",
+        "Basic resistor series",
+        "Circular mil - spec connector series for aerospace applications",
+        "Pressure sensor series for industrial applications",
+        "Resettable polymeric positive temperature coefficient fuse series",
+        "测试分类"
+      ]
+    },
+    {
+      "title": "Category",
+      "cls": "prodfield-single swiper-slide prodfield-col-category",
+      "values": [
+        "Chemical Bag",
+        "Clutch and brake",
+        "COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS",
+        "Composite Packaging Materials",
+        "Custom hydraulic cylinder",
+        "Others Hydraulic cylinder",
+        "Standard Welded hydraulic cylinder",
+        "Tie Rod Hydraulic Cylinder"
+      ]
+    }
+  ],
+  "unionAfter": [
+    {
+      "title": "Series",
+      "cls": "prodfield-single swiper-slide prodfield-col-series",
+      "values": [
+        "Hydraulic cylinder"
+      ]
+    },
+    {
+      "title": "Category",
+      "cls": "prodfield-single swiper-slide prodfield-col-category",
+      "values": [
+        "Others Hydraulic cylinder",
+        "Standard Welded hydraulic cylinder",
+        "Tie Rod Hydraulic Cylinder"
+      ]
+    }
+  ],
+  "unionSelected": "Hydraulic cylinder"
+}

@@ -1,0 +1,32 @@
+{
+  "blockId": "47748",
+  "defaults": {
+    "dataSource": "所有产品",
+    "pagination": "否",
+    "number": "20"
+  },
+  "found": {
+    "dataSource": true,
+    "paginationNo": true,
+    "number": "10"
+  },
+  "before": {
+    "dataSource": [
+      "使用筛选条件"
+    ],
+    "pagination": [
+      "是"
+    ]
+  },
+  "after": {
+    "dataSource": [
+      "所有产品"
+    ],
+    "pagination": [
+      "否"
+    ],
+    "number": "20"
+  },
+  "restored": true,
+  "saved": true
+}

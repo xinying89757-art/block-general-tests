@@ -1,0 +1,116 @@
+{
+  "blockId": "40838",
+  "capabilities": [
+    {
+      "designObservations": {
+        "exampleFields": [
+          "Series",
+          "Category",
+          "Specification",
+          "Type",
+          "Mouting Style Rated"
+        ],
+        "features": [
+          "每个字段一组多选 checkbox",
+          "字段内可搜索选项（Please enter the content + 搜索图标）",
+          "已选项以标签形式汇总展示且可单个删除",
+          "每组有 Reset",
+          "底部有 Clear Filters 与 Search 按钮"
+        ]
+      },
+      "id": "custom-filter-fields",
+      "oracle": "按内容管理固定数据集独立计算每种组合的预期产品集合，与前台结果比对",
+      "settingName": "选择自定义筛选字段",
+      "status": "implemented-v1",
+      "testMatrixCandidates": [
+        "只选 1 个字段 / 选多个字段 / 全选 / 不选",
+        "单字段内多选值、多字段组合筛选",
+        "字段内搜索选项后勾选",
+        "删除单个已选标签、每组 Reset、Clear Filters 清空、Search 执行筛选"
+      ],
+      "variant": "multi-select"
+    },
+    {
+      "id": "product-list-display",
+      "settingName": "产品列表设置",
+      "status": "implemented-v1"
+    },
+    {
+      "id": "button-link",
+      "settingName": "按钮链接",
+      "status": "implemented-v1"
+    }
+  ],
+  "category": "product-filter",
+  "dataMode": "dynamic",
+  "dataSource": {
+    "entities": [
+      "products",
+      "product-categories"
+    ],
+    "scope": "由区块组件设置中选择的产品/分类范围决定，具体范围待结合 Figma 或业务说明确认",
+    "system": "content-management"
+  },
+  "dynamicCheckCandidates": [
+    {
+      "assertionSource": "待 Figma 或业务说明确认",
+      "id": "filter-options-match-cms",
+      "name": "筛选项与内容管理中的分类/属性一致",
+      "status": "candidate"
+    },
+    {
+      "assertionSource": "需要固定测试数据和筛选逻辑说明",
+      "id": "filter-results-match-expected-set",
+      "name": "单条件与多条件筛选后的结果集合正确",
+      "status": "candidate"
+    },
+    {
+      "assertionSource": "已在编辑器预览中观察到 Reset 与 Clear Filters 控件，具体预期待确认",
+      "id": "reset-and-clear-restore",
+      "name": "Reset/Clear 后筛选条件与结果恢复到初始状态",
+      "status": "candidate"
+    },
+    {
+      "assertionSource": "待 Figma 或业务说明确认",
+      "id": "empty-result-state",
+      "name": "无匹配产品时显示规定的空状态且不残留旧结果",
+      "status": "candidate"
+    }
+  ],
+  "figma": {
+    "fileKey": "AbJ42nodCsTvedlqH2FdqC",
+    "framesObserved": [
+      "自定义字段筛选（多选） 0:36",
+      "自定义字段筛选（多选） 205:2"
+    ],
+    "status": "provided",
+    "url": "https://www.figma.com/design/AbJ42nodCsTvedlqH2FdqC/%E9%94%A6%E5%87%8C%E7%94%B5%E5%AD%90%E5%8C%BA%E5%9D%97%E8%AE%BE%E8%AE%A1%E7%A8%BF--Copy-?node-id=0-1&p=f&t=go8WyMEen18jZ38q-0"
+  },
+  "knownInteractions": [
+    "select-filter",
+    "reset",
+    "clear-filters"
+  ],
+  "name": "产品筛选区块",
+  "specificChecks": [],
+  "suites": {
+    "category": true,
+    "common": true,
+    "dynamicData": true,
+    "specific": true
+  },
+  "target": {
+    "language": "en",
+    "page": "products"
+  },
+  "testData": {
+    "requirements": [
+      "至少两个可区分的产品分类",
+      "可同时命中两个筛选条件的产品",
+      "只命中一个筛选条件的产品",
+      "不命中任何筛选条件的产品",
+      "无图片或长标题等边界产品（按最终用例取舍）"
+    ],
+    "status": "to-be-defined"
+  }
+}

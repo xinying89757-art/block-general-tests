@@ -1,0 +1,31 @@
+{
+  "blockId": "40838",
+  "bar": {
+    "cls": "compareMenu compareMenu_ELpuzTPfkJNy show",
+    "inBlockWrap": null,
+    "html": "<div class=\"compareMenu compareMenu_ELpuzTPfkJNy show\"><div class=\"compareMenu_small\"><div class=\"compareTitle\"></div><div class=\"compareBody\"><div class=\"compareList\"><div data-proid=\"NmKqGFoHbPJy\" class=\"compareList-detail compareList-detail-small\"><a title=\"测试产品小何2\" href=\"/2-pd104320438.html\"><span>测试产品小何2</span><img src=\"//a0.leadongcdn.com/cloud/plBpjKpoljSRplkommlkkm/Camera_1040g3k031gf92qch38005pm87ajncd8ph9dpgeg-460-460.jpg\" alt=\"测试产品小何2\"></a><div class=\"removeThis\"><i class=\"fa fa-times\" aria-hidden=\"true\"></i></div></div><div data-proid=\"ApUgGkomaTfn\" class=\"compareList-detail compareList-detail-small\"><a title=\"测试产品小何1\" href=\"/1-pd190420438.html\"><span>测试产品小何1</span><img src=\"//a0.leadongcdn.com/cloud/prBpjKpoljSRpllokrjnkp/Camera_1040g3k031h7h3926jo3g5pro2o0m2koaktdircg-460-460.jpg\" alt=\"测试产品小何1\"></a><div class=\"removeThis\"><i class=\"fa fa-times\" aria-hidden=\"true\"></i></div></div></div><div class=\"comparedOpt\"><div class=\"compareButton show\">Compare(<span class=\"compareNum\">2</span>/6)</div><div class=\"compareRemove\">Empty</div></div><div class=\"errorMsg\">The number can not exceed 6</div></div></div><div class=\"compareMenu_large\"><div class=\"table-wrap\"><table></table></div><div class=\"opt-btn\"><span class=\"save\">Inquire</span><span class=\"empty\">Empty</span></div><div class=\"retract\"><i class=\"fa fa-chevron-down\" aria-hidden=\"true\"></i>Retract</div><form class=\"hide\" id=\"comparedForm\" action=\"/phoenix/admin/prod/inquire\" method=\"post\"><input type=\"hidden\" name=\"inquireParams\"><input type=\"hidden\" name=\"prodCompField_sort\" value=\"\"></form></div></div>",
+    "buttons": [
+      {
+        "tag": "A",
+        "text": "测试产品小何2",
+        "cls": ""
+      },
+      {
+        "tag": "A",
+        "text": "测试产品小何1",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "cls": ""
+      },
+      {
+        "tag": "INPUT",
+        "text": "",
+        "cls": ""
+      }
+    ]
+  },
+  "compareBtnCount": 1
+}

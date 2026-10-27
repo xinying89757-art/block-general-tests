@@ -1,0 +1,58 @@
+{
+  "products": {
+    "测试产品A": {
+      "prodId": "ENULQuzRFljy",
+      "plan": {
+        "a": "单选4-10",
+        "b": "下拉列表4-10"
+      },
+      "result": {
+        "setRes": [
+          "A set -> 4 checked=true",
+          "B set -> 4 (下拉列表4-10)"
+        ],
+        "saveRes": "saved-clicked:保存",
+        "readBack": {
+          "a": "单选1-10",
+          "b": "下拉列表1-10"
+        }
+      }
+    },
+    "测试产品小何1": {
+      "prodId": "ApUgGkomaTfn",
+      "plan": {
+        "a": "单选4-10",
+        "b": "下拉列表8-10"
+      },
+      "result": {
+        "setRes": [
+          "A set -> 4 checked=true",
+          "B set -> 8 (下拉列表8-10)"
+        ],
+        "saveRes": "saved-clicked:保存",
+        "readBack": {
+          "a": "单选1-10",
+          "b": "下拉列表1-10"
+        }
+      }
+    },
+    "测试产品小何2": {
+      "prodId": "NmKqGFoHbPJy",
+      "plan": {
+        "a": "单选6-10",
+        "b": "下拉列表4-10"
+      },
+      "result": {
+        "setRes": [
+          "A set -> 6 checked=true",
+          "B set -> 4 (下拉列表4-10)"
+        ],
+        "saveRes": "saved-clicked:保存",
+        "readBack": {
+          "a": "单选1-10",
+          "b": "下拉列表1-10"
+        }
+      }
+    }
+  }
+}

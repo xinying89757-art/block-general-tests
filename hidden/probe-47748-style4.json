@@ -1,0 +1,63 @@
+{
+  "blockId": "47748",
+  "details": [],
+  "cardHover": {
+    "cls": "prodlist-parameter-inner",
+    "childLinks": [
+      "测试产品小何2"
+    ]
+  },
+  "navExpand": {
+    "clicked": true
+  },
+  "navChildVisible": [
+    {
+      "text": "Anti Static Packaging Ma",
+      "parent": true,
+      "fontSize": 16,
+      "fontWeight": 700,
+      "lineHeight": 45,
+      "color": "rgb(34, 34, 34)"
+    },
+    {
+      "text": "Chemical Bag",
+      "parent": false,
+      "fontSize": 16,
+      "fontWeight": 400,
+      "lineHeight": 40,
+      "color": "rgb(34, 34, 34)"
+    },
+    {
+      "text": "Clutch and brake",
+      "parent": false,
+      "fontSize": 16,
+      "fontWeight": 400,
+      "lineHeight": 40,
+      "color": "rgb(34, 34, 34)"
+    },
+    {
+      "text": "COMPONENTS / PARTS FOR H",
+      "parent": false,
+      "fontSize": 16,
+      "fontWeight": 400,
+      "lineHeight": 40,
+      "color": "rgb(34, 34, 34)"
+    },
+    {
+      "text": "Composite Packaging Mate",
+      "parent": false,
+      "fontSize": 16,
+      "fontWeight": 400,
+      "lineHeight": 40,
+      "color": "rgb(34, 34, 34)"
+    },
+    {
+      "text": "Custom hydraulic cylinde",
+      "parent": false,
+      "fontSize": 16,
+      "fontWeight": 400,
+      "lineHeight": 40,
+      "color": "rgb(34, 34, 34)"
+    }
+  ]
+}

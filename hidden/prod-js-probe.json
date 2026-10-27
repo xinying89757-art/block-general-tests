@@ -1,0 +1,15 @@
+{
+  "inline": [],
+  "scriptSrcs": [
+    "https://website.leadong.com/ueditor/ueditor.config.js?_=1792660188211",
+    "https://w2-static.wsfcdn.com/ueditor/ueditor.all.js?_=1792660188211",
+    "https://website.leadong.com/ueditor/purify.min.js?_=1792660188211",
+    "https://website.leadong.com/js/tiptapEditor/faq-launcher.js?_=1792660188211",
+    "https://website.leadong.com/ueditor/faq-plugin.js?_=1792660188211",
+    "https://w0-static.wsfcdn.com/ueditor/dialogs/tableDialog/removeTableStyle.js?_=1792660188211",
+    "https://w2-static.wsfcdn.com/ueditor/lang/zh-cn/zh-cn.js?_=1792660188211",
+    "https://w1-static.wsfcdn.com/ueditor/extends/imageRefer.js?_=1792660188211",
+    "https://w0-static.wsfcdn.com/ueditor/extends/videoRefer.js?_=1792660188211",
+    "https://w2-static.wsfcdn.com/ueditor/extends/downloadRefer.js?_=1792660188211"
+  ]
+}

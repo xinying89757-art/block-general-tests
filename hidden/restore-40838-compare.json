@@ -1,0 +1,29 @@
+{
+  "blockId": "40838",
+  "before": {
+    "compare": [
+      {
+        "label": "关闭",
+        "checked": true
+      },
+      {
+        "label": "开启",
+        "checked": false
+      }
+    ],
+    "brand": false
+  },
+  "after": {
+    "compare": [
+      {
+        "label": "关闭",
+        "checked": true
+      },
+      {
+        "label": "开启",
+        "checked": false
+      }
+    ],
+    "brand": false
+  }
+}

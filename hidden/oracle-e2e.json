@@ -1,0 +1,132 @@
+{
+  "steps": [
+    "enable field: now:true",
+    "disable field: now:false"
+  ],
+  "baselineNames": [
+    "测试数字--10",
+    "测试数字--9",
+    "测试数字--8",
+    "测试数字--7",
+    "测试数字--6",
+    "测试数字--5",
+    "测试数字--4",
+    "测试数字--3",
+    "测试数字--2",
+    "测试数字--1",
+    "产品1111",
+    "测试产品小何1",
+    "测试产品芋圆1",
+    "测试产品小何2",
+    "测试产品A",
+    "测试6号",
+    "测试5号",
+    "100\"-40\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
+    "产品7",
+    "测试产品hap"
+  ],
+  "groupInfo": [
+    {
+      "title": "Series",
+      "values": [
+        "Anti Static Packaging Materials",
+        "Fitness resistance",
+        "Hydraulic adapter",
+        "Hydraulic cylinder",
+        "Hydraulic manifold block",
+        "Hydraulic power unit",
+        "HYDRAULIC ROD ENDS",
+        "Linear Actuator / Electric cylinder",
+        "Mesh Fence",
+        "Multi-Function Packing Machine",
+        "Multilateral Sealing Bag",
+        "other",
+        "Packaging Bags",
+        "Packing Machinery Parts",
+        "Pet Food Bag",
+        "Plastic Film",
+        "Roll Film",
+        "Shrink Film",
+        "Snack Bag",
+        "Special Shaped Bag",
+        "Spout Pouch",
+        "Stand Up Pouch",
+        "Storage Cage",
+        "Telescopic hydraulic cylinder",
+        "U Shaped Container Bag",
+        "Vacuum Packing Bag",
+        "Valve Integrated hydraulic cylinder",
+        "Zipper Bag",
+        "PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high",
+        "Basic resistor series",
+        "Circular mil - spec connector series for aerospace applications",
+        "Pressure sensor series for industrial applications",
+        "Resettable polymeric positive temperature coefficient fuse series",
+        "测试分类"
+      ]
+    },
+    {
+      "title": "Category",
+      "values": [
+        "Chemical Bag",
+        "Clutch and brake",
+        "COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS",
+        "Composite Packaging Materials",
+        "Custom hydraulic cylinder",
+        "Others Hydraulic cylinder",
+        "Standard Welded hydraulic cylinder",
+        "Tie Rod Hydraulic Cylinder"
+      ]
+    },
+    {
+      "title": "测试单选按钮A",
+      "values": [
+        "单选1-10",
+        "单选2-10",
+        "单选3-10",
+        "单选4-10",
+        "单选5-10",
+        "单选6-10",
+        "单选7-10",
+        "单选8-10",
+        "单选9-10",
+        "单选10-10"
+      ]
+    }
+  ],
+  "fieldValues": [
+    "单选1-10",
+    "单选2-10",
+    "单选3-10",
+    "单选4-10",
+    "单选5-10",
+    "单选6-10",
+    "单选7-10",
+    "单选8-10",
+    "单选9-10",
+    "单选10-10"
+  ],
+  "pick": "单选1-10",
+  "afterFilterNames": [
+    "测试数字--10",
+    "测试数字--9",
+    "测试数字--8",
+    "测试数字--7",
+    "测试数字--6",
+    "测试数字--5",
+    "测试数字--4",
+    "测试数字--3",
+    "测试数字--2",
+    "测试数字--1",
+    "产品1111",
+    "测试产品小何1",
+    "测试产品小何2",
+    "测试产品A",
+    "产品7",
+    "测试产品hap",
+    "QW1",
+    "产品test1",
+    "这是单规格产品--库存为10",
+    "这是单规格产品--库存为0"
+  ]
+}

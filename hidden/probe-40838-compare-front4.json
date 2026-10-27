@@ -1,0 +1,340 @@
+{
+  "blockId": "40838",
+  "before": {
+    "fixed": [
+      {
+        "tag": "DIV",
+        "cls": "compareMenu compareMenu_ELpuzTPfkJNy",
+        "text": "Compare(0/6) Empty"
+      },
+      {
+        "tag": "DIV",
+        "cls": "woot-widget-holder woot--hide woot-elements--right",
+        "text": ""
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "woot-widget-bubble woot-elements--right",
+        "text": ""
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "woot-elements--right woot-widget-bubble woot--close woot--hide",
+        "text": ""
+      }
+    ],
+    "comparCls": [
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "comparedDetail hide",
+        "text": "",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "comparedDetail hide",
+        "text": "",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": false
+      }
+    ],
+    "bodyLen": 4230,
+    "compareCount": 21,
+    "submitCount": 0
+  },
+  "compareBoxCount": 20,
+  "checkedCount": 2,
+  "after": {
+    "fixed": [
+      {
+        "tag": "DIV",
+        "cls": "block12494 has_blockHeadFixed sq_header_1_screen",
+        "text": "Home Products Solution 测试私有属性 Services & Support News About Us 一级Anti Static Packaging Materials 二级Others Hydraulic cylinder 三级Container Liner Bag Email Follow Search Energy Mining Water Treatment General Industry Warranty Training Download FAQ Video Company Introduction Corporate Culture Developmen"
+      },
+      {
+        "tag": "DIV",
+        "cls": "compareMenu compareMenu_ELpuzTPfkJNy show",
+        "text": "测试产品小何2 测试产品小何1 Compare(2/6) Empty"
+      },
+      {
+        "tag": "DIV",
+        "cls": "woot-widget-holder woot--hide woot-elements--right",
+        "text": ""
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "woot-widget-bubble woot-elements--right",
+        "text": ""
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "woot-elements--right woot-widget-bubble woot--close woot--hide",
+        "text": ""
+      }
+    ],
+    "comparCls": [
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "comparedDetail hide",
+        "text": "",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "comparedDetail hide",
+        "text": "",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": true
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": true
+      },
+      {
+        "tag": "DIV",
+        "cls": "tabList-wrapper-inner-compare-flex",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "DIV",
+        "cls": "compared-input-wrap",
+        "text": "Add to Compare",
+        "visible": false
+      },
+      {
+        "tag": "INPUT",
+        "cls": "compared-input",
+        "text": "",
+        "visible": false
+      }
+    ],
+    "bodyLen": 4246,
+    "compareCount": 21,
+    "submitCount": 0
+  },
+  "barHunt": [
+    {
+      "tag": "DIV",
+      "cls": "siteblocks-setting-wrap ndfpKUAZwmtS_20261009095342 siteblocks-obfKUpAjvIRn-20261026104752",
+      "text": "New Machine Anti Static Packaging Materials Fitness resistance Hydraulic adapter Hydraulic cylinder Hydraulic manifold block Hydraulic power unit HYDRAULIC ROD ENDS Linear Actuator / Electric cylinder Mesh Fence Multi-Function Packing Machine Multilateral Sealing Bag other Packaging Bags Packing Machinery Parts Pet Food Bag Plastic Film Roll Film Shrink Film Snack Bag Special Shaped Bag Spout Pouch Stand Up Pouch Storage Cage Telescopic hydraulic cylinder U Shaped Container Bag Vacuum Packing Ba"
+    },
+    {
+      "tag": "DIV",
+      "cls": "siteblocks-container",
+      "text": "New Machine Anti Static Packaging Materials Fitness resistance Hydraulic adapter Hydraulic cylinder Hydraulic manifold block Hydraulic power unit HYDRAULIC ROD ENDS Linear Actuator / Electric cylinder Mesh Fence Multi-Function Packing Machine Multilateral Sealing Bag other Packaging Bags Packing Machinery Parts Pet Food Bag Plastic Film Roll Film Shrink Film Snack Bag Special Shaped Bag Spout Pouch Stand Up Pouch Storage Cage Telescopic hydraulic cylinder U Shaped Container Bag Vacuum Packing Ba"
+    },
+    {
+      "tag": "DIV",
+      "cls": "location_blockCon47648_pack hasDefaultWidth container",
+      "text": "New Machine Anti Static Packaging Materials Fitness resistance Hydraulic adapter Hydraulic cylinder Hydraulic manifold block Hydraulic power unit HYDRAULIC ROD ENDS Linear Actuator / Electric cylinder Mesh Fence Multi-Function Packing Machine Multilateral Sealing Bag other Packaging Bags Packing Machinery Parts Pet Food Bag Plastic Film Roll Film Shrink Film Snack Bag Special Shaped Bag Spout Pouch Stand Up Pouch Storage Cage Telescopic hydraulic cylinder U Shaped Container Bag Vacuum Packing Ba"
+    },
+    {
+      "tag": "DIV",
+      "cls": "blockCon47648 pf-collecting",
+      "text": "New Machine Anti Static Packaging Materials Fitness resistance Hydraulic adapter Hydraulic cylinder Hydraulic manifold block Hydraulic power unit HYDRAULIC ROD ENDS Linear Actuator / Electric cylinder Mesh Fence Multi-Function Packing Machine Multilateral Sealing Bag other Packaging Bags Packing Machinery Parts Pet Food Bag Plastic Film Roll Film Shrink Film Snack Bag Special Shaped Bag Spout Pouch Stand Up Pouch Storage Cage Telescopic hydraulic cylinder U Shaped Container Bag Vacuum Packing Ba"
+    },
+    {
+      "tag": "DIV",
+      "cls": "pf-layout",
+      "text": "New Machine Anti Static Packaging Materials Fitness resistance Hydraulic adapter Hydraulic cylinder Hydraulic manifold block Hydraulic power unit HYDRAULIC ROD ENDS Linear Actuator / Electric cylinder Mesh Fence Multi-Function Packing Machine Multilateral Sealing Bag other Packaging Bags Packing Machinery Parts Pet Food Bag Plastic Film Roll Film Shrink Film Snack Bag Special Shaped Bag Spout Pouch Stand Up Pouch Storage Cage Telescopic hydraulic cylinder U Shaped Container Bag Vacuum Packing Ba"
+    }
+  ],
+  "screenshots": [
+    "screenshots/probe-compare-after-check.png",
+    "screenshots/probe-compare-after-check-full.png"
+  ],
+  "restored": true
+}

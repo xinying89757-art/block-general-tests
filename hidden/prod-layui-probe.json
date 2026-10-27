@@ -1,0 +1,15 @@
+{
+  "skins": {
+    "radioLabelHTML": "<label>\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t<input type=\"radio\" name=\"option_826554\" id=\"826554\" value=\"4\">\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t<span>单选4-10</span>\n\t\t\t\t\t\t\t</label>",
+    "selectWrapHTML": "<td>\n\t\t\t\t\n\t\t\t\n\t\t\t\t\n\t\t\t\n\t\t\t\t\n\t\t\t\t\t\n\t\t\t\t\t\n\t\t\t\t\t\n\t\t\t\t\t\t<select class=\"fieldSelect\">\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t<option name=\"select_826574\" value=\"1\" id=\"826574\" selected=\"selected\">\n\t\t\t\t\t\t\t\t\t\t\t下拉列表1-10\n\t\t\t\t\t\t\t\t\t\t</option>\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\n\t\t\t\t"
+  },
+  "set": [
+    "radio checked after skin click: true",
+    "no layui select wrap"
+  ],
+  "toast": [],
+  "readBack": {
+    "a": "1",
+    "b": "下拉列表1-10"
+  }
+}

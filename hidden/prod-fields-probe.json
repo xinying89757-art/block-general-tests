@@ -1,0 +1,1658 @@
+{
+  "url": "https://website.leadong.com/prod?invokeAction=prod_new_update&prodId=ENULQuzRFljy",
+  "dump": {
+    "headings": [
+      "管理自定义字段",
+      "该产品已单独设置自定义字段排序。",
+      "该产品的自定义字段将不再跟随“管理自定义字段”中设置的排序。新添加的自定义字段按"
+    ],
+    "fieldRows": [
+      {
+        "label": "词首字母大写",
+        "ctrls": [
+          {
+            "type": "text",
+            "name": "product.prodName",
+            "value": "测试产品A",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "词首字母大写"
+        ]
+      },
+      {
+        "label": "系统URL",
+        "ctrls": [
+          {
+            "type": "text",
+            "name": "detailUrl",
+            "value": "",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "系统URL",
+          "自定义URL"
+        ]
+      },
+      {
+        "label": "上传视频",
+        "ctrls": [
+          {
+            "type": "radio",
+            "name": "videoSource",
+            "value": "0",
+            "checked": true
+          },
+          {
+            "type": "radio",
+            "name": "videoSource",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "thirdPartyLink",
+            "value": "",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "上传视频",
+          "添加链接"
+        ]
+      },
+      {
+        "label": "单选1-10",
+        "ctrls": [
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "//media.leadong.com",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "1",
+            "checked": true
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "2",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "3",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "4",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "5",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "6",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "7",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "8",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "9",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "10",
+            "checked": false
+          },
+          {
+            "type": "select-one",
+            "name": "",
+            "value": "1",
+            "options": [
+              "下拉列表1-10",
+              "下拉列表21-10",
+              "下拉列表3-10",
+              "下拉列表4-10",
+              "下拉列表5-10",
+              "下拉列表6-10",
+              "下拉列表7-10",
+              "下拉列表8-10",
+              "下拉列表9-10",
+              "下拉列表10-10"
+            ]
+          },
+          {
+            "type": "select-one",
+            "name": "",
+            "value": "1",
+            "options": [
+              "Capacitor series with high vol",
+              "Resistor series",
+              "Resistor series with high - pr",
+              "Diode series",
+              "Inductor series",
+              "Transistor series",
+              "Connector series",
+              "PCB series",
+              "Sensor series with high Sensor",
+              "Integrated circuit seriesInteg"
+            ]
+          },
+          {
+            "type": "text",
+            "name": "txt_829424",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_829824",
+            "value": "1",
+            "checked": true
+          },
+          {
+            "type": "radio",
+            "name": "option_829824",
+            "value": "2",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_829824",
+            "value": "3",
+            "checked": false
+          },
+          {
+            "type": "textarea",
+            "name": "txt_830944",
+            "value": ""
+          },
+          {
+            "type": "text",
+            "name": "color_831074",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "color_879814",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "color_879824",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "select-one",
+            "name": "",
+            "value": "1",
+            "options": [
+              "product 1",
+              "product 2",
+              "product 3"
+            ]
+          },
+          {
+            "type": "select-one",
+            "name": "",
+            "value": "1",
+            "options": [
+              "aaa",
+              "bbb",
+              "ccc"
+            ]
+          },
+          {
+            "type": "select-one",
+            "name": "",
+            "value": "1",
+            "options": [
+              "xxx",
+              "bbb",
+              "vvv"
+            ]
+          },
+          {
+            "type": "text",
+            "name": "txt_826564",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "txt_829834",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "txt_826604",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "txt_826594",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "txt_898458",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "txt_898528",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "txt_898588",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "txt_898608",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "txt_898658",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "txt_902148",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "product.fieldValueJson",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "sortStatus",
+            "value": "0",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "fieldSortJson",
+            "value": "{\"826554\":\"0\",\"826564\":\"13\",\"826574\":\"1\",\"82",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "单选1-10",
+          "单选2-10",
+          "单选3-10",
+          "单选4-10",
+          "单选5-10",
+          "单选6-10",
+          "单选7-10",
+          "单选8-10",
+          "单选9-10",
+          "单选10-10"
+        ]
+      },
+      {
+        "label": "单选1-10",
+        "ctrls": [
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "1",
+            "checked": true
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "2",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "3",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "4",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "5",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "6",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "7",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "8",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "9",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_826554",
+            "value": "10",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "单选1-10",
+          "单选2-10",
+          "单选3-10",
+          "单选4-10",
+          "单选5-10",
+          "单选6-10",
+          "单选7-10",
+          "单选8-10",
+          "单选9-10",
+          "单选10-10"
+        ]
+      },
+      {
+        "label": "product 1",
+        "ctrls": [
+          {
+            "type": "radio",
+            "name": "option_829824",
+            "value": "1",
+            "checked": true
+          },
+          {
+            "type": "radio",
+            "name": "option_829824",
+            "value": "2",
+            "checked": false
+          },
+          {
+            "type": "radio",
+            "name": "option_829824",
+            "value": "3",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "product 1",
+          "product 2",
+          "product 3"
+        ]
+      },
+      {
+        "label": "邮件",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "isAlarmed",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "alarmNum",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "emailAlarm",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "phoneAlarm",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "weixinAlarm",
+            "value": "on",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "邮件",
+          "短信",
+          "微信"
+        ]
+      },
+      {
+        "label": "开启隐藏",
+        "ctrls": [
+          {
+            "type": "hidden",
+            "name": "customTypes[0].propertyFlag",
+            "value": "0",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "customTypes[0].propTypeId",
+            "value": "10000",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "customTypes[0].propTypeName",
+            "value": "材质",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "propChooses[0].propTypeAndValueId",
+            "value": "10000_1",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "propChooses[0].propValue",
+            "value": "镀金",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "customTypes[0].hideFlag",
+            "value": "1",
+            "checked": true
+          }
+        ],
+        "radios": [
+          "开启隐藏"
+        ]
+      },
+      {
+        "label": "开启隐藏",
+        "ctrls": [
+          {
+            "type": "hidden",
+            "name": "customTypes[1].propertyFlag",
+            "value": "0",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "customTypes[1].propTypeId",
+            "value": "10001",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "customTypes[1].propTypeName",
+            "value": "价格",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "propChooses[1].propTypeAndValueId",
+            "value": "10001_2",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "propChooses[1].propValue",
+            "value": "便宜",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "customTypes[1].hideFlag",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "开启隐藏"
+        ]
+      },
+      {
+        "label": "开启隐藏",
+        "ctrls": [
+          {
+            "type": "hidden",
+            "name": "customTypes[2].propertyFlag",
+            "value": "0",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "customTypes[2].propTypeId",
+            "value": "10003",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "customTypes[2].propTypeName",
+            "value": "电压",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "propChooses[2].propTypeAndValueId",
+            "value": "10003_4",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "propChooses[2].propValue",
+            "value": "0220V",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "customTypes[2].hideFlag",
+            "value": "1",
+            "checked": true
+          }
+        ],
+        "radios": [
+          "开启隐藏"
+        ]
+      },
+      {
+        "label": "开启隐藏",
+        "ctrls": [
+          {
+            "type": "hidden",
+            "name": "customTypes[3].propertyFlag",
+            "value": "0",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "customTypes[3].propTypeId",
+            "value": "10004",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "customTypes[3].propTypeName",
+            "value": "兼容型号",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "propChooses[3].propTypeAndValueId",
+            "value": "10004_5",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "propChooses[3].propValue",
+            "value": "ABC-100",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "customTypes[3].hideFlag",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "开启隐藏"
+        ]
+      },
+      {
+        "label": "规格名： 请先输入规格名",
+        "ctrls": [
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "规格名： 请先输入规格名",
+          "添加规格图片",
+          "规格名： 请先输入规格名",
+          "添加规格图片",
+          "规格名： 请先输入规格名",
+          "添加规格图片",
+          "规格名： 请先输入规格名",
+          "添加规格图片",
+          "规格名： 请先输入规格名",
+          "添加规格图片"
+        ]
+      },
+      {
+        "label": "开启样式隔离。 开启后，产品描述富文本编辑器里的内容样式会按照富文本",
+        "ctrls": [
+          {
+            "type": "textarea",
+            "name": "productText.prodDescript",
+            "value": ""
+          },
+          {
+            "type": "textarea",
+            "name": "productText.prodDescType",
+            "value": ""
+          },
+          {
+            "type": "textarea",
+            "name": "productText.prodDescJson",
+            "value": ""
+          },
+          {
+            "type": "hidden",
+            "name": "productText.prodDescTitle",
+            "value": "Product Description",
+            "checked": false
+          },
+          {
+            "type": "textarea",
+            "name": "",
+            "value": "<div class=\"contentEditRichText_editorContai"
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "relationId",
+            "value": "ENULQuzRFljy",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "pageId",
+            "value": "qvKpOFkCZAcd",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "relationType",
+            "value": "51",
+            "checked": false
+          },
+          {
+            "type": "textarea",
+            "name": "",
+            "value": ""
+          },
+          {
+            "type": "textarea",
+            "name": "",
+            "value": ""
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "null",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "descDisplayFlag",
+            "value": "0",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "开启样式隔离。 开启后，产品描述富文本编辑器里的内容样式会按照富文本编辑器的设置生效。未开启，部分样式会继承组件样式或全局样式。"
+        ]
+      },
+      {
+        "label": "上架",
+        "ctrls": [
+          {
+            "type": "radio",
+            "name": "product.showFlag",
+            "value": "1",
+            "checked": true
+          },
+          {
+            "type": "radio",
+            "name": "product.showFlag",
+            "value": "0",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "上架",
+          "下架"
+        ]
+      },
+      {
+        "label": "New",
+        "ctrls": [
+          {
+            "type": "hidden",
+            "name": "labelIds",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "labelId",
+            "value": "sLUfFjIGNuwE",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "labelId",
+            "value": "tgKUajSQYFdZ",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "labelId",
+            "value": "yZKputnGikoE",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "labelId",
+            "value": "ptKUPjIvNbAE",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "New",
+          "Hot",
+          "Recommend",
+          "Pre-sale"
+        ]
+      },
+      {
+        "label": "全选",
+        "ctrls": [
+          {
+            "type": "text",
+            "name": "searchRelatedArticleName",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "yPKAhSvYFoGj",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "sFAfrnGiQhwj",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "oUfpCdbYvhSE",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "sGfpMnQilWvE",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "smpAWdvDlhPj",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "otfAMdviGhEj",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "nZAphIGibMYE",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "iUfKCSvYlhWE",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "iBpfCIGYbrqt",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "iCfArnGibMKO",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "articlePageNum",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "relatedIds",
+            "value": "",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "全选",
+          "只显示可添加文章",
+          "xujiyingtest FlowControl's Products Shine at International Valve Exhibition",
+          "test1054 FlowControl's Products Shine at International Valve Exhibition",
+          "test1051 FlowControl's Products Shine at International Valve Exhibition",
+          "FlowControl's Products Shine at International Valve Exhibition",
+          "FlowControl's Products Shine at International Valve Exhibition",
+          "FlowControl's Products Shine at International Valve Exhibition",
+          "FlowControl's Products Shine at International Valve Exhibition",
+          "FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "全选",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "全选"
+        ]
+      },
+      {
+        "label": "只显示可添加文章",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "只显示可添加文章"
+        ]
+      },
+      {
+        "label": "xujiyingtest FlowControl's Product",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "yPKAhSvYFoGj",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "xujiyingtest FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "test1054 FlowControl's Products Sh",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "sFAfrnGiQhwj",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "test1054 FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "test1051 FlowControl's Products Sh",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "oUfpCdbYvhSE",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "test1051 FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "FlowControl's Products Shine at In",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "sGfpMnQilWvE",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "FlowControl's Products Shine at In",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "smpAWdvDlhPj",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "FlowControl's Products Shine at In",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "otfAMdviGhEj",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "FlowControl's Products Shine at In",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "nZAphIGibMYE",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "FlowControl's Products Shine at In",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "iUfKCSvYlhWE",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "FlowControl's Products Shine at In",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "iBpfCIGYbrqt",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "FlowControl's Products Shine at In",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "iCfArnGibMKO",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "FlowControl's Products Shine at International Valve Exhibition"
+        ]
+      },
+      {
+        "label": "全选",
+        "ctrls": [
+          {
+            "type": "text",
+            "name": "searchRelatedProdName",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "yDfLGcsIyBYS",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "FHKgQmYSdARn",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "yNUVbHidSAEy",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "wiAqGRNIyUYn",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "zmAVbwNynpqI",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "NPAVQmNyRzen",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "OdAgQcNIwoRy",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "HWUBGmNyceQn",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "FBUgQHDywzun",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "GpUgvwYycSIn",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "showFlag",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "prodPageNum",
+            "value": "1",
+            "checked": false
+          },
+          {
+            "type": "text",
+            "name": "",
+            "value": "",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "relatedProdIds",
+            "value": "",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "全选",
+          "只显示可添加产品",
+          "测试数字--10",
+          "测试数字--9",
+          "测试数字--8",
+          "测试数字--7",
+          "测试数字--6",
+          "测试数字--5",
+          "测试数字--4",
+          "测试数字--3"
+        ]
+      },
+      {
+        "label": "全选",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "全选"
+        ]
+      },
+      {
+        "label": "只显示可添加产品",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "",
+            "value": "on",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "只显示可添加产品"
+        ]
+      },
+      {
+        "label": "测试数字--10",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "yDfLGcsIyBYS",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "测试数字--10"
+        ]
+      },
+      {
+        "label": "测试数字--9",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "FHKgQmYSdARn",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "测试数字--9"
+        ]
+      },
+      {
+        "label": "测试数字--8",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "yNUVbHidSAEy",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "测试数字--8"
+        ]
+      },
+      {
+        "label": "测试数字--7",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "wiAqGRNIyUYn",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "测试数字--7"
+        ]
+      },
+      {
+        "label": "测试数字--6",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "zmAVbwNynpqI",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "测试数字--6"
+        ]
+      },
+      {
+        "label": "测试数字--5",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "NPAVQmNyRzen",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "测试数字--5"
+        ]
+      },
+      {
+        "label": "测试数字--4",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "OdAgQcNIwoRy",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "测试数字--4"
+        ]
+      },
+      {
+        "label": "测试数字--3",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "HWUBGmNyceQn",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "测试数字--3"
+        ]
+      },
+      {
+        "label": "测试数字--2",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "FBUgQHDywzun",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "测试数字--2"
+        ]
+      },
+      {
+        "label": "测试数字--1",
+        "ctrls": [
+          {
+            "type": "checkbox",
+            "name": "dataId",
+            "value": "GpUgvwYycSIn",
+            "checked": false
+          },
+          {
+            "type": "hidden",
+            "name": "",
+            "value": "1",
+            "checked": false
+          }
+        ],
+        "radios": [
+          "测试数字--1"
+        ]
+      }
+    ]
+  }
+}

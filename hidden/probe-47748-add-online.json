@@ -1,0 +1,19 @@
+{
+  "blockId": "47748",
+  "targetPage": "products",
+  "panel": {
+    "text": "添加区块\n定制区块\nAI区块\n收藏\n自定义区块\n容器控件\n\n最新区块\n\n页头\n\n首屏模块\n\nBanner\n\n标题\n\n产品展示\n\n文章展示\n\n图文展示\n\n图片集\n\n关于我们\n\n团队展示\n\n公司优势\n\n发展历程\n\n特色展示\n\n图标按钮\n\n联系我们\n\n页脚\n\n待审核区块\n\n查看全部",
+    "tabs": [
+      {
+        "value": "-2",
+        "text": "待审核区块\n\t\t\t\t\t\t待审核容器控件"
+      }
+    ],
+    "searchPresent": true
+  },
+  "countBefore": 0,
+  "clicked": true,
+  "countAfter": 1,
+  "saved": true,
+  "added": true
+}
