@@ -1,5 +1,5 @@
 import { savePage, openPreview } from '../editor.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText } from './shared.mjs';
 
 const SUITE = 'capability:product-category-select';
 const NAMES = {
@@ -9,8 +9,8 @@ const NAMES = {
   'pcs-category-front': '分类选择前台效果（导航与 oracle 比对）',
   'pcs-front-note': '产品分类前台可观察性记录',
 };
-function result(id, status, detail, evidence) {
-  return { id, name: NAMES[id], suite: SUITE, status, detail,
+function result(id, status, detail, evidence, textFields = {}) {
+  return { id, name: NAMES[id], suite: SUITE, status, detail, ...checkReportText(NAMES[id], status, detail, evidence, id), ...textFields,
     ...(evidence === undefined ? {} : { evidence }) };
 }
 const outcomeResult = (id, outcome) => result(id, outcome.status, outcome.detail, outcome.evidence);
@@ -33,10 +33,11 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
   const id = 'pcs-category-front';
   const oracle = capability?.oracle;
   if (!oracle?.category || !Array.isArray(oracle.onShelf)) {
-    return result(id, 'skip', '画像里没有分类 oracle 夹具（category/onShelf），无法比对。');
+    return result(id, 'skip', '未提供后台分类和上架产品清单，无法比对。');
   }
   const target = oracle.category;
   const expected = [...oracle.onShelf];
+  const offShelfCount = Number.isFinite(oracle.cmsTotal) ? Math.max(0, oracle.cmsTotal - expected.length) : null;
   const errors = [];
   const evidence = { category: target, expected, cmsTotal: oracle.cmsTotal ?? null };
   const probe = await probeControls(session);
@@ -94,7 +95,7 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
     // Flip to partial with only the oracle category.
     // Identify by exact label: every leafProdGroup checkbox has value "on".
     const partial = mode.find((item) => item.label === '选择部分产品分类');
-    if (!partial) return result(id, 'skip', '找不到“选择部分产品分类”选项。');
+    if (!partial) return result(id, 'na', '本区块没有“选择部分产品分类”设置项。');
     await session.set(partial, true);
     await session.save();
     await session.open();
@@ -108,7 +109,7 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
         await session.set(item, false);
       }
       const targetNow = categoriesOf(after.controls || []).find((item) => (item.label || '').trim() === target);
-      if (!targetNow) { errors.push(`切到部分后找不到分类 ${target}`); }
+      if (!targetNow) { errors.push(`切到部分后找不到分类“${target}”`); }
       else if (!targetNow.checked) await session.set(targetNow, true);
       await session.save();
       await savePage(page);
@@ -144,7 +145,7 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
         if (navCategories === null) {
           flowErrors.push('预览里找不到分类导航容器 .pf-cate-wrap');
         } else if (navCategories.length !== 1 || navCategories[0] !== target) {
-          flowErrors.push(`分类导航为 [${navCategories.join('、')}]，不是仅 [${target}]`);
+          flowErrors.push(`分类导航为“${navCategories.join('”、“')}”，应仅显示“${target}”`);
         }
         // Pre-click list (evidence only): setting the category does not
         // filter the list by itself.
@@ -162,7 +163,7 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
           return true;
         }, target);
         if (!clicked) {
-          flowErrors.push(`预览里找不到分类导航链接 ${target}`);
+          flowErrors.push(`预览里找不到分类导航链接“${target}”`);
           return { flowErrors, flowEvidence };
         }
         // Poll until the product set stabilises (AJAX filter, ≤10s).
@@ -177,8 +178,8 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
         flowEvidence.afterClick = { count: names.length, names };
         const missing = expected.filter((n) => !names.includes(n));
         const extra = names.filter((n) => !expected.includes(n));
-        if (missing.length) flowErrors.push(`点分类后列表缺 ${missing.length} 个 oracle 产品：${missing.join('、')}`);
-        if (extra.length) flowErrors.push(`点分类后列表多 ${extra.length} 个非该分类产品：${extra.join('、')}`);
+        if (missing.length) flowErrors.push(`点分类后列表缺 ${missing.length} 个后台产品：“${missing.join('”、“')}”`);
+        if (extra.length) flowErrors.push(`点分类后列表多 ${extra.length} 个非该分类产品：“${extra.join('”、“')}”`);
         return { flowErrors, flowEvidence };
       });
       errors.push(...flow.flowErrors);
@@ -192,8 +193,8 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
   return result(id,
     errors.length ? 'fail' : 'pass',
     errors.length ? errors.join('；')
-      : `只选 ${target} 后导航仅剩该分类；点导航后列表为 oracle 的 ${expected.length} 个上架产品，与后台一致（下架 4 个不展示）。`,
-    evidence);
+      : `只选“${target}”后导航仅剩该分类；点导航后列表为后台的 ${expected.length} 个上架产品，与后台一致${offShelfCount == null ? '' : `，下架 ${offShelfCount} 个不展示`}。`,
+    evidence, { expected: `只选“${target}”后导航应只显示该分类；点击后应显示后台的 ${expected.length} 个上架产品${offShelfCount == null ? '' : `，并排除 ${offShelfCount} 个下架产品`}。` });
 }
 
 // Open a throwaway preview tab, run fn on its content frame, then close
@@ -252,7 +253,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
         if (!target) return result('pcs-category-persist', 'skip', '切到“部分”后仍无可切换的分类。');
         const outcome = await persistControl({ session, page, target, alternate: !target.checked });
         return result('pcs-category-persist', outcome.status,
-          `分类 ${target.label}：${outcome.detail}`, outcome.evidence);
+          `分类“${target.label}”：${outcome.detail}`, outcome.evidence);
       } catch (error) { errors.push(error.message); return result('pcs-category-persist', 'fail', errors.join('；')); }
       finally {
         if (modeWasAll) {
@@ -293,7 +294,7 @@ export async function runFrontLayer({ frame, config }) {
     const root = frame.locator(previewSelector(config.blockId)).first();
     await root.waitFor({ state: 'attached', timeout: TIMEOUT });
     const text = await root.evaluate((node) => (node.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 500));
-    return [result('pcs-front-note', 'record', '预览里分类导航可观察，本版只记录前 500 字文本，不做效果断言。', { text })];
+    return [result('pcs-front-note', 'record', '预览里分类导航可观察，本项只记录前 500 字文本，不判断导航效果是否正确。', { text })];
   } catch (error) {
     return [result('pcs-front-note', 'record', `分类前台可观察性探查不可用：${error.message}`)];
   }

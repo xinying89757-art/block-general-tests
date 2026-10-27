@@ -11,7 +11,7 @@ import { openEditor, gotoTargetPage, addBlockIfNeeded, savePage, openPreview } f
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = {};
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 const FA = '测试单选按钮A', FB = '测试下拉列表', VA = '单选4-10', VB = '下拉列表4-10';
@@ -101,7 +101,7 @@ async function selectBothAndSearch(frame) {
 
 const setEq = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvasLocator = await gotoTargetPage(page, config);
   await addBlockIfNeeded(page, canvasLocator, config).catch(() => {});
   await page.waitForTimeout(2500);

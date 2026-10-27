@@ -24,6 +24,21 @@ function parseBoolean(value, name) {
   throw new Error(`${name} must be true or false; received ${JSON.stringify(value)}`);
 }
 
+// Also used by the login script, which does not require BLOCK_ID.
+export function loadBrowserConfig(env = process.env) {
+  const browser = firstDefined(env.BROWSER, 'chromium').trim().toLowerCase();
+  if (!['firefox', 'chromium'].includes(browser)) {
+    throw new Error('BROWSER 仅支持 firefox 或 chromium。');
+  }
+  const isCI = Boolean(env.CI) && !['false', '0'].includes(String(env.CI).trim().toLowerCase());
+  const headless = parseBoolean(firstDefined(env.HEADLESS, isCI || browser === 'firefox'), 'HEADLESS');
+  const slowMo = Number(firstDefined(env.SLOW_MO, '0'));
+  if (!Number.isSafeInteger(slowMo) || slowMo < 0) {
+    throw new Error('SLOW_MO must be a non-negative integer in milliseconds.');
+  }
+  return { browser, headless, slowMo };
+}
+
 /**
  * Load the parameterized block test configuration.
  * Values from process.env take precedence over the project .env file.
@@ -47,6 +62,7 @@ export function loadConfig() {
     // final value from the block profile when the env var is absent; see run.mjs.
     targetPageKind: (firstDefined(process.env.TARGET_PAGE_KIND) || '').trim().toLowerCase(),
     siteDomain: firstDefined(process.env.SITE_DOMAIN, 'https://www.leadong.com').trim().replace(/\/$/, ''),
+    siteName: (process.env.SITE_NAME || '').trim(),
     account: firstDefined(
       process.env.ACCOUNT,
       process.env.PLAYWRIGHT_ACCOUNT,
@@ -55,10 +71,10 @@ export function loadConfig() {
     ).trim(),
     password: firstDefined(process.env.PASSWORD, process.env.PLAYWRIGHT_PASSWORD, ''),
     moduleType,
-    browser: firstDefined(process.env.BROWSER, 'firefox').trim().toLowerCase(),
+    ...loadBrowserConfig(),
     ignoreHTTPSErrors: parseBoolean(firstDefined(process.env.IGNORE_HTTPS_ERRORS, 'true'), 'IGNORE_HTTPS_ERRORS'),
     httpsProxy: firstDefined(process.env.HTTPS_PROXY, process.env.https_proxy, ''),
-    editSiteUrl: firstDefined(process.env.EDIT_SITE_URL, process.env.PLAYWRIGHT_EDIT_SITE_URL, ''),
+    editSiteUrl: firstDefined(process.env.EDIT_SITE_URL, process.env.PLAYWRIGHT_EDIT_SITE_URL) || '',
     storageState: firstDefined(process.env.STORAGE_STATE, ''),
     // Force one baseline application even when the block is already on the
     // page (re-apply the profile baseline to a block already in place).

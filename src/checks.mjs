@@ -1,3 +1,5 @@
+import { checkReportText } from './capabilities/shared.mjs';
+
 const DEFINITIONS = [
   ['block-present', '区块容器存在'],
   ['img-alt', '图片具有 alt 属性'],
@@ -85,30 +87,40 @@ async function readBlockCss(frame, block) {
 }
 
 /** Accepts the actual preview content Frame (not the preview shell Page). */
-export async function runFrontChecks(frame, blockId) {
+export async function runFrontChecks(frame, blockId, { previewPage, screenshotDir, runId, report } = {}) {
   const checks = [];
-  const result = (id, status, detail, evidence) => ({
+  const result = (id, status, detail, evidence, textFields = {}) => ({
     id, name: DEFINITIONS.find(([key]) => key === id)[1], status, detail,
+    ...checkReportText(DEFINITIONS.find(([key]) => key === id)[1], status, detail, evidence, id), ...textFields,
     ...(evidence ? { evidence } : {}),
   });
   const blocks = frame.locator(`.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(blockId))}]`);
+  const append = async (check) => {
+    checks.push(check);
+    if (!['fail', 'skip', 'na'].includes(check.status) || !previewPage || !screenshotDir) return;
+    const safeId = String(check.id || 'check').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const screenshot = `${screenshotDir}/${safeId}-${runId}.png`;
+    try { await previewPage.screenshot({ path: screenshot, fullPage: true, timeout: 30_000 }); check.screenshot = screenshot; }
+    catch (error) { report?.artifactErrors?.push({ artifact: `check:${check.id}`, layer: 'front', message: error.message }); }
+  };
   try {
     await blocks.first().waitFor({ state: 'attached', timeout: 30_000 });
   } catch (error) {
-    checks.push(result('block-present', 'fail', error.name === 'TimeoutError'
+    await append(result('block-present', 'fail', error.name === 'TimeoutError'
       ? `预览内容 frame 中未找到区块 ${blockId}。` : `读取区块失败：${error.message}`));
-    return checks.concat(DEFINITIONS.slice(1).map(([id]) => result(id, 'skip', '区块存在检查失败，跳过后续检查。')));
+    for (const [id] of DEFINITIONS.slice(1)) await append(result(id, 'skip', '区块存在检查失败，跳过后续检查。'));
+    return checks;
   }
   const count = await blocks.count();
   const block = blocks.first();
-  checks.push(result('block-present', 'pass', `找到 ${count} 个目标容器；检查第一个实例。`));
+  await append(result('block-present', 'pass', `找到 ${count} 个目标容器；检查第一个实例。`));
 
   const check = async (id, callback) => {
     try {
       const { status, detail, evidence } = await callback();
-      checks.push(result(id, status, detail, evidence));
+      await append(result(id, status, detail, evidence));
     } catch (error) {
-      checks.push(result(id, 'fail', `检查执行异常：${error.message}`));
+      await append(result(id, 'fail', `检查执行异常：${error.message}`));
     }
   };
 
@@ -141,7 +153,7 @@ export async function runFrontChecks(frame, blockId) {
     const failures = samples.filter((sample) => sample.cursor !== 'pointer');
     return {
       status: failures.length ? 'fail' : 'pass',
-      detail: `抽样 ${samples.length} 个元素（最多 20 个）；非 pointer：${JSON.stringify(failures)}。`,
+      detail: `抽样 ${samples.length} 个元素（最多 20 个）；非 pointer 样本 ${failures.length} 个。`,
     };
   });
 
@@ -225,7 +237,8 @@ export async function runFrontChecks(frame, blockId) {
     if (!carousels.length) return { status: 'skip', detail: '区块内无 Slick 轮播。' };
     return {
       status: carousels.every((carousel) => carousel.pass) ? 'pass' : 'fail',
-      detail: JSON.stringify(carousels),
+      detail: `检查 ${carousels.length} 个 Slick 轮播：${carousels.map((item) => `第 ${item.carousel} 个 ${item.pass ? '符合显隐预期' : '不符合显隐预期'}（${item.slideCount} 张幻灯片，每屏 ${item.slidesToShow} 张）`).join('；')}`,
+      evidence: carousels,
     };
   });
   return checks;

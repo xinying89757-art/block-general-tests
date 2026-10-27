@@ -7,10 +7,10 @@ import { openEditor } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = { steps: [] };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await page.waitForTimeout(3000);
   const pagesBefore = context.pages().length;
   // Find and click 产品管理 anywhere in the layout page (main doc first).

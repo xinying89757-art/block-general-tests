@@ -11,7 +11,7 @@ import { widgetSession, probeControls, previewSelector } from "../src/capabiliti
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 const out = { blockId: config.blockId, targetCategory: "测试分类",
   expectedOnShelf: ["测试产品A", "测试产品芋圆1", "测试6号", "测试5号",
     "100\"-40\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
@@ -28,7 +28,7 @@ const dataSourceOf = (probe) => (probe.controls || []).filter((c) =>
   c.type === "radio" && c.name === "selectProdType");
 
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   canvas = await gotoTargetPage(page, config);
   try {
     let { session, probe } = await readListDialog();

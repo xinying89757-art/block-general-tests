@@ -9,10 +9,10 @@ import { openEditor, gotoTargetPage, openPreview } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 const out = { blockId: config.blockId };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await gotoTargetPage(page, config);
   const { frame } = await openPreview(page, context);
   out.preview = await frame.evaluate((id) => {

@@ -5,10 +5,10 @@ import { openEditor, gotoTargetPage, openPreview } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 const out = { blockId: config.blockId };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await gotoTargetPage(page, config);
   const { previewPage, frame } = await openPreview(page, context);
   out.previewUrl = previewPage.url();

@@ -11,7 +11,7 @@ import { openEditor } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = { products: {} };
 const PLAN = {
   "测试产品A": { a: "单选4-10", b: "下拉列表4-10" },
@@ -77,7 +77,7 @@ async function setFields(prodId, plan) {
 }
 
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   for (const [name, plan] of Object.entries(PLAN)) {
     const prodId = await findProdId(name);
     out.products[name] = { prodId, plan };

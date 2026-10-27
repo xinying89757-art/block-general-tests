@@ -5,7 +5,7 @@
 // is asserted, not which radio is checked. The globalApply checkbox is
 // never touched: it would apply the width to other modules.
 import { savePage, openPreview } from '../editor.mjs';
-import { TIMEOUT, previewSelector } from './shared.mjs';
+import { TIMEOUT, previewSelector, checkReportText } from './shared.mjs';
 import { RAIL, openRailPanel, readModuleWidth, setModuleWidth, saveWidthPanel } from './rail.mjs';
 
 const SUITE = 'capability:module-width';
@@ -17,8 +17,9 @@ const NAMES = {
 const ALT_WIDTH = '1200px';
 const BASE_WIDTH = 1440;
 
-function result(id, status, detail, evidence) {
+function result(id, status, detail, evidence, textFields = {}) {
   return { id, name: NAMES[id], status, detail, suite: SUITE,
+    ...checkReportText(NAMES[id], status, detail, evidence, id), ...textFields,
     ...(evidence === undefined ? {} : { evidence }) };
 }
 
@@ -131,15 +132,16 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
   }
   checks.push(result('mw-width-persist',
     persistErrors.length ? 'fail' : 'pass',
-    persistErrors.length ? persistErrors.join('；') : `1200px → 保存重开回读 → 恢复自定义 ${BASE_WIDTH} → 保存重开回读均完成。`,
-    evidence));
+    persistErrors.length ? persistErrors.join('；') : `切换为 1200px 后保存重开回读成功，恢复自定义宽度 ${BASE_WIDTH}px 后再次保存重开回读成功。`,
+    evidence, { expected: `切换为 1200px 后保存重开应保持 1200px；恢复后应回到 ${initialEffective === 'fullscreen' ? '全屏' : `${initialEffective}px`}。` }));
   checks.push(result('mw-front-width',
     effectErrors.length ? 'fail' : (evidence.measureAlt ? 'pass' : 'skip'),
     effectErrors.length ? effectErrors.join('；')
       : evidence.measureAlt
-        ? `改 1200px 后前台容器 max-width=1200px，恢复后=${evidence.measureRestored?.maxWidth}；实测宽度见 evidence（受预览视口限制，只断言 max-width）。`
+        ? `改为 1200px 后前台容器最大宽度为 1200px，恢复后最大宽度为 ${evidence.measureRestored?.maxWidth}；只核对最大宽度，实际显示宽度受预览视口限制。`
         : '宽度翻转未完成，未能量取预览效果。',
-    { measureAlt: evidence.measureAlt, measureRestored: evidence.measureRestored }));
+    { measureAlt: evidence.measureAlt, measureRestored: evidence.measureRestored },
+    { expected: `切换为 1200px 后前台容器最大宽度应为 1200px，恢复后应为 ${initialEffective === 'fullscreen' ? '无限制' : `${initialEffective}px`}。` }));
   return checks;
 }
 

@@ -7,7 +7,7 @@ import { openEditor, gotoTargetPage, addBlockIfNeeded, savePage, openPreview } f
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = { log: [] };
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 
@@ -75,7 +75,7 @@ async function groups(frame) {
 }
 
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvasLocator = await gotoTargetPage(page, config);
   await addBlockIfNeeded(page, canvasLocator, config).catch(() => {});
   await page.waitForTimeout(2500);

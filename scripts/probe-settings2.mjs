@@ -7,7 +7,7 @@ import { openEditor, gotoTargetPage } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { tries: [] };
 
 async function dumpDialogs(where) {
@@ -29,7 +29,7 @@ async function dumpDialogs(where) {
 
 let canvasFrame;
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   // Resolve the actual Frame object for evaluate dumps.
   const handle = await page.locator("iframe.backstage-pc-proview").elementHandle();

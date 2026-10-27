@@ -1,4 +1,4 @@
-import { clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT } from './shared.mjs';
+import { clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText } from './shared.mjs';
 
 const SUITE = 'capability:button-link';
 const DEFAULT_TEXT = 'Please set up the required pop-up form here.';
@@ -10,8 +10,8 @@ const NAMES = {
   'btn-target-persist': '新窗口打开保存回读与恢复',
   'btn-front-text': '预览按钮文本与配置一致',
 };
-function result(id, status, detail, evidence) {
-  return { id, name: NAMES[id], suite: SUITE, status, detail,
+function result(id, status, detail, evidence, textFields = {}) {
+  return { id, name: NAMES[id], suite: SUITE, status, detail, ...checkReportText(NAMES[id], status, detail, evidence, id), ...textFields,
     ...(evidence === undefined ? {} : { evidence }) };
 }
 const outcomeResult = (id, outcome) => result(id, outcome.status, outcome.detail, outcome.evidence);
@@ -152,8 +152,10 @@ export async function runFrontLayer({ frame, config }) {
     await root.waitFor({ state: 'attached', timeout: TIMEOUT });
     const matched = await poll(() => root.getByText(expected, { exact: true }).count(), (count) => count > 0);
     return [result('btn-front-text', expected.trim() && matched.matched ? 'pass' : 'fail',
-      `期望来自${source}：${JSON.stringify(expected)}；精确匹配 ${matched.value} 个元素。`, { expected, matches: matched.value, source })];
+      `从${source}读取的按钮文字“${expected}”在预览中精确匹配 ${matched.value} 个元素。`, { expected, matches: matched.value, source },
+      { expected: `预览中应有按钮文字“${expected}”，且文字内容应与设置值完全一致。` })];
   } catch (error) {
-    return [result('btn-front-text', 'fail', `预览按钮文本检查失败：${error.message}`, { expected, source })];
+    return [result('btn-front-text', 'fail', `预览按钮文字检查失败：${error.message}`, { expected, source },
+      { expected: `预览中应有按钮文字“${expected}”，且文字内容应与设置值完全一致。` })];
   }
 }

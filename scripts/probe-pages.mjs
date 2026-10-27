@@ -7,9 +7,9 @@ import { openEditor } from "../src/editor.mjs";
 import { writeFile } from "node:fs/promises";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await page.getByText("页面:", { exact: true }).first().click();
   await page.waitForTimeout(3000);
   const menu = await page.evaluate(() => {

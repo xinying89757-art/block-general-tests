@@ -3,10 +3,10 @@ import { launchSession } from "../src/browser.mjs";
 import { openEditor } from "../src/editor.mjs";
 import fs from "node:fs";
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = {};
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   for (const [name, id] of [["测试产品A", "ENULQuzRFljy"], ["测试产品小何1", "ApUgGkomaTfn"], ["测试产品小何2", "NmKqGFoHbPJy"]]) {
     await page.goto(`https://website.leadong.com/prod?invokeAction=prod_new_update&prodId=${id}`, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForTimeout(7000);

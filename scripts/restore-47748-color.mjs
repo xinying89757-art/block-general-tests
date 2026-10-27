@@ -10,10 +10,10 @@ import { openRailPanel, readSchemeColor, RAIL } from "../src/capabilities/rail.m
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { blockId: config.blockId };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   out.allInputs = await canvas.locator("body").evaluate((body) => {
     const doc = body.ownerDocument;

@@ -8,7 +8,7 @@ import { openEditor, gotoTargetPage } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { dialogs: [] };
 
 function editorFrame() {
@@ -53,7 +53,7 @@ async function closeDialog() {
 }
 
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   const blockSel = `.siteblocks-setting-wrap[data-appid="${config.blockId}"]`;
   const frameEl = await page.locator("iframe.backstage-pc-proview").elementHandle();

@@ -9,7 +9,7 @@ import { widgetSession, probeControls, previewSelector } from "../src/capabiliti
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 const out = { blockId: config.blockId, targetCategory: "测试分类" };
 let canvas;
 
@@ -91,11 +91,11 @@ const categoriesOf = (probe) => (probe.controls || []).filter((c) =>
   c.type === "checkbox" && c.name === "leafProdGroup");
 
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   out.oracle = await cmsOracle();
   // Back to the editor canvas. The 产品管理 dialog overlays the page, so
-  // reload the editor first (openEditor re-navigates to the editSite URL).
-  await openEditor(page, config);
+  // reload the editor first (openEditor re-enters through the site list).
+  ({ page } = await openEditor(page, config));
   canvas = await gotoTargetPage(page, config);
   try {
     let { session, probe } = await readCategoryDialog();

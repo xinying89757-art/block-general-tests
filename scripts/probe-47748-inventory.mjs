@@ -8,11 +8,11 @@ import { controlsSnapshot } from "../src/capabilities/shared.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 const out = { blockId: config.blockId, targetPage: config.targetPage, allBlocks: [], wraps: [], dialogs: [] };
 
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   const frameEl = await page.locator("iframe.backstage-pc-proview").elementHandle();
   const frame = await frameEl.contentFrame();

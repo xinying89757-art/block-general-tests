@@ -11,7 +11,7 @@ import { widgetSession, probeControls, previewSelector } from "../src/capabiliti
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 const out = { blockId: config.blockId };
 async function readListDialog(canvas) {
   const session = widgetSession({ page, canvas, config,
@@ -20,7 +20,7 @@ async function readListDialog(canvas) {
   return { session, probe };
 }
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   let { session, probe } = await readListDialog(canvas);
   const on = probe.controls.find((c) => c.type === "radio" && c.label === "开启");

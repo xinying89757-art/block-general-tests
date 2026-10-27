@@ -1,7 +1,7 @@
 # 区块设置项自动化测试
 
 测领动（Leadong）页面构建器里的普通区块：每个设置项是不是真的生效。
-跑测试的是智能体（Codex、Claude Code或其他），不是人敲命令，也不是网页服务。
+跑测试的是智能体（Codex、Claude Code、Muse 或其他），不是人敲命令，也不是网页服务。
 你对智能体说一句话，它问你要的东西、跑测试、出报告。
 
 ## 它测什么
@@ -15,7 +15,7 @@
 能力是按设置项复用的：一个区块声明自己有哪些能力，套件就自动组合跑。
 新区块多数时候只写画像，不写代码；只有全新的设置项类型才写新能力模块。
 
-## 安装
+## 安装（新同事第一次）
 
 ```sh
 git clone <本仓库地址>
@@ -25,9 +25,11 @@ npx -y playwright@1.56.1 install firefox
 cp .env.example .env
 ```
 
+默认用 Chrome（`BROWSER=chromium`，固定使用 `channel: "chrome"`，要求安装系统 Chrome，仅安装 Playwright Chromium 不满足此要求）。代理受限的机器（比如 miumiu 这台，Playwright Chromium 经出口代理访问外站失败）改设 `BROWSER=firefox`。`HEADLESS` 可设 true/false，默认 CI 为 true，非 CI 下 Firefox 为 true、Chromium 为 false；`SLOW_MO` 为非负整数毫秒，默认 0。
+
 然后对你的智能体说：“帮我测区块 47748”，它会带你走首次设置：
 
-1. 测试站点：你的站点地址。智能体登录后列出你的站点，你挑一个，它把编辑器入口记下来。
+1. 测试站点：把要测的站点语种地址填入 `SITE_DOMAIN`；编辑器优先从固定 pagebuilder 地址进入，落到站点列表时按域名唯一匹配卡片、选语言、点“编辑网站”（可选 `SITE_NAME` 为站名回退）。登录脚本仍列出站点并写入备选 `EDIT_SITE_URL`，它只在列表结构变化、找不到卡片时使用，不再必填。账号下没有该站就停止并提示换账号。
 2. 账号密码：你的领动账号。密码只放你自己机器的 `.env` 里，智能体只告诉你放哪，
    不让你贴进聊天里，也不打印、不提交、不进报告。
 3. 区块 ID：要测的区块（编辑器里的 data-appid）。

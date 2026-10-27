@@ -1,5 +1,5 @@
 import { savePage, openPreview } from '../editor.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText } from './shared.mjs';
 
 // Editor/dialog selectors: docs/SETTINGS_INVENTORY_40838.md,
 // scripts/probe-settings8.mjs and probe-settings10/12.mjs (control label context).
@@ -48,14 +48,18 @@ const NAMES = {
   'cff-clear-restore': '清除筛选后恢复基线',
 };
 
-function result(id, status, detail, evidence) {
+function result(id, status, detail, evidence, textFields = {}) {
   return { id, name: NAMES[id], status, detail, suite: SUITE,
+    ...checkReportText(NAMES[id], status, detail, evidence, id), ...textFields,
     ...(evidence === undefined ? {} : { evidence }) };
 }
 
 const SETTINGS_IDS = ['cff-settings-fields', 'cff-settings-state', 'cff-settings-persist',
   'cff-field-front-group', 'cff-radio-persist', 'cff-select-persist', 'cff-color-persist'];
-const fromOutcome = (id, outcome) => result(id, outcome.status, outcome.detail, outcome.evidence);
+const fromOutcome = (id, outcome) => result(id, outcome.status, outcome.detail, outcome.evidence,
+  id === 'cff-field-front-group' && outcome.evidence?.field
+    ? { expected: `启用“${outcome.evidence.field}”并保存后，预览中应出现以该字段命名的筛选组；恢复后应回到原勾选状态。` }
+    : {});
 
 async function persistSpectrumColor({ session, page, original, alternate }) {
   const evidence = { original, alternate, strategy: null };
@@ -143,7 +147,8 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
     try { await savePage(page); } catch (error) { errors.push(`保存恢复页面失败：${error.message}`); }
   }
   return result('cff-color-persist', errors.length ? 'fail' : 'pass',
-    `${original} → ${alternate} → ${original}；${errors.join('；') || `使用${evidence.strategy}，保存重开回读及恢复均完成。`}`, evidence);
+    `背景颜色原值为 ${original}，改为 ${alternate} 后保存重开回读，恢复后为 ${original}。${errors.join('；') || `通过${evidence.strategy}完成回读与恢复。`}`,
+    evidence, { expected: `背景颜色改为 ${alternate} 后保存重开应保持该颜色；恢复并保存后应回到 ${original}。` });
 }
 
 async function withPreview(page, context, inspect) {
@@ -211,7 +216,8 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   // design-fixed value for an absent group (47748: the three groups are
   // hidden in the editor but fixed by the Figma design), report that value.
   const fixed = capability?.fixedSettings || {};
-  checks.push(result('cff-settings-state', broken.length ? 'fail' : absent.length === Object.keys(state).length ? 'record' : 'pass',
+  checks.push(result('cff-settings-state', broken.length ? 'fail' : absent.length === Object.keys(state).length
+    ? 'record' : 'pass',
     Object.entries(state).map(([name, value]) => `${name}=${value ? `${value.label}（${value.value}）` : fixed[name] ? `${fixed[name]}（设计稿固定值，弹窗隐藏）` : '本区块无此设置'}`).join('；'),
     { ...state, absentGroups: absent, allRadioGroups: Object.entries(Object.groupBy(radios, (item) => item.name || `unnamed:${item.index}`))
       .map(([name, options]) => ({ name, checkedLabels: options.filter((item) => item.checked).map((item) => item.label), options })) }));
@@ -219,8 +225,9 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   const field = fields.find((item) => !item.disabled && !item.checked) || fields.find((item) => !item.disabled);
   try {
     if (!field) {
+      const noFields = fields.length === 0;
       checks.push(...['cff-settings-persist', 'cff-field-front-group']
-        .map((id) => result(id, 'skip', '没有可切换的自定义字段。')));
+        .map((id) => result(id, noFields ? 'na' : 'skip', noFields ? '本区块没有可选自定义筛选字段设置项。' : '没有可切换的自定义字段。')));
     } else {
       checks.push(fromOutcome('cff-settings-persist', await persistControl({
         session, page, target: field, alternate: !field.checked,
@@ -291,7 +298,8 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       outcomes.push(outcome);
     }
     checks.push(result('cff-radio-persist', outcomes.some((item) => item.status === 'fail') ? 'fail'
-      : outcomes.every((item) => item.status === 'pass') ? 'pass' : 'skip',
+      : outcomes.every((item) => item.status === 'pass') ? 'pass'
+        : outcomes.every((item) => item.status === 'na') ? 'na' : 'skip',
     outcomes.map((item) => `[${item.status}] ${item.detail}`).join('；'), outcomes));
 
     const selectProbe = await probeControls(session);
@@ -301,7 +309,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     const option = select?.options.find((item) => !item.disabled && item.value && item.value !== select.value
       && !/^请选择/.test(item.label));
     checks.push(!select || select.disabled || !option
-      ? result('cff-select-persist', 'skip', selectProbe.reason || '未找到唯一的筛选后跳转页 select，或没有其他可选页。')
+      ? result('cff-select-persist', selectProbe.reason ? 'skip' : selects.length === 0 ? 'na' : 'skip', selectProbe.reason || (selects.length === 0 ? '本区块没有筛选后跳转页设置项。' : '未找到唯一的筛选后跳转页 select，或没有其他可选页。'))
       : fromOutcome('cff-select-persist', await persistControl({ session, page, target: select, alternate: option.value })));
 
     // The select persist leaves the dialog closed (and its DOM may be
@@ -313,7 +321,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       replacer: Boolean(input.closest('li.settings-btn-item')?.querySelector('.sp-replacer')),
     })).catch(() => null);
     checks.push(!color || color.title !== '背景颜色' || color.roles !== 'colorPicker' || !color.replacer
-      ? result('cff-color-persist', 'skip', '弹窗内未找到带 Spectrum 取色器的 #customOnBgColor 背景颜色控件。', color)
+      ? result('cff-color-persist', color ? 'skip' : 'na', color ? '背景颜色控件结构不符合取色器定位条件。' : '本区块没有背景颜色设置项。', color)
       : await persistSpectrumColor({ session, page, original: color.value, alternate: 'rgb(1, 2, 3)' }));
   } finally {
     try { await session.cancel(); } catch (error) {

@@ -7,10 +7,10 @@ import { openEditor, gotoTargetPage } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { blockId: config.blockId };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   const wrap = canvas.locator(`.siteblocks-setting-wrap[data-appid="${config.blockId}"]`).first();
   await wrap.scrollIntoViewIfNeeded();

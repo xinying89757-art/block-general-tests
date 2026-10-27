@@ -10,10 +10,10 @@ import { widgetSession, probeControls, previewSelector } from "../src/capabiliti
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 const out = { blockId: config.blockId };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   const session = widgetSession({ page, canvas, config,
     type: "phoenix_blocks_gallery", title: "设置产品列表", wrapIndex: 0 });

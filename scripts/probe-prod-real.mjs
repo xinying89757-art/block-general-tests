@@ -7,11 +7,11 @@ import { openEditor } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = { log: [] };
 const PROD = "ENULQuzRFljy";
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await page.goto(`https://website.leadong.com/prod?invokeAction=prod_new_update&prodId=${PROD}`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForTimeout(8000);
   const radioLabel = page.locator('label:has(input[name="option_826554"][value="4"])').first();

@@ -1,13 +1,22 @@
-import { firefox } from 'playwright-core';
+import { firefox, chromium } from 'playwright-core';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { access } from 'node:fs/promises';
+import { loadBrowserConfig } from './config.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 
+export function browserLaunchOptions(config) {
+  const { browser, headless, slowMo } = loadBrowserConfig({
+    BROWSER: config.browser, HEADLESS: config.headless, SLOW_MO: config.slowMo, CI: process.env.CI,
+  });
+  return { headless, slowMo, ...(browser === 'chromium' ? { channel: 'chrome' } : {}) };
+}
+
 export async function launchSession(config) {
-  if (config.browser !== 'firefox') {
-    throw new Error('本套件仅支持 BROWSER=firefox。');
+  const browserName = config.browser || 'chromium';
+  if (!['firefox', 'chromium'].includes(browserName)) {
+    throw new Error('BROWSER 仅支持 firefox 或 chromium。');
   }
 
   let proxy;
@@ -25,7 +34,7 @@ export async function launchSession(config) {
     throw new Error('登录态文件不可读，请配置 STORAGE_STATE 或准备账号对应的 src/fixtures/storageState-<account>.json。');
   });
 
-  const browser = await firefox.launch({ proxy });
+  const browser = await ({ firefox, chromium })[browserName].launch({ ...browserLaunchOptions(config), proxy });
   try {
     const context = await browser.newContext({
       ignoreHTTPSErrors: config.ignoreHTTPSErrors,

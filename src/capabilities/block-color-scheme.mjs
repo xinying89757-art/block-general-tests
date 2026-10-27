@@ -17,7 +17,7 @@
 // instance on the Products page, so it is verified through the
 // stylesheet rule that paints it, if one exists.
 import { savePage, openPreview } from '../editor.mjs';
-import { TIMEOUT, previewSelector } from './shared.mjs';
+import { TIMEOUT, previewSelector, checkReportText } from './shared.mjs';
 import { RAIL, openRailPanel, readSchemeColor, setSchemeColor, saveColorPanel, normalizeColor } from './rail.mjs';
 
 const SUITE = 'capability:block-color-scheme';
@@ -31,8 +31,9 @@ const SCHEME_RGB = 'rgb(28, 69, 135)';
 const ALT_COLOR = '#FF0000';
 const ALT_RGB = 'rgb(255, 0, 0)';
 
-function result(id, status, detail, evidence) {
+function result(id, status, detail, evidence, textFields = {}) {
   return { id, name: NAMES[id], status, detail, suite: SUITE,
+    ...checkReportText(NAMES[id], status, detail, evidence, id), ...textFields,
     ...(evidence === undefined ? {} : { evidence }) };
 }
 
@@ -218,8 +219,8 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
   }
   checks.push(result('bcs-color-persist',
     persistErrors.length ? 'fail' : 'pass',
-    persistErrors.length ? persistErrors.join('；') : `${initial} → ${ALT_COLOR} → ${initial}，保存重开回读均完成。`,
-    evidence));
+    persistErrors.length ? persistErrors.join('；') : `原配色为 ${initial}，临时改为 ${ALT_COLOR} 后保存重开回读成功，恢复并保存后仍为 ${initial}。`,
+    evidence, { expected: `配色临时改为 ${ALT_COLOR} 后保存重开应保持该颜色；恢复并保存后应回到 ${initial}。` }));
   const allUnmeasured = evidence.altShot && unmeasuredScopes.length === 4;
   const unmeasuredNote = unmeasuredScopes.length
     ? `未量到（该区块未启用对应功能）：${unmeasuredScopes.join('、')}。` : '';
@@ -231,7 +232,8 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
           ? `改配色后没有可量到的生效范围：${unmeasuredScopes.join('、')}。`
           : `改配色后按钮背景、分页当前页背景、Clear Filters 文字、筛选 accent-color 均跟随新配色，5 处写死颜色未变；恢复后与基线一致。${evidence.altShot.cateRule ? '分类选中态有样式规则。' : '分类选中态在编辑器预览里无可观察实例、未找到对应样式规则，只记录。'}${unmeasuredNote}`
         : '改配色后未取到前台快照。',
-    { base: evidence.base, altShot: evidence.altShot, restoredShot: evidence.restoredShot }));
+    { base: evidence.base, altShot: evidence.altShot, restoredShot: evidence.restoredShot },
+    { expected: `临时改为 ${ALT_COLOR} 后，按钮背景、分页当前页背景、Clear Filters 文字和已启用的筛选强调色应跟随新配色；恢复后应与修改前一致。` }));
   return checks;
 }
 

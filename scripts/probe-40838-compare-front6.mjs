@@ -13,7 +13,7 @@ import { widgetSession, probeControls, previewSelector } from "../src/capabiliti
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 const out = { blockId: config.blockId };
 let canvas;
 async function readListDialog() {
@@ -29,7 +29,7 @@ async function contentFrame(previewPage) {
   return found || previewPage.mainFrame();
 }
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   canvas = await gotoTargetPage(page, config);
   try {
     let { session, probe } = await readListDialog();

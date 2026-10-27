@@ -172,3 +172,8 @@ Oracle 来源（用户指定）：内容管理后台产品管理上方分类筛�
 基线纠正：捕获发现筛选实际开了 3 个字段（测试单选按钮A、测试下拉列表、Series-xiala），
 之前文档写的 2 字段是错的（2026-10-26 的配置脚本只负责打开 2 个 oracle 字段，从没检查过其他字段是否开着）；
 用户已定留着，基线就是 3 个字段（独立重读 `scripts/verify-47748-filter.mjs` 已确认，结果 `hidden/verify-47748-filter.json`）。
+
+
+## v1.9 第二轮入口回归尝试（2026-10-27，受沙箱网络阻断）
+
+本轮只改编辑器入口、登录、浏览器选项及操作页传递，未改检查断言、画像或基线。`BLOCK_ID=47748 npm run test:block` 已尝试，排错报告 `reports/report-47748-2026-10-27T08-53-25-089Z.json`，HTML 同名；在固定入口 `https://website.leadong.com/phoenix/pagebuilder/layout` 的 `open-editor` 阶段报 `page.goto: NS_ERROR_SOCKET_CREATE_FAILED`，退出码 1。实际输出为 **0 pass / 0 fail / 0 skip / 0 na / 0 record**，检查项没有执行，也没有修改站上设置，不能视为通过或无新增问题。覆盖结论继续以 v1.8 的 **31 pass / 5 fail / 5 skip / 5 na / 10 record** 为最近实站结果；需在可联网环境补验一致性。第二轮离线配置与隔离模拟结果见 `docs/REUSE_MANUAL.md` §19。

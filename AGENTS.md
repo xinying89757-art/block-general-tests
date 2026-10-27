@@ -17,8 +17,19 @@
 不要攒到跑起来才报错。答案记进 `.env`（账号密码、站点、代理）和画像（页面选择、
 设计稿信息），以后不用再问。
 
-1. **站点**：用户给测试站点地址。你登录后（见第 2 步）列出他的站点，让他挑一个，
-   把编辑器入口记为 `EDIT_SITE_URL` 写进 `.env`。
+1. **站点**：用户给测试站点的语种地址，记为 `.env` 的 `SITE_DOMAIN`。编辑器入口
+   优先打开固定地址 `https://website.leadong.com/phoenix/pagebuilder/layout`；已登录且直接
+   到编辑器时等“页面:”出现。落到 `/website.html` 站点列表时，按 `SITE_DOMAIN` 的 host
+   （含端口，忽略 http/https）唯一匹配可见 `.mySiteBox` 卡片；可选 `SITE_NAME` 仅在
+   域名未匹配时按站名精确匹配。选语言后点卡片内“编辑网站”，只接收本次进入的
+   pagebuilder 页面，不复用旧编辑器标签页。语言优先取备选 `EDIT_SITE_URL` 的 `l` 参数，
+   再取 `SITE_DOMAIN` 的 en/cn/sa/fr/jp/kr 前缀，否则英语；缺少对应语言项时警告并继续。
+   登录脚本（见第 2 步）仍截获 navigation4 响应并列出全部站点与语种：先精确匹配语种
+   url（忽略末尾 `/`），再按 host 匹配站点并选英语（`lanCode=0`），必须唯一，写入
+   备选 `EDIT_SITE_URL`。它不再必填，仅列表结构变化、完全找不到 `.mySiteBox` 时回退使用。
+   `SITE_DOMAIN` 为空时登录脚本只列清单与填写模板。
+   **站点匹配检查**：账号的站点列表里必须有画像目标站（`SITE_DOMAIN`）；没有就停下来
+   告诉用户换有该站访问权限的账号，不要拿错站跑。多重匹配也必须先排清再跑。
 2. **账号密码**：领动账号。密码只放用户自己机器的 `.env`（`PLAYWRIGHT_USERNAME` /
    `PLAYWRIGHT_PASSWORD`），永远不要让他贴进聊天里，不要打印、不要写进报告、
    不要提交、不要记进记忆。跑 `node scripts/explore-login.mjs` 登录，
@@ -39,14 +50,17 @@
    没有 Figma 连接器/token 时样式检查全部 skip 并说明原因，不要报错。
    注意：Figma 图层名来自编辑器 DOM，前台类名可能不同，选择器一律以前台实测为准。
 6. **代理（可选）**：测试环境要走 HTTP 代理才填 `HTTPS_PROXY`，没有就直连。
-   本机 Playwright Chromium 经出口代理访问外站失败，用 Firefox（`BROWSER=firefox`）。
+   默认用 Chrome（`BROWSER=chromium`，`channel: "chrome"`，要求安装系统 Chrome）；
+   代理受限的机器（比如 miumiu 这台，Playwright Chromium 经出口代理访问外站失败）
+   改设 `BROWSER=firefox`。
 
 ## 2. 新区块接入（第一次测某个区块）
 
 1. 读设计稿和编辑器，做设置项盘点（`docs/SETTINGS_INVENTORY_<ID>.md`）。
 2. 声明画像（`profiles/<ID>.json`，照 `profiles/TEMPLATE.json`）：
    能力列表、oracle 夹具、样式期望、目标页。能力复用规则：声明已有能力即自动组合；
-   新设置项类型先写专属检查，第二次被复用才提升为能力模块。
+   新设置项类型先写专属检查，第二次被复用才提升为能力模块。每个新检查必须带纯文字
+   `description`、`expected`、`actual`、`evidenceText` 字段。
 3. 定基线（区块在测试页上的既定配置，记进画像 `baseline`）：
    已在别页配好的，直接从现配捕获：`node scripts/capture-baseline.mjs <区块 ID>`，
    只读 dialog、不改站上任何设置。捕获不到的（按钮区画布浮层、右侧图标栏）会记跳过，
@@ -74,7 +88,8 @@ BLOCK_ID=<id> npm run test:block
 
 - 改动断言/预期值、判定口径、样式差异算不算问题：必须用户逐条确认。
   问题打包一次问，带证据截图、你的建议、每个选项的后果，做成可点的选项。
-- 子设置项不存在时降级（skip），不判 fail；存在但值不对才判 fail。
+- 子设置项不存在时降级为无此设置项（`na`），不判 fail；存在但值不对才判 fail。
+  前置条件不满足仍为跳过（`skip`）。
 - CSS 检查默认只取证记录（record），除非用户明确要求判 fail。
 - 恢复类断言必须用新会话读持久化值，会话内读回不能证明已落库。
 - 效果层检查的模式：在设置层内翻转开 → 保存页面 → 开临时预览验证 →
@@ -96,4 +111,6 @@ BLOCK_ID=<id> npm run test:block
 - 每次全套件跑完：更新覆盖表（`docs/SETTINGS_COVERAGE_<ID>.md`）与手册
   （`docs/REUSE_MANUAL.md`，版本号 +1），提交。提交信息写清本轮结论。
 - 报告文件名：`reports/report-<区块>-<时间>.json`；报告页面同名 `.html`。
+- HTML 报告包含失败、跳过与无此设置项卡片、文字预期/实际/证据、对应截图和缺陷单草稿；
+  JSON 保留结构化排错证据。可用的预览分享链接显示在标题下方，并标注 7 天有效期。
 - 汇报时两条线分开：区块设置项测试与 ui-automation-agent-mvp 各自贴标签，不混报。

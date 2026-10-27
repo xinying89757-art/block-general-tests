@@ -1,11 +1,13 @@
-import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText } from './shared.mjs';
 
 // 新能力模块模板。照着它实现，不要从零写弹窗、快照与持久化闭环。
 // 1. 把下面三处占位换成真实值：SUITE、弹窗 type 与 title、检查 ID 与名称。
 // 2. 设置层用 shared.mjs 的 persistControl / radioPersist；效果层只断关键结果。
-// 3. 定位不唯一、控件不可切换、没有可切换的值时，返回 skip，不硬做。
+// 3. 设置项确认不存在时返回 na；探查失败、定位不唯一、控件不可切换或没有可切换的值时返回 skip，不硬做。
 // 4. 每个场景后必须恢复原状。persistControl 已经做了恢复与页面保存，不要绕过它。
 // 5. 在 src/run.mjs 的 capabilityRegistry 里登记这个模块，画像里声明 id 才能跑起来。
+// 6. 每个检查项必须提供纯文字 description、expected、actual、evidenceText；result() 会按名称和结果生成默认文字，可在需要时传入更准确的字段。
+//    例如：result(id, status, detail, evidence, { description: '检查……', expected: '……', actual: '……', evidenceText: ['……'] })。
 
 const SUITE = 'capability:<capability-id>';
 const NAMES = {
@@ -14,9 +16,9 @@ const NAMES = {
   '<id>-front': '<设置项前台效果>',
 };
 
-function result(id, status, detail, evidence) {
+function result(id, status, detail, evidence, textFields = {}) {
   return {
-    id, name: NAMES[id], suite: SUITE, status, detail,
+    id, name: NAMES[id], suite: SUITE, status, detail, ...checkReportText(NAMES[id], status, detail, evidence, id), ...textFields,
     ...(evidence === undefined ? {} : { evidence }),
   };
 }

@@ -7,7 +7,7 @@ import { openEditor, gotoTargetPage } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { buttons: [], after: {} };
 
 async function dumpAll(label) {
@@ -30,7 +30,7 @@ async function dumpAll(label) {
 }
 
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   const blockSel = `.siteblocks-setting-wrap[data-appid="${config.blockId}"]`;
   const block = canvas.locator(blockSel).first();

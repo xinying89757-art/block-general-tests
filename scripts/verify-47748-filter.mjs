@@ -7,10 +7,10 @@ import { widgetSession, probeControls } from "../src/capabilities/shared.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { blockId: config.blockId, checked: [], error: null };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const { frame: canvas } = await gotoTargetPage(page, config);
   const session = widgetSession({ page, canvas, config,
     type: "phoenix_blocks_filterStyle", title: "设置自定义字段筛选", wrapIndex: 0 });

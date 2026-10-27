@@ -8,10 +8,10 @@ import { widgetSession, probeControls, findControl, controlValue } from "../src/
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { blockId: config.blockId, defaults: { dataSource: "所有产品", pagination: "否", number: "20" } };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   const session = widgetSession({ page, canvas, config,
     type: "phoenix_blocks_gallery", title: "设置与选取数据", wrapIndex: 1 });

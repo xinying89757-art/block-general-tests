@@ -6,7 +6,7 @@ import { openEditor } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = { posts: [] };
 const PROD = "ENULQuzRFljy";
 page.on("request", (req) => {
@@ -16,7 +16,7 @@ page.on("request", (req) => {
   }
 });
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await page.goto(`https://website.leadong.com/prod?invokeAction=prod_new_update&prodId=${PROD}`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForTimeout(8000);
   await page.evaluate(() => {

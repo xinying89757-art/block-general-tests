@@ -7,7 +7,7 @@ import { openEditor } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { candidates: [] };
 const urls = [
   "https://website.leadong.com/phoenix/admin/user/index",
@@ -31,7 +31,7 @@ try {
     }
   }
   // Editor header links
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await page.waitForTimeout(3000);
   out.editorHeader = await page.evaluate(() => [...document.querySelectorAll("a")]
     .map((a) => ({ text: (a.innerText || "").replace(/\s+/g, " ").trim().slice(0, 24), href: a.href.slice(0, 110) }))

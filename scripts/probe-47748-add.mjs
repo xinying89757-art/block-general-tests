@@ -6,10 +6,10 @@ import { openEditor, gotoTargetPage, addBlockIfNeeded, savePage } from "../src/e
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { blockId: config.blockId, targetPage: config.targetPage };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   out.added = await addBlockIfNeeded(page, canvas, config);
   await savePage(page);

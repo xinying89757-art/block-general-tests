@@ -7,10 +7,10 @@ import { openEditor } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = {};
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await page.waitForTimeout(3000);
   out.editorUrl = page.url();
   const storage = await context.storageState().catch(() => null);

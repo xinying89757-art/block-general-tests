@@ -1,6 +1,6 @@
-# 区块设置项复用手册 v1.7
+# 区块设置项复用手册 v1.9
 
-版本：v1.7（2026-10-27）
+版本：v1.9（2026-10-27）
 范围：已在两个区块上验证：40838（2026-10-23，20 pass / 0 fail；2026-10-26 产品对比前台加验后 21 pass / 0 fail）与 47748（2026-10-26，配置后 16 pass / 0 fail，配色与宽度加验后 20 pass / 0 fail，分类 oracle 两处加验后 22 pass / 0 fail；2026-10-27 样式检查加验后 31 pass / 5 fail，5 个 fail 均为用户已确认的样式偏差），并对 40838 做了回归（20 pass / 0 fail）。v1.6 新增：分享给其他人用的包（任何智能体都能跑）与页面选择（新建自定义页面 / 系统页名称）。v1.7 新增：基线捕获与应用（画像 `baseline`，区块加到新页后自动按基线配好再跑）。
 目的：为区块各个设置项形成可复用的流程和脚本，不是以测出某个区块的缺陷为目标。40838 是首个样本，47748 是第二个验证样本；顺带发现的问题只记录，不在本手册里深挖。
 
@@ -23,9 +23,9 @@
 | 效果层 | 保存并预览后，前台可观察效果与设置一致 | 前台能看到变化的设置项 |
 | 数据层 | 前台结果与内容管理数据按规则独立算出的预期集合一致，不只看页面变了 | 动态区块 |
 
-状态口径：`pass` 通过；`fail` 失败；`skip` 因前置条件不满足而跳过；`record` 只取证、不判通过也不判失败。
+状态口径：`pass` 通过；`fail` 失败；`na` 无此设置项（区块中根本没有对应设置项，不判 fail）；`skip` 前置条件不满足而跳过；`record` 只取证、不判通过也不判失败。
 
-什么时候用 `record`：前台观察不到效果、效果依数据而定、或设置含义未确认。什么时候用 `skip`：控件打不开、定位不唯一、没有可切换的值。两者都不冒充通过。
+什么时候用 `record`：前台观察不到效果、效果依数据而定、或设置含义未确认。什么时候用 `na`：已确认区块没有该设置项。什么时候用 `skip`：探查失败、定位不唯一、没有可切换的值、缺少 oracle/styleSpec、预览不可交互或被测元素未渲染。两者都不冒充通过。
 
 两项 CSS 检查按 2026-10-23 的拍板，只取证记录：读到 CSS 时为 `record`，读不到为 `skip`，不参与失败判定。
 
@@ -74,8 +74,8 @@
 - `widgetSession({ page, canvas, config, type, title, wrapIndex })`：打开、保存、取消设置弹窗。取消时先关标题匹配的弹窗；如果实际打开的是另一个标题的弹窗，也把它关掉——残留弹窗会遮住页面保存按钮，让整轮失败。关弹窗先试取消，再试关闭。
 - `probeControls(session)`：快照弹窗内全部 `input / select / textarea`，含 label、上下文、值、checked、options。未命名 radio 组也要原样记录。
 - `persistControl({ session, page, target, alternate, afterSwitch })`：持久化闭环的标准事务。改值、保存、重开回读、恢复原值、再保存页面；恢复失败也会记 fail。控件身份每次重开都要复核 `index + tag + type + name + label + value`，只靠序号不安全。事务开始时如果弹窗是关着的（上一个事务以取消收尾），先自动打开，不假设弹窗还开着。
-- `radioPersist({ session, page, name, prefixes })`：按 label 前缀定位一组 radio 的两个选项，做闭环。定位不唯一、不可切换、或当前选中不唯一时返回 `skip`，不硬做。
-- `radioGroupPersist({ session, page, name, labels })`：任意个选项的 radio 组闭环（例如 47748 列表数据来源的 4 个选项）。组不存在、选项不全、当前选中不唯一、或有选项 disabled 时返回 `skip`。
+- `radioPersist({ session, page, name, prefixes })`：按 label 前缀定位一组 radio 的两个选项，做闭环。组完全不存在返回 `na`；探查失败、定位不唯一、不可切换或当前选中不唯一时返回 `skip`，不硬做。
+- `radioGroupPersist({ session, page, name, labels })`：任意个选项的 radio 组闭环（例如 47748 列表数据来源的 4 个选项）。组不存在返回 `na`；探查失败、选项不全、当前选中不唯一或有选项 disabled 时返回 `skip`。
 - `poll(read, accepts)`：10 秒轮询读值。读值超时或断言读不到值时算“没匹配上”，不直接抛错——前台本来就没有筛选组的区块（47748），基线采集应记 record，而不是在最后一毫秒抛超时。
 - `previewSelector(blockId)`：预览根节点，`.siteblocks-setting-wrap[data-appid]`，不要用 LA 类名。
 
@@ -103,7 +103,7 @@
 47748 验证结论：
 
 - 字段多选本身复用成立。47748 的字段是 18 个，字段值子选项（value 形如 `826554_1`）不计入字段数；`cff-settings-fields` 只计 value 为纯数字字段 ID 的 checkbox。
-- 逻辑 / 触发 / 范围在 47748 的弹窗里隐藏，但取设计稿固定值（交集 / 更改筛选项后自动筛选 / 当前分类产品），画像用 `fixedSettings` 声明，`cff-settings-state` 报固定值而不是“本区块无此设置”。跳转页 / 背景颜色不存在，`cff-select-persist`、`cff-color-persist` 定位不到时返回 skip。**规则：子设置项不存在时降级，不判 fail；存在但值不对时才判 fail。**
+- 逻辑 / 触发 / 范围在 47748 的弹窗里隐藏，但取设计稿固定值（交集 / 更改筛选项后自动筛选 / 当前分类产品），画像用 `fixedSettings` 声明，`cff-settings-state` 报固定值而不是“本区块无此设置”。跳转页 / 背景颜色不存在，`cff-select-persist`、`cff-color-persist` 定位不到时记为 na。**规则：子设置项不存在时记为无此设置项（na），不判 fail；存在但值不对时才判 fail。**
 - 前台筛选组 DOM 有两种形态：40838 是 `.prodfield-single` / `.prodfield-left-fieldname`，47748 是 `.pf-field-group` / `.pf-field-title`（值都是 `label`）。选择器同时兼容两种。
 - 47748 配置前预览里没有筛选组；后台配置（启用 2 个筛选字段）后渲染出 2 个组，`cff-field-front-group` 与 `cff-groups-baseline` 都能验证。**但 47748 的筛选在编辑器预览里不可交互**：整个筛选表单 `pointer-events:none`，点标签、强制点单选框都选不上（对照：40838 的筛选表单是 `auto`，可点选收窄）。前台层先判可交互性，不可交互时 `cff-facet-narrow` 与 `cff-clear-restore` 直接 skip、只验证组渲染，不因渲染原因判 fail。
 
@@ -121,10 +121,10 @@
 | 检查 ID | 设置项 | 方式 |
 | --- | --- | --- |
 | `pld-fields` | 展示字段（多选） | record：字段清单。40838 实测 54 个，含重复副本（27 个自定义字段出现两遍，属已知现象），系统属性 Brand、Product Code、Model、Brief 在内；47748 实测 27 个（4 系统 + 23 自定义） |
-| `pld-data-source-persist` | 列表数据来源（4 选项 radio） | 设置层闭环（`radioGroupPersist`）；40838 没有这组，正确降级为 skip |
+| `pld-data-source-persist` | 列表数据来源（4 选项 radio） | 设置层闭环（`radioGroupPersist`）；40838 没有这组，记为 na（无此设置项） |
 | `pld-page-size-persist` | 每页产品数量 | 设置层闭环：20 改 10 再改回 20，上限 100 |
 | `pld-pagination-persist` | 分页展示 是 / 否 | 设置层闭环 |
-| `pld-compare-persist` | 产品对比 关 / 开 | 设置层闭环；47748 没有这项，正确降级为 skip |
+| `pld-compare-persist` | 产品对比 关 / 开 | 设置层闭环；47748 没有这项，记为 na（无此设置项） |
 | `pld-compare-front` | 产品对比 | 效果层（40838，v1.3 新增）：对比开 + 勾 Brand → 保存页面 → 临时预览。勾 2 个可见 `input.compared-input`（每卡网格/列表两份，只取可见的），断底部栏 `.compareMenu` 带 `show`、计数 `Compare(2/6)`、栏里含两产品名；点 `.compareButton`（DIV）展开 `.compareMenu_large`（`display: block`、含两产品名，`<table>` 在预览里始终为空、只记 evidence 不断言）；点 `.opt-btn .save`（Inquire）跳到 `/phoenix/admin/prod/inquire`，断页里有 “Product Inquire”、两产品名与 Brand 列。最后恢复对比关闭 + Brand 未勾选并保存页面，恢复写在 finally 里。只在有产品对比设置的区块上跑，定位不到则 skip |
 | `pld-data-source-category-front` | 列表数据来源选部分分类 | 效果层（47748，v1.4 新增）：数据来源切“选择部分产品分类”、仅勾 oracle 分类（测试分类）→ 保存页面 → 临时预览，列表直接为 oracle 的 7 个上架产品，无需点导航；导航里分类个数只记 evidence（两个设置相互独立，不断言）。最后恢复数据来源回“所有产品”并保存页面，恢复写在 finally 里。只在有数据来源组的区块上跑，画像里没有 oracle 夹具时 skip |
 | `pld-display-field-persist` | 展示字段 | 设置层闭环：任选一项翻转 |
@@ -341,3 +341,49 @@ v1.5 验收：47748 全套件 56 项检查，31 pass / 5 fail / 10 skip / 10 rec
 v1.7 验收：47748 在新测试页 `测试-47748` 上强制应用基线（`APPLY_BASELINE=1`）后全套件 56 项，**31 pass / 5 fail / 10 skip / 10 record**（报告 report-47748-2026-10-27T03-50-10-885Z.json），与 products 完全一致；基线 4 步全部验证通过（分类 1/1、筛选 61/61、列表 83/83，按钮区按设计跳过）；5 个 fail 全是已确认的样式偏差。至此 `测试-47748` 已是 47748 的合格测试页（与 products 同构）。products 回归 31 pass / 5 fail / 10 skip / 10 record（报告 report-47748-2026-10-27T03-56-35-315Z.json），与 v1.5 一致，运行器改动无回归；该轮基线未应用（区块已在页上，`report.baseline.reason` 为 `block already on page`）。
 
 v1.6 验收：47748 在新测试页 `测试-47748` 上的全套件实跑（报告 report-47748-2026-10-27T02-37-51-070Z.json）：56 项，29 pass / 3 fail / 14 skip / 10 record。导航到自定义页、加区块（online 搜索找到）、全套件跑通、报告出齐，页面选择流程本身已验证。3 个 fail 里 2 个是已确认的样式偏差（导航叶子行高、details 缺失）；另 1 个是 `bcs-front-effect` 在新页默认配置下量不到分页/筛选元素（分页默认关闭、筛选字段未启用）而误判 fail，已修为“量不到的范围只记录不判 fail”（见覆盖表 v1.6 节）。另有发现：新页上的区块是默认配置，与 products 页的既定基线（筛选 2 字段、分页“是”、展示 6 项）不一致，导致 4 项样式检查 skip；新页接入需要一步“按画像基线配置区块”（待做，见第 7 条）。
+
+## 18. v1.8 结论（2026-10-27，报告版式与状态口径）
+
+1. 每项检查的报告 JSON 增加纯文字 `description`、`expected`、`actual`、`evidenceText`；结构化 `evidence` 仍保留排错。HTML 用文字字段展示检查卡片、表格和缺陷单草稿，不把结构化对象序列化成代码串。
+2. HTML 在“全部检查”前列出失败、跳过、无此设置项卡片及相应截图；表格提供名称/描述、结果、预期、实际、文字证据与截图入口。旧版 JSON 缺少新字段时回退到名称和详情。
+3. `na` 表示该区块根本没有对应设置项；`skip` 只表示探查或其他前置条件不足。失败、跳过和无此设置项检查在设置页或预览页即时截屏，截图失败记入 `artifactErrors` 并继续执行。
+4. 打开预览后尝试从预览页二维码面板读取分享链接；读取失败记 `null`，不影响运行。成功时报告展示有效期 7 天和到期日期；不读剪贴板。
+
+v1.8 验收：47748 在 products 页实跑新版报告（报告 `reports/report-47748-2026-10-27T07-04-24-396Z.json`，报告页面同名 `.html`）：全套件 56 项，**31 pass / 5 fail / 5 skip / 5 na / 10 record**。5 个 fail 均为用户已确认的样式偏差；结论“共 5 个失败，全部是上次就有的已知问题，没有新增”。转为 `na` 的是筛选逻辑/触发/范围组、筛选后跳转页、筛选背景颜色、产品对比持久化和产品对比前台项；CSS 未读取、无 Slick 轮播、筛选预览不可交互仍为 `skip`。报告顶部有可点预览分享链接（有效期 7 天，约至 2026-11-03）。文字已逐项核对：56 项都有具体预期（例如筛选值“字号应为 14px、字重应为 400、行高应为 21px”）、实际与文字证据，无通用模板套话、无代码味字段。注：本轮之前一次实跑（报告 `report-47748-2026-10-27T06-21-30-417Z.json`，30 pass / 6 fail）多出 1 个 `pcs-category-front` fail，点导航后列表前后 20 个完全一致、筛选未生效，重跑即通过，属偶发抖动，非新版代码问题（该检查逻辑本轮未动）。
+
+## 19. v1.9 结论（2026-10-27，站点列表入口、登录健壮性与浏览器可配）
+
+1. **登录后自动发现备选入口**：`scripts/explore-login.mjs` 按账号保存 storageState，随后打开控制台 hash 路由页。控制台没有可用的 `<a href>` 导航，旧 `LINKS` 探测已移除；改为在 `goto` 之前注册 `page.waitForResponse`（URL 含 `/menu/navigation4`，超时 60 秒），截获 SPA 自带鉴权头的请求响应。不得另用 `page.evaluate` 内的 fetch 代替（会返回 401）。运行时验证 `data.headerNavigation.webSite.webSiteList` 是数组，列出全部站名、comId 与各语种 name/url/siteSettingId/lanCode/editSiteUrl。
+2. **SITE_DOMAIN 是测试站的语种地址**，例如 `http://en-site40083596.ldyjz.com`，不是领动平台域名。先精确匹配语种 url（去掉末尾 `/`）；未命中时按 host 唯一匹配站点，再选英语 `lanCode=0`。备选入口格式为 `https://www.leadong.com/phoenix/admin/user/editSite?s=<siteSettingId>&c=<comId>&d=&l=<lanCode>`；`EDIT_SITE_URL` 不再必填，仅站点列表选择器失效、完全找不到卡片时回退使用。唯一命中才写 `.env` 的 `EDIT_SITE_URL` 一行，没有该行则追加，其他行（含密码）原样保留。空 `SITE_DOMAIN` 只打印清单与填写模板，不写文件；账号没有该站时以“账号下没有 SITE_DOMAIN 对应的站点，请换有该站访问权限的账号”报错退出；多重匹配或缺少英语语种也报错停止，不能拿其他站跑。
+3. **浏览器可配**：登录脚本与 `launchSession` 共用选项解析，支持 `BROWSER=firefox|chromium`，默认 Chrome（chromium，`channel: "chrome"`，要求安装系统 Chrome）；代理受限的机器改设 `BROWSER=firefox`（miumiu 的机器没有系统 Chrome，本机验证用 Firefox 跑，Chrome 默认路径需在用户 Mac 上验证）。`HEADLESS=true|false` 可覆盖默认：CI 为 true；非 CI 下 Firefox 为 true、Chromium 为 false。`SLOW_MO` 是非负整数毫秒，默认 0。Firefox 不传 channel。代理、ignoreHTTPSErrors 与会话参数沿用原逻辑。登录脚本不调用要求 BLOCK_ID 的 `loadConfig`。
+4. **站点列表流程优先**：`openEditor` 打开 `https://website.leadong.com/phoenix/pagebuilder/layout`，直接进入编辑器则沿用“页面:”就绪判定。落到 `/website.html` 则等待 `.mySiteBox`，逐张检查可见卡片中 `a[href]`、`[data-url]`、`[data-href]` 的第一个公共 HTTP(S) 地址（排除 website.leadong.com、jianzhan.leadong.com 与 `/phoenix/`），按 `SITE_DOMAIN` 的 host+端口唯一匹配（忽略协议与末尾 `/`）。无域名命中时可按可选 `SITE_NAME` 精确匹配站名；多重命中立即报错，不得任选卡片。语言依次取 `EDIT_SITE_URL` 的 l 参数（0 英语、1 中文（简体）、3 阿拉伯语、4 法语、10 日语、11 韩语）、站点 host 的 en/cn/sa/fr/jp/kr 前缀、英语；`.lansSelect .lanItem` 已有 on 或 aria-selected=true 则不再点，未找到语言时警告后继续。
+5. **只接收本次编辑器**：点击卡片 `.userEditSite` 前记录所有页面、监听主 frame 导航；点击后最多等 60 秒，只认 live pagebuilder 页面，优先新页面、其次当前页、再其次本次发生导航的其他页。点击前已在 pagebuilder 的旧页一律排除，推广页也不算。超时报当前地址并提示检查站名、语言与站点权限。仅站点列表完全没有 `.mySiteBox` 时才回退备选 `EDIT_SITE_URL`；未配备选则提示结构变化、重新探查选择器。返回 `{ page }`，运行器更新 `session.page`，包括 `capture-baseline` 在内的全部脚本调用点也接收返回页，后续目标页与预览操作继续使用该页。
+6. **登录健壮性**：输入框先按 placeholder 找，再按 #loginName/#password 找，保留 frame 回退。先 Enter，仍在登录页再点所在 frame 的 #loginSubmit；首次失败后重回登录页重试 2 次。登录后最多用 5 秒 best-effort 关闭含 video 的 dialog/modal，再 hover `.wrap-login-container/.wrap-login-dropdown`，有“返回领动云平台”链接则点击。storageState 写完设为 0600，新建 fixtures 目录为 0700。navigation4 响应发现、站点匹配与只写 EDIT_SITE_URL 一行的逻辑不变。
+7. **范围**：第一轮清理的临时控制台/导航探针和全量响应继续保持删除。第二轮未改检查断言、画像、基线或套件测试行为，只改编辑器入口与调用页传递、登录及启动选项；登录脚本只登录和读取站点清单，不改站上设置。按用户要求不提交。
+
+v1.9 第一轮离线验收：已用删除前的完整响应验证 67 个站、176 个语种都能生成编辑器入口；40083596 英语精确匹配（含末尾 `/`）与 host 回退均生成原有入口（`s=miKfUASmzrZj&c=cWUAKfNCbSMO&d=&l=0`）。无权限、多重匹配、缺少英语语种、错误响应路径均会报错；临时 `.env` 验证通过 LF/CRLF、只改目标行、缺行追加、重复配置拒绝与原值无须重写。两浏览器和默认 Firefox 的会话选项验证通过，脚本语法检查通过。
+
+v1.9 第一轮流程模拟验收：默认 Firefox、显式 Firefox 与 Chromium 均走完原登录步骤、保存 storageState、先注册响应监听再导航控制台、打印全部站点并只写目标配置行。空 SITE_DOMAIN 只打印填写模板；无权限、HTTP 401 与导航失败均不写文件，并关闭浏览器。此处为隔离模拟，不代表真实联网登录已通过。
+
+v1.9 第一轮联网验收（受沙箱网络限制，未完成）：
+
+- `node scripts/explore-login.mjs` 退出码 1，在打开 `https://www.leadong.com/login.html` 时原始报错 `page.goto: NS_ERROR_SOCKET_CREATE_FAILED`；未到站点列表响应解析、storageState 保存或自动写回步骤。已有 `.env` 的 EDIT_SITE_URL 仍为上述 40083596 英语入口；整份 `.env` 的 SHA-256 与运行前一致，密码行未动。
+- 网络诊断原始输出：`Direct TCP: EPERM / connect / 1.1.1.1:443`；`DNS lookup: EAI_AGAIN / getaddrinfo / www.leadong.com`。说明当前沙箱连直接建连和域名解析都受阻，不能将本轮浏览器网络错误归为入口发现逻辑错误。
+- `BLOCK_ID=47748 npm run test:block` 已尝试，退出码 1，在 `open-editor` 阶段同样报 `page.goto: NS_ERROR_SOCKET_CREATE_FAILED`，检查项尚未执行。实际输出 `[block] failed：pass=0 fail=0 skip=0 na=0 record=0`；这不是全套件通过，也不是区块出现 0 个问题。排错报告 `reports/report-47748-2026-10-27T08-47-12-733Z.json`，HTML 同名。未修改站上设置。
+- 待可联网环境重验：登录应列全量站点、保存账号登录态并确认/写入原有 40083596 英语入口；47748 应对照 v1.8 的 **31 pass / 5 fail / 5 skip / 5 na / 10 record**，5 个 fail 均为已确认样式偏差。本轮不能声称已确认回归一致。
+
+
+v1.9 第二轮验收（2026-10-27）：
+
+- **站点列表实站入口未完成**：先备份 `.env`，仅清空 EDIT_SITE_URL，确认配置读取为空、SITE_DOMAIN 指向 40083596，再启动 Firefox 调用 `openEditor`。打开固定地址即报 `page.goto: NS_ERROR_SOCKET_CREATE_FAILED`，尚未到站点卡片或“页面:”校验；不能声称实站入口已通过。原始错误与恢复结果见 `reports/validation-round2-entry.json`。finally 已恢复 EDIT_SITE_URL 为 `https://www.leadong.com/phoenix/admin/user/editSite?s=miKfUASmzrZj&c=cWUAKfNCbSMO&d=&l=0`，并确认整份 `.env` 与验证前逐字一致，密码行未变，临时备份已移除。
+- **网络排查**：直接 TCP 到 1.1.1.1:443 原始输出 `PermissionError: [Errno 1] Operation not permitted`；www.leadong.com 与 website.leadong.com 的 DNS 原始输出 `gaierror: [Errno -3] Temporary failure in name resolution`。当前沙箱的网络权限与解析受阻；此轮网络失败不能归为站点入口代码错误。真实 Firefox 即便拦截请求提供离线 HTML，也在初始 goto 报同一错误，故下列离线验证采用隔离模拟而非真实页面联调。
+- **47748 全套件已尝试，未执行检查项**：`BLOCK_ID=47748 npm run test:block` 退出码 1，停在 `open-editor`，原始错误同为 `page.goto: NS_ERROR_SOCKET_CREATE_FAILED`；实际输出 `[block] failed：pass=0 fail=0 skip=0 na=0 record=0`。排错报告 `reports/report-47748-2026-10-27T08-53-25-089Z.json`，HTML 同名。未到任何设置修改步骤，不能据此确认无新增问题；可联网环境仍需对照 v1.8 的 **31 pass / 5 fail / 5 skip / 5 na / 10 record**（5 个 fail 均为已确认样式偏差）。
+- **隔离模拟 25 项通过**：覆盖固定入口直达、卡片匹配忽略协议与末尾斜杠、语言已选不重复点/未选才点/缺项警告、精确站名回退、多重匹配与权限失败不得用旧入口、新页/当前页/已导航页面、推广页与关闭页过滤、旧编辑器排除（包括再次导航的旧页）、60 秒超时信息与监听器清理、仅无卡片时回退、公共 origin 提取。登录覆盖 placeholder、frame 内 ID 回退、Enter 后按钮回退、失败重试 2 次及耗尽、视频弹窗关闭/Escape、头像云平台链接、可选操作失败不阻断；另以 stub 启动登录脚本 main，确认共享 Firefox 选项、storageState 权限 0600、navigation4 先监听后导航及空 SITE_DOMAIN 不写配置。证据见 `reports/validation-round2-offline.json`，模拟不能代替实站验收。
+- **配置解析通过**：6 组浏览器/CI/显式覆盖默认值、6 个非法配置拒绝、14 个语言优先级案例通过。Chromium launch 选项断言为 `{ headless: false, slowMo: 0, channel: "chrome" }`，Firefox 不传 channel，未真实启动 Chromium。结果见 `reports/validation-round2-options.json`。所有 122 个相关模块语法检查通过，`git diff --check` 通过；全部 openEditor 调用点已接收返回页，无遗留调用方。
+
+v1.9 实站验收（2026-10-27，miumiu 本机可联网环境补验；上面两轮沙箱联网失败作废，以本节为准）：
+
+- **登录脚本实跑通过**：`node scripts/explore-login.mjs` 登进去了，navigation4 截获成功，列出全部站点，匹配到 `【权限】产品全文搜索、图片搜索 / 英语 / http://en-site40083596.ldyjz.com`，`.env` 的 EDIT_SITE_URL 确认还是原值（`s=miKfUASmzrZj&c=cWUAKfNCbSMO&d=&l=0`），整份 `.env` 哈希与验证前一致，密码行未动；登录态文件已刷新，权限 0600。
+- **站点列表入口实跑通过**：先备份 `.env` 仅清空 EDIT_SITE_URL（确认配置读取为空、SITE_DOMAIN 指向 40083596），`openEditor` 走固定地址 + 按域名匹配卡片 + 选语言 + 点编辑网站，成功到达 pagebuilder（`https://website.leadong.com/phoenix/pagebuilder/layout`），顶栏“页面:”可见，全程没用 EDIT_SITE_URL；验证后 `.env` 已恢复，哈希与验证前逐字一致，临时备份与探针脚本已删。
+- **47748 全套件回归通过**：`BROWSER=firefox BLOCK_ID=47748 npm run test:block`，56 项 **31 pass / 5 fail / 5 skip / 5 na / 10 record**，与 v1.8 完全一致；5 个 fail 全是已确认的样式偏差（`bss-nav-leaf`、`bss-filter-option`、`bss-details-link`、`bss-pagination-current`、`bss-pagination-other`）。报告 `reports/report-47748-2026-10-27T09-02-40-238Z.json`，报告页面同名 `.html`，顶部预览分享链接正常（有效期至 2026-11-03）。
+- **默认浏览器改为 Chrome（2026-10-27，用户定）**：`BROWSER` 默认值从 firefox 改为 chromium，chromium 启动固定 `channel: "chrome"`，Firefox 改为备选项（显式 `BROWSER=firefox` 才用）；`loadBrowserConfig` 默认解析为 `{ browser: "chromium", headless: false, slowMo: 0 }`，chromium launch 选项含 `channel: "chrome"`，firefox 不传 channel。注意：本机没有安装系统 Chrome，`channel=chrome` 启动报 `Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome`，属环境限制；Chrome 默认路径在本机未验证，需在用户 Mac 上验证。本机 `.env` 固定 `BROWSER=firefox`，本地运行不受默认值改动影响。

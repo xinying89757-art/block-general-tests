@@ -8,7 +8,7 @@ import { openEditor, gotoTargetPage, addBlockIfNeeded } from "../src/editor.mjs"
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = {};
 
 async function findCanvasFrame() {
@@ -49,7 +49,7 @@ function smallestHits(doc) {
 }
 
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvasLocator = await gotoTargetPage(page, config);
   await addBlockIfNeeded(page, canvasLocator, config).catch(() => {});
   await page.waitForTimeout(2500);

@@ -9,10 +9,10 @@ import { clickSettings, widgetSession } from "../src/capabilities/shared.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = {};
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const { frame: canvas } = await gotoTargetPage(page, config);
   for (const [key, type, wrapIndex] of [
     ["filter", "phoenix_blocks_filterStyle", 0],

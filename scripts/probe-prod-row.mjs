@@ -7,10 +7,10 @@ import { openEditor } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = {};
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await page.goto("https://website.leadong.com/prod", { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForTimeout(6000);
   out.rowOps = await page.evaluate(() => {

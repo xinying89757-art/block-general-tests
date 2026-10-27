@@ -10,9 +10,9 @@ const KNOWN = ["Home", "About Us", "Solution", "Energy", "Mining", "Water Treatm
   "测试私有属性", "测试私有4.0", "测试1531", "2042", "1542", "0940", "1539"];
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await page.getByText("页面:", { exact: true }).first().click();
   await page.waitForTimeout(2500);
   const list = await page.evaluate(() => {

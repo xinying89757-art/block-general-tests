@@ -8,7 +8,7 @@ import { openEditor, gotoTargetPage, addBlockIfNeeded, savePage, openPreview } f
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = { rounds: [] };
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 
@@ -93,7 +93,7 @@ async function findCanvasFrame() {
 
 let canvas;
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await gotoTargetPage(page, config);
   await page.waitForTimeout(3000);
   canvas = await findCanvasFrame();

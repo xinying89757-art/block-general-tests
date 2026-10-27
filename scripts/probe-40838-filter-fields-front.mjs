@@ -11,7 +11,7 @@ import { widgetSession, probeControls, previewSelector } from "../src/capabiliti
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 const out = { blockId: config.blockId };
 let canvas;
 
@@ -28,7 +28,7 @@ const fieldBoxes = (probe) => (probe.controls || []).filter((c) =>
   c.type === "checkbox" && /^\d+$/.test(c.value || ""));
 
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   canvas = await gotoTargetPage(page, config);
   try {
     let { session, probe } = await readFilterDialog();

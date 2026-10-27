@@ -1,5 +1,5 @@
 import { savePage, openPreview } from '../editor.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText } from './shared.mjs';
 
 const SUITE = 'capability:product-list-display';
 const NAMES = {
@@ -13,8 +13,8 @@ const NAMES = {
   'pld-data-source-persist': '列表数据来源保存回读与恢复',
   'pld-front-note': '产品列表前台可观察性记录',
 };
-function result(id, status, detail, evidence) {
-  return { id, name: NAMES[id], suite: SUITE, status, detail,
+function result(id, status, detail, evidence, textFields = {}) {
+  return { id, name: NAMES[id], suite: SUITE, status, detail, ...checkReportText(NAMES[id], status, detail, evidence, id), ...textFields,
     ...(evidence === undefined ? {} : { evidence }) };
 }
 const outcomeResult = (id, outcome) => result(id, outcome.status, outcome.detail, outcome.evidence);
@@ -63,7 +63,7 @@ async function compareFrontCheck({ session, page, context, config }) {
   if (probe.reason) return skip(`无法读取产品列表弹窗：${probe.reason}`);
   const pair = ['关闭', '开启'].map((label) => probe.controls
     .find((item) => item.type === 'radio' && item.label === label));
-  if (pair.some((item) => !item)) return skip('产品对比：弹窗里没有“关闭/开启”两项。');
+  if (pair.some((item) => !item)) return result(id, 'na', '本区块没有产品对比设置项。');
   const brand = probe.controls.find((item) => item.type === 'checkbox' && item.label === 'Brand');
   const originalCompare = pair.find((item) => item.checked)?.label || '关闭';
   const originalBrand = brand?.checked ?? null;
@@ -221,10 +221,11 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
   const id = 'pld-data-source-category-front';
   const oracle = capability?.oracle;
   if (!oracle?.category || !Array.isArray(oracle.onShelf)) {
-    return result(id, 'skip', '画像里没有分类 oracle 夹具（category/onShelf），无法比对。');
+    return result(id, 'skip', '未提供后台分类和上架产品清单，无法比对。');
   }
   const target = oracle.category;
   const expected = [...oracle.onShelf];
+  const offShelfCount = Number.isFinite(oracle.cmsTotal) ? Math.max(0, oracle.cmsTotal - expected.length) : null;
   const errors = [];
   const evidence = { category: target, expected, cmsTotal: oracle.cmsTotal ?? null };
   const sourceOf = (probe) => (probe.controls || []).filter((item) => item.type === 'radio' && item.name === 'selectProdType');
@@ -280,7 +281,7 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
   try {
     if (!context) return result(id, 'skip', '未提供浏览器 context，无法打开临时预览。');
     const partial = sources.find((item) => item.label === '选择部分产品分类');
-    if (!partial) return result(id, 'skip', '列表弹窗里没有“选择部分产品分类”数据来源。');
+    if (!partial) return result(id, 'na', '本区块没有“选择部分产品分类”数据来源设置项。');
     await session.set(partial, true);
     await session.save();
     await session.open();
@@ -297,7 +298,7 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
           await session.set(item, false);
         }
         const targetNow = boxes.find((item) => (item.label || '').trim() === target);
-        if (!targetNow) { errors.push(`切到部分分类后找不到分类 ${target}`); }
+        if (!targetNow) { errors.push(`切到部分分类后找不到分类“${target}”`); }
         else if (!targetNow.checked) await session.set(targetNow, true);
       }
       await session.save();
@@ -336,8 +337,8 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
         flowEvidence.list = { count: names.length, names };
         const missing = expected.filter((n) => !names.includes(n));
         const extra = names.filter((n) => !expected.includes(n));
-        if (missing.length) flowErrors.push(`列表缺 ${missing.length} 个 oracle 产品：${missing.join('、')}`);
-        if (extra.length) flowErrors.push(`列表多 ${extra.length} 个非该分类产品：${extra.join('、')}`);
+        if (missing.length) flowErrors.push(`列表缺 ${missing.length} 个后台产品：“${missing.join('”、“')}”`);
+        if (extra.length) flowErrors.push(`列表多 ${extra.length} 个非该分类产品：“${extra.join('”、“')}”`);
         // Independence evidence (record only): the category nav is a
         // different setting and should still show all categories here.
         const navCount = await root.evaluate((wrap) => {
@@ -358,8 +359,8 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
   return result(id,
     errors.length ? 'fail' : 'pass',
     errors.length ? errors.join('；')
-      : `数据来源选部分分类（仅 ${target}）后，列表直接为 oracle 的 ${expected.length} 个上架产品，与后台一致（下架 4 个不展示），无需点导航。`,
-    evidence);
+      : `数据来源选部分分类（仅“${target}”）后，列表直接为后台的 ${expected.length} 个上架产品，与后台一致${offShelfCount == null ? '' : `，下架 ${offShelfCount} 个不展示`}，无需点导航。`,
+    evidence, { expected: `数据来源只选“${target}”后，产品列表应与后台的 ${expected.length} 个上架产品完全一致${offShelfCount == null ? '' : `，并排除 ${offShelfCount} 个下架产品`}。` });
 }
 
 export async function runSettingsLayer({ page, canvas, context, config, capability }) {
@@ -379,7 +380,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     checks.push(result('pld-fields', 'record', `展示字段 ${fields.length} 个（排除全选，含系统属性与自定义字段）。`, fields));
     // Data source is a 4-option radio in 47748 (所有产品 / 使用筛选条件 /
     // 选择指定产品 / 选择部分产品分类); 40838 has no such group, so a
-    // missing group correctly degrades to skip via radioGroupPersist.
+    // missing group correctly degrades to na via radioGroupPersist.
     checks.push(outcomeResult('pld-data-source-persist', await radioGroupPersist({ session, page,
       name: '列表数据来源', labels: ['所有产品', '使用筛选条件', '选择指定产品', '选择部分产品分类'] })));
     checks.push(await dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability }));
@@ -399,7 +400,8 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     checks.push(sizeOutcome
       ? outcomeResult('pld-page-size-persist', { ...sizeOutcome,
         detail: `${sizeOutcome.detail}；当前分页=${paginationChecked?.label || '未知'}，该输入为${sizeMeaning}。` })
-      : result('pld-page-size-persist', 'skip', '未能唯一定位每页产品数量输入（盘点值 20，上限 100）。'));
+      : result('pld-page-size-persist', numbers.length === 0 ? 'na' : 'skip', numbers.length === 0
+        ? '本区块没有产品数量设置项。' : '未能唯一定位每页产品数量输入（盘点值 20，上限 100）。'));
     for (const [id, name, prefixes] of [
       ['pld-pagination-persist', '分页展示', ['是', '否']],
       ['pld-compare-persist', '产品对比', ['关闭', '开启']],
@@ -411,7 +413,8 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     const field = probe.controls && fieldsOf(probe.controls).find((item) => !item.disabled);
     checks.push(field ? outcomeResult('pld-display-field-persist', await persistControl({ session, page,
       target: field, alternate: !field.checked }))
-      : result('pld-display-field-persist', 'skip', probe.reason || '没有可切换的展示字段。'));
+      : result('pld-display-field-persist', probe.reason ? 'skip' : fieldsOf(probe.controls || []).length === 0 ? 'na' : 'skip',
+        probe.reason || (fieldsOf(probe.controls || []).length === 0 ? '本区块没有展示字段设置项。' : '没有可切换的展示字段。')));
   } finally {
     try { await session.cancel(); } catch (error) {
       const last = checks.at(-1);
@@ -433,7 +436,7 @@ export async function runFrontLayer({ frame, config }) {
       selectors.map((selector) => [selector, node.querySelectorAll(selector).length])), selectors);
     const hasProducts = Object.values(counts).some((count) => count > 0);
     return [result('pld-front-note', 'record', hasProducts
-      ? '当前预览检测到产品列表候选元素，前台不可观察的前提已变化；本版仅验证设置持久化，未断言列表效果。'
+      ? '当前预览检测到产品列表候选元素，前台不可观察的前提已变化；本项仅验证设置保存后是否保持，未判断列表效果是否正确。'
       : '本区块预览内未发现产品列表元素，列表类设置的前台效果不可观察，仅做设置层保存回读验证。',
     { root: previewSelector(config.blockId), counts, hasProducts })];
   } catch (error) {

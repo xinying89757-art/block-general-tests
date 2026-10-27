@@ -16,11 +16,11 @@ import { previewSelector } from "../src/capabilities/shared.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page, context } = await launchSession(config);
+let { browser, page, context } = await launchSession(config);
 const out = { blockId: config.blockId };
 let canvas;
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   canvas = await gotoTargetPage(page, config);
   const rootSel = previewSelector(config.blockId);
   const { previewPage, frame } = await openPreview(page, context);

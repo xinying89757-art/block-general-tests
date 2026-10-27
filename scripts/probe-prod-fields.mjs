@@ -6,11 +6,11 @@ import { openEditor } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = {};
 const PROD_ID = "ENULQuzRFljy"; // 测试产品A
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await page.goto(`https://website.leadong.com/prod?invokeAction=prod_new_update&prodId=${PROD_ID}`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForTimeout(8000);
   out.url = page.url();

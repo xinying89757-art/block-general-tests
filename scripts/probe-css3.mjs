@@ -5,9 +5,9 @@ import { launchSession } from "../src/browser.mjs";
 import { openEditor, gotoTargetPage, openPreview } from "../src/editor.mjs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await gotoTargetPage(page, config);
   const { frame } = await openPreview(page, context);
 

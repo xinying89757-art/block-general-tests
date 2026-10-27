@@ -23,7 +23,7 @@ config.resolvedTarget = resolveTargetPage(config, profile);
 
 const session = await launchSession(config);
 try {
-  await openEditor(session.page, config);
+  session.page = (await openEditor(session.page, config)).page;
   const { frame: canvas } = await ensureTargetPage(session.page, config);
   const steps = await captureBaseline({ page: session.page, canvas, config, blockId: config.blockId });
   profile.baseline = steps;

@@ -13,13 +13,15 @@
 // Two assertion kinds: computed values (fontSize/color/...) and geometry
 // (e.g. text centered in its box — lineHeight/textAlign are NOT compared
 // when flex does the centering, per the 47748 button/pagination lesson).
-import { previewSelector } from './shared.mjs';
+import { previewSelector, checkReportText } from './shared.mjs';
 
 const SUITE = 'capability:block-style-spec';
+let styleExpectations = {};
 
-function result(id, status, detail, evidence) {
+function result(id, status, detail, evidence, textFields = {}) {
   return {
-    id, name: NAMES[id], suite: SUITE, status, detail,
+    id, name: NAMES[id], suite: SUITE, status, detail, ...checkReportText(NAMES[id] || id, status, detail, evidence, id),
+    ...(styleExpectations[id] ? { expected: styleExpectations[id] } : {}), ...textFields,
     ...(evidence === undefined ? {} : { evidence }),
   };
 }
@@ -55,12 +57,18 @@ const close = (a, b, tol) => a != null && b != null && Math.abs(a - b) <= tol;
 
 function compareProps(expected, actual, tolPx) {
   const diffs = [];
+  const names = { fontSize: '字号', fontWeight: '字重', lineHeight: '行高', color: '文字颜色',
+    backgroundColor: '背景色', borderColor: '边框色', borderRadius: '圆角', textAlign: '对齐方式',
+    letterSpacing: '字距', width: '宽', height: '高' };
   for (const [k, want] of Object.entries(expected)) {
     const got = actual[k];
     let ok;
     if (typeof want === 'number') ok = close(got, want, tolPx);
     else ok = String(got ?? '').toLowerCase() === String(want).toLowerCase();
-    if (!ok) diffs.push(`${k}: 设计 ${want} / 实测 ${got}`);
+    const unit = ['fontSize', 'lineHeight', 'borderRadius', 'letterSpacing', 'width', 'height'].includes(k) ? 'px' : '';
+    const shownWant = typeof want === 'number' ? `${want}${unit}` : want;
+    const measured = got == null ? '实测未取到' : `实测为 ${typeof got === 'number' ? `${got}${unit}` : got}`;
+    if (!ok) diffs.push(`${names[k] || k}设计为 ${shownWant}，${measured}`);
   }
   return diffs;
 }
@@ -243,8 +251,32 @@ function breakageFindings(b) {
 
 export async function runFrontLayer({ frame, previewPage, config, capability }) {
   const spec = capability?.styleSpec;
+  styleExpectations = {};
+  const propNames = { fontSize: '字号', fontWeight: '字重', lineHeight: '行高', color: '文字颜色',
+    backgroundColor: '背景色', borderColor: '边框色', borderRadius: '圆角', textAlign: '对齐方式',
+    letterSpacing: '字距', width: '宽', height: '高' };
+  for (const item of spec?.items || []) {
+    const id = `bss-${item.id}`;
+    if (item.kind === 'presence') styleExpectations[id] = `每张产品卡下都应有“${item.text}”链接。`;
+    else if (item.geometry?.centered) {
+      const centeredProps = Object.entries(item.props || {}).filter(([key]) => key !== 'lineHeight' && key !== 'textAlign')
+        .map(([key, value]) => `${propNames[key] || key}应为 ${value}${key === 'fontSize' ? 'px' : ''}`);
+      styleExpectations[id] = `按钮文字应在按钮框内水平和垂直居中${centeredProps.length ? `，${centeredProps.join('、')}` : ''}。`;
+    } else if (item.props && Object.keys(item.props).length) {
+      const values = Object.entries(item.props).map(([key, value]) => {
+        const unit = ['fontSize', 'lineHeight', 'borderRadius', 'letterSpacing', 'width', 'height'].includes(key)
+          && typeof value === 'number' ? 'px' : '';
+        return `${propNames[key] || key}应为 ${value}${unit}`;
+      });
+      const dimensionPair = item.props.width !== undefined && item.props.height !== undefined
+        ? [`宽高应为 ${item.props.width}×${item.props.height}px`, ...values.filter((v) => !v.startsWith('宽应为 ') && !v.startsWith('高应为 '))]
+        : values;
+      styleExpectations[id] = `${item.text ? `“${item.text}”` : (NAMES[id] || '元素').replace(/(?:背景)?样式$/, '')}${dimensionPair.join('、')}。`;
+    }
+    if (item.clamp) styleExpectations['bss-product-name-clamp'] = `产品名称最多显示 ${item.clamp} 行，超出部分应隐藏。`;
+  }
   const skipAll = (reason) => Object.keys(NAMES).map((id) => result(id, 'skip', reason));
-  if (!spec?.items?.length) return skipAll('画像里没有 styleSpec，未做样式比对。');
+  if (!spec?.items?.length) return skipAll('未提供设计样式要求，未做样式比对。');
   const tolPx = spec.tolerances?.px ?? 0.6;
   const viewports = spec.viewports || { pc: 1440, pad: 768, mobile: 375 };
   const checks = [];
@@ -286,8 +318,8 @@ export async function runFrontLayer({ frame, previewPage, config, capability }) 
         const read = await readItem(frame, rootSel, item);
         if (read.error) { checks.push(result(checkId, 'skip', read.error)); continue; }
         checks.push(result(checkId, read.count > 0 ? 'pass' : 'fail',
-          read.count > 0 ? `找到 ${read.count} 个「${item.text}」（产品卡 ${read.cardCount} 个）。`
-            : `设计稿要求每张卡下有「${item.text}」，预览里一个都没找到（产品卡 ${read.cardCount} 个）。`,
+          read.count > 0 ? `${read.cardCount} 张产品卡中找到 ${read.count} 个“${item.text}”链接。`
+            : `${read.cardCount} 张产品卡里一张都没找到“${item.text}”链接。`,
           { found: read.count, cards: read.cardCount }));
         continue;
       }

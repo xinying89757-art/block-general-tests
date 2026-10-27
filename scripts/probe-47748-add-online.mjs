@@ -6,10 +6,10 @@ import { openEditor, gotoTargetPage, savePage } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { blockId: config.blockId, targetPage: config.targetPage, panel: null };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   const blockSel = `.siteblocks-setting-wrap[data-appid="${config.blockId}"]`;
   out.countBefore = await canvas.locator(blockSel).count();

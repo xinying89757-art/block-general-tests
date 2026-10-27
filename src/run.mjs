@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from './config.mjs';
 import { launchSession } from './browser.mjs';
-import { openEditor, ensureTargetPage, addBlockIfNeeded, savePage, openPreview, resolveTargetPage } from './editor.mjs';
+import { openEditor, ensureTargetPage, addBlockIfNeeded, savePage, openPreview, resolveTargetPage, getPreviewShareLink } from './editor.mjs';
 import { applyBaseline } from './baseline.mjs';
 import { runFrontChecks } from './checks.mjs';
 import * as customFilterFields from './capabilities/custom-filter-fields.mjs';
@@ -13,6 +13,7 @@ import * as productCategorySelect from './capabilities/product-category-select.m
 import * as blockColorScheme from './capabilities/block-color-scheme.mjs';
 import * as moduleWidth from './capabilities/module-width.mjs';
 import * as blockStyleSpec from './capabilities/block-style-spec.mjs';
+import { checkReportText } from './capabilities/shared.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 export const capabilityRegistry = {
@@ -35,22 +36,48 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
     const id = capability.id;
     const module = registry[id];
     if (typeof module?.[method] !== 'function') continue;
-    try { checks.push(...await module[method]({ ...args, capability })); }
+    try {
+      const returned = await module[method]({ ...args, capability });
+      checks.push(...returned);
+      await captureCheckScreenshots(returned, layer === 'settings' ? args.page : args.previewPage,
+        args.screenshotDir, args.runId, args.report, layer);
+    }
     catch (error) {
-      checks.push({ id: `${id}-${layer}-error`, name: `${id} ${layer} 层异常`,
-        status: 'fail', detail: error.message, suite: `capability:${id}` });
+      const name = `${id} ${layer} 层异常`;
+      const check = { id: `${id}-${layer}-error`, name,
+        status: 'fail', detail: error.message, suite: `capability:${id}`,
+        ...checkReportText(name, 'fail', error.message) };
+      checks.push(check);
+      await captureCheckScreenshots([check], layer === 'settings' ? args.page : args.previewPage,
+        args.screenshotDir, args.runId, args.report, layer);
     }
   }
   return checks;
 }
 
-function redact(value, config) {
-  return JSON.parse(JSON.stringify(value, (_key, item) => {
+async function captureCheckScreenshots(checks, page, screenshotDir, runId, report, layer) {
+  if (!page || page.isClosed?.()) return;
+  for (const check of checks) {
+    if (!['fail', 'skip', 'na'].includes(check.status)) continue;
+    const safeId = String(check.id || 'check').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const file = path.join(screenshotDir, `${safeId}-${runId}.png`);
+    try {
+      await page.screenshot({ path: file, fullPage: true, timeout: 30_000 });
+      check.screenshot = file;
+    } catch (error) {
+      report.artifactErrors.push({ artifact: `check:${check.id}`, layer, message: error.message });
+    }
+  }
+}
+
+export function redact(value, config) {
+  return JSON.parse(JSON.stringify(value, (key, item) => {
     if (typeof item !== 'string') return item;
     let text = item;
     for (const secret of [config.password, config.httpsProxy, config.editSiteUrl]) {
       if (secret) text = text.split(secret).join('[redacted]');
     }
+    if (key === 'previewLink') return text;
     return text.replace(/https?:\/\/[^\s"'<>]+/g, (raw) => {
       try {
         const url = new URL(raw);
@@ -102,7 +129,9 @@ async function main() {
     baseline: null,
     page: null,
     checks: [],
-    summary: { pass: 0, fail: 0, skip: 0, record: 0 },
+    summary: { pass: 0, fail: 0, skip: 0, na: 0, record: 0 },
+    previewLink: null,
+    previewLinkExpiresAt: null,
     screenshots: {},
     artifactErrors: [],
     failure: null,
@@ -114,7 +143,7 @@ async function main() {
     console.log(`[block] 开始：BLOCK_ID=${config.blockId}，TARGET_PAGE=${config.resolvedTarget.page}（${config.resolvedTarget.kind === 'custom' ? '自定义页面' : '系统页面'}）`);
     session = await launchSession(config);
     stage = 'open-editor';
-    await openEditor(session.page, config);
+    session.page = (await openEditor(session.page, config)).page;
     stage = 'goto-target-page';
     const { frame: canvas, created: pageCreated } = await ensureTargetPage(session.page, config);
     report.page = { ...config.resolvedTarget, created: pageCreated };
@@ -141,18 +170,26 @@ async function main() {
     }
     stage = 'capability-settings';
     report.checks.push(...await runCapabilityLayer(capabilities, 'settings', {
-      page: session.page, canvas, context: session.context, config,
+      page: session.page, canvas, context: session.context, config, screenshotDir, runId, report,
     }));
     stage = 'save-page';
     await savePage(session.page);
     stage = 'open-preview';
     const preview = await openPreview(session.page, session.context);
     previewPage = preview.previewPage;
+    report.previewLink = await getPreviewShareLink(previewPage);
+    if (report.previewLink) {
+      const expires = new Date(startedAt);
+      expires.setUTCDate(expires.getUTCDate() + 7);
+      report.previewLinkExpiresAt = expires.toISOString().slice(0, 10);
+    }
     stage = 'front-checks';
-    report.checks.push(...await runFrontChecks(preview.frame, config.blockId));
+    const frontChecks = await runFrontChecks(preview.frame, config.blockId,
+      { previewPage, screenshotDir, runId, report });
+    report.checks.push(...frontChecks);
     // The style capability switches viewports and takes screenshots, so it
     // needs the preview page, not just its content frame.
-    report.checks.push(...await runCapabilityLayer(capabilities, 'front', { frame: preview.frame, previewPage: preview.previewPage, config }));
+    report.checks.push(...await runCapabilityLayer(capabilities, 'front', { frame: preview.frame, previewPage: preview.previewPage, config, screenshotDir, runId, report }));
   } catch (error) {
     report.failure = { stage, message: error.message };
   } finally {
@@ -186,8 +223,8 @@ async function main() {
   report.status = report.failure || report.summary.fail || report.artifactErrors.length ? 'failed' : 'passed';
   const safeReport = redact(report, config);
   await writeFile(reportPath, `${JSON.stringify(safeReport, null, 2)}\n`, 'utf8');
-  const { pass, fail, skip, record } = report.summary;
-  console.log(`[block] ${report.status}：pass=${pass} fail=${fail} skip=${skip} record=${record}`);
+  const { pass, fail, skip, na, record } = report.summary;
+  console.log(`[block] ${report.status}：pass=${pass} fail=${fail} skip=${skip} na=${na} record=${record}`);
   console.log(`[block] 报告：${reportPath}`);
   for (const check of safeReport.checks.filter((item) => item.status === 'fail')) {
     console.error(`[block] ${check.id}：${check.detail}`);

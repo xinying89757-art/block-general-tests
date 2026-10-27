@@ -7,15 +7,137 @@ function blockSelector(blockId) {
   return `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(blockId))}]`;
 }
 
+const EDITOR_URL = 'https://website.leadong.com/phoenix/pagebuilder/layout';
+const LANGUAGE_NAMES = { 0: '英语', 1: '中文（简体）', 3: '阿拉伯语', 4: '法语', 10: '日语', 11: '韩语' };
+const LANGUAGE_PREFIXES = { en: 0, cn: 1, sa: 3, fr: 4, jp: 10, kr: 11 };
+
+function hostOf(value) {
+  try { return new URL(value).host.toLowerCase(); } catch { return ''; }
+}
+
+export function targetLanguage(config) {
+  if (config.editSiteUrl) {
+    try {
+      const code = new URL(config.editSiteUrl).searchParams.get('l');
+      if (code !== null && LANGUAGE_NAMES[code]) return LANGUAGE_NAMES[code];
+    } catch { /* Fall back to the public hostname. */ }
+  }
+  const prefix = hostOf(config.siteDomain).split(/[.-]/)[0];
+  return LANGUAGE_NAMES[LANGUAGE_PREFIXES[prefix] ?? 0];
+}
+
+export async function discoverPublicBaseUrl(card) {
+  const urls = await card.locator('a[href], [data-url], [data-href]').evaluateAll((nodes) =>
+    nodes.flatMap((node) => ['href', 'data-url', 'data-href'].map((attr) => node.getAttribute(attr)).filter(Boolean)),
+  );
+  for (const value of urls) {
+    try {
+      const url = new URL(value);
+      if (!/^https?:$/i.test(url.protocol)) continue;
+      if (['website.leadong.com', 'jianzhan.leadong.com'].includes(url.hostname.toLowerCase()) || /\/phoenix\//i.test(url.pathname)) continue;
+      return url.origin;
+    } catch { /* Ignore relative links and javascript handlers. */ }
+  }
+  return '';
+}
+
+async function enterSiteFromList(page, config) {
+  const cards = page.locator('.mySiteBox');
+  // Wait for asynchronous list rendering before declaring the selector obsolete.
+  await cards.first().waitFor({ state: 'attached', timeout: 15_000 }).catch(() => {});
+  if (await cards.count() === 0) {
+    if (config.editSiteUrl) {
+      console.warn('[editor] 站点列表未找到 .mySiteBox，退回备选 EDIT_SITE_URL。');
+      await page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded' });
+      await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
+      return page;
+    }
+    throw new Error(`站点列表结构可能已变化，未找到 .mySiteBox，且未配置备选 EDIT_SITE_URL；需要重新探查选择器。当前地址：${page.url()}`);
+  }
+
+  const visibleCards = [];
+  const matches = [];
+  const targetHost = hostOf(config.siteDomain);
+  for (let index = 0; index < await cards.count(); index += 1) {
+    const card = cards.nth(index);
+    if (!await card.isVisible()) continue;
+    visibleCards.push(card);
+    const publicUrl = await discoverPublicBaseUrl(card);
+    if (targetHost && hostOf(publicUrl) === targetHost) matches.push(card);
+  }
+  // A name is an optional fallback, never a way to hide ambiguous host matches.
+  if (!matches.length && config.siteName) {
+    for (const card of visibleCards) {
+      if (await card.getByText(config.siteName, { exact: true }).count()) matches.push(card);
+    }
+  }
+  if (matches.length !== 1) {
+    throw new Error(`站点列表匹配到 ${matches.length} 张卡片（SITE_DOMAIN=${config.siteDomain}，SITE_NAME=${config.siteName || '未设置'}）。必须唯一；请检查站名、语言和站点权限，账号无目标站权限时请换账号。当前地址：${page.url()}`);
+  }
+  const card = matches[0];
+  const name = targetLanguage(config);
+  const languages = card.locator('.lansSelect .lanItem');
+  let language;
+  for (let index = 0; index < await languages.count(); index += 1) {
+    const candidate = languages.nth(index);
+    if ((await candidate.innerText()).trim() === name) { language = candidate; break; }
+  }
+  if (language) {
+    const selected = await language.evaluate((element) => element.classList.contains('on') || element.getAttribute('aria-selected') === 'true');
+    if (!selected) await language.click();
+  } else {
+    console.warn(`[editor] 目标站卡片未找到语言“${name}”，继续使用卡片当前语言。`);
+  }
+
+  const context = page.context();
+  const knownPages = new Set(context.pages());
+  // Even a subsequent navigation must not revive an editor left by an earlier run.
+  const oldEditors = new Set([...knownPages].filter((candidate) => candidate.url().includes('/phoenix/pagebuilder')));
+  const navigatedPages = new Set();
+  const listeners = new Map();
+  const listen = (candidate) => {
+    const listener = (frame) => { if (frame === candidate.mainFrame()) navigatedPages.add(candidate); };
+    candidate.on('framenavigated', listener);
+    listeners.set(candidate, listener);
+  };
+  for (const candidate of knownPages) listen(candidate);
+  context.on('page', listen);
+  try {
+    await card.locator('.userEditSite').first().click();
+    const deadline = Date.now() + 60_000;
+    while (Date.now() < deadline) {
+      const editors = context.pages().filter((candidate) => !candidate.isClosed() &&
+        !oldEditors.has(candidate) && candidate.url().includes('/phoenix/pagebuilder'));
+      const editor = editors.find((candidate) => !knownPages.has(candidate)) ||
+        editors.find((candidate) => candidate === page) ||
+        editors.find((candidate) => navigatedPages.has(candidate));
+      if (editor) {
+        await editor.waitForLoadState('domcontentloaded');
+        return editor;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    throw new Error(`点击编辑网站后 60 秒内未进入本次 pagebuilder，拒绝复用旧编辑器。当前地址：${context.pages().filter((candidate) => !candidate.isClosed()).map((candidate) => candidate.url()).join(', ')}。请检查站名、语言和站点权限。`);
+  } finally {
+    context.off('page', listen);
+    for (const [candidate, listener] of listeners) candidate.off('framenavigated', listener);
+  }
+}
+
 export async function openEditor(page, config) {
-  if (!config.editSiteUrl) throw new Error('请配置 EDIT_SITE_URL（编辑器入口）。');
-  await page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded' });
+  await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
-  // The editor dialog appears after the initial page load settles.
-  await page.waitForTimeout(5_000);
-  const know = page.getByText('我知道了', { exact: true }).first();
+  let editorPage = page;
+  if (page.url().includes('/website.html')) editorPage = await enterSiteFromList(page, config);
+  if (!editorPage.url().includes('/phoenix/pagebuilder')) {
+    throw new Error(`未进入领动编辑器，当前地址：${editorPage.url()}。请检查站名、语言和站点权限；登录态失效时重跑 scripts/explore-login.mjs。`);
+  }
+  // Preserve the existing editor readiness and introductory-dialog handling.
+  await editorPage.waitForTimeout(5_000);
+  const know = editorPage.getByText('我知道了', { exact: true }).first();
   if (await know.isVisible()) await know.click();
-  await page.getByText('页面:', { exact: true }).first().waitFor({ state: 'visible' });
+  await editorPage.getByText('页面:', { exact: true }).first().waitFor({ state: 'visible' });
+  return { page: editorPage };
 }
 
 // Resolve the page to test on: env TARGET_PAGE wins, then the block profile's
@@ -257,5 +379,39 @@ export async function openPreview(page, context) {
   } finally {
     clearTimeout(timer);
     previewPage.off('framenavigated', onFrame);
+  }
+}
+
+// The share panel is rendered on the preview shell, not in the editor page.
+// Read only its visible text and close it before front checks begin.
+export async function getPreviewShareLink(previewPage) {
+  const qr = previewPage.locator('a.backstage-icon-QR-code').first();
+  try {
+    await qr.waitFor({ state: 'visible', timeout: 5_000 });
+    await qr.click({ timeout: 5_000 });
+    const panel = previewPage.locator('div').filter({ hasText: '预览链接有效期' }).filter({ visible: true });
+    await panel.first().waitFor({ state: 'visible', timeout: 5_000 });
+    const text = await panel.evaluateAll((nodes) => {
+      const candidates = nodes.filter((node) => /预览链接有效期/.test(node.innerText || ''))
+        .sort((a, b) => (a.innerText || '').length - (b.innerText || '').length);
+      return candidates[0]?.innerText || '';
+    });
+    const match = text.match(/https?:\/\/website\.leadong\.com\/share\/preview\/index\/[A-Za-z0-9_-]+\/[0-9a-f-]{36}/i);
+    let link = match?.[0] || null;
+    if (!link) {
+      const src = await panel.locator('img').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('src') || ''));
+      for (const value of src) {
+        const candidate = value.match(/[?&]previewShareLink=([^&]+)/)?.[1];
+        if (candidate) { try { link = decodeURIComponent(candidate); } catch { link = candidate; } break; }
+      }
+    }
+    try { await qr.click({ timeout: 2_000 }); } catch { try { await previewPage.keyboard.press('Escape'); } catch {} }
+    await panel.first().waitFor({ state: 'hidden', timeout: 2_000 }).catch(async () => {
+      try { await previewPage.keyboard.press('Escape'); } catch {}
+    });
+    return link;
+  } catch {
+    try { await previewPage.keyboard.press('Escape'); } catch {}
+    return null;
   }
 }

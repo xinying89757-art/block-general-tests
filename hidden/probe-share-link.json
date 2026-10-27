@@ -1,0 +1,30 @@
+{
+  "blockId": "40838",
+  "steps": [
+    {
+      "name": "grant-clipboard",
+      "ok": false,
+      "error": "browserContext.grantPermissions: Unknown permission: clipboard-read"
+    },
+    {
+      "name": "open-editor",
+      "ok": true,
+      "url": "https://website.leadong.com/phoenix/pagebuilder/layout"
+    },
+    {
+      "name": "toolbar",
+      "found": true,
+      "text": "语种: 英语 页面: Home 保存 预览 发布 ..",
+      "candidates": []
+    },
+    {
+      "name": "click-qr",
+      "ok": false,
+      "why": "no qr candidate"
+    },
+    {
+      "name": "panel",
+      "found": false
+    }
+  ]
+}

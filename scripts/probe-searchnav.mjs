@@ -7,10 +7,10 @@ import { openEditor, gotoTargetPage, openPreview } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, context, page } = await launchSession(config);
+let { browser, context, page } = await launchSession(config);
 const out = { events: [] };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await gotoTargetPage(page, config);
   const { previewPage, frame } = await openPreview(page, context);
   out.beforeUrl = frame.url();

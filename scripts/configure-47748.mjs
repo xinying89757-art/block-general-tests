@@ -12,7 +12,7 @@ import { widgetSession, probeControls, findControl } from "../src/capabilities/s
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { blockId: config.blockId, steps: [] };
 
 async function configure({ canvas, title, type, wrapIndex, want }) {
@@ -46,7 +46,7 @@ async function configure({ canvas, title, type, wrapIndex, want }) {
 }
 
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   out.steps.push(await configure({ canvas, title: "设置自定义字段筛选",
     type: "phoenix_blocks_filterStyle", wrapIndex: 0,

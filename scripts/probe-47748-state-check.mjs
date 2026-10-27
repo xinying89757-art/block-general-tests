@@ -7,10 +7,10 @@ import { widgetSession, probeControls } from "../src/capabilities/shared.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = { blockId: config.blockId, dialogs: [] };
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   const canvas = await gotoTargetPage(page, config);
   const specs = [
     { type: "phoenix_blocks_gallery", title: "设置产品分类", wrapIndex: 0 },

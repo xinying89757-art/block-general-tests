@@ -7,10 +7,10 @@ import { openEditor } from "../src/editor.mjs";
 import fs from "node:fs";
 
 const config = loadConfig();
-const { browser, page } = await launchSession(config);
+let { browser, page } = await launchSession(config);
 const out = {};
 try {
-  await openEditor(page, config);
+  ({ page } = await openEditor(page, config));
   await page.waitForTimeout(3000);
   await page.evaluate(() => {
     const el = [...document.querySelectorAll("a, li, div, span, button")]
