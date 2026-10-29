@@ -455,3 +455,9 @@ BLOCK_ID=40838 CAPABILITY_FILTER=custom-filter-fields npm run test:block
 - **实测结论（2026-10-29，box）**：HTTPS 升级**救不了预览**。带编辑器登录态请求 `https://website.leadong.com/phoenix/pagebuilder/preview` 时，服务端 302 回 `http://website.leadong.com/phoenix/pagebuilder/preview`（补 https Referer 也一样），即预览入口被服务端强制为 HTTP；在明文 HTTP 被拦截的机器上预览与前台都不可用，`*-front` 检查只能在能直连 HTTP 的机器（如用户本机）上跑。升级开关仍默认开启，仅对其它能走 HTTPS 的领动资源有效。
 - 发布控件：顶栏“发布▾”按钮为 `.backstage-topToolbar-publish`。hover 后菜单 `.currentPagePublish` 表示当前页面发布，点击后不弹确认窗，约 10 秒出现 toast“恭喜您，页面发布成功！ 网址：…/products.html”；`.allPagePublish` 表示整站发布。直接点击顶栏“发布”会打开“发布前请先确认以下设置项”检查单弹窗，需勾选“我已确认”再点发布。
 - 基于发布的前台验证模式只适用于能直接访问明文 HTTP 前台的机器。本机 box 的出网代理拦截前台 HTTP，且这些站点域没有 HTTPS，因此当前机器不能用发布前台做验证；此模式不能靠 HTTPS 升级绕过前台域黑名单。
+
+## 25. 开跑前基线守卫（v1.15）
+
+- 画像有 `baseline` 时，运行器在能力修改前只读打开各设置并取消，比较持久化值；任何 `AUTOTEST-` 字符串都按残留处理。发现差异即按画像恢复，另开新浏览器 context（复用 storageState）重读；恢复或新会话复验失败时终止本轮。结果写入 `report.baselineGuard`，控制台和 HTML 报告显示差异、恢复与复验状态。画像无基线则记录 `no baseline in profile`。
+- 按钮区基线用 `{ type: "phoenix_blocks_button", wrapIndex, title: null, kind: "button-popover", want }`，覆盖按钮文本、链接网址、新窗口打开；捕获只读，应用后保存并回读。40838 的基线值按画像保存，不以运行时观察值覆盖。
+- 能力事务恢复时优先使用画像中该控件的值；画像没有时才恢复开跑快照。快照为 `AUTOTEST-` 按钮文本时回退至默认按钮文案，证据记录恢复目标来源。残留演练可用 `node scripts/set-button-text.mjs <TEXT>`，仅在测试站执行。

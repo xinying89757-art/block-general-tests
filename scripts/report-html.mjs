@@ -92,6 +92,11 @@ ${shot ? `<a href="${esc(shot)}">查看截图</a><br><img class="shot" src="${es
         : `共 ${counts.fail} 个失败，其中新增 ${newFails.length} 个${recurringFails.length ? `、已知问题 ${recurringFails.length} 个` : ''}。`;
   const previewMeta = report.previewLink && /^https?:\/\//i.test(report.previewLink)
     ? ` · <a href="${esc(report.previewLink)}" target="_blank" rel="noopener">预览链接</a>（有效期 7 天，约至 ${esc(report.previewLinkExpiresAt || '未知')}）` : '';
+  const guard = report.baselineGuard;
+  const guardHtml = !guard ? '' : guard.reason === 'no baseline in profile'
+    ? '<h2>开跑前残留检测</h2><p>no baseline in profile</p>'
+    : !guard.residue ? '<h2>开跑前残留检测</h2><p>无残留。</p>'
+      : `<h2>开跑前残留检测</h2><p>发现 ${guard.diffs?.length || 0} 项残留；恢复${guard.restored?.allVerified ? '通过' : '未通过'}；新会话复验${guard.verifiedFresh ? '通过（无差异）' : '未通过'}。</p><ul>${(guard.diffs || []).map((d) => `<li>${esc(d.type)} / ${esc(d.label)}：预期 ${esc(JSON.stringify(d.expected))}，实际 ${esc(JSON.stringify(d.actual))}（${esc(d.reason)}）</li>`).join('')}</ul>`;
   const html = `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>区块 ${esc(report.config?.blockId)} 测试报告 ${esc(report.runId)}</title><style>
@@ -100,6 +105,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;max-wi
 <p class="meta">运行 ${esc(report.runId)} · ${esc(report.startedAt || '')} → ${esc(report.finishedAt || '')} · 页面 ${esc(report.config?.targetPage || '')}（${esc(report.config?.targetPageKind === 'custom' ? '自定义页面' : '系统页面')}）· 状态：<b>${esc(report.status || '')}</b>${previewMeta}</p>
 <div class="counts"><div class="count pass"><b>${counts.pass}</b>通过</div><div class="count fail"><b>${counts.fail}</b>失败</div><div class="count"><b>${counts.skip}</b>跳过</div><div class="count"><b>${counts.na}</b>无此设置项</div><div class="count"><b>${counts.record}</b>记录</div></div>
 <h2>结论</h2><p>${conclusion}</p>${report.failure ? `<p>中断阶段：${esc(report.failure.stage)}；${esc(report.failure.message)}</p>` : ''}
+${guardHtml}
 ${fails.length ? `<h2>缺陷单草稿（${fails.length} 条，复制可用）</h2>${fails.map((check) => `<pre class="draft">${esc(defectDraft(check))}</pre>`).join('\n')}` : ''}
 <h2>失败、跳过与无此设置项</h2>${cards ? `<div class="cards">${cards}</div>` : '<p>没有失败、跳过或无此设置项的检查。</p>'}
 <h2>全部检查（${report.checks.length} 项）</h2><div class="filters"><button data-f="all" class="on">全部</button><button data-f="fail">失败</button><button data-f="pass">通过</button><button data-f="skip">跳过</button><button data-f="na">无此设置项</button><button data-f="record">记录</button></div>
