@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { loadBrowserConfig } from "../src/config.mjs";
-import { browserLaunchOptions } from "../src/browser.mjs";
+import { browserLaunchOptions, prepareContext } from "../src/browser.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -246,6 +246,7 @@ async function main() {
       console.warn('[login] storageState 无法读取，将尝试表单登录。');
       context = await browser.newContext({ ignoreHTTPSErrors: true });
     }
+    await prepareContext(context, browserConfig);
     const page = await context.newPage();
     page.setDefaultTimeout(60000);
 

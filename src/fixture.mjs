@@ -3,6 +3,7 @@ import { FIELD_TYPE_CODES, openProdPage, listCustomFields, readCustomFieldOption
 import { reloadEditor, openEditor, ensureTargetPage, savePage } from './editor.mjs';
 import { widgetSession, probeControls, isFieldCheckbox, checkReportText } from './capabilities/shared.mjs';
 import { buildFixtureTruthTable } from './capabilities/custom-filter-fields.mjs';
+import { prepareContext } from './browser.mjs';
 
 const DEFAULT_TITLE = '设置自定义字段筛选';
 const sameValues = (actual, wanted) => Array.isArray(actual)
@@ -180,6 +181,7 @@ export async function restoreFixture({ page, canvas, config, originalFieldStates
   const verification = await page.context().browser().newContext({
     storageState: await page.context().storageState(), ignoreHTTPSErrors: config.ignoreHTTPSErrors,
   });
+  await prepareContext(verification, config);
   verification.setDefaultTimeout(30_000);
   verification.setDefaultNavigationTimeout(60_000);
   try {

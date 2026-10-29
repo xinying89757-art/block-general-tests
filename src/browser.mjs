@@ -3,8 +3,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { access } from 'node:fs/promises';
 import { loadBrowserConfig } from './config.mjs';
+import { installHttpsUpgrade } from './network-https-upgrade.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
+
+export async function prepareContext(context, config = {}) {
+  if (config.httpsUpgrade !== false) await installHttpsUpgrade(context, config.httpsUpgradeHosts);
+  return context;
+}
 
 export function browserLaunchOptions(config) {
   const { browser, headless, slowMo } = loadBrowserConfig({
@@ -41,6 +47,7 @@ export async function launchSession(config) {
       storageState,
       viewport: { width: 1600, height: 1000 },
     });
+    await prepareContext(context, config);
     context.setDefaultTimeout(30_000);
     context.setDefaultNavigationTimeout(60_000);
     const page = await context.newPage();
