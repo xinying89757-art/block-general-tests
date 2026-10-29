@@ -5,6 +5,7 @@ import { loadConfig } from './config.mjs';
 import { launchSession } from './browser.mjs';
 import { openEditor, ensureTargetPage, addBlockIfNeeded, savePage, openPreview, resolveTargetPage, getPreviewShareLink } from './editor.mjs';
 import { applyBaseline } from './baseline.mjs';
+import { baselineValueFor, guardBaseline } from './baseline-guard.mjs';
 import { prepareFixture, restoreFixture } from './fixture.mjs';
 import { runFrontChecks } from './checks.mjs';
 import * as customFilterFields from './capabilities/custom-filter-fields.mjs';
@@ -38,6 +39,8 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
     const id = capability.id;
     const module = registry[id];
     if (typeof module?.[method] !== 'function') continue;
+    const previousCapabilityId = args.config?.baselineCapabilityId;
+    if (args.config) args.config.baselineCapabilityId = id;
     try {
       const returned = await module[method]({ ...args, capability, profile });
       checks.push(...returned);
@@ -52,6 +55,12 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
       checks.push(check);
       await captureCheckScreenshots([check], layer === 'front' ? args.previewPage : args.page,
         args.screenshotDir, args.runId, args.report, layer);
+    }
+    finally {
+      if (args.config) {
+        if (previousCapabilityId === undefined) delete args.config.baselineCapabilityId;
+        else args.config.baselineCapabilityId = previousCapabilityId;
+      }
     }
   }
   return checks;
@@ -87,6 +96,13 @@ export function redact(value, config) {
       } catch { return '[url]'; }
     });
   }));
+}
+
+export function formatBaselineGuard(guard) {
+  if (!guard || guard.reason === 'no baseline in profile') return '[block] 基线守卫：no baseline in profile';
+  if (!guard.residue) return '[block] 基线守卫：无残留';
+  const rows = guard.diffs.map((d) => `${d.type} / ${d.label}: ${JSON.stringify(d.actual)} → ${JSON.stringify(d.expected)}（${d.reason}）`);
+  return `[block] 基线守卫：发现 ${rows.length} 项残留，已恢复；新会话复验${guard.verifiedFresh ? '通过（无差异）' : '失败'}\n${rows.join('\n')}`;
 }
 
 async function main() {
@@ -136,6 +152,7 @@ async function main() {
     },
     added: null,
     baseline: null,
+    baselineGuard: null,
     fixture: null,
     page: null,
     checks: [],
@@ -164,13 +181,27 @@ async function main() {
     report.page = { ...config.resolvedTarget, created: pageCreated };
     stage = 'add-block';
     report.added = await addBlockIfNeeded(session.page, canvas, config);
+    const baseline = Array.isArray(profile?.baseline) ? profile.baseline : [];
+    if (baseline.length) {
+      config.baselineValue = (type, label) => {
+        const semantic = /按钮文本/.test(label) ? '按钮文本'
+          : /链接网址|域名|邮箱地址/.test(label) ? '链接网址'
+            : /在新窗口打开|新窗口打开/.test(label) ? '新窗口打开' : label;
+        return baselineValueFor(baseline, type, semantic) ?? baselineValueFor(baseline, type, label);
+      };
+      stage = 'baseline-guard';
+      report.baselineGuard = await guardBaseline({ page: session.page, canvas, config, baseline });
+      console.log(formatBaselineGuard(report.baselineGuard));
+    } else {
+      report.baselineGuard = { reason: 'no baseline in profile' };
+      console.log(formatBaselineGuard(report.baselineGuard));
+    }
     stage = 'apply-baseline';
     // A freshly added block carries factory defaults, not the profile's
     // baseline, so capability checks that assume the baseline would skip
     // or misjudge. Apply the baseline once, right after adding. This is a
     // precondition, not a capability: a failed application stops the run
     // (fail-fast) instead of recording one fail per capability.
-    const baseline = Array.isArray(profile?.baseline) ? profile.baseline : [];
     const shouldApplyBaseline = report.added?.added === true || config.applyBaseline;
     if (shouldApplyBaseline && baseline.length > 0) {
       const applied = await applyBaseline({ page: session.page, canvas, config, baseline });

@@ -1,5 +1,5 @@
 import { effectCheck, unavailable, readEffectRoot } from './effect-checks.mjs';
-import { clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
+import { baselineRestoreTarget, clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
 import { retryTransient, uiWaitConfig } from '../ui-waits.mjs';
 
 const SUITE = 'capability:button-link';
@@ -96,6 +96,72 @@ function identify(controls) {
   } };
 }
 
+// Small public surface shared by baseline capture/guard/apply. The labels are
+// deliberately the ones used by this module's DOM recognizer.
+export async function readButtonPopover({ page, canvas, config }) {
+  const session = popoverSession({ page, canvas, config });
+  try {
+    await session.open();
+    const controls = await buttonControls(session);
+    const link = await readLinkType(session, controls);
+    return {
+      text: controls.text.value,
+      url: controls.url.value,
+      linkType: link.selected,
+      newWindow: controls.target.checked,
+      want: [
+        { label: '按钮文本', type: 'text', to: controls.text.value },
+        { label: '链接网址', type: 'text', to: controls.url.value },
+        { label: '新窗口打开', type: 'checkbox', to: controls.target.checked },
+      ],
+    };
+  } finally {
+    // The editor-box has no cancel button. A read must not use its Save
+    // fallback, so dismiss it with Escape and a neutral canvas click only.
+    if (await session.root.isVisible().catch(() => false)) {
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(300);
+      if (await session.root.isVisible().catch(() => false)) {
+        await page.mouse.click(1, 1);
+        await page.waitForTimeout(300);
+      }
+      if (await session.root.isVisible().catch(() => false)) throw new Error('只读按钮浮层无法关闭，未执行保存');
+    }
+  }
+}
+
+export async function writeButtonPopover({ page, canvas, config, want }) {
+  const session = popoverSession({ page, canvas, config });
+  const get = (label) => want.find((item) => item.label === label);
+  try {
+    await session.open();
+    const text = get('按钮文本');
+    if (text) {
+      let controls = await buttonControls(session);
+      await session.set(controls.text, text.to);
+    }
+    const url = get('链接网址');
+    const window = get('新窗口打开');
+    if (url) {
+      const controls = await buttonControls(session);
+      const tabs = await readLinkType(session, controls);
+      await setLink(session, tabs.selected || '域名', url.to);
+    }
+    if (window) {
+      const controls = await buttonControls(session);
+      await session.set(controls.target, window.to);
+      await session.save();
+    } else if (text) await session.save();
+    await session.open();
+    const after = await buttonControls(session);
+    const values = { text: after.text.value, url: after.url.value, newWindow: after.target.checked };
+    const verified = (!text || values.text === text.to) && (!url || values.url === url.to)
+      && (!window || values.newWindow === window.to);
+    if (!verified) throw new Error('按钮浮层写入后回读与目标值不一致');
+    return { values, verified };
+  } finally { await session.cancel(); }
+}
+
 export async function runSettingsLayer({ page, canvas, context, config }) {
   const session = popoverSession({ page, canvas, config });
   const ids = ['btn-state', 'btn-text-persist', 'btn-url-persist', 'btn-target-persist'];
@@ -137,8 +203,14 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
           && getComputedStyle(input).display !== 'none' && getComputedStyle(input).visibility !== 'hidden')
         .map(({ index }) => index));
       const target = probe.controls && identify(probe.controls.filter((item) => currentIndices.includes(item.index)))[key];
+      const snapshot = target && target[key === 'text' ? 'value' : 'checked'];
+      const canonical = key === 'text' ? '按钮文本' : key === 'url' ? '链接网址' : '新窗口打开';
+      const baselineRestore = config.baselineValue?.('phoenix_blocks_button', canonical);
+      const restore = baselineRestoreTarget({ snapshot, baselineValue: baselineRestore,
+        defaultValue: key === 'text' ? DEFAULT_TEXT : 'javascript:void(0)' });
       checks.push(!target || target.disabled || target.readOnly ? result(id, 'skip', probe.reason || '浮层控件缺失或不可编辑。')
-        : outcomeResult(id, await persistControl({ session, page, target, alternate })));
+        : outcomeResult(id, await persistControl({ session, page, target, alternate,
+          restoreValue: restore.value, restoreSource: restore.source })));
     }
   } finally {
     try { await session.cancel(); } catch (error) {
@@ -249,12 +321,19 @@ async function prepareBaidu(tx, session) {
   const tabs = await readLinkType(session, original);
   tx.evidence.linkTabs = tabs;
   if (!tabs.found) unavailable('链接类型页签无法唯一定位，未改写链接。');
+  const restoreUrl = baselineRestoreTarget({ snapshot: original.url.value,
+    baselineValue: txConfigBaseline(tx, original.url.label), defaultValue: 'javascript:void(0)' });
   tx.remember('button-url-and-type', async () => {
-    const restored = await setLink(session, tabs.selected, original.url.value);
-    tx.evidence.restoredLink = { type: restored.selected, source: restored.source, value: original.url.value };
+    const restored = await setLink(session, tabs.selected, restoreUrl.value);
+    tx.evidence.restoredLink = { type: restored.selected, source: restored.source, value: restoreUrl.value,
+      restoreTarget: restoreUrl.source };
   });
   tx.evidence.baiduLinkType = await setLink(session, '域名', BAIDU);
   return original;
+}
+
+function txConfigBaseline(tx, label) {
+  return tx.baselineValue?.('phoenix_blocks_button', label);
 }
 
 async function urlPersistenceCheck(args, session) {

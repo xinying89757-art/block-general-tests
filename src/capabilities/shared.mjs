@@ -3,6 +3,11 @@ import { waitForControlsReady, retryTransient, saveAndWait, readBackWithRetry, u
 export { readBackWithRetry } from '../ui-waits.mjs';
 
 export const TIMEOUT = 10_000;
+export function baselineRestoreTarget({ snapshot, baselineValue, defaultValue }) {
+  if (baselineValue !== undefined && baselineValue !== null) return { value: baselineValue, source: 'baseline' };
+  if (typeof snapshot === 'string' && /^AUTOTEST-/i.test(snapshot)) return { value: defaultValue, source: 'default-after-autotest-snapshot' };
+  return { value: snapshot, source: 'snapshot' };
+}
 // Bare numeric IDs identify fields; e.g. 826554_1 identifies a value option.
 export const isFieldCheckbox = (item) => item.type === 'checkbox'
   && /^\d+$/.test(item.value || '') && item.label !== '全选';
@@ -325,8 +330,9 @@ export async function probeControls(session, accepts) {
 // A mutation is a transaction: verify the alternate persisted value, then always
 // attempt recovery, verify it, close the editor UI, and save the restored page.
 // Discovery failures skip; failures from the first attempted write onward fail.
-export async function persistControl({ session, page, target, alternate, afterSwitch }) {
-  const evidence = { control: target.label || target.context, original: controlValue(target), alternate, controlType: target.type };
+export async function persistControl({ session, page, target, alternate, afterSwitch, restoreValue = controlValue(target), restoreSource = 'snapshot' }) {
+  const evidence = { control: target.label || target.context, original: controlValue(target), alternate, controlType: target.type,
+    restoreTarget: restoreValue, restoreSource };
   const errors = [];
   let stage = '翻转控件';
   try {
@@ -356,17 +362,17 @@ export async function persistControl({ session, page, target, alternate, afterSw
       await session.cancel();
       await session.open();
       stage = '恢复原值';
-      await session.set(target, evidence.original);
+      await session.set(target, restoreValue);
       stage = '保存恢复状态';
       await session.save();
       stage = '重开断言恢复';
       await session.open();
       const restored = await readBackWithRetry(
         async () => findControl(await session.read(), target),
-        (control) => control && controlValue(control) === evidence.original,
+        (control) => control && controlValue(control) === restoreValue,
         async () => { await session.cancel(); await session.open(); });
       evidence.restored = restored ? controlValue(restored) : null;
-      if (!restored || evidence.restored !== evidence.original) throw new Error('未恢复原值');
+      if (!restored || evidence.restored !== restoreValue) throw new Error('未恢复目标值');
     } catch (error) { errors.push(`${stage}失败：${error.message}`); }
     // Keep these attempts independent: failed readback must not prevent page save.
     try { await session.cancel(); } catch (error) { errors.push(`退出设置失败：${error.message}`); }
@@ -375,9 +381,10 @@ export async function persistControl({ session, page, target, alternate, afterSw
   const display = (value) => typeof value === 'boolean'
     ? (/是|否/.test(evidence.control) ? (value ? '是' : '否') : (value ? '勾选' : '未勾选')) : String(value);
   const originalText = display(evidence.original);
+  const restoreText = display(restoreValue);
   const alternateText = display(alternate);
   return { status: errors.length ? 'fail' : 'pass',
-    detail: `控件“${evidence.control}”原值是“${originalText}”，改为“${alternateText}”后保存，重新打开${evidence.afterSave === alternate ? `仍为“${alternateText}”` : '未保持切换值'}，恢复后${evidence.restored === evidence.original ? `回到“${originalText}”` : '未回到原值'}。${errors.join('；') || '恢复页面已保存。'}`, evidence };
+    detail: `控件“${evidence.control}”原值是“${originalText}”，改为“${alternateText}”后保存，重新打开${evidence.afterSave === alternate ? `仍为“${alternateText}”` : '未保持切换值'}，恢复目标为“${restoreText}”${evidence.restored === restoreValue ? '且回读一致' : '但回读不一致'}。${errors.join('；') || '恢复页面已保存。'}`, evidence };
 }
 
 export async function radioPersist({ session, page, name, prefixes, afterSwitch }) {

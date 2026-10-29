@@ -1,7 +1,7 @@
 // Independent effect transactions. Only the caller's block and throwaway
 // previews are inspected. The journal is populated BEFORE each attempted write.
 import { savePage, openPreview } from '../editor.mjs';
-import { blockSelector, probeControls, findControl, controlValue, TIMEOUT } from './shared.mjs';
+import { baselineRestoreTarget, blockSelector, probeControls, findControl, controlValue, TIMEOUT } from './shared.mjs';
 import { waitForStable, readBackWithRetry } from '../ui-waits.mjs';
 
 export const sameSet = (left, right) => JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
@@ -54,6 +54,7 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
   const tx = {
     evidence, controls,
     expected: (text) => { expected = text; },
+    baselineValue: (type, label) => config.baselineValue?.(type, label),
     note: (text) => evidence.observations.push(text),
     assert: (okay, text) => { evidence.observations.push(text); if (!okay) errors.push(text); },
     set: async (target, value) => {
@@ -68,7 +69,16 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
       if (!journal.has(key)) {
         const original = radio ? items.filter((item) => item.type === 'radio' && item.name === current.name && item.checked) : [current];
         if (original.length !== 1) unavailable('当前单选组没有唯一选中项。');
-        journal.set(key, { target: original[0], value: controlValue(original[0]) });
+        const snapshot = controlValue(original[0]);
+        const baseline = config.baselineCapabilityId === 'button-link'
+          ? config.baselineValue?.('phoenix_blocks_button', original[0].label) : undefined;
+        const restore = baselineRestoreTarget({ snapshot, baselineValue: baseline,
+          defaultValue: original[0].label === '按钮文本' ? 'Please set up the required pop-up form here.' : 'javascript:void(0)' });
+        journal.set(key, { target: original[0], value: restore.value });
+        if (restore.source !== 'snapshot') {
+          (evidence.restoreTargets ||= []).push({ label: original[0].label, value: restore.value,
+            source: restore.source, snapshot });
+        }
       }
       pending.set(key, { target: current, value });
       await session.set(current, value);

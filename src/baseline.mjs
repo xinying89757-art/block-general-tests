@@ -18,10 +18,10 @@
 // failures per step: one dialog failing never drops the rest, but the
 // overall result is allVerified=false.
 //
-// Out of v1 scope (recorded as skipped, never applied): the right-rail
-// color-scheme / module-width panels and the button zone's in-canvas
-// editor-box popover (that one opens no widget dialog at all).
+// The right-rail color-scheme / module-width panels remain out of scope;
+// the button zone is handled through its in-canvas editor-box popover.
 import { clickSettings, controlValue, probeControls, widgetSession, TIMEOUT } from './capabilities/shared.mjs';
+import { readButtonPopover, writeButtonPopover } from './capabilities/button-link.mjs';
 
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 const TITLE = '.backstage-dialog-title, .layui-layer-title';
@@ -98,6 +98,15 @@ export async function captureBaseline({ page, canvas, config, blockId }) {
 
   const steps = [];
   for (const { type, wrapIndex } of regions) {
+    if (type === 'phoenix_blocks_button') {
+      try {
+        const popover = await readButtonPopover({ page, canvas, config });
+        steps.push({ type, wrapIndex, title: null, kind: 'button-popover', want: popover.want });
+      } catch (error) {
+        steps.push({ type, wrapIndex, title: null, kind: 'button-popover', want: [], skipped: error.message });
+      }
+      continue;
+    }
     const step = { title: null, type, wrapIndex, want: [] };
     let dialog = null;
     let session = null;
@@ -155,6 +164,20 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
   let allVerified = true;
   for (const stepDef of baseline || []) {
     const { title, type, wrapIndex } = stepDef;
+    if (stepDef.kind === 'button-popover') {
+      const step = { title: null, type, wrapIndex, kind: stepDef.kind, set: [], verified: [], allVerified: false, errors: [] };
+      try {
+        const applied = await writeButtonPopover({ page, canvas, config, want: stepDef.want || [] });
+        step.verified = (stepDef.want || []).map((want) => ({ label: want.label,
+          value: ({ 按钮文本: applied.values.text, 链接网址: applied.values.url, 新窗口打开: applied.values.newWindow })[want.label],
+          ok: ({ 按钮文本: applied.values.text, 链接网址: applied.values.url, 新窗口打开: applied.values.newWindow })[want.label] === want.to }));
+        step.set = step.verified.map((item) => `${item.label}：${String(item.value)}`);
+        step.allVerified = applied.verified && step.verified.every((item) => item.ok);
+      } catch (error) { step.errors.push(error.message); }
+      if (!step.allVerified) allVerified = false;
+      steps.push(step);
+      continue;
+    }
     if (stepDef.skipped || !Array.isArray(stepDef.want) || stepDef.want.length === 0) {
       steps.push({ title: title ?? null, type, wrapIndex, set: [], verified: [],
         allVerified: true, skipped: stepDef.skipped || '无可应用的设置项' });
