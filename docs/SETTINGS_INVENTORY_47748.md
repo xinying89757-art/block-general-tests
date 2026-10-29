@@ -10,7 +10,7 @@ Figma：文件 `Vce7UhBgJPBqAwiYGdOUDv`「区块模版-2025 (Copy)」，Page 3�
 - 登录态过期：10-23 存的 storageState 到 10-26 已失效，打开 editSite 被重定向到 leadong 首页。用 `scripts/explore-login.mjs`（.env 账号）重新登录，已刷新 `src/fixtures/storageState-demo-xujiying.json`，登录后到平台首页。
 - 47748 原本不在 Products 页。Products 页原有 12494、40838 各 1 个。
 - 添加：`src/editor.mjs` 的 `addBlockIfNeeded` 在 develop 列表那步超时失败——实测添加面板里只有待审核（review，value -2）一个页签，没有开发（develop，value -1）页签。改走 online 列表搜索 47748 后添加成功，保存后计数 1。后续要修 `addBlockIfNeeded`：页签不存在时跳过，不要硬等超时。
-- 盘点探针：`scripts/probe-47748-inventory.mjs`，结果 `hidden/probe-47748-inventory.json`。探针只开弹窗快照、点取消退出，不保存改动。有一个探针缺陷：按钮子区域的浮层不在主页面弹窗里，探针等主页面弹窗超时后没关掉它，浮层一直挂在画布上，后续截图里都能看到它。盘点本身不受影响，探针要修（见待确认第 3 条）。
+- 盘点探针：`scripts/probes/probe-47748-inventory.mjs`，结果 `hidden/probe-47748-inventory.json`。探针只开弹窗快照、点取消退出，不保存改动。有一个探针缺陷：按钮子区域的浮层不在主页面弹窗里，探针等主页面弹窗超时后没关掉它，浮层一直挂在画布上，后续截图里都能看到它。盘点本身不受影响，探针要修（见待确认第 3 条）。
 
 ## 用户确认（2026-10-26，三处全部定性）
 
@@ -18,7 +18,7 @@ Figma：文件 `Vce7UhBgJPBqAwiYGdOUDv`「区块模版-2025 (Copy)」，Page 3�
 2. **筛选逻辑 / 触发 / 范围**：在这个区块中已经隐藏，但取值为设计稿给定的 3 个固定值——筛选逻辑=交集、筛选触发=更改筛选项后自动筛选（设计稿截图里这项的标题是“筛选方式”）、产品范围=当前分类产品。“设置项可以不展示”。画像 `profiles/47748.json` 里以 `fixedSettings` 记录，状态检查报固定值而不是“本区块无此设置”。
 3. **47748 预览为空的原因**：是后台还没配置、没选数据，不是区块缺陷。2026-10-26 已按用户要求后台配置（见“配置后状态”），配置完筛选组与产品列表都渲染出来了。
 
-## 配置后状态（2026-10-26，`scripts/configure-47748.mjs`，回读验证通过并保存）
+## 配置后状态（2026-10-26，`scripts/probes/configure-47748.mjs`，回读验证通过并保存）
 
 - 筛选区：启用测试单选按钮A（826554）、测试下拉列表（826574）——即 oracle v2 的两个字段，有已知夹具产品。
 - 列表区：数据来源仍为所有产品；分页显示改为“是”（此时数量 20 的含义为每页产品数量）；数量仍为 20；展示字段勾选 Brand、Product Code、Model、Brief、测试单选按钮A、测试下拉列表（6 项）。
@@ -107,7 +107,7 @@ Figma：文件 `Vce7UhBgJPBqAwiYGdOUDv`「区块模版-2025 (Copy)」，Page 3�
 
 ## 右侧面板（区块级设置，2026-10-26 盘点）
 
-不在子区域弹窗里，在画布 iframe 内每个区块右侧的 `.siteblocks-setting-operateTools` 里。收起时是右侧一条 30px 宽的图标栏，图标从上到下：ID、背景、模块展开、配色、内边距、下移、复制、删除。点图标弹出浮层，浮层在画布右侧。探针：`scripts/probe-47748-right-panel-*.mjs`，结果在 `hidden/probe-47748-*-panel*.json`。
+不在子区域弹窗里，在画布 iframe 内每个区块右侧的 `.siteblocks-setting-operateTools` 里。收起时是右侧一条 30px 宽的图标栏，图标从上到下：ID、背景、模块展开、配色、内边距、下移、复制、删除。点图标弹出浮层，浮层在画布右侧。探针：`scripts/probes/probe-47748-right-panel-*.mjs`，结果在 `hidden/probe-47748-*-panel*.json`。
 
 ### 配色（设计稿 Page 3：只有配色 1）
 
