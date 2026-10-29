@@ -61,7 +61,7 @@ async function main() {
   }
 
   const checks = [...checksById.values()];
-  const summary = { pass: 0, fail: 0, skip: 0, na: 0, record: 0 };
+  const summary = { pass: 0, fail: 0, skip: 0, na: 0, record: 0, deferred: 0 };
   for (const check of checks) {
     if (Object.hasOwn(summary, check.status)) summary[check.status] += 1;
   }

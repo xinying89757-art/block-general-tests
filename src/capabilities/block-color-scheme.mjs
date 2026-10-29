@@ -128,6 +128,12 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
     `配色方案 ${count} 个（设计稿只有配色 1），当前值 ${initial}。`,
     { count, value: initial }));
 
+  if (config.deferFront) {
+    checks.push(result('bcs-color-persist', 'deferred', 'deferred-to-front-runner'),
+      result('bcs-front-effect', 'deferred', 'deferred-to-front-runner'));
+    return checks;
+  }
+
   if (!context) {
     checks.push(...['bcs-color-persist', 'bcs-front-effect']
       .map((id) => result(id, 'skip', '未提供浏览器 context，无法打开临时预览。')));

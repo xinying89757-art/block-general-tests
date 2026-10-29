@@ -240,6 +240,9 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       checks.push(fromOutcome('cff-settings-persist', await persistControl({
         session, page, target: field, alternate: !field.checked,
       })));
+      if (config.deferFront) {
+        checks.push(result('cff-field-front-group', 'deferred', 'deferred-to-front-runner', { deferred: true }));
+      } else {
       // The same field is reused after the persistence transaction has restored it.
       // Prefer an unchecked field, so enabling it must expose its named group.
       const probe = await probeControls(session);
@@ -276,12 +279,13 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
           },
         })));
       }
+      }
     }
 
     const outcomes = [];
     for (const group of TEXT.radioGroups) {
       let beforeScope;
-      if (group.name === '产品范围' && context) {
+      if (group.name === '产品范围' && context && !config.deferFront) {
         try {
           await session.cancel();
           beforeScope = await scopeBaseline(page, context, config);
@@ -289,7 +293,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       }
       // Scope changes depend on data. Record the alternate preview universe but
       // never assert a specific difference, unlike the two persistence-only groups.
-      const afterSwitch = group.name === '产品范围' && context ? async (evidence, stage) => {
+      const afterSwitch = group.name === '产品范围' && context && !config.deferFront ? async (evidence, stage) => {
         stage('记录切换产品范围后的预览基线');
         try {
           evidence.scopePreview = { before: beforeScope, after: await scopeBaseline(page, context, config) };
@@ -720,6 +724,41 @@ async function filterInteractionEffect(args, kind) {
 }
 export async function runBackendLayer(args) {
   return [await filterFieldsEffect(args, 'backend'), await backgroundEffect(args, 'backend')];
+}
+
+async function fieldFrontGroupEffect(args) {
+  const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
+  const probe = await probeControls(session);
+  if (probe.reason) return result('cff-field-front-group', 'skip', probe.reason);
+  const fields = probe.controls.filter(isFieldCheckbox);
+  const field = fields.find((item) => !item.disabled && !item.checked) || fields.find((item) => !item.disabled);
+  if (!field) return result('cff-field-front-group', fields.length ? 'skip' : 'na', '没有可切换的自定义筛选字段。');
+  if (!args.context) return result('cff-field-front-group', 'skip', '未提供浏览器 context，无法打开临时预览。');
+  return fromOutcome('cff-field-front-group', await persistControl({ session, page: args.page,
+    target: field, alternate: !field.checked,
+    afterSwitch: async (evidence, stage) => {
+      stage('保存页面并打开临时预览');
+      await withPreview(args.page, args.context, async (frame) => {
+        stage('断言预览筛选组标题');
+        const root = frame.locator(previewSelector(args.config.blockId)).first();
+        await root.waitFor({ state: 'attached', timeout: TIMEOUT });
+        const read = (timeout) => root.locator(SELECTORS.groupTitle).evaluateAll(
+          (nodes) => nodes.map((node) => (node.innerText || '').replace(/\s+/g, ' ').trim()), undefined, { timeout });
+        const observed = await poll(read, (titles) => titles.includes(field.label) === !field.checked);
+        evidence.field = field.label;
+        evidence.expectedPresent = !field.checked;
+        evidence.previewTitles = observed.value;
+        if (!observed.value.length) { evidence.frontObservable = false; return; }
+        if (!observed.matched) throw new Error(`字段 ${field.label} 翻转后筛选组${field.checked ? '仍出现' : '未出现'}`);
+      });
+    } }));
+}
+
+export async function runFrontEffectsLayer(args) {
+  const checks = [await fieldFrontGroupEffect(args), await filterFieldsEffect(args, 'front'), await backgroundEffect(args, 'front')];
+  if (args.profile?.fixture) checks.push(...oldInteractionSkips(), ...await fixtureOracleChecks(args));
+  else for (const kind of ['logic', 'trigger', 'scope', 'jump']) checks.push(await filterInteractionEffect(args, kind));
+  return checks;
 }
 
 Object.assign(NAMES, {

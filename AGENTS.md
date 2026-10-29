@@ -83,6 +83,18 @@ BLOCK_ID=<id> npm run test:block
 `node scripts/merge-reports.mjs <报告1> <报告2> [输出]` 合并成一份完整报告
 （检查按 ID 去重、后一段覆盖前一段；summary 重算；记 `mergedFrom`）。
 例如：`CAPABILITY_FILTER=button-link,product-category-select,custom-filter-fields npm run test:block`。
+
+**Mac 前台运行流程**：盒子端先运行 `bash scripts/pack-for-mac.sh`，把打印出的
+`dist/block-tests-<时间戳>.tar.gz` 用 CopyFromBox 传到 Mac 的项目目录。Mac 在项目目录执行
+`bash run-front.sh <tarball> [区块ID ...]`（省略区块 ID 时读取 `.env` 的 `BLOCK_ID`）。
+运行器覆盖代码但保留 Mac 的 `.env`、`.auth/`、登录态、`reports/`、`node_modules/`；
+依赖锁文件变化时才执行 `npm ci`，先检查登录态，无效时最多登录一次；之后每个区块执行
+`FRONT_ONLY=1`，只跑前台与效果层检查，并输出 `out/front-<时间戳>.tar.gz`。用 CopyToBox
+把结果包传回盒子，在盒子端运行
+`node scripts/merge-front-results.mjs <front-<时间戳>.tar.gz`。盒子会解压到
+`reports/front/<时间戳>/`，并用前台结果替换最新盒子报告里同 ID 的 `deferred` 检查，生成
+合并 JSON 和 HTML 报告。常规盒子运行如需暂缓前台检查，可设 `DEFER_FRONT=1`；延后项会
+显示为 `deferred`，不计入失败。
 运行器在能力开始前自动检测画像基线残留；发现差异时按基线恢复，并用新浏览器会话复验。恢复或复验失败会终止运行。被打断后不要直接重跑，先确认报告中的基线守卫结果。
 **自定义筛选夹具准备（v1.12，手册 §22）**：支不支持筛选、支持哪几种类型是前置判定——首次设置时问用户或看需求文档/设计稿，记进画像，运行器以画像为准，不要开弹窗现判定。缺字段或缺产品时按 §22 建夹具（字段与产品名加 `AUTOTEST-` 前缀；真值表 N 个字段 → N+1 件产品）；收尾只恢复区块设置，字段与产品不恢复、不删除。代码实现与首次实跑核查见手册 §23（v1.13）、`src/cms.mjs`、`src/fixture.mjs` 及 `cff-oracle-*` 检查。
 跑之前先说一句开始了、大概多久；跑的时候不刷屏；用户问进度时告诉他当前阶段。

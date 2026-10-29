@@ -223,6 +223,10 @@ async function readSiteListCards(page) {
 
 async function main() {
   dotenv.config({ path: path.join(root, ".env"), quiet: true });
+  if (process.env.NO_PROXY === '1') {
+    process.env.HTTPS_PROXY = '';
+    process.env.https_proxy = '';
+  }
   const ACCOUNT = process.env.PLAYWRIGHT_USERNAME || "";
   const PASSWORD = process.env.PLAYWRIGHT_PASSWORD || "";
   const forceLogin = process.argv.includes('--force-login');
@@ -251,6 +255,14 @@ async function main() {
     page.setDefaultTimeout(60000);
 
     const reused = await attemptStorageStateReuse(page, statePath, forceLogin);
+    if (process.argv.includes('--check-only')) {
+      if (reused) console.log('LOGIN: valid-storage-state');
+      else {
+        console.log('LOGIN: invalid-storage-state');
+        process.exitCode = 3;
+      }
+      return;
+    }
     if (reused) {
       console.log('LOGIN: reused-storage-state');
     } else {

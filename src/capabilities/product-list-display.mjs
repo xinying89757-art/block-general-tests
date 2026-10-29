@@ -371,6 +371,7 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
 }
 
 export async function runSettingsLayer({ page, canvas, context, config, capability }) {
+  if (config.frontOnly) return listEffects({ page, canvas, context, config, capability }, 'front');
   // The dialog title and the wrap index come from the profile: 40838 uses
   // title 设置产品列表 at gallery wrap 0, while 47748 uses 设置与选取数据
   // at gallery wrap 1 (wrap 0 is the category dialog). Title alone is not
@@ -390,7 +391,8 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     // missing group correctly degrades to na via radioGroupPersist.
     checks.push(outcomeResult('pld-data-source-persist', await radioGroupPersist({ session, page,
       name: '列表数据来源', labels: ['所有产品', '使用筛选条件', '选择指定产品', '选择部分产品分类'] })));
-    checks.push(await dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability }));
+    checks.push(config.deferFront ? result('pld-data-source-category-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
+      : await dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability }));
     // Inventory probe: page size is type=text, not necessarily type=number.
     // 47748 labels the same input 显示产品总数量, so accept either label;
     // the matched label is kept in evidence until its meaning is confirmed.
@@ -415,7 +417,8 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     ]) {
       checks.push(outcomeResult(id, await radioPersist({ session, page, name, prefixes })));
     }
-    checks.push(await compareFrontCheck({ session, page, context, config }));
+    checks.push(config.deferFront ? result('pld-compare-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
+      : await compareFrontCheck({ session, page, context, config }));
     const probe = await probeControls(session);
     const field = probe.controls && fieldsOf(probe.controls).find((item) => !item.disabled);
     checks.push(field ? outcomeResult('pld-display-field-persist', await persistControl({ session, page,
@@ -430,6 +433,12 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   }
   checks.push(...await listEffects({ page, canvas, context, config, capability }, 'front'));
   return checks;
+}
+
+export async function runFrontEffectsLayer(args) {
+  const session = listSession(args);
+  return [await dataSourceCategoryFrontCheck({ ...args, session }), await compareFrontCheck({ ...args, session }),
+    ...await listEffects(args, 'front')];
 }
 
 export async function runFrontLayer({ frame, config }) {
