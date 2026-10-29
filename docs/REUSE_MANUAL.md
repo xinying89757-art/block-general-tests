@@ -1,6 +1,6 @@
-# 区块设置项复用手册 v1.13
+# 区块设置项复用手册 v1.14
 
-版本：v1.13（2026-10-28）
+版本：v1.14（2026-10-29）
 范围：已在两个区块上验证：40838（2026-10-23，20 pass / 0 fail；2026-10-26 产品对比前台加验后 21 pass / 0 fail）与 47748（2026-10-26，配置后 16 pass / 0 fail，配色与宽度加验后 20 pass / 0 fail，分类 oracle 两处加验后 22 pass / 0 fail；2026-10-27 样式检查加验后 31 pass / 5 fail，5 个 fail 均为用户已确认的样式偏差；2026-10-28 三层验证分段实跑后 48 pass / 7 fail，7 个 fail 全是已知问题，无新增），并对 40838 做了回归（20 pass / 0 fail）。v1.6 新增：分享给其他人用的包（任何智能体都能跑）与页面选择（新建自定义页面 / 系统页名称）。v1.7 新增：基线捕获与应用（画像 `baseline`，区块加到新页后自动按基线配好再跑）。v1.11 新增：按能力分段跑（`CAPABILITY_FILTER`）与多段报告合并（`scripts/merge-reports.mjs`），长套件被运行环境重启打断时可分段跑完再合并。v1.12 新增：自定义筛选夹具准备流程（探测前置、每种类型一个字段的交并集真值表、收尾只恢复区块）。
 目的：为区块各个设置项形成可复用的流程和脚本，不是以测出某个区块的缺陷为目标。40838 是首个样本，47748 是第二个验证样本；顺带发现的问题只记录，不在本手册里深挖。
 
@@ -358,9 +358,9 @@ v1.8 验收：47748 在 products 页实跑新版报告（报告 `reports/report-
 1. **登录后自动发现备选入口**：`scripts/explore-login.mjs` 按账号保存 storageState，随后打开控制台 hash 路由页。控制台没有可用的 `<a href>` 导航，旧 `LINKS` 探测已移除；改为在 `goto` 之前注册 `page.waitForResponse`（URL 含 `/menu/navigation4`，超时 60 秒），截获 SPA 自带鉴权头的请求响应。不得另用 `page.evaluate` 内的 fetch 代替（会返回 401）。运行时验证 `data.headerNavigation.webSite.webSiteList` 是数组，列出全部站名、comId 与各语种 name/url/siteSettingId/lanCode/editSiteUrl。
 2. **SITE_DOMAIN 是测试站的语种地址**，例如 `http://en-site40083596.ldyjz.com`，不是领动平台域名。先精确匹配语种 url（去掉末尾 `/`）；未命中时按 host 唯一匹配站点，再选英语 `lanCode=0`。备选入口格式为 `https://www.leadong.com/phoenix/admin/user/editSite?s=<siteSettingId>&c=<comId>&d=&l=<lanCode>`；`EDIT_SITE_URL` 不再必填，仅站点列表选择器失效、完全找不到卡片时回退使用。唯一命中才写 `.env` 的 `EDIT_SITE_URL` 一行，没有该行则追加，其他行（含密码）原样保留。空 `SITE_DOMAIN` 只打印清单与填写模板，不写文件；账号没有该站时以“账号下没有 SITE_DOMAIN 对应的站点，请换有该站访问权限的账号”报错退出；多重匹配或缺少英语语种也报错停止，不能拿其他站跑。
 3. **浏览器可配**：登录脚本与 `launchSession` 共用选项解析，支持 `BROWSER=firefox|chromium`，默认 Chrome（chromium，`channel: "chrome"`，要求安装系统 Chrome）；代理受限的机器改设 `BROWSER=firefox`（miumiu 的机器没有系统 Chrome，本机验证用 Firefox 跑，Chrome 默认路径需在用户 Mac 上验证）。`HEADLESS=true|false` 可覆盖默认：CI 为 true；非 CI 下 Firefox 为 true、Chromium 为 false。`SLOW_MO` 是非负整数毫秒，默认 0。Firefox 不传 channel。代理、ignoreHTTPSErrors 与会话参数沿用原逻辑。登录脚本不调用要求 BLOCK_ID 的 `loadConfig`。
-4. **站点列表流程优先**：`openEditor` 打开 `https://website.leadong.com/phoenix/pagebuilder/layout`，直接进入编辑器则沿用“页面:”就绪判定。落到 `/website.html` 则等待 `.mySiteBox`，逐张检查可见卡片中 `a[href]`、`[data-url]`、`[data-href]` 的第一个公共 HTTP(S) 地址（排除 website.leadong.com、jianzhan.leadong.com 与 `/phoenix/`），按 `SITE_DOMAIN` 的 host+端口唯一匹配（忽略协议与末尾 `/`）。无域名命中时可按可选 `SITE_NAME` 精确匹配站名；多重命中立即报错，不得任选卡片。语言依次取 `EDIT_SITE_URL` 的 l 参数（0 英语、1 中文（简体）、3 阿拉伯语、4 法语、10 日语、11 韩语）、站点 host 的 en/cn/sa/fr/jp/kr 前缀、英语；`.lansSelect .lanItem` 已有 on 或 aria-selected=true 则不再点，未找到语言时警告后继续。
+4. **站点列表入口**：`openEditor` 始终先打开 `https://www.leadong.com/website.html`，最多等 30 秒出现 `.mySiteBox`。登录页重定向提示重跑登录脚本。逐张检查所有已挂载卡片（包括视口外）的公共 HTTP(S) 地址，按 `SITE_DOMAIN` 的 host+端口唯一匹配；可选 `SITE_NAME` 仅在域名无匹配时精确回退。匹配卡片滚入视口后选语言并点编辑网站，仍拒绝复用旧编辑器；列表结构缺失时才使用备选 `EDIT_SITE_URL`。进入后尽力核对站点身份，不匹配时报错，无法识别则 warning。语言优先取 `EDIT_SITE_URL` 的 l 参数，再取站点 host 语言前缀，最后英语；缺少语言项时 warning 后继续。
 5. **只接收本次编辑器**：点击卡片 `.userEditSite` 前记录所有页面、监听主 frame 导航；点击后最多等 60 秒，只认 live pagebuilder 页面，优先新页面、其次当前页、再其次本次发生导航的其他页。点击前已在 pagebuilder 的旧页一律排除，推广页也不算。超时报当前地址并提示检查站名、语言与站点权限。仅站点列表完全没有 `.mySiteBox` 时才回退备选 `EDIT_SITE_URL`；未配备选则提示结构变化、重新探查选择器。返回 `{ page }`，运行器更新 `session.page`，包括 `capture-baseline` 在内的全部脚本调用点也接收返回页，后续目标页与预览操作继续使用该页。
-6. **登录健壮性**：输入框先按 placeholder 找，再按 #loginName/#password 找，保留 frame 回退。先 Enter，仍在登录页再点所在 frame 的 #loginSubmit；首次失败后重回登录页重试 2 次。登录后最多用 5 秒 best-effort 关闭含 video 的 dialog/modal，再 hover `.wrap-login-container/.wrap-login-dropdown`，有“返回领动云平台”链接则点击。storageState 写完设为 0600，新建 fixtures 目录为 0700。navigation4 响应发现、站点匹配与只写 EDIT_SITE_URL 一行的逻辑不变。
+6. **登录健壮性**：优先复用账号对应或 `STORAGE_STATE` 指定的 storageState；打开控制台未跳登录页即打印 `LOGIN: reused-storage-state`，否则打印 `LOGIN: form` 并表单登录。`--force-login` 强制表单登录。输入框先按 placeholder 找，再按 #loginName/#password 找，保留 frame 回退；账号密码逐字输入（delay 50ms），只点 `#loginSubmit`，等待成功 URL 最多 30 秒。首次加一次重试；页面出现密码错误提示立即停止，错误信息脱敏账号密码。登录后最多用 5 秒 best-effort 关闭含 video 的 dialog/modal，再 hover `.wrap-login-container/.wrap-login-dropdown`，有“返回领动云平台”链接则点击。storageState 写完设为 0600。navigation4 未匹配站点时回退 `www.leadong.com/website.html` 按 host 检查，只报告 `MATCHED_SITE`，不写 `EDIT_SITE_URL`。
 7. **范围**：第一轮清理的临时控制台/导航探针和全量响应继续保持删除。第二轮未改检查断言、画像、基线或套件测试行为，只改编辑器入口与调用页传递、登录及启动选项；登录脚本只登录和读取站点清单，不改站上设置。按用户要求不提交。
 
 v1.9 第一轮离线验收：已用删除前的完整响应验证 67 个站、176 个语种都能生成编辑器入口；40083596 英语精确匹配（含末尾 `/`）与 host 回退均生成原有入口（`s=miKfUASmzrZj&c=cWUAKfNCbSMO&d=&l=0`）。无权限、多重匹配、缺少英语语种、错误响应路径均会报错；临时 `.env` 验证通过 LF/CRLF、只改目标行、缺行追加、重复配置拒绝与原值无须重写。两浏览器和默认 Firefox 的会话选项验证通过，脚本语法检查通过。
@@ -448,3 +448,10 @@ BLOCK_ID=40838 CAPABILITY_FILTER=custom-filter-fields npm run test:block
 4. **40838 四产品真值表**：须在旧站配置（40083596）实核三字段类型、既有字段完整选项、产品上架和区块数据范围、4 件产品的全部值与前台精确集合；现有两个字段完整选项与画像不一致会明确报冲突，不自动修改或弱化判定。单选集/下拉集分别按产品实际声明值计算，不按产品数组位置假定谁翻了哪个字段。并集已知缺陷仍按 4 件断言。
 
 本实现不发布、不删除字段或产品。CMS 变更立即生效，刷新编辑器用于读取新增字段；收尾只恢复区块字段勾选，CMS 字段和产品常驻。预览不可交互时记 skip，已发布真前台的执行及发布职责仍待确定。
+
+## 24. HTTP 预览升级与发布控件（v1.14，2026-10-29）
+
+- 本机网络代理拦截明文 HTTP（返回 500），导致编辑器“预览”打开 `http://website.leadong.com/phoenix/pagebuilder/preview` 后，内容 frame 落到 `*.preview.leadong.com` 时无法加载；对应服务主机可用 HTTPS。默认开启 `HTTPS_UPGRADE=1`，context 级 route 将 `website.leadong.com`、`www.leadong.com`、`*.preview.leadong.com`、`*.leadongcdn.com` 的 HTTP 请求用 HTTPS 获取，支持 iframe 与 popup/新标签页；`HTTPS_UPGRADE_HOSTS` 非空时用逗号分隔规则整体覆盖默认值，支持精确主机和 `*.suffix`。设为 `0`、`false`、`off` 可关闭。前台 `*.ldwebsite.com`、`*.ldyjz.com`、`*.ldmfyh.com` 没有 HTTPS，显式黑名单保证无论自定义规则如何设置，都不改写这些前台域。代理响应的匹配 `Location` HTTP 地址改为 HTTPS；检测到重定向回原 HTTP 地址时以 `HTTPS_UPGRADE_DOWNGRADE_LOOP` 打印 warning 并中止该请求（不让进程崩溃）。
+- **实测结论（2026-10-29，box）**：HTTPS 升级**救不了预览**。带编辑器登录态请求 `https://website.leadong.com/phoenix/pagebuilder/preview` 时，服务端 302 回 `http://website.leadong.com/phoenix/pagebuilder/preview`（补 https Referer 也一样），即预览入口被服务端强制为 HTTP；在明文 HTTP 被拦截的机器上预览与前台都不可用，`*-front` 检查只能在能直连 HTTP 的机器（如用户本机）上跑。升级开关仍默认开启，仅对其它能走 HTTPS 的领动资源有效。
+- 发布控件：顶栏“发布▾”按钮为 `.backstage-topToolbar-publish`。hover 后菜单 `.currentPagePublish` 表示当前页面发布，点击后不弹确认窗，约 10 秒出现 toast“恭喜您，页面发布成功！ 网址：…/products.html”；`.allPagePublish` 表示整站发布。直接点击顶栏“发布”会打开“发布前请先确认以下设置项”检查单弹窗，需勾选“我已确认”再点发布。
+- 基于发布的前台验证模式只适用于能直接访问明文 HTTP 前台的机器。本机 box 的出网代理拦截前台 HTTP，且这些站点域没有 HTTPS，因此当前机器不能用发布前台做验证；此模式不能靠 HTTPS 升级绕过前台域黑名单。

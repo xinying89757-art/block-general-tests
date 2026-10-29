@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { httpsUpgradeEnabled, parseHttpsUpgradeHosts } from './network-https-upgrade.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const envPath = path.join(projectRoot, '.env');
@@ -36,7 +37,12 @@ export function loadBrowserConfig(env = process.env) {
   if (!Number.isSafeInteger(slowMo) || slowMo < 0) {
     throw new Error('SLOW_MO must be a non-negative integer in milliseconds.');
   }
-  return { browser, headless, slowMo };
+  const hostRules = env.HTTPS_UPGRADE_HOSTS ?? '';
+  return {
+    browser, headless, slowMo,
+    httpsUpgrade: httpsUpgradeEnabled(env.HTTPS_UPGRADE),
+    httpsUpgradeHosts: String(hostRules).trim() ? parseHttpsUpgradeHosts(hostRules) : parseHttpsUpgradeHosts(),
+  };
 }
 
 /**

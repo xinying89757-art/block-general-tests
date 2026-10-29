@@ -6,10 +6,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { loadBrowserConfig } from "../src/config.mjs";
-import { browserLaunchOptions } from "../src/browser.mjs";
+import { browserLaunchOptions, prepareContext } from "../src/browser.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-dotenv.config({ path: path.join(root, ".env") });
 
 function proxyFromEnv() {
   const raw = process.env.HTTPS_PROXY || process.env.https_proxy;
@@ -66,6 +65,23 @@ export function matchSiteLanguage(sites, siteDomain) {
   const english = site.languageList.filter((language) => String(language.lanCode) === "0");
   if (english.length !== 1) throw new Error("SITE_DOMAIN 的 host 已匹配，但英语语种（lanCode=0）不唯一或不存在，未修改 .env。");
   return { site, language: english[0] };
+}
+
+export function matchSiteListCards(cards, siteDomain) {
+  const targetHost = hostOf(siteDomain);
+  if (!targetHost) throw new Error("SITE_DOMAIN 必须是完整的站点语种地址（包含 http:// 或 https://）。");
+  const matches = cards.filter((card) => card.host === targetHost);
+  if (matches.length > 1) throw new Error("SITE_DOMAIN 的 host 在站点列表中匹配到多个站点，请先排除重复项。");
+  return matches[0] || null;
+}
+
+export async function attemptStorageStateReuse(page, statePath, forceLogin = false) {
+  if (forceLogin || !existsSync(statePath)) return false;
+  await page.goto("https://www.leadong.com/phoenix2/composite/middle/platform/index.html#/", {
+    waitUntil: "domcontentloaded", timeout: 60000,
+  });
+  if (await isLoginPage(page)) return false;
+  return true;
 }
 
 export function writeEditorUrl(envPath, url) {
@@ -137,58 +153,114 @@ export async function enterCloudPlatform(page) {
 
 export async function login(page, account, password) {
   let lastError;
-  // One initial attempt plus two retries, each starting from the login page.
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  let passwordRejected = false;
+  // One initial attempt plus one retry, each starting from the login page.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       await page.goto('https://www.leadong.com/login.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
       const inputs = await findInputs(page);
       if (!inputs) throw new Error('login inputs not found on page or frames');
-      await inputs.user.fill(account);
-      await inputs.pass.fill(password);
-      await inputs.pass.press('Enter');
+      await inputs.user.click();
+      await inputs.user.pressSequentially(account, { delay: 50 });
+      await inputs.pass.click();
+      await inputs.pass.pressSequentially(password, { delay: 50 });
+      await inputs.scope.locator('#loginSubmit').first().click();
+      await page.waitForURL(/phoenix2\/composite|\/website\.html|\/phoenix\//, { timeout: 30000 });
       await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {});
-      await page.waitForTimeout(800);
       if (await isLoginPage(page)) {
-        await inputs.scope.locator('#loginSubmit').first().click();
-        await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {});
+        const message = await loginErrorMessage(page);
+        if (message) passwordRejected = true;
+        throw new Error(message ? `登录失败：${message}` : '登录后仍停留在登录页');
       }
-      await page.waitForLoadState('networkidle', { timeout: 45000 }).catch(() => {});
-      await page.waitForTimeout(800);
-      if (await isLoginPage(page)) throw new Error('登录后仍停留在登录页');
       await dismissBlockingModals(page);
       await enterCloudPlatform(page);
       await dismissBlockingModals(page);
       return;
     } catch (error) {
       lastError = error;
+      if (await isLoginPage(page)) {
+        const message = await loginErrorMessage(page);
+        if (message) {
+          passwordRejected = true;
+          lastError = new Error(`登录失败：${message}`);
+          break;
+        }
+      }
       if (attempt < 2) await page.waitForTimeout(1000);
     }
   }
-  // Playwright fill errors may include the supplied value in their call log.
-  const detail = String(lastError?.message || '未知错误').split(password).join('[REDACTED]');
-  throw new Error(`自动登录失败（首次尝试 + 重试 2 次）：${detail}`);
+  const detail = [account, password].filter(Boolean).reduce((message, secret) => message.split(secret).join('[REDACTED]'), String(lastError?.message || '未知错误'));
+  throw new Error(`自动登录失败（${passwordRejected ? '密码错误提示已出现，不再重试' : '首次尝试 + 重试 1 次'}）：${detail}`);
+}
+
+async function loginErrorMessage(page) {
+  for (const scope of [page, ...page.frames()]) {
+    const text = await scope.locator('body').innerText().catch(() => '');
+    const message = text.split(/\r?\n/).map((line) => line.trim()).find((line) => /登录名或密码错误|用户名或密码错误|密码错误|账号或密码错误/.test(line));
+    if (message) return message;
+  }
+  return '';
+}
+
+async function readSiteListCards(page) {
+  await page.goto('https://www.leadong.com/website.html', { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.locator('.mySiteBox').first().waitFor({ state: 'attached', timeout: 30000 });
+  const locator = page.locator('.mySiteBox');
+  const cards = [];
+  for (let index = 0; index < await locator.count(); index += 1) {
+    const card = locator.nth(index);
+    const urls = await card.locator('a[href], [data-url], [data-href]').evaluateAll((nodes) =>
+      nodes.flatMap((node) => ['href', 'data-url', 'data-href'].map((key) => node.getAttribute(key)).filter(Boolean)));
+    const publicUrl = urls.find((value) => {
+      try { const url = new URL(value); return /^https?:$/.test(url.protocol) && !['www.leadong.com', 'website.leadong.com', 'jianzhan.leadong.com'].includes(url.hostname); }
+      catch { return false; }
+    });
+    cards.push({ host: publicUrl ? hostOf(publicUrl) : '', name: await card.innerText().catch(() => '') });
+  }
+  return cards;
 }
 
 async function main() {
+  dotenv.config({ path: path.join(root, ".env"), quiet: true });
   const ACCOUNT = process.env.PLAYWRIGHT_USERNAME || "";
   const PASSWORD = process.env.PLAYWRIGHT_PASSWORD || "";
-  if (!ACCOUNT || !PASSWORD) throw new Error("missing credentials in .env");
+  const forceLogin = process.argv.includes('--force-login');
+  if ((!ACCOUNT || !PASSWORD) && forceLogin) throw new Error("missing credentials in .env");
 
   const browserConfig = loadBrowserConfig(process.env);
   const browser = await ({ firefox, chromium })[browserConfig.browser].launch({
     ...browserLaunchOptions(browserConfig), proxy: proxyFromEnv(),
   });
   try {
-    const context = await browser.newContext({ ignoreHTTPSErrors: true });
+    const statePath = process.env.STORAGE_STATE
+      ? path.resolve(root, process.env.STORAGE_STATE)
+      : path.join(root, "src/fixtures", `storageState-${ACCOUNT}.json`);
+    let context;
+    try {
+      context = await browser.newContext({
+        ignoreHTTPSErrors: true,
+        ...(existsSync(statePath) ? { storageState: statePath } : {}),
+      });
+    } catch {
+      console.warn('[login] storageState 无法读取，将尝试表单登录。');
+      context = await browser.newContext({ ignoreHTTPSErrors: true });
+    }
+    await prepareContext(context, browserConfig);
     const page = await context.newPage();
     page.setDefaultTimeout(60000);
 
-    await login(page, ACCOUNT, PASSWORD);
+    const reused = await attemptStorageStateReuse(page, statePath, forceLogin);
+    if (reused) {
+      console.log('LOGIN: reused-storage-state');
+    } else {
+      if (!ACCOUNT || !PASSWORD) throw new Error("登录态无效或不存在，且 .env 缺少登录凭据；请补齐后重跑。");
+      console.log('LOGIN: form');
+      await login(page, ACCOUNT, PASSWORD);
+    }
 
-    mkdirSync(path.join(root, "src/fixtures"), { recursive: true, mode: 0o700 });
+    mkdirSync(path.dirname(statePath), { recursive: true, mode: 0o700 });
     mkdirSync(path.join(root, "screenshots"), { recursive: true });
-    const statePath = path.join(root, "src/fixtures", `storageState-${ACCOUNT}.json`);
     await context.storageState({ path: statePath });
     chmodSync(statePath, 0o600);
     await page.screenshot({ path: path.join(root, "screenshots", "after-login.png"), fullPage: false });
@@ -220,11 +292,23 @@ async function main() {
     }
     const siteDomain = (process.env.SITE_DOMAIN || "").trim();
     if (siteDomain) {
-      const { site, language } = matchSiteLanguage(sites, siteDomain);
-      const url = editorUrl(site, language);
-      const changed = writeEditorUrl(path.join(root, ".env"), url);
-      console.log(`MATCHED_SITE: ${site.name} / ${language.name} / ${language.url}`);
-      console.log(`${changed ? "已写入" : "已确认"} .env: EDIT_SITE_URL=${url}`);
+      let matched;
+      try { matched = matchSiteLanguage(sites, siteDomain); }
+      catch (error) {
+        if (!String(error.message).includes('账号下没有 SITE_DOMAIN 对应的站点')) throw error;
+        const cards = await readSiteListCards(page);
+        const site = matchSiteListCards(cards, siteDomain);
+        if (!site) throw new Error("账号下没有 SITE_DOMAIN 对应的站点");
+        console.log(`MATCHED_SITE: ${site.name.trim().split(/\r?\n/)[0]} / ${siteDomain} (来源 site-list)`);
+        matched = null;
+      }
+      if (matched) {
+        const { site, language } = matched;
+        const url = editorUrl(site, language);
+        const changed = writeEditorUrl(path.join(root, ".env"), url);
+        console.log(`MATCHED_SITE: ${site.name} / ${language.name} / ${language.url}`);
+        console.log(`${changed ? "已写入" : "已确认"} .env: EDIT_SITE_URL=${url}`);
+      }
     } else {
       console.log("SITE_DOMAIN 为空；未修改 .env。请从以上列表选择测试站点语种并填写：");
       console.log("SITE_DOMAIN=<站点语种 url>");

@@ -27,6 +27,8 @@ cp .env.example .env
 
 默认用 Chrome（`BROWSER=chromium`，固定使用 `channel: "chrome"`，要求安装系统 Chrome，仅安装 Playwright Chromium 不满足此要求）。代理受限的机器（比如 miumiu 这台，Playwright Chromium 经出口代理访问外站失败）改设 `BROWSER=firefox`。`HEADLESS` 可设 true/false，默认 CI 为 true，非 CI 下 Firefox 为 true、Chromium 为 false；`SLOW_MO` 为非负整数毫秒，默认 0。
 
+HTTP 预览兼容：默认 `HTTPS_UPGRADE=1`，浏览器 context 会把指定的领动服务域名 HTTP 请求升级到 HTTPS，覆盖预览 iframe 和弹出新标签页。默认规则为 `website.leadong.com`、`www.leadong.com`、`*.preview.leadong.com`、`*.leadongcdn.com`；可用 `HTTPS_UPGRADE_HOSTS`（逗号分隔，支持 `*.example.com`）整体覆盖。设为 `0`、`false` 或 `off` 可关闭。`ldwebsite.com`、`ldyjz.com`、`ldmfyh.com` 前台域始终排除，因为这些站点没有 HTTPS。
+
 然后对你的智能体说：“帮我测区块 47748”，它会带你走首次设置：
 
 1. 测试站点：把要测的站点语种地址填入 `SITE_DOMAIN`；编辑器优先从固定 pagebuilder 地址进入，落到站点列表时按域名唯一匹配卡片、选语言、点“编辑网站”（可选 `SITE_NAME` 为站名回退）。登录脚本仍列出站点并写入备选 `EDIT_SITE_URL`，它只在列表结构变化、找不到卡片时使用，不再必填。账号下没有该站就停止并提示换账号。
