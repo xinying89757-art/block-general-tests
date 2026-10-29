@@ -19,6 +19,24 @@ test('capture assigns DOM-order occurrence only to repeated identities', () => {
   assert.deepEqual(items.map(({ occurrence }) => occurrence), [0, 1, undefined]);
 });
 
+test('select-all identity ignores concatenated field labels but still compares its value by occurrence', () => {
+  const captured = withOccurrences([
+    { label: '全选 Category Rated Current', type: 'checkbox', value: 'all', checked: false },
+    { label: '全选 Brand Product Code', type: 'checkbox', value: 'all', checked: false },
+  ], serialize);
+  assert.deepEqual(captured.map(({ label, identity, occurrence }) => [label, identity, occurrence]), [
+    ['全选', 'select-all', 0], ['全选', 'select-all', 1],
+  ]);
+  const baseline = [{ type: 'gallery', want: captured.map((item) => ({ ...item, to: false })) }];
+  const current = [{ type: 'gallery', want: withOccurrences([
+    { label: '全选 Category Rated Current Installation Method', type: 'checkbox', value: 'all', checked: false },
+    { label: '全选 Brand Product Code Model Brief', type: 'checkbox', value: 'all', checked: true },
+  ], serialize) }];
+  assert.deepEqual(diffAgainstBaseline(baseline, current).map(({ label, occurrence, reason }) => [label, occurrence, reason]), [
+    ['全选', 1, 'value-mismatch'],
+  ]);
+});
+
 test('occurrence selects the matching nth control; legacy duplicate identity throws', () => {
   const controls = [{ label: 'Brand', type: 'checkbox', value: '-3', marker: 0 },
     { label: 'Brand', type: 'checkbox', value: '-3', marker: 1 }];

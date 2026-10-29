@@ -18,7 +18,7 @@
 // the button zone is handled through its in-canvas editor-box popover.
 import { clickSettings, controlValue, probeControls, widgetSession, TIMEOUT } from './capabilities/shared.mjs';
 import { readButtonPopover, writeButtonPopover } from './capabilities/button-link.mjs';
-import { matchControl } from './baseline-identity.mjs';
+import { matchControl, normalizeControlIdentity } from './baseline-identity.mjs';
 
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 const TITLE = '.backstage-dialog-title, .layui-layer-title';
@@ -28,16 +28,17 @@ const TITLE = '.backstage-dialog-title, .layui-layer-title';
 // Capture therefore only records the checked radio of a group; the group
 // state is carried by that one entry.
 function serializeControl(control, duplicateKeys) {
-  const { label, type } = control;
+  const normalized = normalizeControlIdentity(control);
+  const { label, type } = normalized;
   const key = `${type}::${label}`;
   const duplicate = duplicateKeys.has(key);
   const identity = duplicate && ['checkbox', 'radio'].includes(type) ? { value: control.value } : {};
   if (type === 'radio') {
     if (!control.checked) return null;
-    return { label, type, ...identity, to: true };
+    return { ...normalized, label, type, ...identity, to: true };
   }
   if (type === 'checkbox') {
-    return { label, type, ...identity, to: control.checked };
+    return { ...normalized, label, type, ...identity, to: control.checked };
   }
   if (type === 'text' || type === 'number' || control.tag === 'SELECT' || control.tag === 'TEXTAREA') {
     return { label, type, to: control.value };

@@ -18,12 +18,27 @@ async function allFiles(dir) {
 
 function blockId(report) { return String(report?.config?.blockId ?? report?.profile?.blockId ?? report?.blockId ?? ''); }
 
-async function latestBoxReport(id) {
+function capabilitySet(report) {
+  const all = (report?.profile?.capabilities || []).map((item) => item?.id).filter(Boolean).map(String);
+  const filter = report?.capabilityFilter;
+  if ((filter === null || filter === undefined || filter === '') && all.length) return [...new Set(all)].sort().join(',');
+  if (filter === null || filter === undefined || filter === '') return '*';
+  const values = Array.isArray(filter) ? filter : String(filter).split(',');
+  return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))].sort().join(',');
+}
+
+async function latestBoxReport(id, frontReport) {
   const dir = path.join(root, 'reports');
-  const names = (await readdir(dir)).filter((name) => name.startsWith(`report-${id}-`) && name.endsWith('.json'))
+  const names = (await readdir(dir)).filter((name) => name.startsWith(`report-${id}-`) && name.endsWith('.json')
+    && !name.includes('-front-merged-'))
     .sort().reverse();
-  if (!names.length) throw new Error(`盒子端没有区块 ${id} 的 JSON 报告。`);
-  return path.join(dir, names[0]);
+  for (const name of names) {
+    try {
+      const report = JSON.parse(await readFile(path.join(dir, name), 'utf8'));
+      if (capabilitySet(report) === capabilitySet(frontReport)) return path.join(dir, name);
+    } catch { /* ignore malformed or unrelated JSON files */ }
+  }
+  throw new Error(`没有区块 ${id} 且能力筛选集为“${capabilitySet(frontReport)}”的盒子端报告。`);
 }
 
 async function main() {
@@ -47,7 +62,7 @@ async function main() {
   const groups = new Map();
   for (const item of frontReports) groups.set(blockId(item.report), item);
   for (const [id, frontItem] of groups) {
-    const basePath = await latestBoxReport(id);
+    const basePath = await latestBoxReport(id, frontItem.report);
     const base = JSON.parse(await readFile(basePath, 'utf8'));
     const front = frontItem.report;
     const remap = async (value) => {

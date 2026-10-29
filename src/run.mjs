@@ -263,7 +263,9 @@ async function main() {
         try {
           fixturePreparation = await prepareFixture({ page: session.page, canvas, context: session.context, config, profile });
           report.checks.push(...fixturePreparation.checks);
-          report.fixture = { applied: true, created: fixturePreparation.created, reused: fixturePreparation.reused,
+          report.fixture = { applied: !fixturePreparation.skipped,
+            ...(fixturePreparation.skipped ? { reason: '筛选字段组探查为无此设置项，未准备夹具。' } : {}),
+            created: fixturePreparation.created, reused: fixturePreparation.reused,
             restored: null, restoreErrors: [] };
         } catch (error) {
           fixturePreparation = error.fixturePreparation;

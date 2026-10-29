@@ -33,6 +33,9 @@
     {
       "id": "product-list-display",
       "settingName": "产品列表设置",
+      "notes": [
+        "产品对比前台检查只核对询盘页带入的已选产品；询盘页标题 Product Inquire 与 Brand 列不由产品对比设置控制，不作为预期。"
+      ],
       "status": "implemented-v1"
     },
     {
@@ -114,15 +117,14 @@
     "status": "to-be-defined"
   },
   "fixture": {
-    "note": "前置判定：支持单选按钮、多选按钮、下拉列表三种筛选类型，2026-10-28 用户确认；旧站没有真正的多选按钮字段，名字带多选的现有字段都是文本字段，需新建 AUTOTEST-多选。",
+    "note": "本轮真值表使用两个可枚举字段（单选按钮、下拉列表）和三件产品；既有 AUTOTEST-多选 字段保留在 CMS，但不纳入这个三产品真值表。",
     "supportedTypes": [
       "单选按钮",
-      "多选按钮",
       "下拉列表"
     ],
     "fields": [
       {
-        "name": "测试单选按钮A",
+        "name": "AUTOTEST-单选按钮A",
         "type": "单选按钮",
         "typeCode": 1,
         "options": [
@@ -131,55 +133,35 @@
         ]
       },
       {
-        "name": "测试下拉列表",
+        "name": "AUTOTEST-下拉列表",
         "type": "下拉列表",
         "typeCode": 2,
         "options": [
           "下拉列表4-10",
           "下拉列表8-10"
         ]
-      },
-      {
-        "name": "AUTOTEST-多选",
-        "type": "多选按钮",
-        "typeCode": 3,
-        "options": [
-          "多选4-10",
-          "多选8-10"
-        ]
       }
     ],
     "products": [
       {
-        "name": "测试产品A",
+        "name": "AUTOTEST-产品A",
         "values": {
-          "测试单选按钮A": "单选4-10",
-          "测试下拉列表": "下拉列表4-10",
-          "AUTOTEST-多选": "多选4-10"
+          "AUTOTEST-单选按钮A": "单选4-10",
+          "AUTOTEST-下拉列表": "下拉列表4-10"
         }
       },
       {
-        "name": "测试产品小何1",
+        "name": "AUTOTEST-产品小何1",
         "values": {
-          "测试单选按钮A": "单选4-10",
-          "测试下拉列表": "下拉列表8-10",
-          "AUTOTEST-多选": "多选4-10"
+          "AUTOTEST-单选按钮A": "单选4-10",
+          "AUTOTEST-下拉列表": "下拉列表8-10"
         }
       },
       {
-        "name": "测试产品小何2",
+        "name": "AUTOTEST-产品小何2",
         "values": {
-          "测试单选按钮A": "单选6-10",
-          "测试下拉列表": "下拉列表4-10",
-          "AUTOTEST-多选": "多选4-10"
-        }
-      },
-      {
-        "name": "AUTOTEST-产品4",
-        "values": {
-          "测试单选按钮A": "单选4-10",
-          "测试下拉列表": "下拉列表4-10",
-          "AUTOTEST-多选": "多选8-10"
+          "AUTOTEST-单选按钮A": "单选6-10",
+          "AUTOTEST-下拉列表": "下拉列表4-10"
         }
       }
     ],
@@ -194,8 +176,9 @@
       "wrapIndex": 0,
       "want": [
         {
-          "label": "全选 Category Rated Current Installation Method Spacing Rated voltage",
+          "label": "全选",
           "type": "checkbox",
+          "identity": "select-all",
           "to": false
         },
         {
@@ -261,8 +244,9 @@
           "to": true
         },
         {
-          "label": "全选 Brand Product Code Model Brief 图纸 Category Rated Current Installation Method Spacing Rated voltage 测试多选 正式版测试多选",
+          "label": "全选",
           "type": "checkbox",
+          "identity": "select-all",
           "to": false
         },
         {
@@ -447,9 +431,21 @@
       "wrapIndex": 0,
       "kind": "button-popover",
       "want": [
-        { "label": "按钮文本", "type": "text", "to": "Please set up the required pop-up form here." },
-        { "label": "链接网址", "type": "text", "to": "javascript:void(0)" },
-        { "label": "新窗口打开", "type": "checkbox", "to": false }
+        {
+          "label": "按钮文本",
+          "type": "text",
+          "to": "Please set up the required pop-up form here."
+        },
+        {
+          "label": "链接网址",
+          "type": "text",
+          "to": "javascript:void(0)"
+        },
+        {
+          "label": "新窗口打开",
+          "type": "checkbox",
+          "to": false
+        }
       ]
     }
   ]

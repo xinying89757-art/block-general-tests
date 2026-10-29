@@ -3,12 +3,15 @@ import { launchSession } from './browser.mjs';
 import { openEditor, ensureTargetPage } from './editor.mjs';
 import { baselineRestoreTarget, widgetSession } from './capabilities/shared.mjs';
 import { readButtonPopover } from './capabilities/button-link.mjs';
-import { assertOccurrencesUnambiguous, withOccurrences } from './baseline-identity.mjs';
+import { assertOccurrencesUnambiguous, withOccurrences, normalizeControlIdentity } from './baseline-identity.mjs';
 
 const isAutotest = (value) => typeof value === 'string' && /^AUTOTEST-/i.test(value);
-const sameControl = (a, b) => a.type === b.type && a.label === b.label
+const sameControl = (a, b) => {
+  const left = normalizeControlIdentity(a), right = normalizeControlIdentity(b);
+  return left.type === right.type && (a.identity ? left.identity === right.identity : left.label === right.label)
   && (a.value === undefined || a.value === b.value)
   && (a.occurrence === undefined || a.occurrence === b.occurrence);
+};
 
 export { baselineRestoreTarget };
 
@@ -39,7 +42,7 @@ export function diffAgainstBaseline(baseline, current) {
     if (want.occurrence !== undefined) continue;
     const candidates = entries(current).filter(({ step: currentStep, want: currentWant }) =>
       currentStep.type === step.type && (currentStep.wrapIndex ?? 0) === (step.wrapIndex ?? 0)
-      && currentWant.label === want.label && currentWant.type === want.type
+      && sameControl(want, currentWant)
       && (want.value === undefined || currentWant.value === want.value));
     if (candidates.length > 1) {
       throw new Error(`旧基线身份不唯一：${want.label} (${want.type}) 当前匹配到 ${candidates.length} 个控件；请补 occurrence。`);

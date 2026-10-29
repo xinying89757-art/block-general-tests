@@ -481,9 +481,9 @@ const filterFields = (controls) => controls.filter(isFieldCheckbox);
 // values are the USER-CONFIRMED fixture in docs/FILTER_TEST_DATA.md, not
 // expectations inferred from UI results. In particular do not weaken union.
 const CONFIRMED_40838 = {
-  fields: [{ title: '测试单选按钮A', value: '单选4-10' }, { title: '测试下拉列表', value: '下拉列表4-10' }],
-  single: ['测试产品A', '测试产品小何1'], intersection: ['测试产品A'],
-  union: ['测试产品A', '测试产品小何1', '测试产品小何2'],
+  fields: [{ title: 'AUTOTEST-单选按钮A', value: '单选4-10' }, { title: 'AUTOTEST-下拉列表', value: '下拉列表4-10' }],
+  single: ['AUTOTEST-产品A', 'AUTOTEST-产品小何1'], intersection: ['AUTOTEST-产品A'],
+  union: ['AUTOTEST-产品A', 'AUTOTEST-产品小何1', 'AUTOTEST-产品小何2'],
 };
 function filterOracle(args) {
   return args.capability?.oracle?.fields ? args.capability.oracle
@@ -554,9 +554,26 @@ async function setFilterColor(session, page, color) {
   if (normalizeColor(await input.inputValue()) !== normalizeColor(color)) throw new Error('背景色改写后读值不一致');
 }
 function filterBackground(root) {
-  let nodes = [...root.querySelectorAll('.prodfield-form')];
-  if (!nodes.length) nodes = [...root.querySelectorAll('.pf-filter-wrap')];
-  return nodes.length === 1 ? getComputedStyle(nodes[0]).backgroundColor : null;
+  const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
+  const ancestors = (node) => {
+    const out = [];
+    for (let current = node, depth = 0; current && depth < 6; current = current.parentElement, depth++) {
+      out.push({ tag: current.tagName, className: String(current.className || '').slice(0, 240),
+        background: getComputedStyle(current).backgroundColor });
+    }
+    return out;
+  };
+  // `.prodfield-form` also appears on the block's category chooser (Series /
+  // Category), whose transparent background is unrelated to the custom
+  // filter color setting. Sample only the actual custom-filter wrapper.
+  const nodes = [...root.querySelectorAll('.pf-filter-wrap')];
+  const samples = nodes.map((node) => ({ selector: '.pf-filter-wrap',
+    background: getComputedStyle(node).backgroundColor, outerHTML: node.outerHTML.slice(0, 2400),
+    text: norm(node.innerText).slice(0, 800), ancestors: ancestors(node) }));
+  const colors = samples.map((sample) => sample.background);
+  const painted = colors.filter((color) => color !== 'rgba(0, 0, 0, 0)');
+  return { color: nodes.length === 1
+    ? (painted.length ? painted[0] : colors[0]) : null, matchedCount: nodes.length, samples };
 }
 async function backgroundEffect(args, layer) {
   const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
@@ -572,10 +589,11 @@ async function backgroundEffect(args, layer) {
       if (normalizeColor(await input.inputValue()) !== normalizeColor(original)) throw new Error('背景颜色恢复回读不一致');
     });
     await setFilterColor(session, args.page, alternate); await tx.save();
-    const actual = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, filterBackground)
+    const sample = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, filterBackground)
       : await tx.observe((frame) => readEffectRoot(frame, args.config, filterBackground));
+    const actual = sample.color;
     if (actual === null) unavailable('筛选区域背景的读取位置尚不能唯一确定，需实站探查。');
-    tx.evidence.color = { original, alternate, actual };
+    tx.evidence.color = { original, alternate, actual, sample };
     tx.assert(normalizeColor(actual) === normalizeColor(alternate), `筛选区域背景实际为 ${actual}，应为 ${alternate}。`);
   } });
 }

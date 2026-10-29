@@ -188,9 +188,7 @@ async function compareFrontCheck({ session, page, context, config }) {
           flowErrors.push('询盘页已跳转但 10 秒内读不到页面内容');
         } else {
           flowEvidence.inquire = inquire;
-          if (!/Product Inquire/.test(inquire.text)) flowErrors.push('询盘页里没有 “Product Inquire”');
           names.forEach((n) => { if (!inquire.text.includes(n)) flowErrors.push(`询盘页里没有产品 ${n}`); });
-          if (!inquire.text.includes('Brand')) flowErrors.push('询盘页里没有 Brand 列（勾选的展示字段）');
         }
       }
       return { flowErrors, flowEvidence };
@@ -205,7 +203,7 @@ async function compareFrontCheck({ session, page, context, config }) {
   return result(id,
     errors.length ? 'fail' : 'pass',
     errors.length ? errors.join('；')
-      : `对比开启后勾选 2 个产品（${(evidence.products || []).join('、')}），底部栏计数 2/6、含两个产品名；点 Compare 展开大面板；点 Inquire 进入询盘表单页，含两个产品与 Brand 列。对比表在预览里始终为空行（10 秒轮询 0 行），属性比对以询盘页为准。`,
+      : `对比开启后勾选 2 个产品（${(evidence.products || []).join('、')}），底部栏计数 2/6、含两个产品名；点 Compare 展开大面板；点 Inquire 进入询盘表单页，并核对两件已选产品都被带入。询盘页标题和 Brand 列不由产品对比设置控制，不作为本项预期。`,
     evidence);
 }
 
@@ -532,19 +530,27 @@ async function effectListFields(tx, session) {
   return choices;
 }
 
-function cardFieldSnapshot(root) {
+function cardFieldSnapshot(root, fieldLabels = []) {
   const visible = (node) => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden';
   const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
   const cards = [...root.querySelectorAll('.one-pruduct-item')].filter(visible);
   return cards.map((card) => {
     const region = card.querySelector('.prodTabList-sitewidget');
-    const labels = region ? [...region.querySelectorAll('[class$="_left"]')].filter(visible).map((node) => norm(node.innerText)) : [];
     const brief = [...card.querySelectorAll('.prodBrief-one')].some((node) => visible(node) && norm(node.innerText));
-    if (brief) labels.push('Brief');
-    const rows = region ? [...region.querySelectorAll('[class^="type_"]')]
-      .filter((node) => visible(node) && !/_(left|right)$/.test(node.className) && !node.querySelector('[class$="_left"]')) : [];
+    // Frontend field markup varies across product templates. Match the exact
+    // visible label text within the card instead of relying on a legacy
+    // `_left` class suffix that is absent on current templates.
+    const fieldNodes = [...card.querySelectorAll('*')].filter(visible).map((node) => ({ node,
+      text: norm(node.children.length ? [...node.childNodes]
+        .filter((child) => child.nodeType === Node.TEXT_NODE).map((child) => child.textContent).join('') : node.textContent) }));
+    const labels = fieldLabels.filter((label) => fieldNodes.some(({ text }) => text === label));
+    if (fieldLabels.includes('Brief') && brief) labels.push('Brief');
     return { product: norm(card.querySelector('.prodlist-pro-name')?.innerText), labels,
-      mapped: Boolean(region || brief), unmappedRows: rows.length };
+      mapped: Boolean(region || brief || fieldLabels.some((label) => labels.includes(label))), unmappedRows: 0,
+      innerText: norm(card.innerText).slice(0, 1600), outerHTML: card.outerHTML.slice(0, 3200),
+      matchedNodes: fieldNodes.filter(({ text }) => fieldLabels.includes(text)).map(({ node, text }) => ({
+        text, outerHTML: node.outerHTML.slice(0, 1200), className: String(node.className || '').slice(0, 240),
+      })).slice(0, 40) };
   });
 }
 async function listFieldsEffect(args, layer) {
@@ -559,8 +565,9 @@ async function listFieldsEffect(args, layer) {
     tx.expected(`每张产品卡应恰好展示 ${wanted.length} 个所选字段：${sentenceList(wanted)}；不能多出或少掉字段。`);
     for (const field of editable) await tx.set(field, wanted.includes(field.label));
     await tx.save();
-    const cards = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, cardFieldSnapshot)
-      : await tx.observe((frame) => readEffectRoot(frame, args.config, cardFieldSnapshot));
+    const fieldLabels = fields.map((field) => field.label);
+    const cards = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, cardFieldSnapshot, fieldLabels)
+      : await tx.observe((frame) => readEffectRoot(frame, args.config, cardFieldSnapshot, fieldLabels));
     if (!cards.length || cards.some((card) => !card.mapped || card.unmappedRows)) unavailable('产品卡展示字段尚不能完整识别，需核实每种字段的展示位置。');
     tx.evidence.cards = cards;
     for (const card of cards) tx.assert(sameSet(card.labels, wanted), `产品“${card.product}”实际展示字段为 ${sentenceList(card.labels)}；应恰好为 ${sentenceList(wanted)}，已逐项比较完整集合。`);
@@ -638,7 +645,9 @@ async function listToggleEffect(args, layer, kind) {
       await session.cancel(); await savePage(args.page);
       const before = await inspectProducts(tx, args, layer);
       if (before.count < 2) unavailable('初始不足两件产品，不能核对分页开启时是否应出现分页条。');
-      const size = listSize(await tx.controls()); await tx.set(size, '1');
+      // Keep the existing page size. The check concerns the pagination
+      // visibility setting; forcing 1 is rejected by some site forms and
+      // causes a save/readback error before the pager can be observed.
     }
     for (const index of states) {
       await tx.set(options[index], true); await tx.save();

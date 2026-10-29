@@ -1,7 +1,20 @@
-const identityKey = ({ label, type, value }) => JSON.stringify([label, type, value]);
+const identityKey = ({ label, type, value, identity }) => JSON.stringify([identity || label, type, value]);
+
+export function normalizeControlIdentity(item) {
+  // The editor's select-all checkbox label concatenates every field name.
+  // Keep its semantic role and DOM order, so changing the available field
+  // list cannot turn it into a false missing-control residue.
+  if (item?.type === 'checkbox' && /^全选(?:\s|$)/.test(item.label || '')) {
+    return { ...item, label: '全选', identity: 'select-all' };
+  }
+  return item;
+}
 
 export function withOccurrences(controls, serialize) {
-  const serialized = controls.map((control) => serialize(control));
+  const serialized = controls.map((control) => {
+    const item = serialize(control);
+    return item ? normalizeControlIdentity(item) : null;
+  });
   const counts = new Map();
   for (const item of serialized) {
     if (!item) continue;
@@ -19,8 +32,12 @@ export function withOccurrences(controls, serialize) {
 }
 
 export function matchingControls(controls, wanted) {
-  return controls.filter((item) => item.label === wanted.label && item.type === wanted.type
-    && (wanted.value === undefined || item.value === wanted.value));
+  return controls.filter((candidate) => {
+    const item = normalizeControlIdentity(candidate);
+    return (wanted.identity ? item.identity === wanted.identity : item.label === wanted.label)
+      && item.type === wanted.type
+      && (wanted.value === undefined || item.value === wanted.value);
+  });
 }
 
 export function matchControl(controls, wanted, { strictLegacy = true } = {}) {

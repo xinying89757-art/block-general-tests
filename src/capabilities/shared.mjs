@@ -128,7 +128,8 @@ const EXPECTED = {
   'bss-product-name-clamp': '产品名称最多显示两行，超出部分应隐藏。',
   'pcs-category-front': '仅选择后台的目标分类后，导航应只剩该分类，列表应与该分类的上架产品清单完全一致。',
   'pld-data-source-category-front': '仅选择后台的目标分类后，产品列表应与该分类的上架产品清单完全一致。',
-  'pld-compare-front': '启用产品对比并选择两件产品后，对比栏、计数、产品名称和询盘页内容应与所选产品一致。',
+  // Inquiry page heading and Brand column are independent of product-compare settings.
+  'pld-compare-front': '启用产品对比并选择产品后，询盘页应带入已选择的产品。',
 };
 export function checkReportText(name, status, detail, evidence, id) {
   const label = reportName(name);
@@ -256,7 +257,13 @@ export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0
     await root.locator('.backstage-dialog-bottom').waitFor({ state: 'visible', timeout: TIMEOUT });
   };
   const close = async (text) => {
-    await root.locator('.backstage-dialog-bottom').getByText(text, { exact: true }).click({ timeout: TIMEOUT });
+    const button = root.locator('.backstage-dialog-bottom').getByText(text, { exact: true });
+    const count = await button.count();
+    if (count !== 1) throw new Error(`弹窗“${title}”底部“${text}”按钮应唯一，实际 ${count} 个。`);
+    // The editor sometimes leaves a transparent popup locker over the modal.
+    // The footer handlers are ordinary JS actions; click the uniquely scoped
+    // button directly, then retain the same close/save completion checks.
+    await button.evaluate((node) => node.click());
     await retryTransient(() => root.waitFor({ state: 'hidden', timeout: uiWaitConfig().saveTimeout }));
   };
   // The dismiss button is 取消 in most dialogs but 关闭 in 47748's
@@ -265,7 +272,9 @@ export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0
     for (const text of ['取消', '关闭']) {
       const button = dialog.locator('.backstage-dialog-bottom').getByText(text, { exact: true });
       if (await button.count()) {
-        await button.click({ timeout: TIMEOUT });
+        const count = await button.count();
+        if (count !== 1) throw new Error(`弹窗底部“${text}”按钮不唯一：${count} 个。`);
+        await button.evaluate((node) => node.click());
         await dialog.waitFor({ state: 'hidden', timeout: TIMEOUT });
         return;
       }

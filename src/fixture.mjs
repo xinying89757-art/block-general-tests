@@ -57,6 +57,25 @@ export async function prepareFixture({ page, canvas, context, config, profile })
   const capability = profile.capabilities?.find((item) => item.id === 'custom-filter-fields');
   const title = capability?.dialogTitle || DEFAULT_TITLE, wrapIndex = capability?.wrapIndex || 0;
   const prepared = { fixture, created: { fields: [], products: [] }, reused: { fields: [], products: [] }, originalFieldStates: null, checks: [] };
+  // Fixture creation applies only when this block exposes a filter-fields
+  // group. Probe before opening CMS or creating anything.
+  const dialog = filterSession({ page, canvas, config }, title, wrapIndex);
+  try {
+    const probe = await probeControls(dialog);
+    if (probe.reason) throw new Error(`筛选设置组探查失败，未启动 CMS 夹具准备：${probe.reason}`);
+    const controls = probe.controls.filter(isFieldCheckbox);
+    if (!controls.length) {
+      const message = '筛选设置弹窗没有字段组；无此设置项，不创建夹具。';
+      prepared.checks.push({ ...check('fixture-prep', '自定义筛选夹具准备', '若区块有筛选字段设置，才准备字段和产品。',
+        message, { probe: { dialogTitle: title, wrapIndex, filterFieldCount: 0, controls: probe.controls } }), status: 'na' });
+      return { ...prepared, skipped: true };
+    }
+    prepared.checks.push(check('fixture-prep-probe', '筛选字段组前置探查',
+      '画像声明支持的筛选字段组应存在，CMS 准备只在字段缺失时补建。',
+      `已在“${title}”探查到 ${controls.length} 个字段控件，继续核对 CMS 字段及产品。`,
+      { probe: { dialogTitle: title, wrapIndex, filterFieldCount: controls.length,
+        fields: controls.map(({ label, value, checked }) => ({ label, value, checked })) } }));
+  } finally { await dialog.cancel(); }
   let cmsPage;
   let completed = false;
   try {
@@ -72,7 +91,7 @@ export async function prepareFixture({ page, canvas, context, config, profile })
           if (found.status !== '开启') throw new Error(`字段“${field.name}”当前关闭；不悄悄改已有字段。`);
           const options = await readCustomFieldOptions(cmsPage, field.name);
           // The profile lists the values the fixture needs, not necessarily the
-          // field's full option list (e.g. 测试单选按钮A has 10 CMS options,
+          // field's full option list (e.g. AUTOTEST-单选按钮A has 10 CMS options,
           // the truth table uses 2). Reuse requires the declared values to
           // exist; extra CMS options are fine and are never removed.
           const missing = field.options.filter((option) => !options.includes(option));
