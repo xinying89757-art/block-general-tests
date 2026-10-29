@@ -17,6 +17,7 @@ import * as blockColorScheme from './capabilities/block-color-scheme.mjs';
 import * as moduleWidth from './capabilities/module-width.mjs';
 import * as blockStyleSpec from './capabilities/block-style-spec.mjs';
 import { checkReportText } from './capabilities/shared.mjs';
+import { acquireRunLock } from './run-lock.mjs';
 export { frontRunPhases, shouldRunLayer } from './front-results.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -136,6 +137,9 @@ export function formatBaselineGuard(guard) {
 
 async function main() {
   const config = loadConfig();
+  const runLock = acquireRunLock({ site: config.siteDomain, mode: config.frontOnly ? 'front' : 'full' });
+  console.log(`[block] 运行锁已取得：${runLock.record.host} pid=${runLock.record.pid} mode=${runLock.record.mode}`);
+  console.log('[block] 注意：盒子端 live run 与 Mac 前台 run 使用独立文件系统锁，必须人工确保两者不重叠。');
   let profile = null;
   try {
     profile = JSON.parse(await readFile(path.resolve(projectRoot, config.profile || `profiles/${config.blockId}.json`), 'utf8'));
@@ -321,6 +325,22 @@ async function main() {
     report.checks.push(...await runCapabilityLayer(capabilities, 'front', { frame: preview?.frame, previewPage: preview?.previewPage, config, profile, screenshotDir, runId, report }));
   } catch (error) {
     report.failure = { stage, message: error.message };
+    if (stage === 'baseline-guard') {
+      const name = '基线守卫';
+      report.checks.push({ id: 'baseline-guard', name, status: 'fail', suite: 'baseline-guard', detail: error.message,
+        ...checkReportText(name, 'fail', error.message, undefined, 'baseline-guard') });
+      for (const id of ['block-present', 'img-alt', 'link-href', 'cursor-pointer', 'css-font-follow', 'css-word-break', 'carousel-arrows']) {
+        const check = deferredCheck(id, id);
+        report.checks.push({ ...check, status: 'blocked', detail: `基线守卫失败，未运行：${error.message}`,
+          actual: '基线守卫未通过，后续检查被阻止。', evidenceText: ['基线守卫失败，后续检查未执行。'] });
+      }
+      for (const capability of capabilities) {
+        for (const check of deferredCapabilityChecks(capability)) {
+          report.checks.push({ ...check, status: 'blocked', detail: `基线守卫失败，未运行：${error.message}`,
+            actual: '基线守卫未通过，后续检查被阻止。', evidenceText: ['基线守卫失败，后续检查未执行。'] });
+        }
+      }
+    }
   } finally {
     // A fixture-prep exception may carry a partial snapshot too. Retrying the
     // full restoration here also covers failures in later capabilities.
@@ -378,6 +398,7 @@ async function main() {
   if (safeReport.failure) console.error(`[block] ${safeReport.failure.stage}：${safeReport.failure.message}`);
   for (const error of safeReport.artifactErrors) console.error(`[block] 截图 ${error.artifact}：${error.message}`);
   if (report.status === 'failed') process.exitCode = 1;
+  runLock.release();
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(() => {

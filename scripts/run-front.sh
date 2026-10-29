@@ -1,5 +1,6 @@
 #!/bin/bash
 set -u
+set -o pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 if [ -f "$SCRIPT_DIR/package.json" ]; then ROOT=$SCRIPT_DIR; else ROOT=$(cd "$SCRIPT_DIR/.." && pwd); fi
@@ -15,6 +16,8 @@ else
   BLOCKS=$(sed -n 's/^[[:space:]]*BLOCK_ID[[:space:]]*=[[:space:]]*//p' "$ROOT/.env" 2>/dev/null | tail -1 | tr -d "'\"\r")
 fi
 if [ -z "$BLOCKS" ]; then echo '未提供 BLOCK_ID，且 .env 中没有 BLOCK_ID。' >&2; exit 2; fi
+
+echo "注意：Mac 前台 run 与盒子端 live run 不共享锁文件，请确认两边不会重叠。"
 
 BEFORE_LOCK=$(shasum -a 256 "$ROOT/package-lock.json" 2>/dev/null | awk '{print $1}')
 STAMP=$(date -u '+%Y%m%dT%H%M%SZ')
@@ -44,10 +47,12 @@ fi
 
 RESULTS="$ROOT/out/front-results-$STAMP"
 mkdir -p "$RESULTS"
+EXIT_STATUS=0
 for BLOCK_ID in $BLOCKS; do
   echo "[front] BLOCK_ID=$BLOCK_ID" >>"$LOG"
   if ! (cd "$ROOT" && BLOCK_ID="$BLOCK_ID" FRONT_ONLY=1 node src/run.mjs) >>"$LOG" 2>&1; then
     echo "[front] BLOCK_ID=$BLOCK_ID runner returned failure" >>"$LOG"
+    EXIT_STATUS=1
   fi
   REPORT=$(find "$ROOT/reports" -type f -name "report-$BLOCK_ID-*.json" -newer "$MARKER" -print 2>/dev/null | sort | tail -1)
   if [ -n "$REPORT" ]; then
@@ -58,10 +63,16 @@ for BLOCK_ID in $BLOCKS; do
     node - "$REPORT" <<'NODE' | tee -a "$LOG"
 const fs=require('fs');const r=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
 const failed=(r.checks||[]).filter(c=>c.status==='fail').map(c=>c.id);
-console.log(`[front-summary] ${r.config?.blockId}: pass=${r.summary?.pass||0} fail=${r.summary?.fail||0} skip=${r.summary?.skip||0} deferred=${r.summary?.deferred||0} failed=${failed.join(',')||'none'}`);
+const guardFailed=r.failure?.stage==='baseline-guard'||failed.includes('baseline-guard');
+const status=guardFailed?'FAILURE (guard failed)':(r.status==='failed'?'FAILURE':'passed');
+console.log(`[front-summary] ${r.config?.blockId}: ${status} pass=${r.summary?.pass||0} fail=${r.summary?.fail||0} skip=${r.summary?.skip||0} na=${r.summary?.na||0} deferred=${r.summary?.deferred||0} failed=${failed.join(',')||'none'}${guardFailed?' blocked='+((r.checks||[]).filter(c=>c.status==='blocked').length):''}`);
+if(r.status==='failed'||guardFailed) process.exitCode=1;
 NODE
+    SUMMARY_STATUS=$?
+    [ "$SUMMARY_STATUS" -eq 0 ] || EXIT_STATUS=1
   else
     echo "[front] BLOCK_ID=$BLOCK_ID report missing" >>"$LOG"
+    EXIT_STATUS=1
   fi
 done
 
@@ -71,3 +82,4 @@ OUT="$ROOT/out/front-$STAMP.tar.gz"
 (cd "$ROOT" && tar -czf "$OUT" -C "$ROOT" "${RESULTS#$ROOT/}" "logs/$(basename "$LOG")") || exit 1
 echo "前台运行结果包：$OUT"
 echo "汇总与详细日志：$LOG"
+exit "$EXIT_STATUS"

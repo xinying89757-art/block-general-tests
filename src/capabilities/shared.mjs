@@ -253,14 +253,14 @@ export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0
     .filter({ hasText: title }).filter({ visible: true }).first();
   const anyDialog = page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe')
     .filter({ visible: true }).first();
-  const open = async () => {
+  const open = async ({ timeout = Math.max(TIMEOUT, uiWaitConfig().timeout) } = {}) => {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       if (!await root.isVisible().catch(() => false)) {
         await retryTransient(() => clickSettings(canvas, config, type, wrapIndex));
       }
       try {
-        await waitForDialogState(dialogRoot, 'open', Math.max(TIMEOUT, uiWaitConfig().timeout));
-        await root.locator('.backstage-dialog-bottom').waitFor({ state: 'visible', timeout: TIMEOUT });
+        await retryTransient(() => waitForDialogState(dialogRoot, 'open', timeout));
+        await root.locator('.backstage-dialog-bottom').waitFor({ state: 'visible', timeout });
         return;
       } catch (error) {
         if (attempt === 2) throw error;

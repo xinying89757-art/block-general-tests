@@ -110,7 +110,10 @@ export async function readCurrentState({ page, canvas, config, baseline }) {
     const session = widgetSession({ page, canvas, config, type: definition.type,
       title: definition.title, wrapIndex: definition.wrapIndex });
     try {
-      await session.open();
+      // The baseline guard runs before any capability and may be the first
+      // settings dialog after editor startup. Give the builder time to finish
+      // mounting it, while retaining the same reopen/retry lifecycle as checks.
+      await session.open({ timeout: Math.max(30_000, Number(process.env.UI_READY_TIMEOUT_MS) || 0) });
       const controls = await session.read();
       const want = withOccurrences(controls, serialize);
       current.push({ ...structuredClone(definition), want });
