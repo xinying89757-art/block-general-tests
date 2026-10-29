@@ -1,6 +1,6 @@
-# 区块设置项复用手册 v1.13
+# 区块设置项复用手册 v1.14
 
-版本：v1.13（2026-10-28）
+版本：v1.14（2026-10-29）
 范围：已在两个区块上验证：40838（2026-10-23，20 pass / 0 fail；2026-10-26 产品对比前台加验后 21 pass / 0 fail）与 47748（2026-10-26，配置后 16 pass / 0 fail，配色与宽度加验后 20 pass / 0 fail，分类 oracle 两处加验后 22 pass / 0 fail；2026-10-27 样式检查加验后 31 pass / 5 fail，5 个 fail 均为用户已确认的样式偏差；2026-10-28 三层验证分段实跑后 48 pass / 7 fail，7 个 fail 全是已知问题，无新增），并对 40838 做了回归（20 pass / 0 fail）。v1.6 新增：分享给其他人用的包（任何智能体都能跑）与页面选择（新建自定义页面 / 系统页名称）。v1.7 新增：基线捕获与应用（画像 `baseline`，区块加到新页后自动按基线配好再跑）。v1.11 新增：按能力分段跑（`CAPABILITY_FILTER`）与多段报告合并（`scripts/merge-reports.mjs`），长套件被运行环境重启打断时可分段跑完再合并。v1.12 新增：自定义筛选夹具准备流程（探测前置、每种类型一个字段的交并集真值表、收尾只恢复区块）。
 目的：为区块各个设置项形成可复用的流程和脚本，不是以测出某个区块的缺陷为目标。40838 是首个样本，47748 是第二个验证样本；顺带发现的问题只记录，不在本手册里深挖。
 
@@ -448,3 +448,10 @@ BLOCK_ID=40838 CAPABILITY_FILTER=custom-filter-fields npm run test:block
 4. **40838 四产品真值表**：须在旧站配置（40083596）实核三字段类型、既有字段完整选项、产品上架和区块数据范围、4 件产品的全部值与前台精确集合；现有两个字段完整选项与画像不一致会明确报冲突，不自动修改或弱化判定。单选集/下拉集分别按产品实际声明值计算，不按产品数组位置假定谁翻了哪个字段。并集已知缺陷仍按 4 件断言。
 
 本实现不发布、不删除字段或产品。CMS 变更立即生效，刷新编辑器用于读取新增字段；收尾只恢复区块字段勾选，CMS 字段和产品常驻。预览不可交互时记 skip，已发布真前台的执行及发布职责仍待确定。
+
+## 24. HTTP 预览升级与发布控件（v1.14，2026-10-29）
+
+- 本机网络代理拦截明文 HTTP（返回 500），导致编辑器“预览”打开 `http://website.leadong.com/phoenix/pagebuilder/preview` 后，内容 frame 落到 `*.preview.leadong.com` 时无法加载；对应服务主机可用 HTTPS。默认开启 `HTTPS_UPGRADE=1`，context 级 route 将 `website.leadong.com`、`www.leadong.com`、`*.preview.leadong.com`、`*.leadongcdn.com` 的 HTTP 请求用 HTTPS 获取，支持 iframe 与 popup/新标签页；`HTTPS_UPGRADE_HOSTS` 非空时用逗号分隔规则整体覆盖默认值，支持精确主机和 `*.suffix`。设为 `0`、`false`、`off` 可关闭。前台 `*.ldwebsite.com`、`*.ldyjz.com`、`*.ldmfyh.com` 没有 HTTPS，显式黑名单保证无论自定义规则如何设置，都不改写这些前台域。代理响应的匹配 `Location` HTTP 地址改为 HTTPS；检测到重定向回原 HTTP 地址时以 `HTTPS_UPGRADE_DOWNGRADE_LOOP` 打印 warning 并中止该请求（不让进程崩溃）。
+- **实测结论（2026-10-29，box）**：HTTPS 升级**救不了预览**。带编辑器登录态请求 `https://website.leadong.com/phoenix/pagebuilder/preview` 时，服务端 302 回 `http://website.leadong.com/phoenix/pagebuilder/preview`（补 https Referer 也一样），即预览入口被服务端强制为 HTTP；在明文 HTTP 被拦截的机器上预览与前台都不可用，`*-front` 检查只能在能直连 HTTP 的机器（如用户本机）上跑。升级开关仍默认开启，仅对其它能走 HTTPS 的领动资源有效。
+- 发布控件：顶栏“发布▾”按钮为 `.backstage-topToolbar-publish`。hover 后菜单 `.currentPagePublish` 表示当前页面发布，点击后不弹确认窗，约 10 秒出现 toast“恭喜您，页面发布成功！ 网址：…/products.html”；`.allPagePublish` 表示整站发布。直接点击顶栏“发布”会打开“发布前请先确认以下设置项”检查单弹窗，需勾选“我已确认”再点发布。
+- 基于发布的前台验证模式只适用于能直接访问明文 HTTP 前台的机器。本机 box 的出网代理拦截前台 HTTP，且这些站点域没有 HTTPS，因此当前机器不能用发布前台做验证；此模式不能靠 HTTPS 升级绕过前台域黑名单。
