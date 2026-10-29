@@ -351,7 +351,9 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
 function frontSnapshot(root, selectors) {
   const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
   const counts = new Map();
-  const groups = [...root.querySelectorAll(selectors.group)].map((group) => {
+  const groups = [...root.querySelectorAll(selectors.group)].filter((group) =>
+    group.getClientRects().length > 0 && group.ownerDocument.defaultView.getComputedStyle(group).visibility !== 'hidden')
+    .map((group) => {
     const title = normalize(group.querySelector(selectors.groupTitle)?.innerText);
     const occurrence = counts.get(title) || 0;
     counts.set(title, occurrence + 1);
@@ -489,8 +491,24 @@ function filterOracle(args) {
 }
 function groupSnapshot(root) {
   const titles = [...root.querySelectorAll('.prodfield-left-fieldname, .pf-field-title')]
+    .filter((node) => node.getClientRects().length > 0
+      && node.ownerDocument.defaultView.getComputedStyle(node).visibility !== 'hidden')
     .map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
   return titles;
+}
+// 40838 renders built-in Series and Category groups before its custom groups.
+// If Category is selected as a custom field, a title-only filter must discard
+// exactly the first built-in occurrence and retain the custom occurrence(s).
+export function customGroupTitles(titles, blockId) {
+  const builtinCounts = String(blockId) === '40838' ? new Map([['Series', 1], ['Category', 1]]) : new Map();
+  const seen = new Map();
+  return titles.filter((title) => {
+    const occurrence = seen.get(title) || 0;
+    seen.set(title, occurrence + 1);
+    const builtins = builtinCounts.get(title) || 0;
+    if (occurrence < builtins) return false;
+    return true;
+  });
 }
 async function filterFieldsEffect(args, layer) {
   const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
@@ -509,10 +527,9 @@ async function filterFieldsEffect(args, layer) {
     const titles = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, groupSnapshot)
       : await tx.observe((frame) => readEffectRoot(frame, args.config, groupSnapshot));
     if (!titles.length) unavailable('该层没有渲染筛选组标题，完整字段集合暂时不可观察。');
-    // Series/Category are the two built-in 40838 category groups, not custom
-    // field toggles. Unknown group titles remain in actual and therefore fail.
+    // Unknown group titles remain in actual and therefore fail.
     const builtin = String(args.config.blockId) === '40838' ? ['Series', 'Category'] : [];
-    const actual = titles.filter((title) => !builtin.includes(title) || fields.some((item) => item.label === title));
+    const actual = customGroupTitles(titles, args.config.blockId);
     tx.evidence.groups = { titles, excludedBuiltins: builtin, wanted, actual };
     tx.assert(sameSet(actual, wanted), `自定义筛选组实际为 ${sentenceList(actual)}，应恰好为 ${sentenceList(wanted)}；内置分类组另行记录，不计作自定义字段。`);
   } });

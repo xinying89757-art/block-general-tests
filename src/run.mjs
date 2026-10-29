@@ -8,6 +8,7 @@ import { applyBaseline } from './baseline.mjs';
 import { baselineValueFor, guardBaseline } from './baseline-guard.mjs';
 import { prepareFixture, restoreFixture } from './fixture.mjs';
 import { runFrontChecks } from './checks.mjs';
+import { frontRunPhases, shouldRunLayer } from './front-results.mjs';
 import * as customFilterFields from './capabilities/custom-filter-fields.mjs';
 import * as productListDisplay from './capabilities/product-list-display.mjs';
 import * as buttonLink from './capabilities/button-link.mjs';
@@ -16,7 +17,7 @@ import * as blockColorScheme from './capabilities/block-color-scheme.mjs';
 import * as moduleWidth from './capabilities/module-width.mjs';
 import * as blockStyleSpec from './capabilities/block-style-spec.mjs';
 import { checkReportText } from './capabilities/shared.mjs';
-export { shouldRunLayer } from './front-results.mjs';
+export { frontRunPhases, shouldRunLayer } from './front-results.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 export const capabilityRegistry = {
@@ -210,6 +211,7 @@ async function main() {
     stage = 'add-block';
     report.added = await addBlockIfNeeded(session.page, canvas, config);
     const baseline = Array.isArray(profile?.baseline) ? profile.baseline : [];
+    const phases = frontRunPhases(config, profile || {}, report.added?.added === true);
     if (baseline.length) {
       config.baselineValue = (type, label) => {
         const semantic = /按钮文本/.test(label) ? '按钮文本'
@@ -217,7 +219,7 @@ async function main() {
             : /在新窗口打开|新窗口打开/.test(label) ? '新窗口打开' : label;
         return baselineValueFor(baseline, type, semantic) ?? baselineValueFor(baseline, type, label);
       };
-      if (!config.frontOnly) {
+      if (phases.baselineGuard) {
         stage = 'baseline-guard';
         report.baselineGuard = await guardBaseline({ page: session.page, canvas, config, baseline });
         console.log(formatBaselineGuard(report.baselineGuard));
@@ -230,8 +232,6 @@ async function main() {
           session.page = (await openEditor(session.page, config)).page;
           canvas = (await ensureTargetPage(session.page, config)).frame;
         }
-      } else {
-        report.baselineGuard = { skipped: true, reason: 'FRONT_ONLY=1' };
       }
     } else {
       report.baselineGuard = { reason: 'no baseline in profile' };
@@ -243,7 +243,7 @@ async function main() {
     // or misjudge. Apply the baseline once, right after adding. This is a
     // precondition, not a capability: a failed application stops the run
     // (fail-fast) instead of recording one fail per capability.
-    const shouldApplyBaseline = !config.frontOnly && (report.added?.added === true || config.applyBaseline);
+    const shouldApplyBaseline = phases.applyBaseline;
     if (shouldApplyBaseline && baseline.length > 0) {
       const applied = await applyBaseline({ page: session.page, canvas, config, baseline });
       report.baseline = { applied: true, steps: applied.steps };
@@ -255,7 +255,7 @@ async function main() {
     } else {
       report.baseline = { applied: false, reason: 'block already on page' };
     }
-    if (!config.frontOnly && profile?.fixture) {
+    if (phases.prepareFixture) {
       if (config.capabilityFilter?.length && !config.capabilityFilter.includes('custom-filter-fields')) {
         report.fixture = { applied: false, reason: 'CAPABILITY_FILTER 未包含 custom-filter-fields，跳过夹具准备。' };
       } else {
@@ -279,20 +279,20 @@ async function main() {
         }
       }
     }
-    {
+    if (shouldRunLayer('settings', config)) {
       stage = config.frontOnly ? 'capability-front-effects' : 'capability-settings';
       report.checks.push(...await runCapabilityLayer(capabilities, 'settings', {
         page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
       }));
     }
-    if (!config.frontOnly) {
-      stage = 'save-page';
-      await savePage(session.page);
+    stage = 'save-page';
+    await savePage(session.page);
+    if (phases.backend) {
+      stage = 'capability-backend';
+      report.checks.push(...await runCapabilityLayer(capabilities, 'backend', {
+        page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
+      }));
     }
-    stage = 'capability-backend';
-    report.checks.push(...await runCapabilityLayer(capabilities, 'backend', {
-      page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
-    }));
     stage = 'open-preview';
     let preview;
     if (!config.deferFront) {

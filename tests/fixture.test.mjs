@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildFixtureTruthTable, runSettingsLayer } from '../src/capabilities/custom-filter-fields.mjs';
+import { buildFixtureTruthTable, customGroupTitles, runSettingsLayer } from '../src/capabilities/custom-filter-fields.mjs';
 import { prepareFixture, validateFixture } from '../src/fixture.mjs';
 import { FIELD_TYPE_CODES } from '../src/cms.mjs';
 import { isFieldCheckbox } from '../src/capabilities/shared.mjs';
@@ -9,6 +9,13 @@ import { runCapabilityLayer } from '../src/run.mjs';
 
 const profile = JSON.parse(readFileSync(new URL('../profiles/40838.json', import.meta.url)));
 const fresh = () => structuredClone(profile.fixture);
+
+test('40838 built-in Category is excluded without dropping the same-named custom field', () => {
+  assert.deepEqual(customGroupTitles(['Series', 'Category'], '40838'), []);
+  assert.deepEqual(customGroupTitles(['Series', 'Category', 'Category', 'Rated Current'], '40838'),
+    ['Category', 'Rated Current']);
+  assert.deepEqual(customGroupTitles(['Category', 'Category'], 'other'), ['Category', 'Category']);
+});
 
 test('40838 declared values produce all eight independent expected sets', () => {
   const table = buildFixtureTruthTable(profile.fixture);

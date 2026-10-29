@@ -15,6 +15,25 @@ export function replaceDeferredChecks(baseReport, frontReport) {
 }
 
 export function shouldRunLayer(layer, config = {}) {
-  if (config.frontOnly && layer === 'settings') return false;
+  // Settings is still entered in FRONT_ONLY because capabilities use its
+  // front-effects transaction to flip, save, observe and restore controls.
+  // Canvas assertions are box work and must never run on the Mac front pass.
+  if (config.frontOnly && layer === 'backend') return false;
   return true;
+}
+
+export function frontRunPhases(config = {}, profile = {}, added = false) {
+  const capabilities = profile.capabilities || [];
+  const filter = config.capabilityFilter;
+  return {
+    baselineGuard: Array.isArray(profile.baseline) && profile.baseline.length > 0,
+    applyBaseline: Array.isArray(profile.baseline) && profile.baseline.length > 0
+      && (added || Boolean(config.applyBaseline)),
+    prepareFixture: Boolean(profile.fixture)
+      && (!filter?.length || filter.includes('custom-filter-fields')),
+    settings: true,
+    backend: shouldRunLayer('backend', config),
+    front: true,
+    capabilities: capabilities.map(({ id }) => id),
+  };
 }

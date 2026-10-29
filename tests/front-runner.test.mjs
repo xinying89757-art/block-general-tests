@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { effectCheck } from '../src/capabilities/effect-checks.mjs';
-import { replaceDeferredChecks, shouldRunLayer } from '../src/front-results.mjs';
+import { frontRunPhases, replaceDeferredChecks, shouldRunLayer } from '../src/front-results.mjs';
 import { renderReport } from '../scripts/report-html.mjs';
 import { runCapabilityLayer } from '../src/run.mjs';
 
@@ -17,11 +17,25 @@ test('DEFER_FRONT suppresses front effects before any mutation and reports defer
   assert.deepEqual({ status: check.status, detail: check.detail }, { status: 'deferred', detail: 'deferred-to-front-runner' });
 });
 
-test('FRONT_ONLY selection skips settings but retains backend and front layers', () => {
+test('FRONT_ONLY retains front-effect setup and front checks, but skips canvas backend checks', () => {
   const config = { frontOnly: true };
-  assert.equal(shouldRunLayer('settings', config), false);
-  assert.equal(shouldRunLayer('backend', config), true);
+  assert.equal(shouldRunLayer('settings', config), true);
+  assert.equal(shouldRunLayer('backend', config), false);
   assert.equal(shouldRunLayer('front', config), true);
+});
+
+test('FRONT_ONLY still guards/applies baseline and prepares a selected CFF fixture', () => {
+  const profile = { baseline: [{ want: [] }], fixture: { fields: [] },
+    capabilities: [{ id: 'custom-filter-fields' }] };
+  assert.deepEqual(frontRunPhases({ frontOnly: true }, profile, true), {
+    baselineGuard: true, applyBaseline: true, prepareFixture: true,
+    settings: true, backend: false, front: true, capabilities: ['custom-filter-fields'],
+  });
+});
+
+test('fixture preparation stays omitted when a capability filter excludes CFF', () => {
+  const profile = { baseline: [], fixture: {}, capabilities: [{ id: 'custom-filter-fields' }] };
+  assert.equal(frontRunPhases({ frontOnly: true, capabilityFilter: ['product-list-display'] }, profile).prepareFixture, false);
 });
 
 test('FRONT_ONLY dispatches only a capability’s transactional front effects from settings layer', async () => {
