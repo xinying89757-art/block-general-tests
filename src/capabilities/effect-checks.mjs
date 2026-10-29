@@ -48,6 +48,7 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
   if (config.deferFront && layer === 'front') {
     return result(id, 'deferred', 'deferred-to-front-runner', { deferred: true });
   }
+  console.log(`[progress] ${new Date().toISOString()} 效果检查开始：${id}`);
   const errors = [], evidence = { observations: [], restored: [] }, journal = new Map(), pending = new Map();
   let status = 'pass', detail = '', expected;
   const controls = async () => {

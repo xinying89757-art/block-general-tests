@@ -117,7 +117,7 @@
     "status": "to-be-defined"
   },
   "fixture": {
-    "note": "本轮真值表使用两个可枚举字段（单选按钮、下拉列表）和三件产品；既有 AUTOTEST-多选 字段保留在 CMS，但不纳入这个三产品真值表。",
+    "note": "筛选真值表使用单选按钮、下拉列表两个字段和三件产品；产品卡展示字段覆盖见 displayFields（本区块展示字段支持单选、多选、下拉，各类型一个 AUTOTEST- CMS 字段）。",
     "supportedTypes": [
       "单选按钮",
       "下拉列表"
@@ -167,6 +167,42 @@
     ],
     "notes": {
       "union": "40838 并集为已知缺陷（只返回先选字段的集合），仍按正确预期断言，不弱化。"
+    },
+    "displayFields": {
+      "supportedTypes": [
+        "单选按钮",
+        "多选按钮",
+        "下拉列表"
+      ],
+      "fields": [
+        {
+          "name": "AUTOTEST-单选按钮A",
+          "type": "单选按钮",
+          "values": {
+            "AUTOTEST-产品A": "单选4-10",
+            "AUTOTEST-产品小何1": "单选4-10",
+            "AUTOTEST-产品小何2": "单选6-10"
+          }
+        },
+        {
+          "name": "AUTOTEST-下拉列表",
+          "type": "下拉列表",
+          "values": {
+            "AUTOTEST-产品A": "下拉列表4-10",
+            "AUTOTEST-产品小何1": "下拉列表8-10",
+            "AUTOTEST-产品小何2": "下拉列表4-10"
+          }
+        },
+        {
+          "name": "AUTOTEST-多选",
+          "type": "多选按钮",
+          "values": {
+            "AUTOTEST-产品A": "多选4-10",
+            "AUTOTEST-产品小何1": "多选4-10",
+            "AUTOTEST-产品小何2": "多选4-10"
+          }
+        }
+      ]
     }
   },
   "baseline": [
@@ -253,28 +289,28 @@
           "label": "Brand",
           "type": "checkbox",
           "value": "-3",
-          "to": true,
+          "to": false,
           "occurrence": 0
         },
         {
           "label": "Product Code",
           "type": "checkbox",
           "value": "-4",
-          "to": true,
+          "to": false,
           "occurrence": 0
         },
         {
           "label": "Model",
           "type": "checkbox",
           "value": "-5",
-          "to": true,
+          "to": false,
           "occurrence": 0
         },
         {
           "label": "Brief",
           "type": "checkbox",
           "value": "-9",
-          "to": true,
+          "to": false,
           "occurrence": 0
         },
         {

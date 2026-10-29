@@ -68,7 +68,8 @@ test('40838 product list baseline distinguishes its two display-control groups',
     const items = step.want.filter((item) => item.label === label);
     assert.deepEqual(items.map((item) => item.occurrence), [0, 1]);
     assert.deepEqual(items.map((item) => item.to), [
-      ['测试多选', '正式版测试多选'].includes(label) ? false : true, false,
+      // 系统属性 Brand/Product Code/Model/Brief 按用户要求基线为不勾。
+      ['测试多选', '正式版测试多选', 'Brand', 'Product Code', 'Model', 'Brief'].includes(label) ? false : true, false,
     ]);
   }
 });

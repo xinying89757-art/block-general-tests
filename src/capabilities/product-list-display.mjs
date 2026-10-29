@@ -557,20 +557,45 @@ async function listFieldsEffect(args, layer) {
   const session = listSession(args);
   return effectCheck({ ...args, session, result, id: `pld-fields-${layer}`, layer, run: async (tx) => {
     const fields = await effectListFields(tx, session);
+    // 展示字段覆盖独立于筛选真值表：画像 fixture.displayFields 声明区块支持的
+    // 自定义字段类型、每类型一个 CMS 字段及其在 AUTOTEST 产品上的期望值。
+    const display = args.profile?.fixture?.displayFields || {};
+    const fixtureFields = display.fields || [];
+    const supportedTypes = display.supportedTypes || [];
+    if (!fixtureFields.length || !supportedTypes.length) unavailable('画像没有产品卡自定义字段类型夹具，不能把系统属性当作自定义字段。');
+    const selected = supportedTypes.map((type) => {
+      const declared = fixtureFields.filter((field) => field.type === type);
+      if (declared.length !== 1) unavailable(`画像类型 ${type} 应唯一对应一个 CMS 夹具字段。`);
+      const matches = fields.filter((item) => item.label === declared[0].name);
+      if (matches.length !== 1) unavailable(`产品卡展示字段中找不到唯一的 CMS 自定义字段“${declared[0].name}”。`);
+      return { ...matches[0], fieldType: type };
+    });
     const editable = fields.filter((item) => !item.disabled);
-    if (!editable.length || new Set(fields.map((item) => item.label)).size !== fields.length) unavailable('展示字段不可改或名称不能唯一确定。');
-    const selected = editable.slice(0, Math.min(3, editable.length));
-    if (sameSet(fields.filter((item) => item.checked).map((item) => item.value), selected.map((item) => item.value))) selected.pop();
-    const wanted = fields.filter((item) => item.disabled ? item.checked : selected.includes(item)).map((item) => item.label);
-    tx.expected(`每张产品卡应恰好展示 ${wanted.length} 个所选字段：${sentenceList(wanted)}；不能多出或少掉字段。`);
+    if (selected.some((field) => field.disabled) || new Set(fields.map((item) => item.label)).size !== fields.length) unavailable('自定义展示字段不可改或名称不能唯一确定。');
+    const wanted = selected.map((item) => item.label);
+    const coverage = { supportedTypes, fields: selected.map(({ fieldType, label }) => ({ type: fieldType, field: label })) };
+    tx.evidence.typeCoverage = coverage;
+    tx.expected(`每张产品卡应恰好展示画像声明支持的自定义字段：${sentenceList(wanted)}；类型覆盖 ${supportedTypes.join('、')}，系统属性不参与。`);
     for (const field of editable) await tx.set(field, wanted.includes(field.label));
     await tx.save();
-    const fieldLabels = fields.map((field) => field.label);
+    const fieldLabels = selected.map((field) => field.label);
     const cards = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, cardFieldSnapshot, fieldLabels)
       : await tx.observe((frame) => readEffectRoot(frame, args.config, cardFieldSnapshot, fieldLabels));
     if (!cards.length || cards.some((card) => !card.mapped || card.unmappedRows)) unavailable('产品卡展示字段尚不能完整识别，需核实每种字段的展示位置。');
     tx.evidence.cards = cards;
-    for (const card of cards) tx.assert(sameSet(card.labels, wanted), `产品“${card.product}”实际展示字段为 ${sentenceList(card.labels)}；应恰好为 ${sentenceList(wanted)}，已逐项比较完整集合。`);
+    const fixtureProducts = new Set(fixtureFields.flatMap((field) => Object.keys(field.values || {})));
+    const fixtureCards = cards.filter((card) => fixtureProducts.has(card.product));
+    tx.evidence.typeCoverage.fixtureCards = fixtureCards.map((card) => card.product);
+    if (!fixtureCards.length) unavailable('当前产品卡中没有 AUTOTEST 夹具产品，不能证明自定义字段值在夹具卡片上显示。');
+    for (const card of fixtureCards) tx.assert(sameSet(card.labels, wanted), `AUTOTEST 产品“${card.product}”实际展示字段为 ${sentenceList(card.labels)}；应恰好为 ${sentenceList(wanted)}，已逐项比较画像声明类型的完整集合。`);
+    for (const card of fixtureCards) {
+      for (const label of wanted) {
+        const value = fixtureFields.find((field) => field.name === label)?.values?.[card.product];
+        if (value === undefined) unavailable(`画像真值表缺少产品“${card.product}”字段“${label}”的值。`);
+        const values = Array.isArray(value) ? value : [value];
+        tx.assert(values.every((item) => card.innerText.includes(String(item))), `AUTOTEST 产品“${card.product}”字段“${label}”应显示值 ${values.join('、')}；卡片文本：${card.innerText.slice(0, 200)}`);
+      }
+    }
   } });
 }
 

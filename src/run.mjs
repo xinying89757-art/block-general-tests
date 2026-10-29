@@ -71,6 +71,7 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
     }
     const previousCapabilityId = args.config?.baselineCapabilityId;
     if (args.config) args.config.baselineCapabilityId = id;
+    console.log(`[progress] ${new Date().toISOString()} 能力 ${id} ${layer} 层开始`);
     try {
       const returned = await module[selectedMethod]({ ...args, capability, profile });
       checks.push(...returned);
