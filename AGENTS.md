@@ -18,9 +18,8 @@
 设计稿信息），以后不用再问。
 
 1. **站点**：用户给测试站点的语种地址，记为 `.env` 的 `SITE_DOMAIN`。编辑器入口
-   优先打开固定地址 `https://website.leadong.com/phoenix/pagebuilder/layout`；已登录且直接
-   到编辑器时等“页面:”出现。落到 `/website.html` 站点列表时，按 `SITE_DOMAIN` 的 host
-   （含端口，忽略 http/https）唯一匹配可见 `.mySiteBox` 卡片；可选 `SITE_NAME` 仅在
+   始终先打开站点列表 `https://www.leadong.com/website.html`，最多等待 30 秒出现 `.mySiteBox`，按 `SITE_DOMAIN` 的 host
+   （含端口，忽略 http/https）唯一匹配所有已挂载卡片；可选 `SITE_NAME` 仅在
    域名未匹配时按站名精确匹配。选语言后点卡片内“编辑网站”，只接收本次进入的
    pagebuilder 页面，不复用旧编辑器标签页。语言优先取备选 `EDIT_SITE_URL` 的 `l` 参数，
    再取 `SITE_DOMAIN` 的 en/cn/sa/fr/jp/kr 前缀，否则英语；缺少对应语言项时警告并继续。
