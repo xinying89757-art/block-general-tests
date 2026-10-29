@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 .env
 .env.local
 src/fixtures/storageState*.json
@@ -8,3 +8,5 @@ screenshots/
 reports/
 dist/
 *.log
+.auth/
+logs/
