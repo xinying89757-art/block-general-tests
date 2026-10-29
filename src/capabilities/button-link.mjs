@@ -66,7 +66,7 @@ function popoverSession({ page, canvas, config }) {
     const cancelButton = root.getByText('取消', { exact: true }).filter({ visible: true });
     if (await cancelButton.count() === 1) await cancelButton.click({ timeout: TIMEOUT });
     else {
-      // Probe-verified (scripts/probe-final2.mjs): this editor-box has no
+      // Probe-verified (scripts/probes/probe-final2.mjs): this editor-box has no
       // 取消/close affordance; clicking 保存 is the only way it dismisses.
       // cancel() is only invoked with no unsaved edits pending, so saving
       // the unchanged values is a no-op.

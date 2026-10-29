@@ -5,8 +5,8 @@ import { savePage, openPreview } from '../editor.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText, readBackWithRetry, isFieldCheckbox } from './shared.mjs';
 
 // Editor/dialog selectors: docs/SETTINGS_INVENTORY_40838.md,
-// scripts/probe-settings8.mjs and probe-settings10/12.mjs (control label context).
-// Preview selectors: scripts/probe-searchnav.mjs, docs/FILTER_TEST_DATA.md,
+// scripts/probes/probe-settings8.mjs and probe-settings10/12.mjs (control label context).
+// Preview selectors: scripts/probes/probe-searchnav.mjs, docs/FILTER_TEST_DATA.md,
 // and the verified facet/tag/Clear Filters observations supplied for this v1.
 const SELECTORS = {
   editorBlock: (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`,

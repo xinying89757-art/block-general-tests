@@ -4,8 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --test tests/*.test.mjs",
-    "test:block": "node src/run.mjs"
+    "test": "node --test \"tests/*.test.mjs\"",
+    "test:block": "node src/run.mjs",
+    "check:syntax": "node scripts/check-syntax.mjs",
+    "check:imports": "node scripts/check-relative-imports.mjs",
+    "check:profiles": "node scripts/validate-profiles.mjs",
+    "ci": "npm run check:syntax && npm run check:imports && npm run check:profiles && npm test"
   },
   "keywords": [],
   "author": "",
