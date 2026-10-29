@@ -1,5 +1,5 @@
 import { savePage } from '../editor.mjs';
-import { waitForControlsReady, retryTransient, saveAndWait, readBackWithRetry, uiWaitConfig } from '../ui-waits.mjs';
+import { waitForControlsReady, retryTransient, saveAndWait, readBackWithRetry, uiWaitConfig, waitForDialogState } from '../ui-waits.mjs';
 export { readBackWithRetry } from '../ui-waits.mjs';
 
 export const TIMEOUT = 10_000;
@@ -247,14 +247,32 @@ export function controlSession(root, lifecycle) {
 }
 
 export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0 }) {
+  const dialogRoot = page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe')
+    .filter({ hasText: title }).first();
   const root = page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe')
     .filter({ hasText: title }).filter({ visible: true }).first();
   const anyDialog = page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe')
     .filter({ visible: true }).first();
   const open = async () => {
-    if (!await root.isVisible()) await clickSettings(canvas, config, type, wrapIndex);
-    await root.waitFor({ state: 'visible', timeout: TIMEOUT });
-    await root.locator('.backstage-dialog-bottom').waitFor({ state: 'visible', timeout: TIMEOUT });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (!await root.isVisible().catch(() => false)) {
+        await retryTransient(() => clickSettings(canvas, config, type, wrapIndex));
+      }
+      try {
+        await waitForDialogState(dialogRoot, 'open', Math.max(TIMEOUT, uiWaitConfig().timeout));
+        await root.locator('.backstage-dialog-bottom').waitFor({ state: 'visible', timeout: TIMEOUT });
+        return;
+      } catch (error) {
+        if (attempt === 2) throw error;
+        // If a partially rendered dialog exists, dismiss it before the next
+        // idempotent open attempt rather than clicking through its backdrop.
+        if (await root.isVisible().catch(() => false)) {
+          const cancel = root.locator('.backstage-dialog-bottom').getByText(/^(取消|关闭)$/, { exact: true }).first();
+          if (await cancel.count().catch(() => 0)) await cancel.evaluate((node) => node.click()).catch(() => {});
+          await waitForDialogState(dialogRoot, 'closed', TIMEOUT).catch(() => {});
+        }
+      }
+    }
   };
   const close = async (text) => {
     const button = root.locator('.backstage-dialog-bottom').getByText(text, { exact: true });
@@ -263,8 +281,21 @@ export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0
     // The editor sometimes leaves a transparent popup locker over the modal.
     // The footer handlers are ordinary JS actions; click the uniquely scoped
     // button directly, then retain the same close/save completion checks.
-    await button.evaluate((node) => node.click());
-    await retryTransient(() => root.waitFor({ state: 'hidden', timeout: uiWaitConfig().saveTimeout }));
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (!await root.isVisible().catch(() => false)) return;
+      const activeButton = root.locator('.backstage-dialog-bottom').getByText(text, { exact: true });
+      if (await activeButton.count() !== 1) throw new Error(`重试时弹窗“${title}”底部“${text}”按钮不唯一。`);
+      await activeButton.evaluate((node) => node.click());
+      try {
+        await retryTransient(() => waitForDialogState(dialogRoot, 'closed', uiWaitConfig().saveTimeout));
+        return;
+      } catch (error) {
+        if (attempt === 2) throw error;
+        // A save callback can miss its first click while the editor is
+        // rebuilding the dialog. Reacquire the footer button before retrying.
+        await root.waitFor({ state: 'visible', timeout: TIMEOUT }).catch(() => {});
+      }
+    }
   };
   // The dismiss button is 取消 in most dialogs but 关闭 in 47748's
   // 设置与选取数据 dialog. Try both, in that order.
@@ -275,7 +306,7 @@ export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0
         const count = await button.count();
         if (count !== 1) throw new Error(`弹窗底部“${text}”按钮不唯一：${count} 个。`);
         await button.evaluate((node) => node.click());
-        await dialog.waitFor({ state: 'hidden', timeout: TIMEOUT });
+        await waitForDialogState(dialog, 'closed', uiWaitConfig().saveTimeout);
         return;
       }
     }
@@ -366,23 +397,32 @@ export async function persistControl({ session, page, target, alternate, afterSw
     }
   } catch (error) { errors.push(`${stage}失败：${error.message}`); }
   finally {
-    try {
-      stage = '恢复前重新打开';
-      await session.cancel();
-      await session.open();
-      stage = '恢复原值';
-      await session.set(target, restoreValue);
-      stage = '保存恢复状态';
-      await session.save();
-      stage = '重开断言恢复';
-      await session.open();
-      const restored = await readBackWithRetry(
-        async () => findControl(await session.read(), target),
-        (control) => control && controlValue(control) === restoreValue,
-        async () => { await session.cancel(); await session.open(); });
-      evidence.restored = restored ? controlValue(restored) : null;
-      if (!restored || evidence.restored !== restoreValue) throw new Error('未恢复目标值');
-    } catch (error) { errors.push(`${stage}失败：${error.message}`); }
+    let restoreError;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        stage = '恢复前重新打开';
+        await session.cancel();
+        await session.open();
+        stage = '恢复原值';
+        await session.set(target, restoreValue);
+        stage = '保存恢复状态';
+        await session.save();
+        stage = '重开断言恢复';
+        await session.open();
+        const restored = await readBackWithRetry(
+          async () => findControl(await session.read(), target),
+          (control) => control && controlValue(control) === restoreValue,
+          async () => { await session.cancel(); await session.open(); });
+        evidence.restored = restored ? controlValue(restored) : null;
+        if (!restored || evidence.restored !== restoreValue) throw new Error('未恢复目标值');
+        restoreError = null;
+        break;
+      } catch (error) {
+        restoreError = error;
+        try { await session.cancel(); } catch { /* next attempt reopens explicitly */ }
+      }
+    }
+    if (restoreError) errors.push(`${stage}失败：${restoreError.message}`);
     // Keep these attempts independent: failed readback must not prevent page save.
     try { await session.cancel(); } catch (error) { errors.push(`退出设置失败：${error.message}`); }
     try { await savePage(page); } catch (error) { errors.push(`保存恢复页面失败：${error.message}`); }

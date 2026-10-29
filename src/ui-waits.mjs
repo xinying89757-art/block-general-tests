@@ -71,6 +71,29 @@ export async function waitForControlsReady(root, timeout = uiWaitConfig().timeou
   }, undefined, { timeout: remaining }), (state) => state.ready, { timeout });
 }
 
+// Dialog transitions in the page builder are not always reflected by a single
+// Playwright visibility state: the modal can be removed, hidden, or covered by
+// a stale overlay while its save callback is still completing. Observe several
+// independent signals before giving up.
+export async function waitForDialogState(dialog, state, timeout = uiWaitConfig().saveTimeout) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const observed = await dialog.evaluate((node) => ({
+      attached: node.isConnected,
+      visible: !!node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden'
+        && getComputedStyle(node).display !== 'none',
+      hiddenClass: /(?:^|\s)(?:hide|hidden)(?:\s|$)/i.test(node.className || ''),
+      ariaHidden: node.getAttribute('aria-hidden') === 'true',
+    })).catch(() => ({ attached: false, visible: false, hiddenClass: true, ariaHidden: true }));
+    const closed = !observed.attached || !observed.visible || observed.hiddenClass || observed.ariaHidden;
+    if (state === 'closed' ? closed : observed.attached && observed.visible) return observed;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  const error = new Error(`等待设置弹窗${state === 'closed' ? '关闭' : '打开'}超时`);
+  error.name = 'TimeoutError';
+  throw error;
+}
+
 // Observe requests BEFORE clicking. Closure alone can precede the asynchronous
 // save; require relevant writes to finish and the editor/canvas to stop changing.
 export async function saveAndWait(page, action) {
