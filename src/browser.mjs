@@ -5,6 +5,8 @@ import { access } from 'node:fs/promises';
 import { loadBrowserConfig } from './config.mjs';
 import { installHttpsUpgrade } from './network-https-upgrade.mjs';
 
+export const DESKTOP_CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
+
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 
 export async function prepareContext(context, config = {}) {
@@ -16,7 +18,10 @@ export function browserLaunchOptions(config) {
   const { browser, headless, slowMo } = loadBrowserConfig({
     BROWSER: config.browser, HEADLESS: config.headless, SLOW_MO: config.slowMo, CI: process.env.CI,
   });
-  return { headless, slowMo, ...(browser === 'chromium' ? { channel: 'chrome' } : {}) };
+  // Leadong's CDN rejects the default "HeadlessChrome" user agent (assets fail with ERR_BLOCKED_BY_ORB),
+  // so headless Chrome presents a regular desktop Chrome UA.
+  const args = browser === 'chromium' && headless ? [`--user-agent=${DESKTOP_CHROME_UA}`] : [];
+  return { headless, slowMo, ...(browser === 'chromium' ? { channel: 'chrome' } : {}), ...(args.length ? { args } : {}) };
 }
 
 export async function launchSession(config) {
