@@ -84,6 +84,7 @@ try {
     if (prodId) out.products[name].result = await setFields(prodId, plan);
   }
 } finally {
+  fs.mkdirSync('hidden', { recursive: true });
   fs.writeFileSync("hidden/oracle-fixture.json", JSON.stringify(out, null, 2));
   await browser.close();
 }

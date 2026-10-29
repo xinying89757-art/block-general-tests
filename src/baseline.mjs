@@ -3,7 +3,7 @@
 // A baseline is the block's configured state on its home page, recorded in
 // the profile (`profile.baseline`) as dialog steps:
 //   [{ title, type, wrapIndex, want: [{ label, type, value?, to }] }]
-// `want` mirrors scripts/configure-47748.mjs: checkbox/radio carry `to` as
+// `want` mirrors scripts/probes/configure-47748.mjs: checkbox/radio carry `to` as
 // a boolean, text/number/select/textarea carry `to` as the value string.
 // `value` is an identity disambiguator, only recorded for checkbox/radio
 // when the same label+type appears more than once in the dialog (e.g.

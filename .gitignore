@@ -8,5 +8,6 @@ screenshots/
 reports/
 dist/
 *.log
+hidden/
 .auth/
 logs/
