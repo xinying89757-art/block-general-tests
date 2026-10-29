@@ -2,15 +2,11 @@
 //
 // A baseline is the block's configured state on its home page, recorded in
 // the profile (`profile.baseline`) as dialog steps:
-//   [{ title, type, wrapIndex, want: [{ label, type, value?, to }] }]
-// `want` mirrors scripts/configure-47748.mjs: checkbox/radio carry `to` as
-// a boolean, text/number/select/textarea carry `to` as the value string.
-// `value` is an identity disambiguator, only recorded for checkbox/radio
-// when the same label+type appears more than once in the dialog (e.g.
-// duplicate display-field copies). It is never recorded for text-like
-// controls: their `value` is the mutable content, and apply matches them
-// by label+type, so recording it would make apply fail to find a control
-// whose current value differs from the captured one.
+//   [{ title, type, wrapIndex, want: [{ label, type, value?, occurrence?, to }] }]
+// checkbox/radio carry `to` as a boolean; text-like controls carry strings.
+// `value` disambiguates checkbox/radio identities. When the resulting
+// label+type(+value) identity still repeats, `occurrence` records its DOM
+// order and is reused by apply, diff, and verification.
 //
 // Capture is read-only: dialogs are opened, snapshotted, and cancelled
 // without saving. Apply reuses configure()'s transaction (probe once,
@@ -22,6 +18,7 @@
 // the button zone is handled through its in-canvas editor-box popover.
 import { clickSettings, controlValue, probeControls, widgetSession, TIMEOUT } from './capabilities/shared.mjs';
 import { readButtonPopover, writeButtonPopover } from './capabilities/button-link.mjs';
+import { matchControl } from './baseline-identity.mjs';
 
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 const TITLE = '.backstage-dialog-title, .layui-layer-title';
@@ -33,7 +30,8 @@ const TITLE = '.backstage-dialog-title, .layui-layer-title';
 function serializeControl(control, duplicateKeys) {
   const { label, type } = control;
   const key = `${type}::${label}`;
-  const identity = duplicateKeys.has(key) ? { value: control.value } : {};
+  const duplicate = duplicateKeys.has(key);
+  const identity = duplicate && ['checkbox', 'radio'].includes(type) ? { value: control.value } : {};
   if (type === 'radio') {
     if (!control.checked) return null;
     return { label, type, ...identity, to: true };
@@ -131,15 +129,28 @@ export async function captureBaseline({ page, canvas, config, blockId }) {
       }
       const duplicateKeys = new Set([...keyCounts.entries()]
         .filter(([, count]) => count > 1).map(([key]) => key));
+      const serializedControls = controls.map((control) => serializeControl(control, duplicateKeys));
+      const itemCounts = new Map();
+      for (const item of serializedControls) {
+        if (!item) continue;
+        const key = JSON.stringify([item.label, item.type, item.value]);
+        itemCounts.set(key, (itemCounts.get(key) || 0) + 1);
+      }
       let skippedDisabled = 0;
       let skippedNoLabel = 0;
-      for (const control of controls) {
+      const captured = [];
+      const occurrences = new Map();
+      for (const [index, control] of controls.entries()) {
+        const item = serializedControls[index];
+        const key = item ? JSON.stringify([item.label, item.type, item.value]) : null;
+        const occurrence = key === null ? undefined : (occurrences.get(key) || 0);
+        if (key !== null) occurrences.set(key, occurrence + 1);
         if (control.disabled) { skippedDisabled += 1; continue; }
         if (!control.label) { skippedNoLabel += 1; continue; }
         if (control.readOnly && !['checkbox', 'radio'].includes(control.type)) continue;
-        const item = serializeControl(control, duplicateKeys);
-        if (item) step.want.push(item);
+        if (item) captured.push(itemCounts.get(key) > 1 ? { ...item, occurrence } : item);
       }
+      step.want = captured;
       if (skippedDisabled) step.skippedDisabled = skippedDisabled;
       if (skippedNoLabel) step.skippedNoLabel = skippedNoLabel;
       await session.cancel();
@@ -189,8 +200,9 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
       const probe = await probeControls(session);
       if (probe.reason) { step.errors.push(probe.reason); steps.push(step); allVerified = false; continue; }
       for (const w of stepDef.want) {
-        const target = probe.controls.find((c) => c.label === w.label && c.type === w.type
-          && (w.value === undefined || c.value === w.value));
+        let target;
+        try { target = matchControl(probe.controls, w); }
+        catch (error) { step.errors.push(error.message); step.set.push(`${w.label}：身份不唯一`); continue; }
         if (!target) { step.set.push(`${w.label}：未找到`); continue; }
         const current = controlValue(target);
         if (current === w.to) { step.set.push(`${w.label}：已是目标值`); continue; }
@@ -206,10 +218,11 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
       await session.open();
       const after = await session.read();
       step.verified = stepDef.want.map((w) => {
-        const item = after.find((c) => c.label === w.label && c.type === w.type
-          && (w.value === undefined || c.value === w.value));
+        let item = null;
+        try { item = matchControl(after, w); }
+        catch (error) { step.errors.push(error.message); }
         const value = item ? controlValue(item) : null;
-        return { label: w.label, value, ok: value === w.to };
+        return { label: w.label, ...(w.occurrence === undefined ? {} : { occurrence: w.occurrence }), value, ok: value === w.to };
       });
       step.allVerified = step.verified.every((v) => v.ok) && step.errors.length === 0;
       if (!step.allVerified) allVerified = false;

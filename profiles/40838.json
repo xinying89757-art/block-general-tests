@@ -269,73 +269,85 @@
           "label": "Brand",
           "type": "checkbox",
           "value": "-3",
-          "to": true
+          "to": true,
+          "occurrence": 0
         },
         {
           "label": "Product Code",
           "type": "checkbox",
           "value": "-4",
-          "to": true
+          "to": true,
+          "occurrence": 0
         },
         {
           "label": "Model",
           "type": "checkbox",
           "value": "-5",
-          "to": true
+          "to": true,
+          "occurrence": 0
         },
         {
           "label": "Brief",
           "type": "checkbox",
           "value": "-9",
-          "to": true
+          "to": true,
+          "occurrence": 0
         },
         {
           "label": "图纸",
           "type": "checkbox",
           "value": "889998",
-          "to": true
+          "to": true,
+          "occurrence": 0
         },
         {
           "label": "Category",
           "type": "checkbox",
           "value": "889928",
-          "to": true
+          "to": true,
+          "occurrence": 0
         },
         {
           "label": "Rated Current",
           "type": "checkbox",
           "value": "889968",
-          "to": true
+          "to": true,
+          "occurrence": 0
         },
         {
           "label": "Installation Method",
           "type": "checkbox",
           "value": "889958",
-          "to": true
+          "to": true,
+          "occurrence": 0
         },
         {
           "label": "Spacing",
           "type": "checkbox",
           "value": "889948",
-          "to": true
+          "to": true,
+          "occurrence": 0
         },
         {
           "label": "Rated voltage",
           "type": "checkbox",
           "value": "889988",
-          "to": true
+          "to": true,
+          "occurrence": 0
         },
         {
           "label": "测试多选",
           "type": "checkbox",
           "value": "898508",
-          "to": false
+          "to": false,
+          "occurrence": 0
         },
         {
           "label": "正式版测试多选",
           "type": "checkbox",
           "value": "899828",
-          "to": false
+          "to": false,
+          "occurrence": 0
         },
         {
           "label": "关闭",
@@ -346,73 +358,85 @@
           "label": "Brand",
           "type": "checkbox",
           "value": "-3",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "Product Code",
           "type": "checkbox",
           "value": "-4",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "Model",
           "type": "checkbox",
           "value": "-5",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "Brief",
           "type": "checkbox",
           "value": "-9",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "图纸",
           "type": "checkbox",
           "value": "889998",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "Category",
           "type": "checkbox",
           "value": "889928",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "Rated Current",
           "type": "checkbox",
           "value": "889968",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "Installation Method",
           "type": "checkbox",
           "value": "889958",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "Spacing",
           "type": "checkbox",
           "value": "889948",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "Rated voltage",
           "type": "checkbox",
           "value": "889988",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "测试多选",
           "type": "checkbox",
           "value": "898508",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "正式版测试多选",
           "type": "checkbox",
           "value": "899828",
-          "to": false
+          "to": false,
+          "occurrence": 1
         }
       ],
       "skippedNoLabel": 1
