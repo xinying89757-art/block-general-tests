@@ -3,6 +3,7 @@
 import { savePage, openPreview } from '../editor.mjs';
 import { baselineRestoreTarget, blockSelector, probeControls, findControl, controlValue, TIMEOUT } from './shared.mjs';
 import { waitForStable, readBackWithRetry } from '../ui-waits.mjs';
+import { assertAllowedLinkUrl } from '../url-safety.mjs';
 
 export const sameSet = (left, right) => JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
 export const sentenceList = (items) => items.length ? items.join('、') : '无';
@@ -44,6 +45,9 @@ export async function readEffectRoot(frame, config, read, argument) {
 }
 
 export async function effectCheck({ id, result, page, canvas, context, config, session, layer, run }) {
+  if (config.deferFront && layer === 'front') {
+    return result(id, 'deferred', 'deferred-to-front-runner', { deferred: true });
+  }
   const errors = [], evidence = { observations: [], restored: [] }, journal = new Map(), pending = new Map();
   let status = 'pass', detail = '', expected;
   const controls = async () => {
@@ -58,6 +62,7 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
     note: (text) => evidence.observations.push(text),
     assert: (okay, text) => { evidence.observations.push(text); if (!okay) errors.push(text); },
     set: async (target, value) => {
+      if (/链接网址/.test(target.label || '')) assertAllowedLinkUrl(value);
       const items = await controls();
       const current = findControl(items, target);
       if (!current) unavailable('设置项身份已变化，无法安全改写。');

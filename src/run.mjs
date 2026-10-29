@@ -16,6 +16,7 @@ import * as blockColorScheme from './capabilities/block-color-scheme.mjs';
 import * as moduleWidth from './capabilities/module-width.mjs';
 import * as blockStyleSpec from './capabilities/block-style-spec.mjs';
 import { checkReportText } from './capabilities/shared.mjs';
+export { shouldRunLayer } from './front-results.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 export const capabilityRegistry = {
@@ -28,6 +29,23 @@ export const capabilityRegistry = {
   'block-style-spec': blockStyleSpec,
 };
 
+export function deferredCheck(id, name = id) {
+  return { id, name, suite: 'front-runner', status: 'deferred', detail: 'deferred-to-front-runner',
+    ...checkReportText(name, 'deferred', 'deferred-to-front-runner', { deferred: true }, id) };
+}
+
+export function deferredCapabilityChecks(capability) {
+  const ids = {
+    'button-link': ['btn-front-text'],
+    'product-list-display': ['pld-front-note'],
+    'product-category-select': ['pcs-front-note'],
+    'custom-filter-fields': ['cff-groups-baseline', 'cff-facet-narrow', 'cff-clear-restore'],
+    'block-style-spec': [...(capability.styleSpec?.items || []).map((item) => `bss-${item.id}`),
+      ...((capability.styleSpec?.items || []).some((item) => item.clamp) ? ['bss-product-name-clamp'] : [])],
+  }[capability.id] || [];
+  return ids.map((id) => deferredCheck(id, id));
+}
+
 export async function runCapabilityLayer(capabilities, layer, args, registry = capabilityRegistry) {
   const checks = [];
   const { profile } = args;
@@ -38,11 +56,21 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
   for (const capability of capabilities) {
     const id = capability.id;
     const module = registry[id];
-    if (typeof module?.[method] !== 'function') continue;
+    let selectedMethod = method;
+    if (layer === 'settings' && args.config?.frontOnly) {
+      if (typeof module?.runFrontEffectsLayer === 'function') selectedMethod = 'runFrontEffectsLayer';
+      else if (['block-color-scheme', 'module-width'].includes(id)) selectedMethod = 'runSettingsLayer';
+      else continue;
+    }
+    if (typeof module?.[selectedMethod] !== 'function') continue;
+    if (layer === 'front' && args.config?.deferFront) {
+      checks.push(...deferredCapabilityChecks(capability));
+      continue;
+    }
     const previousCapabilityId = args.config?.baselineCapabilityId;
     if (args.config) args.config.baselineCapabilityId = id;
     try {
-      const returned = await module[method]({ ...args, capability, profile });
+      const returned = await module[selectedMethod]({ ...args, capability, profile });
       checks.push(...returned);
       await captureCheckScreenshots(returned, layer === 'front' ? args.previewPage : args.page,
         args.screenshotDir, args.runId, args.report, layer);
@@ -89,7 +117,7 @@ export function redact(value, config) {
       if (secret) text = text.split(secret).join('[redacted]');
     }
     if (key === 'previewLink') return text;
-    return text.replace(/https?:\/\/[^\s"'<>]+/g, (raw) => {
+    return text.replace(/https?:\/\/[^\s"'<>，。；：！？、（）【】“”‘’《》]+/g, (raw) => {
       try {
         const url = new URL(raw);
         return `${url.origin}${url.pathname}`;
@@ -156,7 +184,7 @@ async function main() {
     fixture: null,
     page: null,
     checks: [],
-    summary: { pass: 0, fail: 0, skip: 0, na: 0, record: 0 },
+    summary: { pass: 0, fail: 0, skip: 0, na: 0, record: 0, deferred: 0 },
     previewLink: null,
     previewLinkExpiresAt: null,
     screenshots: {},
@@ -189,9 +217,22 @@ async function main() {
             : /在新窗口打开|新窗口打开/.test(label) ? '新窗口打开' : label;
         return baselineValueFor(baseline, type, semantic) ?? baselineValueFor(baseline, type, label);
       };
-      stage = 'baseline-guard';
-      report.baselineGuard = await guardBaseline({ page: session.page, canvas, config, baseline });
-      console.log(formatBaselineGuard(report.baselineGuard));
+      if (!config.frontOnly) {
+        stage = 'baseline-guard';
+        report.baselineGuard = await guardBaseline({ page: session.page, canvas, config, baseline });
+        console.log(formatBaselineGuard(report.baselineGuard));
+        if (report.baselineGuard.residue) {
+          // Restoring leaves editor UI state (e.g. the button editor-box) in the
+          // main session; start capabilities from a fresh session instead.
+          stage = 'baseline-guard-reopen';
+          await session.browser.close();
+          session = await launchSession(config);
+          session.page = (await openEditor(session.page, config)).page;
+          canvas = (await ensureTargetPage(session.page, config)).frame;
+        }
+      } else {
+        report.baselineGuard = { skipped: true, reason: 'FRONT_ONLY=1' };
+      }
     } else {
       report.baselineGuard = { reason: 'no baseline in profile' };
       console.log(formatBaselineGuard(report.baselineGuard));
@@ -202,7 +243,7 @@ async function main() {
     // or misjudge. Apply the baseline once, right after adding. This is a
     // precondition, not a capability: a failed application stops the run
     // (fail-fast) instead of recording one fail per capability.
-    const shouldApplyBaseline = report.added?.added === true || config.applyBaseline;
+    const shouldApplyBaseline = !config.frontOnly && (report.added?.added === true || config.applyBaseline);
     if (shouldApplyBaseline && baseline.length > 0) {
       const applied = await applyBaseline({ page: session.page, canvas, config, baseline });
       report.baseline = { applied: true, steps: applied.steps };
@@ -214,7 +255,7 @@ async function main() {
     } else {
       report.baseline = { applied: false, reason: 'block already on page' };
     }
-    if (profile?.fixture) {
+    if (!config.frontOnly && profile?.fixture) {
       if (config.capabilityFilter?.length && !config.capabilityFilter.includes('custom-filter-fields')) {
         report.fixture = { applied: false, reason: 'CAPABILITY_FILTER 未包含 custom-filter-fields，跳过夹具准备。' };
       } else {
@@ -238,32 +279,44 @@ async function main() {
         }
       }
     }
-    stage = 'capability-settings';
-    report.checks.push(...await runCapabilityLayer(capabilities, 'settings', {
-      page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
-    }));
-    stage = 'save-page';
-    await savePage(session.page);
+    {
+      stage = config.frontOnly ? 'capability-front-effects' : 'capability-settings';
+      report.checks.push(...await runCapabilityLayer(capabilities, 'settings', {
+        page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
+      }));
+    }
+    if (!config.frontOnly) {
+      stage = 'save-page';
+      await savePage(session.page);
+    }
     stage = 'capability-backend';
     report.checks.push(...await runCapabilityLayer(capabilities, 'backend', {
       page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
     }));
     stage = 'open-preview';
-    const preview = await openPreview(session.page, session.context);
-    previewPage = preview.previewPage;
-    report.previewLink = await getPreviewShareLink(previewPage);
-    if (report.previewLink) {
-      const expires = new Date(startedAt);
-      expires.setUTCDate(expires.getUTCDate() + 7);
-      report.previewLinkExpiresAt = expires.toISOString().slice(0, 10);
+    let preview;
+    if (!config.deferFront) {
+      preview = await openPreview(session.page, session.context);
+      previewPage = preview.previewPage;
+      report.previewLink = await getPreviewShareLink(previewPage);
+      if (report.previewLink) {
+        const expires = new Date(startedAt);
+        expires.setUTCDate(expires.getUTCDate() + 7);
+        report.previewLinkExpiresAt = expires.toISOString().slice(0, 10);
+      }
     }
     stage = 'front-checks';
-    const frontChecks = await runFrontChecks(preview.frame, config.blockId,
-      { previewPage, screenshotDir, runId, report });
-    report.checks.push(...frontChecks);
+    if (config.deferFront) {
+      report.checks.push(...['block-present', 'img-alt', 'link-href', 'cursor-pointer', 'css-font-follow', 'css-word-break', 'carousel-arrows']
+        .map((id) => deferredCheck(id, id)));
+    } else {
+      const frontChecks = await runFrontChecks(preview.frame, config.blockId,
+        { previewPage, screenshotDir, runId, report });
+      report.checks.push(...frontChecks);
+    }
     // The style capability switches viewports and takes screenshots, so it
     // needs the preview page, not just its content frame.
-    report.checks.push(...await runCapabilityLayer(capabilities, 'front', { frame: preview.frame, previewPage: preview.previewPage, config, profile, screenshotDir, runId, report }));
+    report.checks.push(...await runCapabilityLayer(capabilities, 'front', { frame: preview?.frame, previewPage: preview?.previewPage, config, profile, screenshotDir, runId, report }));
   } catch (error) {
     report.failure = { stage, message: error.message };
   } finally {
@@ -314,8 +367,8 @@ async function main() {
   report.status = report.failure || report.summary.fail || report.artifactErrors.length ? 'failed' : 'passed';
   const safeReport = redact(report, config);
   await writeFile(reportPath, `${JSON.stringify(safeReport, null, 2)}\n`, 'utf8');
-  const { pass, fail, skip, na, record } = report.summary;
-  console.log(`[block] ${report.status}：pass=${pass} fail=${fail} skip=${skip} na=${na} record=${record}`);
+  const { pass, fail, skip, na, record, deferred } = report.summary;
+  console.log(`[block] ${report.status}：pass=${pass} fail=${fail} skip=${skip} na=${na} record=${record} deferred=${deferred}`);
   console.log(`[block] 报告：${reportPath}`);
   for (const check of safeReport.checks.filter((item) => item.status === 'fail')) {
     console.error(`[block] ${check.id}：${check.detail}`);

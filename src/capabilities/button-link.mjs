@@ -1,6 +1,7 @@
 import { effectCheck, unavailable, readEffectRoot } from './effect-checks.mjs';
 import { baselineRestoreTarget, clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
 import { retryTransient, uiWaitConfig } from '../ui-waits.mjs';
+import { assertAllowedLinkUrl } from '../url-safety.mjs';
 
 const SUITE = 'capability:button-link';
 const DEFAULT_TEXT = 'Please set up the required pop-up form here.';
@@ -125,12 +126,19 @@ export async function readButtonPopover({ page, canvas, config }) {
         await page.mouse.click(1, 1);
         await page.waitForTimeout(300);
       }
-      if (await session.root.isVisible().catch(() => false)) throw new Error('只读按钮浮层无法关闭，未执行保存');
+      // Still open: leave it. No edits were made and nothing is saved, so an
+      // open popover carries no change; the next open() reuses it.
+      // The editor-box has no cancel affordance (scripts/probes/probe-final2.mjs).
+      // Nothing was edited, so its Save fallback commits the unchanged values
+      // (a no-op); leaving it open breaks every later open/close of the zone.
+      if (await session.root.isVisible().catch(() => false)) await session.cancel();
     }
   }
 }
 
 export async function writeButtonPopover({ page, canvas, config, want }) {
+  const requestedUrl = want.find((item) => item.label === '链接网址');
+  if (requestedUrl) assertAllowedLinkUrl(requestedUrl.to);
   const session = popoverSession({ page, canvas, config });
   const get = (label) => want.find((item) => item.label === label);
   try {
@@ -163,6 +171,7 @@ export async function writeButtonPopover({ page, canvas, config, want }) {
 }
 
 export async function runSettingsLayer({ page, canvas, context, config }) {
+  if (config.frontOnly) return buttonEffectChecks({ page, canvas, context, config }, 'front');
   const session = popoverSession({ page, canvas, config });
   const ids = ['btn-state', 'btn-text-persist', 'btn-url-persist', 'btn-target-persist'];
   const checks = [];
@@ -221,6 +230,8 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
   checks.push(...await buttonEffectChecks({ page, canvas, context, config }, 'front'));
   return checks;
 }
+
+export async function runFrontEffectsLayer(args) { return buttonEffectChecks(args, 'front'); }
 
 export async function runFrontLayer({ frame, config }) {
   const expected = config.buttonLinkText ?? DEFAULT_TEXT;
@@ -293,6 +304,7 @@ async function readLinkType(session, current) {
 }
 
 async function setLink(session, tab, value) {
+  assertAllowedLinkUrl(value);
   await session.open();
   const structure = await linkTabs(session);
   if (!structure.found) unavailable('链接类型页签无法唯一定位，未改写链接。');
@@ -390,6 +402,10 @@ async function inspectButton(frame, previewPage, config, kind, wanted) {
   }
 }
 
+export function buttonMatchesTargetExpectation(observed, checked) {
+  return observed.sameAddress === true && observed.newWindow === checked;
+}
+
 async function buttonEffectChecks(args, layer) {
   const checks = [];
   for (const kind of ['text', 'url', 'target']) {
@@ -414,7 +430,7 @@ async function buttonEffectChecks(args, layer) {
           const observed = layer === 'backend' ? await inspectButton(args.canvas, null, args.config, kind, checked)
             : await tx.observe((frame, tab) => inspectButton(frame, tab, args.config, kind, checked));
           (tx.evidence.buttons ||= []).push(observed);
-          tx.assert(observed.sameAddress && observed.newWindow === checked,
+          tx.assert(buttonMatchesTargetExpectation(observed, checked),
             `设置为${checked ? '新窗口' : '当前页'}打开百度；观察到地址“${observed.href || '由点击跳转取证'}”，${observed.newWindow ? '新开页面' : '当前页打开'}，地址核对${observed.sameAddress ? '一致' : '不一致'}。`);
         }
       }
