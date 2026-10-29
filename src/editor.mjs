@@ -1,3 +1,5 @@
+import { saveAndWait } from './ui-waits.mjs';
+
 const CANVAS = 'iframe.backstage-pc-proview';
 const PANEL = '.backstage-addmodules-chooseWrapper';
 const PAGE_LABELS = { products: 'Products' };
@@ -132,12 +134,37 @@ export async function openEditor(page, config) {
   if (!editorPage.url().includes('/phoenix/pagebuilder')) {
     throw new Error(`未进入领动编辑器，当前地址：${editorPage.url()}。请检查站名、语言和站点权限；登录态失效时重跑 scripts/explore-login.mjs。`);
   }
-  // Preserve the existing editor readiness and introductory-dialog handling.
-  await editorPage.waitForTimeout(5_000);
-  const know = editorPage.getByText('我知道了', { exact: true }).first();
-  if (await know.isVisible()) await know.click();
-  await editorPage.getByText('页面:', { exact: true }).first().waitFor({ state: 'visible' });
+  await waitForEditorReady(editorPage);
   return { page: editorPage };
+}
+
+async function waitForEditorReady(page) {
+  await page.waitForTimeout(5_000);
+  const know = page.getByText('我知道了', { exact: true }).first();
+  if (await know.isVisible()) await know.click();
+  await page.getByText('页面:', { exact: true }).first().waitFor({ state: 'visible' });
+}
+
+// CMS field changes become visible after an editor reload; no publishing.
+// Without config preserve the current page; fixture preparation supplies config.
+export async function reloadEditor(page, config) {
+  const currentPageName = () => page.evaluate(() => {
+    const text = (document.querySelector('.backstage-topToolbar')?.innerText || '').replace(/\s+/g, ' ').trim();
+    return text.match(/页面:\s*(.*?)\s+(?:智能优化当前页面\s+)?保存(?:\s|$)/)?.[1] || '';
+  });
+  const before = await currentPageName();
+  const target = config?.resolvedTarget;
+  const wanted = target ? (PAGE_LABELS[target.page.toLowerCase()] || target.page) : before;
+  if (!wanted) throw new Error('刷新编辑器前无法确定目标页。');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForEditorReady(page);
+  if (await currentPageName() !== wanted) {
+    if (!config) throw new Error(`刷新编辑器后未停留在目标页「${wanted}」，请提供目标页配置。`);
+    await ensureTargetPage(page, config);
+  }
+  const actual = await currentPageName();
+  if (actual !== wanted) throw new Error(`刷新后目标页核对失败：应为「${wanted}」，顶栏读到「${actual}」。`);
+  return { frame: page.frameLocator(CANVAS) };
 }
 
 // Resolve the page to test on: env TARGET_PAGE wins, then the block profile's
@@ -323,7 +350,7 @@ export async function savePage(page) {
   const save = page.locator('#saveLayout');
   await save.waitFor({ state: 'visible' });
   // No stable business-success selector is known yet. Observe save HTTP errors,
-  // then wait for network quiescence and the save control to become available.
+  // then require completed writes, an available save control and a stable canvas.
   const failedResponses = [];
   const onResponse = (response) => {
     const request = response.request();
@@ -333,12 +360,11 @@ export async function savePage(page) {
   };
   page.on('response', onResponse);
   try {
-    await save.click();
-    await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
-    await page.waitForFunction(() => {
-      const button = document.querySelector('#saveLayout');
-      return button && !button.disabled && button.getAttribute('aria-disabled') !== 'true';
-    });
+    // A leftover hidden dialog backdrop (.backstage-dialog-overlay.hide) can
+    // intercept pointer events on the save button for the full click timeout
+    // even though the button is visible, enabled and stable; a DOM click
+    // bypasses the hit-target check, as the CMS sidebar clicks do.
+    await saveAndWait(page, () => save.evaluate((el) => el.click()));
     if (failedResponses.length) throw new Error(`保存请求失败：HTTP ${failedResponses.join(', ')}。`);
   } finally {
     page.off('response', onResponse);

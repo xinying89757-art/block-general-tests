@@ -1,0 +1,1311 @@
+{
+  "at": "2026-10-28T10:17:36.376Z",
+  "site": "http://en-site40083596.ldyjz.com",
+  "steps": {
+    "timeline": [
+      {
+        "at": "0.1s",
+        "nameMatches": 0,
+        "hasBasic": false
+      },
+      {
+        "at": "0.8s",
+        "nameMatches": 0,
+        "hasBasic": false
+      },
+      {
+        "at": "1.3s",
+        "nameMatches": 0,
+        "hasBasic": false
+      },
+      {
+        "at": "2.2s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "2.7s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "3.3s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "3.8s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "4.3s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "5.1s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "5.9s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "6.4s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "6.9s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "7.5s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "8.0s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "8.6s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "9.2s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "10.2s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "11.2s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "11.8s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "12.3s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "12.9s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "13.4s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "15.9s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "16.4s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "16.9s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "17.5s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "18.4s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "19.0s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "19.6s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "20.3s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "20.9s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "21.4s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "21.9s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "22.4s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "22.9s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "23.4s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "24.0s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "24.5s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "25.0s",
+        "nameMatches": 0,
+        "hasBasic": true
+      },
+      {
+        "at": "25.5s",
+        "nameMatches": 0,
+        "hasBasic": true
+      }
+    ],
+    "form": {
+      "fieldCount": 262,
+      "visibleFields": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "product.prodName",
+          "id": "product.prodName",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "",
+          "id": "capitalized_capital",
+          "visible": true,
+          "value": "on",
+          "placeholder": "",
+          "labels": [
+            "词首字母大写"
+          ],
+          "parentText": "词首字母大写"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "keywords",
+          "id": "prodKeyword0",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "seo.seoTitle",
+          "id": "seo.seoTitle",
+          "visible": true,
+          "value": " from China manufacturer - 【权限",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "Title 页面标题"
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "name": "seo.seoKeyword",
+          "id": "seo.seoKeyword",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "Keywords 页面关键词"
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "name": "seo.seoDesc",
+          "id": "seo.seoDesc",
+          "visible": true,
+          "value": " offered by China manufacturer",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "Description 页面描述"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "videoSource",
+          "id": "uploadVideo",
+          "visible": true,
+          "value": "0",
+          "placeholder": "",
+          "labels": [
+            "上传视频"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "videoSource",
+          "id": "addVideoLink",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [
+            "添加链接"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "product.prodModel",
+          "id": "product.prodModel",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "型号"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "product.prodBrand",
+          "id": "product.prodBrand",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "品牌"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "product.prodCode",
+          "id": "product.prodCode",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "商品编码"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "id": "826554",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [
+            "单选1-10"
+          ],
+          "parentText": "单选1-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "id": "826554",
+          "visible": true,
+          "value": "2",
+          "placeholder": "",
+          "labels": [
+            "单选2-10"
+          ],
+          "parentText": "单选2-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "id": "826554",
+          "visible": true,
+          "value": "3",
+          "placeholder": "",
+          "labels": [
+            "单选3-10"
+          ],
+          "parentText": "单选3-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "id": "826554",
+          "visible": true,
+          "value": "4",
+          "placeholder": "",
+          "labels": [
+            "单选4-10"
+          ],
+          "parentText": "单选4-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "id": "826554",
+          "visible": true,
+          "value": "5",
+          "placeholder": "",
+          "labels": [
+            "单选5-10"
+          ],
+          "parentText": "单选5-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "id": "826554",
+          "visible": true,
+          "value": "6",
+          "placeholder": "",
+          "labels": [
+            "单选6-10"
+          ],
+          "parentText": "单选6-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "id": "826554",
+          "visible": true,
+          "value": "7",
+          "placeholder": "",
+          "labels": [
+            "单选7-10"
+          ],
+          "parentText": "单选7-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "id": "826554",
+          "visible": true,
+          "value": "8",
+          "placeholder": "",
+          "labels": [
+            "单选8-10"
+          ],
+          "parentText": "单选8-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "id": "826554",
+          "visible": true,
+          "value": "9",
+          "placeholder": "",
+          "labels": [
+            "单选9-10"
+          ],
+          "parentText": "单选9-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_826554",
+          "id": "826554",
+          "visible": true,
+          "value": "10",
+          "placeholder": "",
+          "labels": [
+            "单选10-10"
+          ],
+          "parentText": "单选10-10"
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "id": "",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "测试下拉列表",
+          "options": [
+            "下拉列表1-10",
+            "下拉列表21-10",
+            "下拉列表3-10",
+            "下拉列表4-10",
+            "下拉列表5-10",
+            "下拉列表6-10",
+            "下拉列表7-10",
+            "下拉列表8-10"
+          ]
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "id": "",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "Series-xiala",
+          "options": [
+            "Capacitor series with high vol",
+            "Resistor series",
+            "Resistor series with high - pr",
+            "Diode series",
+            "Inductor series",
+            "Transistor series",
+            "Connector series",
+            "PCB series"
+          ]
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_829424",
+          "id": "829424",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "测试文本"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_829824",
+          "id": "829824",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [
+            "product 1"
+          ],
+          "parentText": "product 1"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_829824",
+          "id": "829824",
+          "visible": true,
+          "value": "2",
+          "placeholder": "",
+          "labels": [
+            "product 2"
+          ],
+          "parentText": "product 2"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "option_829824",
+          "id": "829824",
+          "visible": true,
+          "value": "3",
+          "placeholder": "",
+          "labels": [
+            "product 3"
+          ],
+          "parentText": "product 3"
+        },
+        {
+          "tag": "TEXTAREA",
+          "type": "textarea",
+          "name": "txt_830944",
+          "id": "830944",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "测试文本域"
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "id": "",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2",
+          "options": [
+            "product 1",
+            "product 2",
+            "product 3"
+          ]
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "id": "",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "test1分类",
+          "options": [
+            "aaa",
+            "bbb",
+            "ccc"
+          ]
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "id": "",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "test2分类",
+          "options": [
+            "xxx",
+            "bbb",
+            "vvv"
+          ]
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_826564",
+          "id": "826564",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "测试多选-改为文本"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_829834",
+          "id": "829834",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "测试多选2"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_826604",
+          "id": "826604",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "Series-duoxuan"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_826594",
+          "id": "826594",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "Series-danxuan"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898458",
+          "id": "898458",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "202608241522"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898528",
+          "id": "898528",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "多选1542"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898588",
+          "id": "898588",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "多选1705"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898608",
+          "id": "898608",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "55555555"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_898658",
+          "id": "898658",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "自定义字段"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "txt_902148",
+          "id": "902148",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "测试数字"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "option_911698",
+          "id": "911698",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [
+            "多选4-10"
+          ],
+          "parentText": "多选4-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "option_911698",
+          "id": "911698",
+          "visible": true,
+          "value": "2",
+          "placeholder": "",
+          "labels": [
+            "多选8-10"
+          ],
+          "parentText": "多选8-10"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "productShop.unitType",
+          "id": "",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "",
+          "id": "",
+          "visible": true,
+          "value": "",
+          "placeholder": "请输入SKU编码",
+          "labels": [],
+          "parentText": "SKU编码"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "",
+          "id": "",
+          "visible": true,
+          "value": "",
+          "placeholder": "请输入条形码",
+          "labels": [],
+          "parentText": "条形码"
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "id": "skuStateSelect",
+          "visible": true,
+          "value": "请选择SKU状态",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "SKU状态",
+          "options": [
+            "请选择SKU状态",
+            "Pre Order"
+          ]
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "",
+          "id": "weight",
+          "visible": true,
+          "value": "",
+          "placeholder": "请输入重量，为空表示0",
+          "labels": [],
+          "parentText": ""
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "name": "",
+          "id": "weight_unit",
+          "visible": true,
+          "value": "kg",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "",
+          "options": [
+            "kg",
+            "g",
+            "oz",
+            "lb"
+          ]
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "",
+          "id": "",
+          "visible": true,
+          "value": "",
+          "placeholder": "请输入库存,为空则表示无限",
+          "labels": [],
+          "parentText": "库存"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "productShop.taxFlag",
+          "id": "latest",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [
+            "对该产品收取税费"
+          ],
+          "parentText": "对该产品收取税费"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "productShop.packageLength",
+          "id": "",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "productShop.packageWidth",
+          "id": "",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "productShop.packageHeight",
+          "id": "",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "高cm"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "",
+          "id": "descDisplayFlag",
+          "visible": true,
+          "value": "on",
+          "placeholder": "",
+          "labels": [
+            "开启样式隔离。 开启后，产品描述富文本编辑器里的内容样式会按照富文本编辑器的设置生效。未开启，部分样式会继承组件样式或全局样式。"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "product.showFlag",
+          "id": "product.showFlag1",
+          "visible": true,
+          "value": "1",
+          "placeholder": "",
+          "labels": [
+            "上架"
+          ],
+          "parentText": "上架"
+        },
+        {
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "product.showFlag",
+          "id": "product.showFlag2",
+          "visible": true,
+          "value": "0",
+          "placeholder": "",
+          "labels": [
+            "下架"
+          ],
+          "parentText": "下架"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "labelId",
+          "id": "",
+          "visible": true,
+          "value": "sLUfFjIGNuwE",
+          "placeholder": "",
+          "labels": [
+            "New"
+          ],
+          "parentText": "New"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "labelId",
+          "id": "",
+          "visible": true,
+          "value": "tgKUajSQYFdZ",
+          "placeholder": "",
+          "labels": [
+            "Hot"
+          ],
+          "parentText": "Hot"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "labelId",
+          "id": "",
+          "visible": true,
+          "value": "yZKputnGikoE",
+          "placeholder": "",
+          "labels": [
+            "Recommend"
+          ],
+          "parentText": "Recommend"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "labelId",
+          "id": "",
+          "visible": true,
+          "value": "ptKUPjIvNbAE",
+          "placeholder": "",
+          "labels": [
+            "Pre-sale"
+          ],
+          "parentText": "Pre-sale"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "searchRelatedArticleName",
+          "id": "searchRelatedArticleName",
+          "visible": true,
+          "value": "",
+          "placeholder": "请输入文章标题/文章详情页URL",
+          "labels": [],
+          "parentText": "全部分类 搜索"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "",
+          "id": "allDataId",
+          "visible": true,
+          "value": "on",
+          "placeholder": "",
+          "labels": [
+            "全选"
+          ],
+          "parentText": "全选"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "",
+          "visible": true,
+          "value": "yPKAhSvYFoGj",
+          "placeholder": "",
+          "labels": [
+            "xujiyingtest FlowControl's Products Shine at International Valve Exhibition"
+          ],
+          "parentText": "xujiyingtest FlowControl's Products Shine at International Valve Exhibition"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "",
+          "visible": true,
+          "value": "sFAfrnGiQhwj",
+          "placeholder": "",
+          "labels": [
+            "test1054 FlowControl's Products Shine at International Valve Exhibition"
+          ],
+          "parentText": "test1054 FlowControl's Products Shine at International Valve Exhibition"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "",
+          "visible": true,
+          "value": "oUfpCdbYvhSE",
+          "placeholder": "",
+          "labels": [
+            "test1051 FlowControl's Products Shine at International Valve Exhibition"
+          ],
+          "parentText": "test1051 FlowControl's Products Shine at International Valve Exhibition"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "",
+          "visible": true,
+          "value": "sGfpMnQilWvE",
+          "placeholder": "",
+          "labels": [
+            "FlowControl's Products Shine at International Valve Exhibition"
+          ],
+          "parentText": "FlowControl's Products Shine at International Valve Exhibition"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "",
+          "visible": true,
+          "value": "smpAWdvDlhPj",
+          "placeholder": "",
+          "labels": [
+            "FlowControl's Products Shine at International Valve Exhibition"
+          ],
+          "parentText": "FlowControl's Products Shine at International Valve Exhibition"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "",
+          "visible": true,
+          "value": "otfAMdviGhEj",
+          "placeholder": "",
+          "labels": [
+            "FlowControl's Products Shine at International Valve Exhibition"
+          ],
+          "parentText": "FlowControl's Products Shine at International Valve Exhibition"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "",
+          "visible": true,
+          "value": "nZAphIGibMYE",
+          "placeholder": "",
+          "labels": [
+            "FlowControl's Products Shine at International Valve Exhibition"
+          ],
+          "parentText": "FlowControl's Products Shine at International Valve Exhibition"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "",
+          "visible": true,
+          "value": "iUfKCSvYlhWE",
+          "placeholder": "",
+          "labels": [
+            "FlowControl's Products Shine at International Valve Exhibition"
+          ],
+          "parentText": "FlowControl's Products Shine at International Valve Exhibition"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "",
+          "visible": true,
+          "value": "iBpfCIGYbrqt",
+          "placeholder": "",
+          "labels": [
+            "FlowControl's Products Shine at International Valve Exhibition"
+          ],
+          "parentText": "FlowControl's Products Shine at International Valve Exhibition"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "",
+          "visible": true,
+          "value": "iCfArnGibMKO",
+          "placeholder": "",
+          "labels": [
+            "FlowControl's Products Shine at International Valve Exhibition"
+          ],
+          "parentText": "FlowControl's Products Shine at International Valve Exhibition"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "",
+          "id": "articlePageNumInput",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "共4页 到第 页"
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "searchRelatedProdName",
+          "id": "searchRelatedProdName",
+          "visible": true,
+          "value": "",
+          "placeholder": "请输入产品标题",
+          "labels": [],
+          "parentText": "请选择产品分类 搜索"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "",
+          "id": "allDataId",
+          "visible": true,
+          "value": "on",
+          "placeholder": "",
+          "labels": [
+            "全选"
+          ],
+          "parentText": "全选"
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "checkProdId",
+          "visible": true,
+          "value": "NmKqGFoHbPJy",
+          "placeholder": "",
+          "labels": [
+            "测试产品小何2"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "checkProdId",
+          "visible": true,
+          "value": "ApUgGkomaTfn",
+          "placeholder": "",
+          "labels": [
+            "测试产品小何1"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "checkProdId",
+          "visible": true,
+          "value": "ENULQuzRFljy",
+          "placeholder": "",
+          "labels": [
+            "测试产品A"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "checkProdId",
+          "visible": true,
+          "value": "yDfLGcsIyBYS",
+          "placeholder": "",
+          "labels": [
+            "测试数字--10"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "checkProdId",
+          "visible": true,
+          "value": "FHKgQmYSdARn",
+          "placeholder": "",
+          "labels": [
+            "测试数字--9"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "checkProdId",
+          "visible": true,
+          "value": "yNUVbHidSAEy",
+          "placeholder": "",
+          "labels": [
+            "测试数字--8"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "checkProdId",
+          "visible": true,
+          "value": "wiAqGRNIyUYn",
+          "placeholder": "",
+          "labels": [
+            "测试数字--7"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "checkProdId",
+          "visible": true,
+          "value": "zmAVbwNynpqI",
+          "placeholder": "",
+          "labels": [
+            "测试数字--6"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "checkProdId",
+          "visible": true,
+          "value": "NPAVQmNyRzen",
+          "placeholder": "",
+          "labels": [
+            "测试数字--5"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "checkbox",
+          "name": "dataId",
+          "id": "checkProdId",
+          "visible": true,
+          "value": "OdAgQcNIwoRy",
+          "placeholder": "",
+          "labels": [
+            "测试数字--4"
+          ],
+          "parentText": ""
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "name": "",
+          "id": "prodPageNumInput",
+          "visible": true,
+          "value": "",
+          "placeholder": "",
+          "labels": [],
+          "parentText": "共1235页 到第 页"
+        }
+      ]
+    }
+  }
+}

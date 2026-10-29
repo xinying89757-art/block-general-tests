@@ -1,0 +1,305 @@
+{
+  "at": "2026-10-28T09:18:12.322Z",
+  "site": "http://en-site40083596.ldyjz.com",
+  "steps": {
+    "before": {
+      "AUTOTEST-多选": []
+    },
+    "setResult": {
+      "ok": false,
+      "error": "产品字段保存后回读超时，不一致字段：AUTOTEST-多选；实际 {\"AUTOTEST-多选\":[]}。"
+    },
+    "posts": [
+      {
+        "at": "2026-10-28T09:19:07.077Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:19:08.838Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:19:11.198Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:19:13.479Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:19:15.028Z",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/",
+        "len": 68,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:19:15.030Z",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/",
+        "len": 88,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:19:53.363Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:19:54.972Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:19:56.669Z",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/",
+        "len": 68,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:19:56.672Z",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/",
+        "len": 88,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:04.583Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:05.834Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:07.122Z",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/",
+        "len": 68,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:07.126Z",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/",
+        "len": 88,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:14.517Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:15.931Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:20.110Z",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/",
+        "len": 68,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:20.219Z",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/",
+        "len": 88,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:24.481Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:26.066Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:27.973Z",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/",
+        "len": 68,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:27.978Z",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/",
+        "len": 88,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:35.572Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:37.366Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:39.571Z",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/",
+        "len": 68,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:39.573Z",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/",
+        "len": 88,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:45.699Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:47.691Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:50.485Z",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/",
+        "len": 68,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:50.489Z",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/",
+        "len": 88,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:56.724Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:20:58.672Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:21:00.392Z",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/",
+        "len": 68,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:21:00.410Z",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/",
+        "len": 88,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:21:06.933Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:21:08.038Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:21:09.097Z",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/",
+        "len": 68,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:21:09.099Z",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/",
+        "len": 88,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:21:15.863Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:21:17.303Z",
+        "url": "https://website.leadong.com/prod/searchKeyword",
+        "len": 8,
+        "hasOption": false,
+        "optionSnippet": ""
+      },
+      {
+        "at": "2026-10-28T09:21:19.941Z",
+        "url": "https://website.leadong.com/prod/new/update",
+        "len": 101,
+        "hasOption": false,
+        "optionSnippet": ""
+      }
+    ],
+    "after": {
+      "AUTOTEST-多选": []
+    }
+  }
+}

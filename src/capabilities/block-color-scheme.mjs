@@ -17,7 +17,7 @@
 // instance on the Products page, so it is verified through the
 // stylesheet rule that paints it, if one exists.
 import { savePage, openPreview } from '../editor.mjs';
-import { TIMEOUT, previewSelector, checkReportText } from './shared.mjs';
+import { TIMEOUT, previewSelector, checkReportText, readBackWithRetry } from './shared.mjs';
 import { RAIL, openRailPanel, readSchemeColor, setSchemeColor, saveColorPanel, normalizeColor } from './rail.mjs';
 
 const SUITE = 'capability:block-color-scheme';
@@ -145,6 +145,7 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
     await openRailPanel(canvas, config.blockId, RAIL.colorIcon, RAIL.colorPanel);
     return readSchemeColor(canvas);
   };
+  const ready = () => openRailPanel(canvas, config.blockId, RAIL.colorIcon, RAIL.colorPanel);
   try {
     evidence.base = await withPreview(page, context,
       (frame) => snapshotScheme(frame, config.blockId));
@@ -157,7 +158,8 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
     await openRailPanel(canvas, config.blockId, RAIL.colorIcon, RAIL.colorPanel);
     await setSchemeColor(canvas, ALT_COLOR);
     await saveColorPanel(canvas);
-    evidence.alt = await readBack();
+    evidence.alt = await readBackWithRetry(readBack,
+      (value) => normalizeColor(value) === normalizeColor(ALT_COLOR), ready);
     if (normalizeColor(evidence.alt) !== normalizeColor(ALT_COLOR)) {
       persistErrors.push(`改 ${ALT_COLOR} 保存重开后配色为 ${evidence.alt}，不是 ${ALT_COLOR}`);
     } else {
@@ -201,7 +203,8 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
         await setSchemeColor(canvas, initial);
         await saveColorPanel(canvas);
       }
-      evidence.restored = await readBack();
+      evidence.restored = await readBackWithRetry(readBack,
+        (value) => normalizeColor(value) === normalizeColor(initial), ready);
       if (normalizeColor(evidence.restored) !== normalizeColor(initial)) {
         persistErrors.push(`恢复后配色为 ${evidence.restored}，不是 ${initial}`);
       } else {

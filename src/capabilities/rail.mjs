@@ -5,6 +5,7 @@
 // an icon opens a flyout panel to its left; again only the selected
 // block's copy is visible.
 import { TIMEOUT, poll } from './shared.mjs';
+import { waitForControlsReady, retryTransient, saveAndWait } from '../ui-waits.mjs';
 
 export const RAIL = {
   wrap: (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`,
@@ -57,6 +58,7 @@ export async function openRailPanel(canvas, blockId, iconSelector, panelSelector
   const alreadyOpen = canvas.locator(`${panelSelector}:visible`).first();
   if (await alreadyOpen.isVisible().catch(() => false)) {
     const index = await visibleRailIndex(canvas);
+    await retryTransient(() => waitForControlsReady(alreadyOpen));
     return { rail: canvas.locator(RAIL.rail).nth(index), panel: alreadyOpen, index };
   }
   await selectBlock(canvas, blockId);
@@ -76,12 +78,14 @@ export async function openRailPanel(canvas, blockId, iconSelector, panelSelector
     await icon.click({ timeout: TIMEOUT });
     await panel.waitFor({ state: 'visible', timeout: TIMEOUT });
   }
+  await retryTransient(() => waitForControlsReady(panel));
   return { rail, panel, index };
 }
 
 // Read the color scheme value from the visible color flyout.
 export async function readSchemeColor(canvas) {
   const panel = canvas.locator(`${RAIL.colorPanel}:visible`).first();
+  await retryTransient(() => waitForControlsReady(panel));
   return panel.locator(RAIL.colorInput).inputValue({ timeout: TIMEOUT });
 }
 
@@ -157,7 +161,7 @@ export async function setSchemeColor(canvas, value) {
 
 export async function saveColorPanel(canvas) {
   const panel = canvas.locator(`${RAIL.colorPanel}:visible`).first();
-  await panel.locator(RAIL.colorSave).click({ timeout: TIMEOUT });
+  await saveAndWait(panel.page(), () => panel.locator(RAIL.colorSave).click({ timeout: TIMEOUT }));
 }
 
 // Read the module-width state from the visible width flyout: which radio
@@ -166,6 +170,7 @@ export async function saveColorPanel(canvas) {
 // the 1440px preset, so the effective value is what matters.
 export async function readModuleWidth(canvas) {
   const panel = canvas.locator(`${RAIL.widthPanel}:visible`).first();
+  await retryTransient(() => waitForControlsReady(panel));
   const data = await panel.evaluate((el) => {
     const radios = [...el.querySelectorAll("input[name='modulewidth']")].map((r) => ({
       value: r.value, label: (r.closest('label')?.innerText || '').trim(), checked: r.checked }));
@@ -202,7 +207,7 @@ export async function setModuleWidth(canvas, { preset, custom }) {
 export async function saveWidthPanel(canvas) {
   const panel = canvas.locator(`${RAIL.widthPanel}:visible`).first();
   const save = panel.getByText('保存', { exact: true }).first();
-  await save.click({ timeout: TIMEOUT });
+  await saveAndWait(panel.page(), () => save.click({ timeout: TIMEOUT }));
 }
 
 export async function cancelWidthPanel(canvas) {

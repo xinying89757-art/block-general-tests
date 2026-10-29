@@ -1,0 +1,95 @@
+{
+  "at": "2026-10-28T09:23:54.388Z",
+  "site": "http://en-site40083596.ldyjz.com",
+  "steps": {
+    "checkedAfterDomClick": [
+      {
+        "label": "多选4-10",
+        "checked": true
+      },
+      {
+        "label": "多选8-10",
+        "checked": false
+      }
+    ],
+    "saveClick": {
+      "found": 1,
+      "tag": "A",
+      "cls": "topBts_menu_save"
+    },
+    "afterSaveClick": {
+      "hasRepeatConfirm": true,
+      "dialogPresent": 1
+    },
+    "reqs": [
+      {
+        "at": "2026-10-28T09:25:32.266Z",
+        "method": "GET",
+        "url": "https://website.leadong.com/prod/doUpdate/verify?_=1793179532263&prodId=NmKqGFoHbPJy",
+        "len": 0,
+        "hasOption": false
+      },
+      {
+        "at": "2026-10-28T09:25:32.554Z",
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/",
+        "len": 68,
+        "hasOption": false
+      },
+      {
+        "at": "2026-10-28T09:25:32.563Z",
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/",
+        "len": 88,
+        "hasOption": false
+      },
+      {
+        "at": "2026-10-28T09:25:32.628Z",
+        "method": "GET",
+        "url": "https://website.leadong.com/assets/images/prod_new_editor_course1.png",
+        "len": 0,
+        "hasOption": false
+      },
+      {
+        "at": "2026-10-28T09:25:32.628Z",
+        "method": "GET",
+        "url": "https://website.leadong.com/assets/images/prod_new_editor_course2.png",
+        "len": 0,
+        "hasOption": false
+      },
+      {
+        "at": "2026-10-28T09:25:32.631Z",
+        "method": "GET",
+        "url": "https://website.leadong.com/assets/images/prod_new_editor_course3.png",
+        "len": 0,
+        "hasOption": false
+      },
+      {
+        "at": "2026-10-28T09:25:32.988Z",
+        "responseFor": "https://website.leadong.com/prod/doUpdate/verify?_=1793179532263&prodId=NmKqGFoHbPJy",
+        "status": 200,
+        "body": "{}"
+      },
+      {
+        "at": "2026-10-28T09:25:33.173Z",
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/similarityJudge",
+        "len": 479,
+        "hasOption": false
+      },
+      {
+        "at": "2026-10-28T09:25:33.650Z",
+        "responseFor": "https://website.leadong.com/prod/similarityJudge",
+        "status": 200,
+        "body": "{\"code\":200,\"data\":null,\"message\":\"Title、Description\",\"sign\":\"\"}"
+      },
+      {
+        "at": "2026-10-28T09:25:43.152Z",
+        "method": "GET",
+        "url": "https://rrrorwxhqpjmll5m-static.leadongcdn.com/static/assets/blockEditor/script/prodBaseUnitDeep.js?t=1793116800003",
+        "len": 0,
+        "hasOption": false
+      }
+    ]
+  }
+}

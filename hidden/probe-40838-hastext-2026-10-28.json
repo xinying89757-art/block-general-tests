@@ -1,0 +1,40 @@
+{
+  "at": "2026-10-28T11:03:38.613Z",
+  "blockId": "40838",
+  "titleText": [
+    {
+      "innerText": "\"Series\"",
+      "textContent": "\" Series \"",
+      "html": "<div class=\"prodfield-left-fieldname\"> <span>Series</span> </div>"
+    },
+    {
+      "innerText": "\"Category\"",
+      "textContent": "\" Category \"",
+      "html": "<div class=\"prodfield-left-fieldname\"> <span>Category</span> </div>"
+    },
+    {
+      "innerText": "\"测试单选按钮A\"",
+      "textContent": "\" 测试单选按钮A \"",
+      "html": "<div class=\"prodfield-left-fieldname prodfieldLeftFieldname\"> <span prodfield-id=\"826554\">测试单选按钮A</span> </div>"
+    },
+    {
+      "innerText": "\"测试下拉列表\"",
+      "textContent": "\" 测试下拉列表 \"",
+      "html": "<div class=\"prodfield-left-fieldname prodfieldLeftFieldname\"> <span prodfield-id=\"826574\">测试下拉列表</span> </div>"
+    },
+    {
+      "innerText": "\"AUTOTEST-多选\"",
+      "textContent": "\" AUTOTEST-多选 \"",
+      "html": "<div class=\"prodfield-left-fieldname prodfieldLeftFieldname\"> <span prodfield-id=\"911698\">AUTOTEST-多选</span> </div>"
+    }
+  ],
+  "hasText": {
+    "string": 1,
+    "regexUnanchored": 1,
+    "regexStartAnchor": 0,
+    "regexEndAnchor": 0,
+    "regexBothAnchors": 0,
+    "regexBothAnchorsCaseInsensitive": 0
+  },
+  "restored": true
+}

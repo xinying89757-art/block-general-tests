@@ -1,6 +1,11 @@
 import { savePage } from '../editor.mjs';
+import { waitForControlsReady, retryTransient, saveAndWait, readBackWithRetry, uiWaitConfig } from '../ui-waits.mjs';
+export { readBackWithRetry } from '../ui-waits.mjs';
 
 export const TIMEOUT = 10_000;
+// Bare numeric IDs identify fields; e.g. 826554_1 identifies a value option.
+export const isFieldCheckbox = (item) => item.type === 'checkbox'
+  && /^\d+$/.test(item.value || '') && item.label !== '全选';
 export const blockSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 // Preview root: the data-appid wrap exists for every block. The LA class
 // (e.g. LA40838) is block-specific: 47748 has no LA class in preview, so
@@ -47,6 +52,42 @@ function persistenceExpected(id, evidence) {
   return `将${control}由“${from}”改为“${to}”后保存，重新打开应仍为“${to}”；恢复后应回到“${from}”。`;
 }
 const EXPECTED = {
+  'btn-text-backend': '保存测试文字后，画布中唯一的目标按钮应显示刚设置的完整文字。',
+  'btn-text-front': '保存测试文字后，临时预览中唯一的目标按钮应显示刚设置的完整文字。',
+  'btn-url-backend': '画布目标按钮的真实链接应为百度 https://www.baidu.com，打开方式应保持设置值。',
+  'btn-url-front': '临时预览目标按钮的真实地址或点击落地地址应为百度 https://www.baidu.com。',
+  'btn-target-backend': '目标按钮在取消新窗口时应使用当前页打开方式，勾选时应使用新窗口打开方式，地址应均为百度。',
+  'btn-target-front': '百度按钮取消新窗口时应在当前页打开，勾选时应新开页面；脚本按钮应点击核实地址及页面数量。',
+  'pcs-mode-backend': '画布在所有模式下应显示设置清单的全部分类；部分模式下应恰好显示所选的完整分类集合。',
+  'pcs-mode-front': '预览在所有模式下应显示设置清单的全部分类；部分模式下应恰好显示所选的完整分类集合。',
+  'pcs-categories-backend': '画布分类导航应与本次勾选的完整名称清单逐项一致，不得多出或缺少分类。',
+  'pcs-categories-front': '预览分类导航应与本次勾选的完整名称清单逐项一致，不得多出或缺少分类。',
+  'cff-fields-backend': '画布自定义筛选组应恰好包含本次勾选的全部字段，不得多出或缺少字段。',
+  'cff-fields-front': '预览自定义筛选组应恰好包含本次勾选的全部字段，不得多出或缺少字段。',
+  'cff-logic-front': '40838 交集应为测试产品A；并集应为测试产品A、测试产品小何1、测试产品小何2，不得迎合已知并集缺陷。',
+  'cff-trigger-front': '手动模式选值后应保持原产品集合，点搜索后应显示夹具结果；自动模式不点搜索也应显示同一夹具结果。',
+  'cff-scope-front': '当前分类与所有产品两种范围的筛选结果应分别等于各自独立夹具中的完整产品名单。',
+  'cff-jump-front': '选择另一筛选后跳转页并执行筛选后，临时预览应进入所选页面对应的已确认地址。',
+  'cff-background-backend': '画布筛选区域的背景色应等于本次设置的红绿蓝数值，恢复后应回到原颜色。',
+  'cff-background-front': '预览筛选区域的背景色应等于本次设置的红绿蓝数值，恢复后应回到原颜色。',
+  'pld-fields-backend': '画布每张产品卡应恰好展示本次勾选的完整字段集合，不能多出或缺少字段。',
+  'pld-fields-front': '预览每张产品卡应恰好展示本次勾选的完整字段集合，不能多出或缺少字段。',
+  'pld-source-category-backend': '来源只选测试分类后，画布列表应恰好显示画像中的七件上架产品，不显示下架或其他分类的产品。',
+  'pld-size-backend': '画布产品数应等于新设置的数量与可用产品数量中的较小值，并记录具体数量及完整产品名。',
+  'pld-size-front': '预览产品数应等于新设置的数量与可用产品数量中的较小值，并记录具体数量及完整产品名。',
+  'pld-pagination-backend': '有至少两件可用产品、每页设为一件时，画布分页选是应显示分页条，选否应隐藏分页条。',
+  'pld-pagination-front': '有至少两件可用产品、每页设为一件时，预览分页选是应显示分页条，选否应隐藏分页条。',
+  'pld-compare-backend': '关闭产品对比时画布每张产品卡都应没有对比入口，开启时每张产品卡都应有入口。',
+  'pld-compare-off-front': '关闭产品对比后，预览所有产品卡都应没有对比入口。',
+  'mw-width-backend': '画布依次设置 1200、1440、1600、1920 像素预设及自定义 1300 像素时，容器最大宽度应等于设置值；全屏时应无限制。',
+  'mw-width-front': '预览依次设置 1440、1600、1920 像素预设及自定义 1300 像素时，容器最大宽度应等于设置值；全屏时应无限制。',
+  'pld-source-all-backend': '来源设为“所有产品”后，画布完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
+  'pld-source-all-front': '来源设为“所有产品”后，预览完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
+  'pld-source-filter-backend': '来源设为“使用筛选条件”后，画布完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
+  'pld-source-filter-front': '来源设为“使用筛选条件”后，预览完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
+  'pld-source-products-backend': '来源设为“选择指定产品”后，画布完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
+  'pld-source-products-front': '来源设为“选择指定产品”后，预览完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
+
   'block-present': '预览内容中应存在目标区块容器。',
   'img-alt': '区块内每张图片都应带有 alt 属性。',
   'link-href': '区块内每个链接都应带有 href 属性。',
@@ -156,8 +197,12 @@ export function findControl(controls, target) {
 }
 
 export function controlSession(root, lifecycle) {
-  const read = (timeout = TIMEOUT) => root.evaluate(controlsSnapshot, undefined, { timeout });
+  const read = (timeout = uiWaitConfig().timeout) => retryTransient(async () => {
+    await waitForControlsReady(root, timeout);
+    return root.evaluate(controlsSnapshot, undefined, { timeout });
+  });
   const set = async (target, value) => {
+    await retryTransient(() => waitForControlsReady(root));
     await root.evaluate((node, { target, value }) => {
       const input = node.querySelectorAll('input, select, textarea')[target.index];
       const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
@@ -186,7 +231,13 @@ export function controlSession(root, lifecycle) {
     });
     if (!settled.matched) throw new Error('切换后控件值未达到预期');
   };
-  return { root, read, set, ...lifecycle };
+  return { root, read, set, ...lifecycle,
+    open: () => retryTransient(async () => {
+      await lifecycle.open();
+      await waitForControlsReady(root);
+    }),
+    save: () => saveAndWait(root.page(), () => lifecycle.save()),
+  };
 }
 
 export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0 }) {
@@ -201,7 +252,7 @@ export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0
   };
   const close = async (text) => {
     await root.locator('.backstage-dialog-bottom').getByText(text, { exact: true }).click({ timeout: TIMEOUT });
-    await root.waitFor({ state: 'hidden', timeout: TIMEOUT });
+    await retryTransient(() => root.waitFor({ state: 'hidden', timeout: uiWaitConfig().saveTimeout }));
   };
   // The dismiss button is 取消 in most dialogs but 关闭 in 47748's
   // 设置与选取数据 dialog. Try both, in that order.
@@ -259,8 +310,15 @@ export async function radioGroupPersist({ session, page, name, labels }) {
   return outcome;
 }
 
-export async function probeControls(session) {
-  try { await session.open(); return { controls: await session.read() }; }
+export async function probeControls(session, accepts) {
+  try {
+    await session.open();
+    const controls = accepts
+      ? await readBackWithRetry(() => session.read(), accepts,
+        async () => { await session.cancel(); await session.open(); })
+      : await session.read();
+    return { controls };
+  }
   catch (error) { return { reason: `控件探查不可用：${error.message}` }; }
 }
 
@@ -280,7 +338,10 @@ export async function persistControl({ session, page, target, alternate, afterSw
     await session.save();
     stage = '重开回读翻转状态';
     await session.open();
-    const actual = findControl(await session.read(), target);
+    const actual = await readBackWithRetry(
+      async () => findControl(await session.read(), target),
+      (control) => control && controlValue(control) === alternate,
+      async () => { await session.cancel(); await session.open(); });
     evidence.afterSave = actual ? controlValue(actual) : null;
     if (!actual || evidence.afterSave !== alternate) throw new Error('保存后值不符合预期');
     if (afterSwitch) {
@@ -300,7 +361,10 @@ export async function persistControl({ session, page, target, alternate, afterSw
       await session.save();
       stage = '重开断言恢复';
       await session.open();
-      const restored = findControl(await session.read(), target);
+      const restored = await readBackWithRetry(
+        async () => findControl(await session.read(), target),
+        (control) => control && controlValue(control) === evidence.original,
+        async () => { await session.cancel(); await session.open(); });
       evidence.restored = restored ? controlValue(restored) : null;
       if (!restored || evidence.restored !== evidence.original) throw new Error('未恢复原值');
     } catch (error) { errors.push(`${stage}失败：${error.message}`); }

@@ -1,0 +1,96 @@
+{
+  "at": "2026-10-28T09:55:24.042Z",
+  "site": "http://en-site40083596.ldyjz.com",
+  "steps": {
+    "before": {
+      "AUTOTEST-多选": []
+    },
+    "checked": true,
+    "wrapped": {
+      "prodSubmit": true,
+      "getFieldSetting": true,
+      "doSaveProdContent": true,
+      "SMT.ajax": true,
+      "SMT.func": true,
+      "openPopupConfirmLayer": true
+    },
+    "probeLog": [
+      {
+        "at": "2026-10-28T09:56:24.453Z",
+        "name": "SMT.func",
+        "extra": "func"
+      },
+      {
+        "at": "2026-10-28T09:56:24.454Z",
+        "name": "SMT.ajax",
+        "extra": "/prod/doUpdate/verify"
+      },
+      {
+        "at": "2026-10-28T09:56:25.105Z",
+        "name": "SMT.func",
+        "extra": "func"
+      },
+      {
+        "at": "2026-10-28T09:56:25.106Z",
+        "name": "prodSubmit",
+        "extra": ""
+      },
+      {
+        "at": "2026-10-28T09:56:25.144Z",
+        "name": "getFieldSetting",
+        "extra": ""
+      },
+      {
+        "at": "2026-10-28T09:56:25.164Z",
+        "name": "SMT.ajax",
+        "extra": "/prod/similarityJudge"
+      },
+      {
+        "at": "2026-10-28T09:56:26.402Z",
+        "name": "openPopupConfirmLayer",
+        "extra": "重复确认 | Title、Description和已有产品相同不利于搜索引擎优化，确认提交？"
+      }
+    ],
+    "dialog": [
+      {
+        "id": "popupLayerScreenLocker",
+        "text": ""
+      },
+      {
+        "id": "popupLayer_sysConfirmPop",
+        "text": "重复确认 Title、Description和已有产品相同不利于搜索引擎优化，确认提交？ 确定 取消"
+      },
+      {
+        "id": "popWin",
+        "text": "重复确认 Title、Description和已有产品相同不利于搜索引擎优化，确认提交？ 确定 取消"
+      }
+    ],
+    "reqs": [
+      {
+        "at": "2026-10-28T09:56:24.463Z",
+        "method": "GET",
+        "url": "https://website.leadong.com/prod/doUpdate/verify?_=1793181384454&prodId=NmKqGFoHbPJy"
+      },
+      {
+        "at": "2026-10-28T09:56:25.097Z",
+        "responseFor": "https://website.leadong.com/prod/doUpdate/verify?_=1793181384454&prodId=NmKqGFoHbPJy",
+        "status": 200,
+        "body": "{}"
+      },
+      {
+        "at": "2026-10-28T09:56:25.180Z",
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/similarityJudge"
+      },
+      {
+        "at": "2026-10-28T09:56:26.377Z",
+        "responseFor": "https://website.leadong.com/prod/similarityJudge",
+        "status": 200,
+        "body": "{\"code\":200,\"data\":null,\"message\":\"Title、Description\",\"sign\":\"\"}"
+      }
+    ],
+    "after": {
+      "AUTOTEST-多选": []
+    }
+  }
+}

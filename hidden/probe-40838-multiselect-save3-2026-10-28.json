@@ -1,0 +1,72 @@
+{
+  "at": "2026-10-28T08:43:37.179Z",
+  "site": "http://en-site40083596.ldyjz.com",
+  "steps": {
+    "watch_0.5s": {
+      "hasRepeatConfirm": false,
+      "dialog": []
+    },
+    "watch_1.0s": {
+      "hasRepeatConfirm": true,
+      "dialog": []
+    },
+    "confirmClickedAt": "1.5s",
+    "traffic": [
+      {
+        "status": 200,
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/new/update"
+      },
+      {
+        "status": 200,
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/searchKeyword"
+      },
+      {
+        "status": 200,
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/new/relatedArticleList/"
+      },
+      {
+        "status": 200,
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/new/relatedProdList/"
+      },
+      {
+        "status": 200,
+        "url": "https://website.leadong.com/prod/doUpdate/verify?_=1793177067837&prodId=ENULQuzRFljy",
+        "body": "{}"
+      },
+      {
+        "status": 200,
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/similarityJudge"
+      },
+      {
+        "status": 200,
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/new/update"
+      },
+      {
+        "status": 200,
+        "method": "POST",
+        "url": "https://website.leadong.com/prod/searchKeyword"
+      }
+    ],
+    "consoleErrors": [],
+    "afterSave": {
+      "url": "https://website.leadong.com/prod?invokeAction=prod_new_update&prodId=ENULQuzRFljy",
+      "hasRepeatConfirm": true
+    },
+    "reread": [
+      {
+        "label": "多选4-10",
+        "checked": false
+      },
+      {
+        "label": "多选8-10",
+        "checked": false
+      }
+    ]
+  }
+}

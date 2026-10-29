@@ -1,0 +1,1271 @@
+{
+  "blockId": "47748",
+  "steps": {
+    "prod-home": {
+      "url": "https://website.leadong.com/prod",
+      "title": "领动云营销平台",
+      "text": "产品 管理产品 添加产品 产品排序 管理产品分类 产品分类排序 添加产品分类 管理自定义字段 产品标签 SKU状态 设置产品图片水印 产品回收站 管理产品 添加产品 批量导入 产品导出 搜索： 上架状态： 分类： 请选择产品分类 更新时间： 负责人： 产品标签： SKU状态： 页面URL: 查询 重置 批量设置 标签设置 分类设置 删除 下载产品链接二维码 分配负责人 批量编辑 产品图片 产品名称 型号 产品价格 SKU 产品分类 添加时间 更新时间 负责人 上架 标签 操作 产品faq - 款式 Ungrouped 2026-10-13 14:10:47 2026-10-13 14:10:47 徐继迎 PN:122521XXXNXXSXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:53:38 2026-08-27 19:51:44 王佳颖 PN:122521XXXNXXMXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:53:34 2026-08-24 15:38:57 王佳颖 PN:122521XXXNXXRXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:53:41 2026-07-15 14:33:36 王佳颖 PN:122521XXXNXXUXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:53:46 2026-07-15 14:33:36 王佳颖 PN:122521XXXNXXRXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:53:49 2026-07-15 14:33:36 王佳颖 PN:122511XXXNXXSXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:53:53 2026-07-15 14:33:36 王佳颖 PN:122511XXXNXXSXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:53:57 2026-07-15 14:33:36 王佳颖 PN:122511XXXNXXRXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:01 2026-07-15 14:33:36 王佳颖 PN:122511XXXNXXRXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:05 2026-07-15 14:33:36 王佳颖 PN:122511XXXNXXMXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:09 2026-07-15 14:33:36 王佳颖 PN:122511XXXNXXUXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:13 2026-07-15 14:33:36 王佳颖 PN:122511XXXNXXZXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:17 2026-07-15 14:33:36 王佳颖 PN:122513XXXNXXUXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:21 2026-07-15 14:33:36 王佳颖 PN:122511XXXWXXZXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:25 2026-07-15 14:33:36 王佳颖 PN:123021XXXNXXSXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:30 2026-07-15 14:33:36 王佳颖 PN:123011XXXNXXSXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:34 2026-07-15 14:33:36 王佳颖 PN:123011XXXNXXRXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:38 2026-07-15 14:33:36 王佳颖 PN:123011XXXNXXRXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:42 2026-07-15 14:33:36 王佳颖 PN:123011XXXNXXMXXXXXX - 款式 2.54mm Pitch 更多(8) 2026-03-27 09:54:46 2026-07-15 14:33:36 王佳颖 确认 1 2 3 4 5 ... 共34页 到第 页 共 679 条记录 每页显示 20 30 50 100 十月, 2026 一 二 三 四 五 六 日 28 29 30 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 1",
+      "buttons": [
+        {
+          "tag": "A",
+          "text": "管理产品",
+          "action": "prod_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "添加产品",
+          "action": "prod_new_add",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品排序",
+          "action": "prod_new_sort",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "管理产品分类",
+          "action": "prod_group_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品分类排序",
+          "action": "prod_group_sort",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "添加产品分类",
+          "action": "prod_group_add",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "管理自定义字段",
+          "action": "prod_field_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品标签",
+          "action": "prod_label_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "SKU状态",
+          "action": "prod_sku_state_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "设置产品图片水印",
+          "action": "prod_watermark",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品回收站",
+          "action": "prod_recycle_bin",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "添加产品",
+          "action": "prod_new_add",
+          "href": "javascript:;"
+        },
+        {
+          "tag": "A",
+          "text": "批量导入",
+          "action": "prod_import_pop",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品导出",
+          "action": "prod_export_pop",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "请选择产品分类",
+          "action": "dropdown_classification_prod_new",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "查询",
+          "action": "search_prod_new",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "重置",
+          "action": "reset_search_prod_new",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "批量设置",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "标签设置",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "分类设置",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_delete",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "下载产品链接二维码",
+          "action": "prod_download_qrcode",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "分配负责人",
+          "action": "prod_assignOwner_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "批量编辑",
+          "action": "prod_batchEdit_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品名称",
+          "action": "prod_list_sub",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "型号",
+          "action": "prod_list_sub",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品价格",
+          "action": "prod_list_sub",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "添加时间",
+          "action": "prod_list_sub",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更新时间",
+          "action": "prod_list_sub",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "上架",
+          "action": "prod_list_sub",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品faq",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=ydKBQSOAtVnI"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122521XXXNXXSXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=nPUVbFMWjhDn"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122521XXXNXXMXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=pIfqluChtWMy"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122521XXXNXXRXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=oupVbkChOWZn"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122521XXXNXXUXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=rHKVlaCrZhky"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122521XXXNXXRXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=nWpVlFrCEhbS"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122511XXXNXXSXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=qtKVGFCMOhwn"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122511XXXNXXSXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=rEKgbFWhZrSI"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122511XXXNXXRXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=pLKBlkMrEhoy"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122511XXXNXXRXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=hqUBvkrhOsfd"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122511XXXNXXMXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=pIpqQPCWZsgS"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122511XXXNXXUXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=pmpqvPCMjiWn"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122511XXXNXXZXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=ryKLGPCWZNDS"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122513XXXNXXUXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=nNpBbkMrZDty"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:122511XXXWXXZXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=qPKVburCjiFS"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:123021XXXNXXSXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=rFKLbarhEiQy"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:123011XXXNXXSXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=pCKqQuWMEYHS"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:123011XXXNXXRXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=riKLbaWhjYIy"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:123011XXXNXXRXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=zoKqlaCWEsJI"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "PN:123011XXXNXXMXXXXXX",
+          "action": "prod_new_update",
+          "href": "/prod?invokeAction=prod_new_update&prodId=qTpVGurWZEAy"
+        },
+        {
+          "tag": "A",
+          "text": "款式",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "更多(8)",
+          "action": "prod_fullGroupName",
+          "href": "javascript:void(0);"
+        },
+        {
+          "tag": "A",
+          "text": "确认",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "2",
+          "action": "",
+          "href": "javascript:SMT.jumpPage('2','prod_list_sub')"
+        },
+        {
+          "tag": "A",
+          "text": "3",
+          "action": "",
+          "href": "javascript:SMT.jumpPage('3','prod_list_sub')"
+        },
+        {
+          "tag": "A",
+          "text": "4",
+          "action": "",
+          "href": "javascript:SMT.jumpPage('4','prod_list_sub')"
+        },
+        {
+          "tag": "A",
+          "text": "5",
+          "action": "",
+          "href": "javascript:SMT.jumpPage('5','prod_list_sub')"
+        },
+        {
+          "tag": "A",
+          "text": "20",
+          "action": "prod_setPageSize",
+          "href": "javaScript:;"
+        },
+        {
+          "tag": "A",
+          "text": "30",
+          "action": "prod_setPageSize",
+          "href": "javaScript:;"
+        },
+        {
+          "tag": "A",
+          "text": "50",
+          "action": "prod_setPageSize",
+          "href": "javaScript:;"
+        },
+        {
+          "tag": "A",
+          "text": "100",
+          "action": "prod_setPageSize",
+          "href": "javaScript:;"
+        }
+      ]
+    },
+    "field-mgmt": {
+      "url": "https://website.leadong.com/prod",
+      "title": "领动云营销平台",
+      "text": "产品 管理产品 添加产品 产品排序 管理产品分类 产品分类排序 添加产品分类 管理自定义字段 产品标签 SKU状态 设置产品图片水印 产品回收站 管理自定义字段 添加自定义字段 字段名称 类型 状态： 操作 图纸 下载文件 开启 编辑 删除 下移 测试多选 文本字段 开启 编辑 删除 上移 下移 正式版测试多选 文本字段 开启 编辑 删除 上移 下移 Series 下拉列表 关闭 编辑 删除 上移 下移 Model 下拉列表 关闭 编辑 删除 上移 下移 Category 下拉列表 开启 编辑 删除 上移 下移 Rated Current 下拉列表 开启 编辑 删除 上移 下移 Installation Method 下拉列表 开启 编辑 删除 上移 下移 Spacing 下拉列表 开启 编辑 删除 上移 下移 Rated voltage 下拉列表 开启 编辑 删除 上移 十月, 2026 一 二 三 四 五 六 日 28 29 30 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 1",
+      "buttons": [
+        {
+          "tag": "A",
+          "text": "管理产品",
+          "action": "prod_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "添加产品",
+          "action": "prod_new_add",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品排序",
+          "action": "prod_new_sort",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "管理产品分类",
+          "action": "prod_group_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品分类排序",
+          "action": "prod_group_sort",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "添加产品分类",
+          "action": "prod_group_add",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "管理自定义字段",
+          "action": "prod_field_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品标签",
+          "action": "prod_label_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "SKU状态",
+          "action": "prod_sku_state_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "设置产品图片水印",
+          "action": "prod_watermark",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品回收站",
+          "action": "prod_recycle_bin",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "添加自定义字段",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "编辑",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_field_delete_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "下移",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "编辑",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_field_delete_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "上移",
+          "action": "prod_field_shiftUp",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "下移",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "编辑",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_field_delete_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "上移",
+          "action": "prod_field_shiftUp",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "下移",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "编辑",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_field_delete_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "上移",
+          "action": "prod_field_shiftUp",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "下移",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "编辑",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_field_delete_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "上移",
+          "action": "prod_field_shiftUp",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "下移",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "编辑",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_field_delete_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "上移",
+          "action": "prod_field_shiftUp",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "下移",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "编辑",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_field_delete_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "上移",
+          "action": "prod_field_shiftUp",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "下移",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "编辑",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_field_delete_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "上移",
+          "action": "prod_field_shiftUp",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "下移",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "编辑",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_field_delete_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "上移",
+          "action": "prod_field_shiftUp",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "下移",
+          "action": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "编辑",
+          "action": "prod_field_edit",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "删除",
+          "action": "prod_field_delete_func",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "上移",
+          "action": "prod_field_shiftUp",
+          "href": "javascript:void(0)"
+        }
+      ]
+    },
+    "add-field-form": {
+      "url": "https://website.leadong.com/prod",
+      "title": "领动云营销平台",
+      "text": "产品 管理产品 添加产品 产品排序 管理产品分类 产品分类排序 添加产品分类 管理自定义字段 产品标签 SKU状态 设置产品图片水印 产品回收站 编辑自定义字段 * 字段名称 * 状态： 开启 关闭 类型 文本字段 单选按钮 下拉列表 多选按钮 色卡 下载文件 文本域 保存 取消 十月, 2026 一 二 三 四 五 六 日 28 29 30 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 1",
+      "buttons": [
+        {
+          "tag": "A",
+          "text": "管理产品",
+          "action": "prod_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "添加产品",
+          "action": "prod_new_add",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品排序",
+          "action": "prod_new_sort",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "管理产品分类",
+          "action": "prod_group_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品分类排序",
+          "action": "prod_group_sort",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "添加产品分类",
+          "action": "prod_group_add",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "管理自定义字段",
+          "action": "prod_field_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品标签",
+          "action": "prod_label_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "SKU状态",
+          "action": "prod_sku_state_list",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "设置产品图片水印",
+          "action": "prod_watermark",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "产品回收站",
+          "action": "prod_recycle_bin",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "保存",
+          "action": "saveFieldContent",
+          "href": "javascript:void(0)"
+        },
+        {
+          "tag": "A",
+          "text": "取消",
+          "action": "prod_field_list",
+          "href": "javascript:void(0)"
+        }
+      ]
+    }
+  },
+  "existingFields": {
+    "tableRows": [
+      [
+        "状态标签：",
+        ""
+      ],
+      [
+        "状态信息：",
+        ""
+      ],
+      [
+        "字段名称",
+        "类型",
+        "状态：",
+        "操作"
+      ],
+      [
+        "图纸",
+        "下载文件",
+        "开启",
+        "编辑 删除 下移"
+      ],
+      [
+        "测试多选",
+        "文本字段",
+        "开启",
+        "编辑 删除 上移 下移"
+      ],
+      [
+        "正式版测试多选",
+        "文本字段",
+        "开启",
+        "编辑 删除 上移 下移"
+      ],
+      [
+        "Series",
+        "下拉列表",
+        "关闭",
+        "编辑 删除 上移 下移"
+      ],
+      [
+        "Model",
+        "下拉列表",
+        "关闭",
+        "编辑 删除 上移 下移"
+      ],
+      [
+        "Category",
+        "下拉列表",
+        "开启",
+        "编辑 删除 上移 下移"
+      ],
+      [
+        "Rated Current",
+        "下拉列表",
+        "开启",
+        "编辑 删除 上移 下移"
+      ],
+      [
+        "Installation Method",
+        "下拉列表",
+        "开启",
+        "编辑 删除 上移 下移"
+      ],
+      [
+        "Spacing",
+        "下拉列表",
+        "开启",
+        "编辑 删除 上移 下移"
+      ],
+      [
+        "Rated voltage",
+        "下拉列表",
+        "开启",
+        "编辑 删除 上移"
+      ]
+    ],
+    "listItems": [
+      "管理产品",
+      "添加产品",
+      "产品排序",
+      "管理产品分类",
+      "产品分类排序",
+      "添加产品分类",
+      "管理自定义字段",
+      "产品标签",
+      "SKU状态",
+      "设置产品图片水印",
+      "产品回收站"
+    ]
+  },
+  "addForm": {
+    "inputs": [
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "pageSize",
+        "id": "pageSize",
+        "placeholder": "",
+        "label": "",
+        "value": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "",
+        "id": "isHasAuthKeyword",
+        "placeholder": "",
+        "label": "",
+        "value": "true"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "selectId",
+        "id": "",
+        "placeholder": "",
+        "label": "",
+        "value": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "avatar_src",
+        "id": "",
+        "placeholder": "",
+        "label": "X",
+        "value": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "avatar_data",
+        "id": "",
+        "placeholder": "",
+        "label": "X",
+        "value": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "isOpenProdWm",
+        "id": "",
+        "placeholder": "",
+        "label": "",
+        "value": "0"
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "name": "field.fieldName",
+        "id": "",
+        "placeholder": "",
+        "label": "",
+        "value": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "field.fieldStatus",
+        "id": "fieldStatus1",
+        "placeholder": "",
+        "label": "开启",
+        "value": "1"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "field.fieldStatus",
+        "id": "fieldStatus0",
+        "placeholder": "",
+        "label": "关闭",
+        "value": "0"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "field.fieldType",
+        "id": "",
+        "placeholder": "",
+        "label": "文本字段",
+        "value": "0"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "field.fieldType",
+        "id": "",
+        "placeholder": "",
+        "label": "单选按钮",
+        "value": "1"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "field.fieldType",
+        "id": "",
+        "placeholder": "",
+        "label": "下拉列表",
+        "value": "2"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "field.fieldType",
+        "id": "",
+        "placeholder": "",
+        "label": "多选按钮",
+        "value": "3"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "field.fieldType",
+        "id": "",
+        "placeholder": "",
+        "label": "色卡",
+        "value": "4"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "field.fieldType",
+        "id": "",
+        "placeholder": "",
+        "label": "下载文件",
+        "value": "5"
+      },
+      {
+        "tag": "INPUT",
+        "type": "radio",
+        "name": "field.fieldType",
+        "id": "",
+        "placeholder": "",
+        "label": "文本域",
+        "value": "8"
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "field.fieldOptionJson",
+        "id": "submitFieldOptionJson",
+        "placeholder": "",
+        "label": "开启",
+        "value": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "field.encodePkId",
+        "id": "",
+        "placeholder": "",
+        "label": "开启",
+        "value": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "field.isDefaultSet",
+        "id": "isDefaultSet",
+        "placeholder": "",
+        "label": "开启",
+        "value": ""
+      },
+      {
+        "tag": "INPUT",
+        "type": "hidden",
+        "name": "prodId",
+        "id": "prodIds",
+        "placeholder": "",
+        "label": "",
+        "value": ""
+      }
+    ],
+    "dialogText": "产品 管理产品 添加产品 产品排序 管理产品分类 产品分类排序 添加产品分类 管理自定义字段 产品标签 SKU状态 设置产品图片水印 产品回收站 编辑自定义字段 * 字段名称 * 状态： 开启 关闭 类型 文本字段 单选按钮 下拉列表 多选按钮 色卡 下载文件 文本域 保存 取消 十月, 2026 一 二 三 四 五 六 日 28 29 30 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 1"
+  },
+  "afterCancel": {
+    "url": "https://website.leadong.com/prod"
+  }
+}

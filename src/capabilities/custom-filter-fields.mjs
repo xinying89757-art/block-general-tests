@@ -1,5 +1,8 @@
+import { effectCheck, unavailable, readEffectRoot, sameSet, sentenceList, productSnapshot } from './effect-checks.mjs';
+import { blockSelector } from './shared.mjs';
+import { normalizeColor } from './rail.mjs';
 import { savePage, openPreview } from '../editor.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText, readBackWithRetry, isFieldCheckbox } from './shared.mjs';
 
 // Editor/dialog selectors: docs/SETTINGS_INVENTORY_40838.md,
 // scripts/probe-settings8.mjs and probe-settings10/12.mjs (control label context).
@@ -49,8 +52,10 @@ const NAMES = {
 };
 
 function result(id, status, detail, evidence, textFields = {}) {
-  return { id, name: NAMES[id], status, detail, suite: SUITE,
-    ...checkReportText(NAMES[id], status, detail, evidence, id), ...textFields,
+  const name = NAMES[id] || (id.startsWith('cff-oracle-single-') ? `${NAMES['cff-oracle-single']} ${id.split('-').at(-1)}`
+    : id.startsWith('cff-oracle-intersect-') ? `${NAMES['cff-oracle-intersect-pair']} ${id.split('-').slice(-2).join('、')}` : id);
+  return { id, name, status, detail, suite: SUITE,
+    ...checkReportText(name, status, detail, evidence, id), ...textFields,
     ...(evidence === undefined ? {} : { evidence }) };
 }
 
@@ -64,6 +69,8 @@ const fromOutcome = (id, outcome) => result(id, outcome.status, outcome.detail, 
 async function persistSpectrumColor({ session, page, original, alternate }) {
   const evidence = { original, alternate, strategy: null };
   const read = () => session.root.locator('#customOnBgColor').inputValue({ timeout: TIMEOUT });
+  const readBack = (expected) => readBackWithRetry(read, (value) => value === expected,
+    async () => { await session.cancel(); await session.open(); });
   const set = async (value) => {
     let apiError = '';
     try {
@@ -105,7 +112,7 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
     await session.save();
     stage = '重开回读翻转状态';
     await session.open();
-    evidence.afterSave = await read();
+    evidence.afterSave = await readBack(alternate);
     if (evidence.afterSave !== alternate) throw new Error('保存重开后背景颜色未改变');
   } catch (error) {
     if (stage === '设置背景颜色' && error.message.includes('Spectrum API 失败')) {
@@ -125,7 +132,7 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
         await session.save();
         stage = '重开断言恢复';
         await session.open();
-        evidence.restored = await read();
+        evidence.restored = await readBack(original);
         if (evidence.restored !== original) throw new Error('未恢复原值');
       } catch (error) { errors.push(`${stage}失败：${error.message}`); }
     } else if (!errors.length) {
@@ -139,7 +146,7 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
         await session.save();
         stage = '重开断言恢复';
         await session.open();
-        evidence.restored = await read();
+        evidence.restored = await readBack(original);
         if (evidence.restored !== original) throw new Error('未恢复原值');
       } catch (error) { errors.push(`${stage}失败：${error.message}`); }
     }
@@ -184,7 +191,7 @@ async function scopeBaseline(page, context, config) {
   });
 }
 
-export async function runSettingsLayer({ page, canvas, context, config, capability }) {
+export async function runSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
   const checks = [];
   const session = widgetSession({ page, canvas, config,
     type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
@@ -192,13 +199,14 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   if (initial.reason) {
     let detail = `无法打开筛选设置弹窗：${initial.reason}`;
     try { await session.cancel(); } catch (error) { detail += `；取消失败：${error.message}`; }
-    return SETTINGS_IDS.map((id) => result(id, 'skip', detail));
+    const skipped = SETTINGS_IDS.map((id) => result(id, 'skip', detail));
+    if (profile?.fixture) skipped.push(...oldInteractionSkips(), ...await fixtureOracleChecks({ page, canvas, context, config, capability, profile, report }, detail));
+    return skipped;
   }
   // Fields are the checkboxes whose value is the bare numeric field id.
   // Value sub-options (value like 826554_1, shown under single/dropdown
   // fields in 47748) are not fields; counting them inflated 47748 to 60.
-  const fields = initial.controls.filter((item) => item.type === 'checkbox'
-    && /^\d+$/.test(item.value || '') && item.label !== '全选');
+  const fields = initial.controls.filter(isFieldCheckbox);
   const radios = initial.controls.filter((item) => item.type === 'radio');
   const state = Object.fromEntries(TEXT.radioGroups.map(({ name, prefixes }) => {
     const selected = radios.filter((radio) => radio.checked && prefixes.some((prefix) => radio.label.startsWith(prefix)));
@@ -329,6 +337,10 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       if (last) { last.status = 'fail'; last.detail += `；最终取消退出失败：${error.message}`; }
     }
   }
+  const args = { page, canvas, context, config, capability, profile, report };
+  checks.push(await filterFieldsEffect(args, 'front'), await backgroundEffect(args, 'front'));
+  if (profile?.fixture) checks.push(...oldInteractionSkips(), ...await fixtureOracleChecks(args));
+  else for (const kind of ['logic', 'trigger', 'scope', 'jump']) checks.push(await filterInteractionEffect(args, kind));
   return checks;
 }
 
@@ -444,5 +456,375 @@ export async function runFrontLayer({ frame, config }) {
   } catch (error) {
     checks.push(result('cff-clear-restore', 'fail', `清除恢复检查失败：${error.message}`));
   }
+  return checks;
+}
+
+Object.assign(NAMES, {
+  'cff-fields-backend': '画布自定义筛选组完整集合',
+  'cff-fields-front': '预览自定义筛选组完整集合',
+  'cff-logic-front': '交集与并集的精确产品集合',
+  'cff-trigger-front': '手动与自动筛选的触发行为',
+  'cff-scope-front': '当前分类与所有产品的范围结果',
+  'cff-jump-front': '执行筛选后的落地页面',
+  'cff-background-backend': '筛选背景颜色在画布生效',
+  'cff-background-front': '筛选背景颜色在预览生效',
+});
+const filterFields = (controls) => controls.filter(isFieldCheckbox);
+
+// Fallback for 40838 profiles without fixture. These
+// values are the USER-CONFIRMED fixture in docs/FILTER_TEST_DATA.md, not
+// expectations inferred from UI results. In particular do not weaken union.
+const CONFIRMED_40838 = {
+  fields: [{ title: '测试单选按钮A', value: '单选4-10' }, { title: '测试下拉列表', value: '下拉列表4-10' }],
+  single: ['测试产品A', '测试产品小何1'], intersection: ['测试产品A'],
+  union: ['测试产品A', '测试产品小何1', '测试产品小何2'],
+};
+function filterOracle(args) {
+  return args.capability?.oracle?.fields ? args.capability.oracle
+    : String(args.config.blockId) === '40838' ? CONFIRMED_40838 : null;
+}
+function groupSnapshot(root) {
+  const titles = [...root.querySelectorAll('.prodfield-left-fieldname, .pf-field-title')]
+    .map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+  return titles;
+}
+async function filterFieldsEffect(args, layer) {
+  const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
+  return effectCheck({ ...args, session, result, id: `cff-fields-${layer}`, layer, run: async (tx) => {
+    const fields = filterFields(await tx.controls());
+    if (!fields.length) unavailable('本区块没有自定义字段勾选设置项。', 'na');
+    const editable = fields.filter((item) => !item.disabled);
+    if (!editable.length) unavailable('当前没有可以改写的字段。');
+    const selected = editable.slice(0, Math.min(3, editable.length));
+    // Toggle the collection if the first three happen to be the baseline.
+    if (sameSet(fields.filter((item) => item.checked).map((item) => item.value), selected.map((item) => item.value))) selected.pop();
+    const wanted = fields.filter((item) => item.disabled ? item.checked : selected.includes(item)).map((item) => item.label);
+    tx.expected(`自定义筛选组应恰好为 ${wanted.length} 个：${sentenceList(wanted)}；不能多出或少掉字段。`);
+    for (const item of editable) await tx.set(item, wanted.includes(item.label));
+    await tx.save();
+    const titles = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, groupSnapshot)
+      : await tx.observe((frame) => readEffectRoot(frame, args.config, groupSnapshot));
+    if (!titles.length) unavailable('该层没有渲染筛选组标题，完整字段集合暂时不可观察。');
+    // Series/Category are the two built-in 40838 category groups, not custom
+    // field toggles. Unknown group titles remain in actual and therefore fail.
+    const builtin = String(args.config.blockId) === '40838' ? ['Series', 'Category'] : [];
+    const actual = titles.filter((title) => !builtin.includes(title) || fields.some((item) => item.label === title));
+    tx.evidence.groups = { titles, excludedBuiltins: builtin, wanted, actual };
+    tx.assert(sameSet(actual, wanted), `自定义筛选组实际为 ${sentenceList(actual)}，应恰好为 ${sentenceList(wanted)}；内置分类组另行记录，不计作自定义字段。`);
+  } });
+}
+
+async function setFilterColor(session, page, color) {
+  const input = session.root.locator('#customOnBgColor');
+  const used = await input.evaluate((node, value) => {
+    const win = node.ownerDocument.defaultView, jq = win.jQuery || win.$;
+    if (typeof jq?.fn?.spectrum !== 'function') return false;
+    jq(node).spectrum('set', value); jq(node).trigger('change'); return true;
+  }, color);
+  if (!used) {
+    const replacer = session.root.locator('li.settings-btn-item').filter({ has: input }).locator('.sp-replacer');
+    if (await replacer.count() !== 1) unavailable('背景色取色面板无法唯一定位。');
+    await replacer.click({ timeout: TIMEOUT });
+    const popup = page.locator('.sp-container:visible');
+    if (await popup.count() !== 1) unavailable('当前取色弹窗不唯一。');
+    await popup.locator('.sp-input').fill(color);
+    await popup.locator('.sp-choose').click();
+  }
+  if (normalizeColor(await input.inputValue()) !== normalizeColor(color)) throw new Error('背景色改写后读值不一致');
+}
+function filterBackground(root) {
+  let nodes = [...root.querySelectorAll('.prodfield-form')];
+  if (!nodes.length) nodes = [...root.querySelectorAll('.pf-filter-wrap')];
+  return nodes.length === 1 ? getComputedStyle(nodes[0]).backgroundColor : null;
+}
+async function backgroundEffect(args, layer) {
+  const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
+  return effectCheck({ ...args, session, result, id: `cff-background-${layer}`, layer, run: async (tx) => {
+    await tx.controls();
+    const input = session.root.locator('#customOnBgColor');
+    if (!await input.count()) unavailable('本区块没有筛选背景颜色设置项。', 'na');
+    if (await input.count() !== 1) unavailable('筛选背景色设置项不唯一。');
+    const original = await input.inputValue(), alternate = normalizeColor(original) === '#010203' ? 'rgb(4, 5, 6)' : 'rgb(1, 2, 3)';
+    tx.expected(`筛选区域背景色应为 ${alternate}，恢复后应回到原颜色 ${original}。`);
+    tx.remember('filter-background', async () => {
+      await setFilterColor(session, args.page, original); await session.save(); await session.open();
+      if (normalizeColor(await input.inputValue()) !== normalizeColor(original)) throw new Error('背景颜色恢复回读不一致');
+    });
+    await setFilterColor(session, args.page, alternate); await tx.save();
+    const actual = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, filterBackground)
+      : await tx.observe((frame) => readEffectRoot(frame, args.config, filterBackground));
+    if (actual === null) unavailable('筛选区域背景的读取位置尚不能唯一确定，需实站探查。');
+    tx.evidence.color = { original, alternate, actual };
+    tx.assert(normalizeColor(actual) === normalizeColor(alternate), `筛选区域背景实际为 ${actual}，应为 ${alternate}。`);
+  } });
+}
+
+function radioPair(items, group) {
+  const options = group.prefixes.map((prefix) => items.filter((item) => item.type === 'radio' && item.label.startsWith(prefix)));
+  if (options.every((found) => !found.length)) unavailable(`本区块没有${group.name}设置项。`, 'na');
+  if (options.some((found) => found.length !== 1) || !options[0][0].name
+    || options[0][0].name !== options[1][0].name) unavailable(`${group.name}设置组无法唯一确定。`);
+  return options.map(([item]) => item);
+}
+async function enableOracleFields(tx, oracle) {
+  const fields = filterFields(await tx.controls());
+  const titles = Array.isArray(oracle) ? oracle : oracle.fields.map((condition) => condition.title);
+  for (const title of titles) {
+    const found = fields.filter((item) => item.label === title);
+    if (found.length !== 1) unavailable(`找不到夹具要求的唯一字段“${title}”。`);
+    await tx.set(found[0], true);
+  }
+}
+async function selectFilterValue(root, condition) {
+  // Probe v27: the fixed ^\s*...$ regex matches the title element itself
+  // (count 1), but group.filter({ has: root title locator }) still gives 0.
+  // The inner locator carries root's (the block's) selector prefix, so
+  // inside :has() it looks for the block INSIDE the group, which cannot
+  // match. Find the group by index with a DOM exact-title match instead
+  // (same approach as frontSnapshot), then filter its labels directly.
+  const exact = (text) => new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
+  const groupIndex = await root.evaluate((node, { group, groupTitle, wanted }) => {
+    const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
+    return [...node.querySelectorAll(group)].findIndex((item) => norm(item.querySelector(groupTitle)?.innerText) === wanted);
+  }, { group: SELECTORS.group, groupTitle: SELECTORS.groupTitle, wanted: condition.title });
+  if (groupIndex < 0) unavailable(`预览中无法唯一确定筛选组“${condition.title}”。`);
+  const group = root.locator(SELECTORS.group).nth(groupIndex);
+  const labels = group.locator('label').filter({ hasText: exact(condition.value) });
+  if (await labels.count() !== 1) unavailable(`预览中无法唯一确定筛选值“${condition.value}”。`);
+  const interactive = await labels.evaluate((node) => {
+    for (let current = node; current; current = current.parentElement) {
+      if (getComputedStyle(current).pointerEvents === 'none') return false;
+    }
+    return !node.querySelector('input:disabled') && node.getClientRects().length > 0;
+  });
+  if (!interactive) unavailable('预览筛选表单不可交互，未强制点击。');
+  await labels.click({ timeout: TIMEOUT });
+  const selected = await poll(() => root.evaluate((node, value) => {
+    const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
+    return [...node.querySelectorAll('label')].some((label) => norm(label.innerText) === value && label.querySelector('input:checked'))
+      || [...node.querySelectorAll('.prodfield-bottom, .pf-selected, .pf-tags')].some((tag) => norm(tag.innerText).includes(value));
+  }, condition.value), Boolean);
+  if (!selected.matched) throw new Error('点击后没有观察到选中值');
+}
+async function clickSearch(root) {
+  // Probe v30/v31: the search button is visibility:hidden in the editor
+  // preview (inline style, before and after selection), so a Playwright
+  // visible click can never work there; but the product list narrows on
+  // selection alone (v31: 20 -> the exact 3-product set within 2s). If
+  // no visible search button exists, return and let the following
+  // assertFilterSet poll the auto-applied result instead of skipping.
+  const search = root.locator('.prodfield-search, .pf-search').filter({ visible: true });
+  if (await search.count() !== 1) return;
+  await search.click({ timeout: TIMEOUT });
+}
+async function filterProducts(frame, config) {
+  return readEffectRoot(frame, config, productSnapshot);
+}
+async function assertFilterSet(tx, frame, config, expected, label) {
+  const root = frame.locator(blockSelector(config.blockId)).first();
+  const observed = await poll(() => root.evaluate(productSnapshot), (data) => data.hasList && sameSet(data.names, expected));
+  const actual = observed.value;
+  if (!actual?.hasList) unavailable('被测区块内没有可读取的产品列表，不能以空集冒充筛选结果。');
+  (tx.evidence.productSets ||= []).push({ label, expected, actual: actual.names });
+  tx.assert(observed.matched, `${label}应显示 ${sentenceList(expected)}；实际显示 ${sentenceList(actual.names)}，已逐项核对完整产品集合。`);
+}
+
+async function filterInteractionEffect(args, kind) {
+  const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
+  return effectCheck({ ...args, session, result, id: `cff-${kind}-front`, layer: 'front', run: async (tx) => {
+    const items = await tx.controls();
+    let options;
+    if (kind !== 'jump') options = radioPair(items, TEXT.radioGroups[{ logic: 0, trigger: 1, scope: 2 }[kind]]);
+    else {
+      const selects = items.filter((item) => item.tag === 'SELECT' && /跳转/.test(item.label + item.context));
+      if (!selects.length) unavailable('本区块没有筛选后跳转页设置项。', 'na');
+      if (selects.length !== 1) unavailable('无法唯一确定筛选后跳转页。');
+      options = selects;
+    }
+    const oracle = filterOracle(args);
+    if (!oracle) unavailable('画像缺少带筛选值及结果名单的夹具，不能编造预期产品。');
+    if (kind === 'scope') {
+      if (!Array.isArray(oracle.scopes) || oracle.scopes.length !== 2) unavailable('缺少当前分类和所有产品各自的范围夹具及分类上下文，暂不能核对范围结果。');
+      tx.expected(oracle.scopes.map((scope) => `${scope.label}应显示 ${sentenceList(scope.products)}`).join('；') + '。');
+      for (let index = 0; index < 2; index++) {
+        const fixture = oracle.scopes[index];
+        await tx.set(options[index], true); await enableOracleFields(tx, oracle); await tx.save();
+        await tx.observe(async (frame) => {
+          const root = frame.locator(blockSelector(args.config.blockId)).first();
+          if (fixture.category) {
+            const nav = root.locator('.pf-cate-wrap a').getByText(fixture.category, { exact: true });
+            if (await nav.count() !== 1) unavailable('夹具指定的当前分类无法唯一确定。');
+            await nav.click({ timeout: TIMEOUT });
+          }
+          for (const condition of fixture.conditions || oracle.fields) await selectFilterValue(root, condition);
+          await clickSearch(root);
+          await assertFilterSet(tx, frame, args.config, fixture.products, fixture.label);
+        });
+      }
+      return;
+    }
+    if (kind === 'jump') {
+      const select = options[0];
+      const fixture = oracle.jump;
+      const option = select.options.find((item) => !item.disabled && item.value !== select.value
+        && (fixture ? item.value === fixture.optionValue : /^(https?:\/\/|\/[^/])/.test(item.value)));
+      const expectedUrl = fixture?.url || option?.value;
+      if (!option || !expectedUrl) unavailable('跳转选项保存的是页面编号，画像没有编号与落地地址对应夹具，需先核实。');
+      tx.expected(`执行筛选后应进入所选的“${option.label}”页面，地址为 ${expectedUrl}。`);
+      await tx.set(select, option.value); await enableOracleFields(tx, oracle); await tx.save();
+      await tx.observe(async (frame, tab) => {
+        const root = frame.locator(blockSelector(args.config.blockId)).first();
+        await selectFilterValue(root, oracle.fields[0]); await clickSearch(root);
+        const matches = (url) => { try { const actual = new URL(url), wanted = new URL(expectedUrl, frame.url()); return actual.origin === wanted.origin && actual.pathname === wanted.pathname; } catch { return false; } };
+        const landed = await poll(async () => tab.frames().map((child) => child.url()), (urls) => urls.some(matches));
+        tx.evidence.landing = landed.value;
+        tx.assert(landed.matched, `筛选后应进入“${option.label}”，实际落地地址为 ${sentenceList(landed.value || [])}。`);
+      });
+      return;
+    }
+    await enableOracleFields(tx, oracle);
+    if (kind === 'logic') {
+      // Make result application explicit so selection order cannot be hidden by
+      // automatic filtering. The union fixture remains all THREE products.
+      const trigger = radioPair(await tx.controls(), TEXT.radioGroups[1]);
+      await tx.set(trigger[0], true);
+      tx.expected(`交集应恰好显示 ${sentenceList(oracle.intersection)}；并集应恰好显示 ${sentenceList(oracle.union)}。40838 并集只返回先选字段集合是已知缺陷，仍按三件产品断言。`);
+      for (const [index, expected] of [oracle.intersection, oracle.union].entries()) {
+        await tx.set(options[index], true); await tx.save();
+        await tx.observe(async (frame) => {
+          const root = frame.locator(blockSelector(args.config.blockId)).first();
+          for (const condition of oracle.fields) await selectFilterValue(root, condition);
+          await clickSearch(root); await assertFilterSet(tx, frame, args.config, expected, index === 0 ? '交集' : '并集（已知缺陷仍保留正确预期）');
+        });
+      }
+    } else {
+      tx.expected(`手动筛选选值后产品列表应保持原样，点击搜索后应恰好显示 ${sentenceList(oracle.single)}；自动筛选不点击搜索也应显示同一集合。`);
+      for (const [index, option] of options.entries()) {
+        await tx.set(option, true); await tx.save();
+        await tx.observe(async (frame) => {
+          const root = frame.locator(blockSelector(args.config.blockId)).first();
+          const before = await filterProducts(frame, args.config);
+          if (!before.hasList) unavailable('被测区块内没有产品列表，无法核对触发前后的结果。');
+          if (sameSet(before.names, oracle.single)) unavailable('初始产品集合与筛选结果相同，不能区分是否触发。');
+          await selectFilterValue(root, oracle.fields[0]);
+          if (index === 0) {
+            const after = await filterProducts(frame, args.config);
+            tx.assert(sameSet(after.names, before.names), `手动模式选值后、尚未点搜索，产品应保持 ${sentenceList(before.names)}，实际为 ${sentenceList(after.names)}。`);
+            await clickSearch(root);
+          }
+          await assertFilterSet(tx, frame, args.config, oracle.single, index === 0 ? '手动点击搜索后' : '自动筛选且未点搜索');
+        });
+      }
+    }
+  } });
+}
+export async function runBackendLayer(args) {
+  return [await filterFieldsEffect(args, 'backend'), await backgroundEffect(args, 'backend')];
+}
+
+Object.assign(NAMES, {
+  'cff-oracle-single': '单字段第一值的精确产品集合',
+  'cff-oracle-intersect-pair': '两字段交集的精确产品集合',
+  'cff-oracle-intersect-all': '全部字段交集的精确产品集合',
+  'cff-oracle-union-all': '全部字段并集的精确产品集合',
+  'cff-oracle-multivalue': '同一产品挂多个值的集合归属',
+  'cff-oracle-fixture': '筛选夹具真值表校验',
+});
+
+// Pure: compute from declared values, never from observed preview results.
+// The N one-field flips may appear in any order (40838 preserves existing
+// product order); index arithmetic alone would swap the single/dropdown sets.
+export function buildFixtureTruthTable(fixture) {
+  const fields = fixture?.fields, entries = fixture?.products;
+  if (!Array.isArray(fields) || !fields.length || !Array.isArray(entries) || entries.length !== fields.length + 1
+    || fields.some((field) => !field?.name || !Array.isArray(field.options) || field.options.length < 2 || field.options[0] === field.options[1])
+    || entries.some((product) => !product?.name || !product.values)
+    || new Set(fields.map((field) => field.name)).size !== fields.length
+    || new Set(entries.map((product) => product.name)).size !== entries.length) {
+    throw new Error('夹具真值表须包含 N 个不同字段（至少两个不同选项）及 N+1 件不同产品的完整字段值。');
+  }
+  const flips = entries.map((product, index) => {
+    const flipped = [];
+    for (const [i, field] of fields.entries()) {
+      const value = product.values[field.name];
+      if (value === field.options[1]) flipped.push(i);
+      else if (value !== field.options[0]) throw new Error(`产品“${product.name}”的“${field.name}”须是第一或第二值的单值字符串。`);
+    }
+    if ((index === 0 && flipped.length) || (index > 0 && flipped.length !== 1)) throw new Error(`产品“${product.name}”不符合全第一值基准件/单字段翻转件要求。`);
+    return flipped[0];
+  });
+  if (new Set(flips.slice(1)).size !== fields.length) throw new Error('每个字段须恰好有一件只翻该字段的产品。');
+  const products = entries.map((product) => product.name);
+  const single = fields.map((field, index) => ({ i: index + 1,
+    products: entries.filter((product) => product.values[field.name] === field.options[0]).map((product) => product.name) }));
+  const pairs = [];
+  for (let i = 0; i < fields.length; i++) for (let j = i + 1; j < fields.length; j++) {
+    pairs.push({ i: i + 1, j: j + 1, products: products.filter((name) => single[i].products.includes(name) && single[j].products.includes(name)) });
+  }
+  return { fields: fields.map((field) => ({ title: field.name, value: field.options[0] })),
+    products, single, pairs, intersection: [products[0]], union: [...products] };
+}
+function oldInteractionSkips() {
+  return ['logic', 'trigger', 'scope', 'jump'].map((kind) => result(`cff-${kind}-front`, 'skip', '已被 N 字段 fixture oracle 取代。', undefined,
+    { expected: '该检查已被 N 字段 fixture oracle（cff-oracle-*）取代，不再单独执行。' }));
+}
+async function fixtureOracleChecks(args, unavailableReason) {
+  let table;
+  try { table = buildFixtureTruthTable(args.profile.fixture); }
+  catch (error) { return [result('cff-oracle-fixture', 'skip', `夹具准备条件未满足：${error.message}`)]; }
+  const scenarios = [
+    ...table.single.map(({ i, products }) => ({ id: `cff-oracle-single-${i}`, indexes: [i], products, union: false })),
+    ...table.pairs.map(({ i, j, products }) => ({ id: `cff-oracle-intersect-${i}-${j}`, indexes: [i, j], products, union: false })),
+    { id: 'cff-oracle-intersect-all', indexes: table.fields.map((_, i) => i + 1), products: table.intersection, union: false },
+    { id: 'cff-oracle-union-all', indexes: table.fields.map((_, i) => i + 1), products: table.union, union: true },
+  ];
+  const checks = [];
+  for (const scenario of scenarios) {
+    const note = scenario.union && typeof args.profile.fixture.notes?.union === 'string' ? args.profile.fixture.notes.union : '';
+    const expected = `手动点击搜索后，${scenario.indexes.map((i) => table.fields[i - 1].title).join('、')}取第一值的${scenario.union ? '并集' : '交集'}应恰好显示 ${sentenceList(scenario.products)}。`;
+    const reason = unavailableReason || (args.report?.fixture?.applied === false ? '夹具准备未成功完成，未执行依赖夹具的精确集合检查。' : '');
+    if (reason) {
+      checks.push(result(scenario.id, 'skip', `${reason}${note ? `；${note}` : ''}`, undefined, { expected }));
+      continue;
+    }
+    const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: args.capability?.dialogTitle || TEXT.dialogTitle,
+      wrapIndex: args.capability?.wrapIndex || 0 });
+    const outcome = await effectCheck({ ...args, session, result, id: scenario.id, layer: 'front', run: async (tx) => {
+      tx.expected(expected);
+      const items = await tx.controls();
+      const logic = radioPair(items, TEXT.radioGroups[0]);
+      const trigger = radioPair(items, TEXT.radioGroups[1]);
+      await enableOracleFields(tx, table.fields.map((field) => field.title));
+      await tx.set(trigger[0], true);
+      await tx.set(logic[scenario.union ? 1 : 0], true);
+      await tx.save();
+      await tx.observe(async (frame) => {
+        const root = frame.locator(blockSelector(args.config.blockId)).first();
+        await root.waitFor({ state: 'attached', timeout: TIMEOUT });
+        const interactive = await root.evaluate((node, selectors) => {
+          const groups = [...node.querySelectorAll(selectors.group)];
+          const label = groups.flatMap((group) => [...group.querySelectorAll('label')]).find((item) => item.getClientRects().length);
+          if (!label) return false;
+          for (let current = label; current; current = current.parentElement) if (getComputedStyle(current).pointerEvents === 'none') return false;
+          return true;
+        }, { group: SELECTORS.group });
+        if (!interactive) unavailable('预览筛选组 pointer-events:none 或无可交互筛选值，未强制点击；发布流程待定，本次不发布。');
+        for (const i of scenario.indexes) await selectFilterValue(root, table.fields[i - 1]);
+        await clickSearch(root);
+        await assertFilterSet(tx, frame, args.config, scenario.products, NAMES[scenario.id] || `字段 ${scenario.indexes.join('、')} 筛选`);
+      });
+    } });
+    outcome.expected = expected;
+    // Keep the union note on pass/fail/skip alike, without changing expected sets.
+    if (note) {
+      outcome.detail += `；${note}`;
+      outcome.actual += `；${note}`;
+      outcome.evidenceText.push(note);
+    }
+    checks.push(outcome);
+  }
+  checks.push(result('cff-oracle-multivalue', 'skip',
+    '“一件产品挂多个值”尚未实现，需要一件在多选字段上挂两个值的产品，断言它同时出现在两个值的集合里。', undefined,
+    { expected: '一件在多选字段上挂两个值的产品，应同时出现在这两个值各自的筛选结果集合里。' }));
   return checks;
 }

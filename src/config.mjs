@@ -53,9 +53,11 @@ export function loadConfig() {
   if (!['develop', 'review', 'online'].includes(moduleType)) {
     throw new Error(`MODULE_TYPE must be one of develop, review, online; received ${JSON.stringify(moduleType)}`);
   }
+  const capabilityFilter = (firstDefined(process.env.CAPABILITY_FILTER) || '').split(',').map((id) => id.trim()).filter(Boolean);
 
   return {
     blockId,
+    capabilityFilter: capabilityFilter.length ? capabilityFilter : null,
     profile: (firstDefined(process.env.PROFILE) || '').trim(),
     targetPage: firstDefined(process.env.TARGET_PAGE, 'products').trim(),
     // Page kind: 'system' (default) or 'custom'. The runner resolves the

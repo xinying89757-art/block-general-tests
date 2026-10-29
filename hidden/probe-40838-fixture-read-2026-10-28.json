@@ -1,0 +1,50 @@
+{
+  "at": "2026-10-28T10:35:11.930Z",
+  "site": "http://en-site40083596.ldyjz.com",
+  "products": {
+    "测试产品A": {
+      "found": true,
+      "prodId": "ENULQuzRFljy",
+      "values": {
+        "测试单选按钮A": "单选4-10",
+        "测试下拉列表": "下拉列表4-10",
+        "AUTOTEST-多选": [
+          "多选4-10"
+        ]
+      }
+    },
+    "测试产品小何1": {
+      "found": true,
+      "prodId": "ApUgGkomaTfn",
+      "values": {
+        "测试单选按钮A": "单选4-10",
+        "测试下拉列表": "下拉列表8-10",
+        "AUTOTEST-多选": [
+          "多选4-10"
+        ]
+      }
+    },
+    "测试产品小何2": {
+      "found": true,
+      "prodId": "NmKqGFoHbPJy",
+      "values": {
+        "测试单选按钮A": "单选6-10",
+        "测试下拉列表": "下拉列表4-10",
+        "AUTOTEST-多选": [
+          "多选4-10"
+        ]
+      }
+    },
+    "AUTOTEST-产品4": {
+      "found": true,
+      "prodId": "tLKqQzCgrcmI",
+      "values": {
+        "测试单选按钮A": "单选1-10",
+        "测试下拉列表": "下拉列表1-10",
+        "AUTOTEST-多选": [
+          "多选4-10"
+        ]
+      }
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, productSnapshot, rememberCategoryState } from './effect-checks.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText } from './shared.mjs';
 
@@ -82,7 +83,9 @@ async function compareFrontCheck({ session, page, context, config }) {
       }
       await session.save();
       await session.open();
-      const after = await probeControls(session);
+      const after = await probeControls(session, (items) =>
+        items.find((item) => item.type === 'radio' && (item.label === '关闭' || item.label === '开启') && item.checked)?.label === originalCompare
+        && (originalBrand === null || (items.find((item) => item.type === 'checkbox' && item.label === 'Brand')?.checked ?? null) === originalBrand));
       // The dialog holds several radio groups (pagination 是/否, data
       // source, compare 关闭/开启): the restored compare value must be
       // read from the compare pair, not from the first checked radio
@@ -263,7 +266,7 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
         await session.save();
       }
       await session.open();
-      const after = await probeControls(session);
+      const after = await probeControls(session, (items) => sourceOf({ controls: items }).find((item) => item.checked)?.label === originalSource);
       const restoredSource = sourceOf(after).find((item) => item.checked)?.label;
       evidence.restored = { dataSource: restoredSource };
       if (restoredSource !== originalSource) errors.push(`恢复后数据来源为 ${restoredSource}，不是 ${originalSource}`);
@@ -304,7 +307,11 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
       await session.save();
       await savePage(page);
       await session.open();
-      const verify = await probeControls(session);
+      const verify = await probeControls(session, (items) => {
+        const checked = catsOf({ controls: items }).filter((item) => item.checked).map((item) => (item.label || '').trim());
+        return sourceOf({ controls: items }).find((item) => item.checked)?.label === '选择部分产品分类'
+          && checked.length === 1 && checked[0] === target;
+      });
       const persistedSource = sourceOf(verify).find((item) => item.checked)?.label;
       const persistedChecked = catsOf(verify).filter((item) => item.checked).map((item) => (item.label || '').trim());
       evidence.persisted = { dataSource: persistedSource, checkedCategories: persistedChecked };
@@ -374,7 +381,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   const initial = await probeControls(session);
   const checks = [];
   try {
-    if (initial.reason) return Object.keys(NAMES).filter((id) => id !== 'pld-front-note')
+    if (initial.reason) return ['pld-fields', 'pld-page-size-persist', 'pld-pagination-persist', 'pld-compare-persist', 'pld-compare-front', 'pld-data-source-category-front', 'pld-display-field-persist', 'pld-data-source-persist']
       .map((id) => result(id, 'skip', `无法读取产品列表弹窗：${initial.reason}`));
     const fields = fieldsOf(initial.controls);
     checks.push(result('pld-fields', 'record', `展示字段 ${fields.length} 个（排除全选，含系统属性与自定义字段）。`, fields));
@@ -421,6 +428,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       if (last) { last.status = 'fail'; last.detail += `；最终取消失败：${error.message}`; }
     }
   }
+  checks.push(...await listEffects({ page, canvas, context, config, capability }, 'front'));
   return checks;
 }
 
@@ -444,3 +452,221 @@ export async function runFrontLayer({ frame, config }) {
       { observation: 'unavailable', selectors })];
   }
 }
+
+Object.assign(NAMES, {
+  'pld-fields-backend': '画布产品卡展示字段完整集合',
+  'pld-fields-front': '预览产品卡展示字段完整集合',
+  'pld-source-all-backend': '所有产品来源在画布生效',
+  'pld-source-all-front': '所有产品来源在预览生效',
+  'pld-source-filter-backend': '筛选条件来源在画布生效',
+  'pld-source-filter-front': '筛选条件来源在预览生效',
+  'pld-source-products-backend': '指定产品来源在画布生效',
+  'pld-source-products-front': '指定产品来源在预览生效',
+  'pld-source-category-backend': '所选分类的产品在画布生效',
+  'pld-size-backend': '画布产品数量与新数量一致',
+  'pld-size-front': '预览产品数量与新数量一致',
+  'pld-pagination-backend': '画布分页条显隐与设置一致',
+  'pld-pagination-front': '预览分页条显隐与设置一致',
+  'pld-compare-backend': '画布产品对比入口显隐',
+  'pld-compare-off-front': '关闭产品对比后预览无入口',
+});
+function listSession(args) {
+  const base = widgetSession({ ...args, type: 'phoenix_blocks_gallery',
+    title: args.capability?.dialogTitle || '设置产品列表', wrapIndex: args.capability?.wrapIndex ?? 0 });
+  // The same quantity input changes its caption with pagination. Normalize
+  // ONLY this known caption pair, and resolve its real identity before writing.
+  const quantity = (item) => ['text', 'number'].includes(item.type) && /每页产品数量|显示产品总数量/.test(item.label);
+  return { ...base, read: async (...params) => (await base.read(...params)).map((item) => quantity(item) ? { ...item, label: '产品数量' } : item),
+    set: async (target, value) => {
+      if (target.label !== '产品数量') return base.set(target, value);
+      const actual = (await base.read()).filter((item) => item.index === target.index && item.tag === target.tag
+        && item.type === target.type && item.name === target.name && quantity(item));
+      if (actual.length !== 1) throw new Error('产品数量输入框身份变化');
+      return base.set(actual[0], value);
+    } };
+}
+const listSize = (items) => uniqueControl(items, (item) => ['text', 'number'].includes(item.type)
+  && /产品数量|显示产品总数量/.test(item.label + item.context), '本区块没有产品数量设置项。');
+
+async function effectListFields(tx, session) {
+  const fields = fieldsOf(await tx.controls());
+  if (!fields.length) unavailable('本区块没有产品展示字段设置项。', 'na');
+  // Use the same field identities as pld-fields. That record alone does not
+  // prove which styled/hidden checkbox is effective. Keep skip if visibility
+  // is ambiguous; never pick the first copy or broaden to an unverified row.
+  const visibility = await session.root.evaluate((root) => {
+    const visible = (node) => node && node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden';
+    return [...root.querySelectorAll('input, select, textarea')].map((input, index) => ({ index,
+      inputVisible: Boolean(visible(input)), labelVisible: [...(input.labels || [])].some(visible),
+      wrapperVisible: Boolean(visible(input.closest('label'))),
+      parentTag: input.parentElement?.tagName, parentClass: input.parentElement?.className }));
+  });
+  const visibleIndices = visibility.filter((item) => item.inputVisible || item.labelVisible || item.wrapperVisible)
+    .map((item) => item.index);
+  const groups = new Map();
+  for (const item of fields) {
+    const key = `${item.type}:${item.name}:${item.value}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  }
+  tx.evidence.displayFieldCandidates = [...groups.values()].map((candidates) => ({
+    name: candidates[0].name, value: candidates[0].value, label: candidates[0].label,
+    candidates: candidates.map((item) => ({ ...item, visibility: visibility.find((state) => state.index === item.index) })),
+    visibleCount: candidates.filter((item) => visibleIndices.includes(item.index)).length,
+  }));
+  const choices = [];
+  for (const candidates of groups.values()) {
+    const shown = candidates.filter((item) => visibleIndices.includes(item.index));
+    if (shown.length !== 1) unavailable(`展示字段“${candidates[0].label}”有 ${candidates.length} 个候选、${shown.length} 个可见设置，需实测勾选并保存回读以确认生效副本。`);
+    choices.push(shown[0]);
+  }
+  return choices;
+}
+
+function cardFieldSnapshot(root) {
+  const visible = (node) => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden';
+  const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
+  const cards = [...root.querySelectorAll('.one-pruduct-item')].filter(visible);
+  return cards.map((card) => {
+    const region = card.querySelector('.prodTabList-sitewidget');
+    const labels = region ? [...region.querySelectorAll('[class$="_left"]')].filter(visible).map((node) => norm(node.innerText)) : [];
+    const brief = [...card.querySelectorAll('.prodBrief-one')].some((node) => visible(node) && norm(node.innerText));
+    if (brief) labels.push('Brief');
+    const rows = region ? [...region.querySelectorAll('[class^="type_"]')]
+      .filter((node) => visible(node) && !/_(left|right)$/.test(node.className) && !node.querySelector('[class$="_left"]')) : [];
+    return { product: norm(card.querySelector('.prodlist-pro-name')?.innerText), labels,
+      mapped: Boolean(region || brief), unmappedRows: rows.length };
+  });
+}
+async function listFieldsEffect(args, layer) {
+  const session = listSession(args);
+  return effectCheck({ ...args, session, result, id: `pld-fields-${layer}`, layer, run: async (tx) => {
+    const fields = await effectListFields(tx, session);
+    const editable = fields.filter((item) => !item.disabled);
+    if (!editable.length || new Set(fields.map((item) => item.label)).size !== fields.length) unavailable('展示字段不可改或名称不能唯一确定。');
+    const selected = editable.slice(0, Math.min(3, editable.length));
+    if (sameSet(fields.filter((item) => item.checked).map((item) => item.value), selected.map((item) => item.value))) selected.pop();
+    const wanted = fields.filter((item) => item.disabled ? item.checked : selected.includes(item)).map((item) => item.label);
+    tx.expected(`每张产品卡应恰好展示 ${wanted.length} 个所选字段：${sentenceList(wanted)}；不能多出或少掉字段。`);
+    for (const field of editable) await tx.set(field, wanted.includes(field.label));
+    await tx.save();
+    const cards = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, cardFieldSnapshot)
+      : await tx.observe((frame) => readEffectRoot(frame, args.config, cardFieldSnapshot));
+    if (!cards.length || cards.some((card) => !card.mapped || card.unmappedRows)) unavailable('产品卡展示字段尚不能完整识别，需核实每种字段的展示位置。');
+    tx.evidence.cards = cards;
+    for (const card of cards) tx.assert(sameSet(card.labels, wanted), `产品“${card.product}”实际展示字段为 ${sentenceList(card.labels)}；应恰好为 ${sentenceList(wanted)}，已逐项比较完整集合。`);
+  } });
+}
+
+async function inspectProducts(tx, args, layer) {
+  const snapshot = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, productSnapshot)
+    : await tx.observe((frame) => readEffectRoot(frame, args.config, productSnapshot));
+  if (!snapshot.hasList) unavailable('该层没有可读取的产品列表，需实站核实渲染。');
+  return snapshot;
+}
+async function sourceEffect(args, layer, kind) {
+  const session = listSession(args);
+  return effectCheck({ ...args, session, result, id: `pld-source-${kind}-${layer}`, layer, run: async (tx) => {
+    const items = await tx.controls();
+    const labels = { all: '所有产品', filter: '使用筛选条件', products: '选择指定产品', category: '选择部分产品分类' };
+    const source = uniqueControl(items, (item) => item.type === 'radio' && item.name === 'selectProdType'
+      && item.label === labels[kind], `本区块没有“${labels[kind]}”数据来源设置项。`);
+    const oracle = args.capability?.oracle;
+    // Selecting a source alone cannot set up a new condition or product list.
+    // These require their own configured fixtures; never reuse the category
+    // oracle as the all-products/explicit-products universe.
+    const fixture = { all: oracle?.allProducts, filter: oracle?.filteredProducts,
+      products: oracle?.specifiedProducts, category: oracle?.onShelf }[kind];
+    if (!Array.isArray(fixture)) unavailable(`画像没有“${labels[kind]}”的完整产品名单夹具，暂不编造结果。`);
+    if (['filter', 'products'].includes(kind) && oracle?.configuredSource !== kind) unavailable(`画像尚未确认“${labels[kind]}”已有条件或产品清单，条件编辑和选产品操作留待后续探查。`);
+    tx.expected(`来源设为“${labels[kind]}”后，产品列表应恰好为 ${fixture.length} 件：${sentenceList(fixture)}。`);
+    if (kind === 'category') rememberCategoryState(tx, session, items, 'selectProdType');
+    await tx.set(source, true); await tx.save();
+    if (kind === 'category') {
+      if (!oracle.category) unavailable('缺少目标分类名称夹具。');
+      const cats = (await tx.controls()).filter((item) => item.type === 'checkbox' && item.name === 'leafProdGroup');
+      if (!cats.some((item) => item.label.trim() === oracle.category)) unavailable('设置中找不到夹具分类。');
+      for (const cat of cats) await tx.set(cat, cat.label.trim() === oracle.category);
+      await tx.save();
+    }
+    // Disable pagination and raise the total limit only when the entire fixture
+    // fits. The check compares the COMPLETE set, never just the first page.
+    if (fixture.length > 100) unavailable('完整名单超过数量设置允许范围，需补齐整表读取方案后再测。');
+    const current = await tx.controls();
+    const pagination = current.filter((item) => item.type === 'radio' && item.name === 'pagination' && item.label === '否');
+    const size = listSize(current);
+    await tx.set(size, String(Math.max(1, fixture.length)));
+    if (pagination.length === 1) await tx.set(pagination[0], true);
+    await tx.save();
+    const actual = await inspectProducts(tx, args, layer);
+    tx.evidence.products = { wanted: fixture, actual: actual.names };
+    tx.assert(sameSet(actual.names, fixture), `来源为“${labels[kind]}”，应显示 ${sentenceList(fixture)}，实际显示 ${sentenceList(actual.names)}，已逐项核对完整产品名单。`);
+  } });
+}
+
+function listVisibility(root) {
+  const visible = (node) => node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden';
+  const cards = [...root.querySelectorAll('.one-pruduct-item')].filter(visible);
+  return { hasList: Boolean(root.querySelector('.one-pruduct-list, .pf-list-wrap, .one-pruduct-item')),
+    cards: cards.length,
+    pagination: [...root.querySelectorAll('.pagination')].some(visible),
+    compareCards: cards.map((card) => [...card.querySelectorAll('.compared-input-wrap, input.compared-input')].some(visible)) };
+}
+async function listToggleEffect(args, layer, kind) {
+  const session = listSession(args), id = kind === 'compare' && layer === 'front' ? 'pld-compare-off-front' : `pld-${kind}-${layer}`;
+  return effectCheck({ ...args, session, result, id, layer, run: async (tx) => {
+    const items = await tx.controls();
+    const labels = kind === 'pagination' ? ['否', '是'] : ['关闭', '开启'];
+    const options = labels.map((label) => uniqueControl(items, (item) => item.type === 'radio'
+      && item.label === label && (kind !== 'pagination' || item.name === 'pagination'), `本区块没有${kind === 'pagination' ? '分页' : '产品对比'}设置项。`));
+    if (!options[0].name || options[0].name !== options[1].name) unavailable('设置的单选组归属不明确。');
+    const states = kind === 'compare' && layer === 'front' ? [0] : [0, 1];
+    tx.expected(kind === 'pagination' ? '分页选否时应无分页条，选是时应显示分页条；不检查翻页。'
+      : layer === 'front' ? '关闭产品对比后，每张产品卡都应没有对比入口。' : '关闭产品对比时每张产品卡都应没有入口；开启时每张产品卡都应有入口。');
+    if (kind === 'pagination') {
+      // Guarantee there is more than one product/page rather than asserting a
+      // pager for a single-page data set. Capture availability before shrinking.
+      await session.cancel(); await savePage(args.page);
+      const before = await inspectProducts(tx, args, layer);
+      if (before.count < 2) unavailable('初始不足两件产品，不能核对分页开启时是否应出现分页条。');
+      const size = listSize(await tx.controls()); await tx.set(size, '1');
+    }
+    for (const index of states) {
+      await tx.set(options[index], true); await tx.save();
+      const observed = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, listVisibility)
+        : await tx.observe((frame) => readEffectRoot(frame, args.config, listVisibility));
+      if (!observed.hasList || (kind === 'compare' && !observed.cards)) unavailable('该层没有产品卡可供核对，不能把没有列表当作开关生效。');
+      (tx.evidence.visibility ||= []).push({ setting: labels[index], observed });
+      const okay = kind === 'pagination' ? observed.pagination === Boolean(index)
+        : observed.compareCards.every((shown) => shown === Boolean(index));
+      tx.assert(okay, `${kind === 'pagination' ? '分页' : '产品对比'}设为“${labels[index]}”；${kind === 'pagination' ? `分页条${observed.pagination ? '显示' : '隐藏'}` : `${observed.cards} 张产品卡中 ${observed.compareCards.filter(Boolean).length} 张显示对比入口`}。`);
+    }
+  } });
+}
+async function listSizeEffect(args, layer) {
+  const session = listSession(args);
+  return effectCheck({ ...args, session, result, id: `pld-size-${layer}`, layer, run: async (tx) => {
+    const items = await tx.controls(), size = listSize(items);
+    await session.cancel(); await savePage(args.page);
+    const before = await inspectProducts(tx, args, layer);
+    if (!before.count) unavailable('当前没有可见产品，无法证明数量设置已同步到该层。');
+    const newSize = Number(size.value) === 10 ? 5 : 10;
+    // A baseline page containing at least N proves N products are available.
+    // A short page proves exhaustion only when below its existing limit.
+    let available = before.count >= newSize ? before.count : before.count < Number(size.value) ? before.count : null;
+    if (available === null) unavailable('现有列表达到原数量上限，但没有完整可用产品数，暂不能判断增大数量后的应有件数。');
+    const expected = Math.min(newSize, available);
+    tx.expected(`产品数量改为 ${newSize} 后应显示 ${expected} 件；${before.count >= newSize ? `已观察到至少 ${available} 件可用产品` : `现有数量低于原上限，可用产品共 ${available} 件`}，按新数量与可用数量中的较小值判断。`);
+    await tx.set(size, String(newSize)); await tx.save();
+    const actual = await inspectProducts(tx, args, layer);
+    tx.evidence.quantity = { oldSize: size.value, newSize, available, expected, actual: actual.count, names: actual.names };
+    tx.assert(actual.count === expected, `产品数量设为 ${newSize}，本次可确认可用 ${available} 件，应显示 ${expected} 件；实际显示 ${actual.count} 件，名称为 ${sentenceList(actual.names)}。`);
+  } });
+}
+async function listEffects(args, layer) {
+  const checks = [await listFieldsEffect(args, layer)];
+  for (const kind of ['all', 'filter', 'products', ...(layer === 'backend' ? ['category'] : [])]) checks.push(await sourceEffect(args, layer, kind));
+  checks.push(await listSizeEffect(args, layer), await listToggleEffect(args, layer, 'pagination'), await listToggleEffect(args, layer, 'compare'));
+  return checks;
+}
+export async function runBackendLayer(args) { return listEffects(args, 'backend'); }

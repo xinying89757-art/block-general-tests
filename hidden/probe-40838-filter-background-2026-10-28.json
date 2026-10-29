@@ -1,0 +1,408 @@
+{
+  "at": "2026-10-28T08:11:00.241Z",
+  "site": "http://en-site40083596.ldyjz.com",
+  "steps": {
+    "original": "rgb(1, 2, 3)",
+    "setToTest": "rgb(1, 2, 3)",
+    "backendUnchecked": {
+      "form": {
+        "found": true,
+        "bg": "rgba(0, 0, 0, 0)",
+        "cls": "prodfield-form"
+      },
+      "wrap": {
+        "found": false
+      },
+      "nonTransparent": [
+        {
+          "tag": "DIV",
+          "cls": "siteblocks-container",
+          "bg": "rgba(4, 79, 159, 0.1)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "LA40838 ELpuzTPfkJNy",
+          "bg": "rgba(4, 79, 159, 0.1)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-single swiper-slide prodfield-col-series",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-fieldname",
+          "bg": "rgb(4, 79, 159)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-search",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-right",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "layui-form-item",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-single swiper-slide prodfield-col-category",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-fieldname",
+          "bg": "rgb(4, 79, 159)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-search",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-right",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "layui-form-item",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "swiper-scrollbar",
+          "bg": "rgb(216, 216, 216)",
+          "inline": ""
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "prodfield-clear",
+          "bg": "rgb(4, 79, 159)",
+          "inline": ""
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "prodfield-search",
+          "bg": "rgb(4, 79, 159)",
+          "inline": "visibility: hidden;pointer-events: none;"
+        },
+        {
+          "tag": "INPUT",
+          "cls": "crossFilterMode",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "seriesFilterIds",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "categoryFilterIds",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "fieldFilterIds",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "choosedPageId",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        }
+      ],
+      "styleRulesWithColor": []
+    },
+    "backendOneField": {
+      "form": {
+        "found": true,
+        "bg": "rgba(0, 0, 0, 0)",
+        "cls": "prodfield-form"
+      },
+      "wrap": {
+        "found": false
+      },
+      "nonTransparent": [
+        {
+          "tag": "DIV",
+          "cls": "siteblocks-container",
+          "bg": "rgba(4, 79, 159, 0.1)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "LA40838 ELpuzTPfkJNy",
+          "bg": "rgba(4, 79, 159, 0.1)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-single swiper-slide prodfield-col-series",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-fieldname",
+          "bg": "rgb(4, 79, 159)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-search",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-right",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "layui-form-item",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-single swiper-slide prodfield-col-category",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-fieldname",
+          "bg": "rgb(4, 79, 159)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-search",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-right",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "layui-form-item",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "swiper-scrollbar",
+          "bg": "rgb(216, 216, 216)",
+          "inline": ""
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "prodfield-clear",
+          "bg": "rgb(4, 79, 159)",
+          "inline": ""
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "prodfield-search",
+          "bg": "rgb(4, 79, 159)",
+          "inline": "visibility: hidden;pointer-events: none;"
+        },
+        {
+          "tag": "INPUT",
+          "cls": "crossFilterMode",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "seriesFilterIds",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "categoryFilterIds",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "fieldFilterIds",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "choosedPageId",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        }
+      ],
+      "styleRulesWithColor": []
+    },
+    "previewOneField": {
+      "form": {
+        "found": true,
+        "bg": "rgba(0, 0, 0, 0)",
+        "cls": "prodfield-form"
+      },
+      "wrap": {
+        "found": false
+      },
+      "nonTransparent": [
+        {
+          "tag": "DIV",
+          "cls": "siteblocks-container",
+          "bg": "rgba(4, 79, 159, 0.1)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "LA40838 ELpuzTPfkJNy",
+          "bg": "rgba(4, 79, 159, 0.1)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-single swiper-slide prodfield-col-series",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-fieldname",
+          "bg": "rgb(4, 79, 159)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-search",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-right",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "layui-form-item",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-single swiper-slide prodfield-col-category",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-fieldname",
+          "bg": "rgb(4, 79, 159)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-left-search",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "prodfield-right",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "layui-form-item",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "DIV",
+          "cls": "swiper-scrollbar",
+          "bg": "rgb(216, 216, 216)",
+          "inline": ""
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "prodfield-clear",
+          "bg": "rgb(4, 79, 159)",
+          "inline": ""
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "prodfield-search",
+          "bg": "rgb(4, 79, 159)",
+          "inline": "visibility: hidden;pointer-events: none;"
+        },
+        {
+          "tag": "INPUT",
+          "cls": "crossFilterMode",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "seriesFilterIds",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "categoryFilterIds",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "fieldFilterIds",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        },
+        {
+          "tag": "INPUT",
+          "cls": "choosedPageId",
+          "bg": "rgb(255, 255, 255)",
+          "inline": ""
+        }
+      ],
+      "styleRulesWithColor": []
+    },
+    "restored": "rgb(139, 0, 0)"
+  }
+}

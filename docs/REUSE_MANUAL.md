@@ -1,7 +1,7 @@
-# 区块设置项复用手册 v1.9
+# 区块设置项复用手册 v1.13
 
-版本：v1.9（2026-10-27）
-范围：已在两个区块上验证：40838（2026-10-23，20 pass / 0 fail；2026-10-26 产品对比前台加验后 21 pass / 0 fail）与 47748（2026-10-26，配置后 16 pass / 0 fail，配色与宽度加验后 20 pass / 0 fail，分类 oracle 两处加验后 22 pass / 0 fail；2026-10-27 样式检查加验后 31 pass / 5 fail，5 个 fail 均为用户已确认的样式偏差），并对 40838 做了回归（20 pass / 0 fail）。v1.6 新增：分享给其他人用的包（任何智能体都能跑）与页面选择（新建自定义页面 / 系统页名称）。v1.7 新增：基线捕获与应用（画像 `baseline`，区块加到新页后自动按基线配好再跑）。
+版本：v1.13（2026-10-28）
+范围：已在两个区块上验证：40838（2026-10-23，20 pass / 0 fail；2026-10-26 产品对比前台加验后 21 pass / 0 fail）与 47748（2026-10-26，配置后 16 pass / 0 fail，配色与宽度加验后 20 pass / 0 fail，分类 oracle 两处加验后 22 pass / 0 fail；2026-10-27 样式检查加验后 31 pass / 5 fail，5 个 fail 均为用户已确认的样式偏差；2026-10-28 三层验证分段实跑后 48 pass / 7 fail，7 个 fail 全是已知问题，无新增），并对 40838 做了回归（20 pass / 0 fail）。v1.6 新增：分享给其他人用的包（任何智能体都能跑）与页面选择（新建自定义页面 / 系统页名称）。v1.7 新增：基线捕获与应用（画像 `baseline`，区块加到新页后自动按基线配好再跑）。v1.11 新增：按能力分段跑（`CAPABILITY_FILTER`）与多段报告合并（`scripts/merge-reports.mjs`），长套件被运行环境重启打断时可分段跑完再合并。v1.12 新增：自定义筛选夹具准备流程（探测前置、每种类型一个字段的交并集真值表、收尾只恢复区块）。
 目的：为区块各个设置项形成可复用的流程和脚本，不是以测出某个区块的缺陷为目标。40838 是首个样本，47748 是第二个验证样本；顺带发现的问题只记录，不在本手册里深挖。
 
 相关文档：模型见 `docs/BLOCK_TESTING_MODEL.md`；40838 盘点见 `docs/SETTINGS_INVENTORY_40838.md`，覆盖见 `docs/SETTINGS_COVERAGE_40838.md`；47748 盘点见 `docs/SETTINGS_INVENTORY_47748.md`，覆盖见 `docs/SETTINGS_COVERAGE_47748.md`；画像见 `profiles/40838.json` 与 `profiles/47748.json`。
@@ -80,6 +80,8 @@
 - `previewSelector(blockId)`：预览根节点，`.siteblocks-setting-wrap[data-appid]`，不要用 LA 类名。
 
 特殊控件不走通用 `persistControl`：背景颜色是 Spectrum 取色器，先试 `jQuery(input).spectrum('set', ...)` 加 `trigger('change')`，失败再降级到取色面板点选。两种方式都失败且尚未保存时，记 `skip`，不记 fail。
+
+背景颜色效果检查的两个实测结论（2026-10-28，40838）：(1) **设置项本身不生效**：保存的 rgb(1,2,3) 在画布和预览里哪都没出现，`.prodfield-form` 三种状态全是透明，样式表里也没有这个颜色——`cff-background-front/backend` 的 fail 是真问题，不是检查读错了元素（探针 `scripts/probe-40838-filter-background.mjs`）。(2) **效果检查的恢复回读不可信**：上一轮两个背景检查的恢复在会话内回读都通过了，但新会话探针读到的持久化值仍是 rgb(1,2,3)；探针用同样路径恢复成 rgb(139,0,0) 后新会话读回才确认落库。恢复类验证必须用新会话读持久化值，会话内重开读绿不算数——`tx.remember` 的恢复回读目前就是会话内读，须按此口径复核。
 
 ## 6. 能力库 v1.5（已在两个区块上验证的 7 个）
 
@@ -387,3 +389,62 @@ v1.9 实站验收（2026-10-27，miumiu 本机可联网环境补验；上面两�
 - **站点列表入口实跑通过**：先备份 `.env` 仅清空 EDIT_SITE_URL（确认配置读取为空、SITE_DOMAIN 指向 40083596），`openEditor` 走固定地址 + 按域名匹配卡片 + 选语言 + 点编辑网站，成功到达 pagebuilder（`https://website.leadong.com/phoenix/pagebuilder/layout`），顶栏“页面:”可见，全程没用 EDIT_SITE_URL；验证后 `.env` 已恢复，哈希与验证前逐字一致，临时备份与探针脚本已删。
 - **47748 全套件回归通过**：`BROWSER=firefox BLOCK_ID=47748 npm run test:block`，56 项 **31 pass / 5 fail / 5 skip / 5 na / 10 record**，与 v1.8 完全一致；5 个 fail 全是已确认的样式偏差（`bss-nav-leaf`、`bss-filter-option`、`bss-details-link`、`bss-pagination-current`、`bss-pagination-other`）。报告 `reports/report-47748-2026-10-27T09-02-40-238Z.json`，报告页面同名 `.html`，顶部预览分享链接正常（有效期至 2026-11-03）。
 - **默认浏览器改为 Chrome（2026-10-27，用户定）**：`BROWSER` 默认值从 firefox 改为 chromium，chromium 启动固定 `channel: "chrome"`，Firefox 改为备选项（显式 `BROWSER=firefox` 才用）；`loadBrowserConfig` 默认解析为 `{ browser: "chromium", headless: false, slowMo: 0 }`，chromium launch 选项含 `channel: "chrome"`，firefox 不传 channel。注意：本机没有安装系统 Chrome，`channel=chrome` 启动报 `Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome`，属环境限制；Chrome 默认路径在本机未验证，需在用户 Mac 上验证。本机 `.env` 固定 `BROWSER=firefox`，本地运行不受默认值改动影响。
+
+## 20. 设置项测试与断言明细（v1.10，2026-10-27）
+
+新增[设置项测试与断言明细](SETTINGS_TEST_DETAIL.md)，按按钮、产品分类、自定义筛选字段、产品列表、配色、模块宽度、样式、通用前台检查的顺序，讲清每个设置在哪、哪些区块有、怎么测、测到什么算通过，以及对应的检查 ID。想查某个设置，就先在这份说明里找，再到文末按编号看两个区块最近一次的 pass、fail、na、skip、record；想按测试轮次看结论，仍看各区块覆盖表。
+
+怎么判断以实际检查的做法为准；文字说明和实际检查不一致时，以实际检查为准。样式要求和用于比较的分类产品名单，参照相应区块的测试说明。明细也会写清哪些只记录、哪些暂时测不了、哪些没有安排检查，以及每项到底查到哪一步。只通过了其中一步，不能说其他还没做的效果检查也通过了。
+
+## 21. 三层验证实跑与分段跑（v1.11，2026-10-28）
+
+1. **三层验证已实跑验证**：35 个新检查（回显之外补后台与预览两层）全部跑过，见 `docs/SETTINGS_TEST_DETAIL.md` 文末对照表。47748 合并报告 `reports/report-47748-merged-2026-10-27T19-24-26-038Z.json`，报告页面同名 `.html`：全套件 91 项，**48 pass / 7 fail / 13 skip / 13 na / 10 record**。7 个 fail 全是已知问题，无新增：5 个是用户已确认的样式偏差（`bss-nav-leaf`、`bss-filter-option`、`bss-details-link`、`bss-pagination-current`、`bss-pagination-other`），2 个是全屏最大宽度（`mw-width-front`、`mw-width-backend`，见第 5 条）。
+2. **4 处修法全部验证通过**（首跑 2026-10-27 的 91 项是 39 pass / 11 fail / 18 skip / 13 na / 10 record；本轮 48 pass / 7 fail / 13 skip / 13 na / 10 record）：`btn-url-persist` 由 skip 恢复为 pass（链接页签拿不到可靠标记时按 `mailto:` 回落判定类型）；按钮前后端 4 项（`btn-url-front`、`btn-url-backend`、`btn-target-front`、`btn-target-backend`）由 skip 变 pass；分类前后端 4 项（`pcs-mode-front`、`pcs-mode-backend`、`pcs-categories-front`、`pcs-categories-backend`）由 fail 变 pass（期望名单改按“全部”模式实际渲染的干净分类名建参照集；后台导航限定在 `.pf-cate-wrap` 内、排除编辑器“设置/编辑样式”按钮）。展示字段重复副本仍记 skip（未猜生效副本，补了各候选的勾选、可见性与位置证据）。
+3. **运行环境重启打断整跑，改分段跑**：96 分钟的整跑连续三次被运行时重启杀掉（分别跑到 8 分 43 秒、18 分 03 秒、1 小时 18 分，无报告），每次都在分类检查翻转中途被杀，站上都留下分类选择方式被翻到“选择部分产品分类”的残留（第三次还带残缺的分类勾选）。每次都是先用只读探针核查基线（探针脚本用完即删）、按画像基线恢复并重读确认，再重跑。教训：长套件不要赌一次跑完；被打断后先核查基线再重跑，不要直接重跑（翻转残留会污染下一轮）。新增 `CAPABILITY_FILTER`（`src/config.mjs` 解析，`src/run.mjs` 按能力 ID 过滤，无匹配时报错；报告记 `capabilityFilter`，启动日志打印过滤列表）：`BROWSER=firefox BLOCK_ID=47748 CAPABILITY_FILTER=button-link,product-category-select,custom-filter-fields npm run test:block`。通用前台检查每段照常跑。分段报告用 `scripts/merge-reports.mjs <报告1> <报告2> [输出]` 合并：检查按 ID 去重（后一段覆盖前一段）、summary 重算、能力取并集、取最晚的完成时间与最新有效预览链接、记 `mergedFrom`；输入缺失、非法 JSON 或 blockId 不一致时报错退出。本轮分两段：上半段 3 个能力 45 项（25 pass / 0 fail / 5 skip / 9 na / 6 record，约 79 分钟），下半段 4 个能力 53 项（27 pass / 7 fail / 11 skip / 4 na / 4 record，约 21 分钟），合并后 91 项。分段是包的正式功能（单测某个能力也用得上），不是临时绕路。
+4. **基线核查探针的两个教训**：第一次跑探针没传 `BLOCK_ID`，`.env` 默认是 40838，探针跑到了 40838 上、报出一堆假差异——探针必须显式传 `BLOCK_ID`。按钮“新窗口打开”读值时不要拿 input 的 `value`（checkbox 的 value 恒为 `on`），要用 `probeControls` 读 `checked`。
+5. **探查结论（2026-10-28 凌晨，探针 `scripts/probe-47748-fullscreen-42-44.mjs`，结果 `hidden/probe-47748-fullscreen-42-44.json`）**：(a) **全屏宽度是真上限，不是量法问题**：全屏时外层 wrap 的 max-width 是 none（不限），但宽度壳 `.hasDefaultWidth` 的计算 max-width 就是 1440px，渲染宽度 1440px；把预览视口拉到 2560px 宽，壳还是 1440px。对照组 1920 预设同一元素计算 max-width 为 1920px、2560 视口下渲染 1920px。也就是说“全屏”实际被平台卡在 1440px，没做到全屏；检查量的元素没错。算不算缺陷、预期要不要改成 1440px，**需用户定**。(b) **42/44 已查清**：导航 DOM 里一共就 42 个分类链接（34 个可见 + 8 个收起的二级链接），展开前后完全一致；Container Liner Bag 与 Cosmetic Packaging Bag 在导航 DOM 里根本不存在（不是收起的子级——Chemical Bag 的 li 标着 `hasNoUlChild`，没有子列表）。导航的 42 个名字就是完整集合，检查用它当参照集是对的；内容管理里有 44 个分类、导航只渲染 42 个，是产品侧的呈现差异，不影响检查结论。另：`cff-fields-backend`/`cff-fields-front` 只断言了测试单选按钮A与测试下拉列表两个字段组，基线第 3 个字段 Series-xiala 的组未进该检查的预期（检查写于基线纠正为 3 字段之前），属检查覆盖缺口，不影响本轮结论，待补。仍待探查：数据来源完整产品名单夹具仍缺（6 项记 skip）；展示字段哪个可见副本生效仍待实测勾选保存回读（2 项记 skip）。
+6. **范围**：本轮未改任何检查断言口径；只加了分段过滤与合并脚本（`src/config.mjs`、`src/run.mjs`、`scripts/merge-reports.mjs`），`node --check` 与 `git diff --check` 通过。40838 本轮未重跑，其新检查在明细对照表里仍写待实跑验证。
+7. **登录态过期与登录脚本抖动（2026-10-28 凌晨）**：探针首次跑时 `openEditor` 落到领动首页、报登录态失效；`scripts/explore-login.mjs` 连续 3 次报“登录后仍停留在登录页”后，第 4 次不改代码直接重跑即通过（登录态已刷新，权限 0600；站点 67 个，EDIT_SITE_URL 确认未变）。同时间段单测诊断（填账号密码后按 Enter、等 3 秒）一次就登进去了，且登录接口本身返回 success、无验证码。结论：账号密码没问题，是登录过程偶发抖动（Enter 提交后重定向慢，脚本只等 800ms 就判定仍在登录页、再点提交，形成二次提交竞态）。脚本本身未改；若以后频繁出现，再把 Enter 后的等待改成轮询 URL 变化（最多等 15 秒）后再决定是否点提交。
+
+## 22. 自定义筛选夹具准备流程（v1.12，2026-10-28）
+
+目的：不管一个站有没有自定义字段，都能跑筛选测试。流程自给自足：缺字段就建，缺产品就建，再跑交并集 oracle。40838 的手工夹具（3 件产品、两字段真值表）是本流程的原型，新站照同一套规则自动生成。
+
+1. **前置判定（跑之前定，不开弹窗）**：区块支不支持自定义筛选、支持哪几种类型，在测试前确定：问用户，或者看需求文档、设计稿。记进画像（首次设置输入之一），运行器以画像为准。打开筛选设置弹窗看支不支持不是判定方法——弹窗是验证用的，不是定标准的。画像说支持、弹窗里却没有对应的设置组时，检查记 fail（画像与实际不符，需修正画像），不记 na。
+2. **判定分支**：区块本身不支持筛选，那项记“无此设置项”，流程到此为止，不建任何东西；区块支持、但站上缺字段或缺产品，进第 3 步；什么都不缺，直接进第 4 步。
+3. **建夹具（只建缺的）**：每种支持的类型选一个字段（支持单选、多选、下拉就选 3 个字段）；缺哪个类型就去 CMS 建哪个，名字加 `AUTOTEST-` 前缀、状态开启（新增表单：字段名 + 开启/关闭 + 7 种类型，枚举型选后出“选择项”区，每行一个文本框、最多 999 个，见探查 `hidden/probe-cms-custom-fields-79106751.json` 与 `hidden/probe-cms-field-options-79106751.json`）；再建夹具产品，按真值表设值（产品编辑页设值，保存有确认弹窗、保存后有同步延迟、不能立即回读，见 §17）；最后在区块里勾上这 N 个字段，否则前台没有筛选组。建完回读验证（字段在表里、产品值读回一致），报告里记清建了什么。注意：内容管理后台改完字段后，编辑器后台刷新一下就能看到新字段（不用发布）；建完夹具后要先刷新编辑器，再开筛选设置弹窗勾字段。
+4. **真值表（N 个字段 → N+1 件产品）**：1 件取各字段的第一值；其余 N 件每件只把其中一个字段换成第二值。单字段第一值集 = 除翻转件外的全部产品；全部交集 = 只有全第一值那件；全部并集 = 全部产品；两两交集同样可区分。示例（3 类型 4 件产品）：P1=(单选a1, 多选b1, 下拉c1)、P2=(a1, b2, c1)、P3=(a2, b1, c1)、P4=(a1, b1, c2)。多选字段在主真值表里每件产品只挂一个值（与单选/下拉同一套表）；“一件产品挂多个值”的情况另做一项检查（该产品应同时出现在两个值的集合里）。
+5. **跑 oracle**：单字段、两两交集、全部交集、全部并集，四种结果集精确比对。验的位置：在能点筛选的前台——编辑器预览能点就在预览验，点不了走已发布真前台。注意：建字段、建产品、设值是内容管理后台操作，立即生效，不用发布；需要发布的是编辑器里的区块设置（勾上筛选字段），发布后线上才有筛选组。发布步骤待定，见第 7 条。
+6. **收尾**：只恢复区块设置（已有规则）；自定义字段与夹具产品不恢复、不删除，常驻。清理靠手动删除（字段列表每行有删除），流程不自动删。
+7. **待定**：oracle 走已发布真前台时，发布由谁做、什么时候做。发布只涉及编辑器里的区块设置（勾上筛选字段后推上线，跑完恢复后再发布一次把线上还原）；建字段、建产品、设值是内容管理后台操作，立即生效，不用发布。多选“一件产品多个值”的那项检查尚未写进能力模块。
+
+## 23. 自定义筛选夹具准备代码接线（v1.13，2026-10-28）
+
+本节实现 §22 的准备流程；本轮只完成代码与静态验证，尚未进行浏览器实跑，不代表新增 CMS 路径已验证。
+
+- `src/cms.mjs`：同一浏览器 context 经编辑器 SSO 后打开产品管理；列出/新建字段、核对既有字段类型与完整选项，精确查找/新建产品，按字段名发现控件，设值并经保存确认及延迟回读核对。字段类型码来自探查，无数字类型；仅创建 `AUTOTEST-` 新实体，既有字段有冲突直接报错。新增产品保守地只填唯一可定位的必填产品名，若出现上架控件则设为上架，其余保持默认。
+- `src/fixture.mjs`：读取 `profile.fixture` 的前置结论和规格，写入前校验 N 字段/N+1 产品真值表；按需创建和设值，已有值一致时不重写。画像里每个字段的 `options` 是夹具需要的两个值（真值表第一值/第二值），不是字段的完整选项清单——复用既有字段时只要求这两个值都在 CMS 选项里，CMS 有更多选项不算冲突、不改字段（2026-10-28 实跑：测试单选按钮A 画像 2 个选项、CMS 10 个选项，按子集核对通过）。CMS 页在 finally 关闭；调用 `src/editor.mjs` 的 `reloadEditor` 刷新编辑器并核对/切回目标页，再勾上夹具字段、保存弹窗与页面。刷新前先保存，避免刚添加的区块丢失。保存页面改 DOM 点击：残留的隐藏弹窗遮罩（`.backstage-dialog-overlay.hide`）会挡住保存按钮的鼠标点击（实测 30 秒超时），按钮本身可见可用。
+- `src/run.mjs`：`apply-baseline` 后、`capability-settings` 前增加 `fixture-prep`。只有画像含 `fixture` 时自动运行；设置 `CAPABILITY_FILTER` 时还须包含 `custom-filter-fields`，否则报告记录跳过原因。准备失败记 fail 并继续其他能力，依赖夹具的 oracle skip。外层 finally 在截图前恢复全部字段原勾选状态；部分准备失败也尽力恢复，恢复失败独立记 fail 和错误，不覆盖原运行失败。恢复后使用携带内存登录态的新浏览器 context 重开编辑器，回读持久化勾选清单。
+- `src/capabilities/custom-filter-fields.mjs`：导出纯函数 `buildFixtureTruthTable(fixture)`，从画像产品值计算单字段、两两交集、全部交集和全部并集精确集合，允许翻转产品的排列顺序不同。每个 oracle 独立走 `effectCheck` 的设置/保存/手动搜索/预览断言/finally 恢复事务。有 fixture 时旧 logic/trigger/scope/jump 四项明确 skip（已被 N 字段 oracle 取代）；无 fixture 时保留原路径及两字段回退。预览不可交互时 skip，不强制点击。
+- `profiles/40838.json` 新增三字段、四产品 fixture（单选、下拉复用，多选与第 4 件产品按缺失新建）；前置依据为 2026-10-28 用户确认，目标仍由既有站点配置决定。并集预期保持正确的 4 件产品，已知缺陷说明附在检查 detail。`profiles/TEMPLATE.json` 提供两字段占位示例，采用时替换占位符，不支持筛选时移除 fixture 段。
+
+运行示例（在有权限且完成首次配置的测试环境执行）：
+
+```bash
+BLOCK_ID=40838 CAPABILITY_FILTER=custom-filter-fields npm run test:block
+```
+
+不设过滤时，画像有 fixture 段也会自动准备。前置类型以画像为准，不从弹窗猜支持情况；缺失设置组按画像与实际不符记 fail。
+
+报告新增 `report.fixture`：`applied`、`created.fields/products`、`reused.fields/products`、`restored` 与 `restoreErrors`，失败/过滤时补 `reason`。准备过程检查为 `fixture-prep-fields`、`fixture-prep-products`、`fixture-prep-enable-fields`；阶段异常为 `fixture-prep`，收尾异常为 `fixture-restore`。数据效果检查为 `cff-oracle-single-<i>`、`cff-oracle-intersect-<i>-<j>`、`cff-oracle-intersect-all`、`cff-oracle-union-all`；均有中文名称、纯文字描述/预期/实际/证据。`cff-oracle-multivalue` 仅定义为 skip，尚未实现“一件产品挂两个值”。
+
+首次实跑必须核查的点：
+
+1. **CMS 新增产品表单结构**：产品名的语义标签、其他必填项、上架控件及保存入口未经新增表单探查；不唯一或缺失即报错，不猜字段 ID。产品搜索优先定位语义搜索框和“查询/搜索”；搜索不可用时只能扫描第一页，已存在且不在第一页的产品可能误判不存在，须先核实搜索路径。既有夹具名不带 `AUTOTEST-`，查不到时会停止该准备阶段，避免误建。
+
+实跑修过的两处 CMS 定位问题（2026-10-28）：(1) `hasText` 不能用锚定正则——链接文字的 textContent 带前导换行/制表符，`/^管理自定义字段$/` 匹配不到（实测 0 个），改纯文字子串后为 1 个；`clickAction` 内已转纯文字，搜索按钮同步去锚定。(2) 侧栏入口点击会丢——Playwright 鼠标点击有时不触发 SPA 跳转（实测约半数停在产品列表页），改 DOM 点击；字段表经 XHR 后到，`waitForStable` 会把空表当稳定（实测 1.8 秒读到 0 个字段），`listCustomFields` 改走 `settleCmsNavigation` 等数据落定；点击仍丢时按“字段名称”是否出现判断、最多重试 3 次。修后 `listCustomFields` 连续 4 次实测均为 23 个字段。
+2. **产品编辑页按字段名定位控件**：从精确字段标题寻找最小且唯一的 radio/select/checkbox 容器，没有写死旧 `option_826554`；实际容器层级、标题文本和组选项标签均须首次核对。
+3. **多选字段设值形态**：当前按同组 checkbox 只勾一个目标、取消其他值实现，须核查实际页面确实采用该控件形态。字段选择项输入框与隐藏 JSON（`field.fieldOptionJson`）的联动、保存“重复确认”弹窗结构与时序也需实跑确认。已确认（2026-10-28 探针）：隐藏 JSON 在填表时始终为空，填+失焦、真实按键、手动派发 input/change/keyup 事件都写不进去——它是在提交时才序列化的；所以新建字段保存前只核对可见选项文本框的值，保存后再重开字段回读选项作最终验证，**不要**在保存前核对隐藏 JSON。**产品保存的“重复确认”弹窗已定因（2026-10-28 探针 v6/v7）**：点保存后先 GET `/prod/doUpdate/verify`（回 `{}`），再 POST `/prod/similarityJudge`（发 prodName/seoTitle/seoDesc/prodId；回 `{"code":200,"data":null,"message":"Title、Description"}`），然后弹出平台自定义层 `#popupLayer_sysConfirmPop` > `#popWin`，正文“Title、Description和已有产品相同不利于搜索引擎优化，确认提交？”，确定按钮 `#confirmYes`；点它才发真正的保存 POST `/prod/new/doUpdate`（请求体含 `option_911698=1`，回 200），值随即落库。**弹窗出现很慢**：v7 实测保存后 8.1 秒才出现（verify + similarityJudge 往返耗时），旧 `saveCms` 只轮询 5 秒，每次都错过、保存从未发出——这是四轮实跑里夹具设值不落库的根因（不是 checkbox 形态、不是 DOM 点击、不是服务端不存）。已修：`saveCms` 先按稳定 id `#popupLayer_sysConfirmPop #confirmYes` 点确认（通用文字匹配作回退），轮询窗口 5 秒 → 30 秒，点中且弹窗关闭后即返回。v7 全流程验证：测试产品A 的 AUTOTEST-多选 = 多选4-10 已落库，重读 checked=true。注意：凡是不改 Title/Description 的产品编辑保存都会弹这个窗；新建产品是否弹、弹的时机，视 similarityJudge 返回而定，`saveCms` 两种情况都覆盖（没弹窗则等满 30 秒后返回）。**第二个根因——保存点击时序抖动（2026-10-28 探针 v8–v11）**：修完 30 秒轮询后整轮仍失败（小何1 的设值回读超时），但直接调 runner 的 `setProductFieldValues` 给小何1 设值一次成功（doUpdate 含 `option_911698=1`，重读落库）；同法给小何2 设值却失败，全程没发 similarityJudge——保存点击根本没触发流程；而 v10/v11 用同样的 DOM 点击（v11 逐字复刻 runner 的 evaluate）又都触发了 verify → similarityJudge → 弹窗。定因是时序竞态：表单值是服务端渲染、很早就稳定，`waitProductFields` 的稳定判定不能证明页面 JS 已绑好保存处理函数，`openProduct` 只等 `domcontentloaded` 时点击可能落在处理函数绑定之前。已修：`openProduct` 改等 `load`（等页面脚本跑完）；`setProductFieldValues` 在保存前核对 evaluate 返回的页面内值，未勾选直接报错，不再烧掉 30 秒轮询 + 90 秒回读才暴露。v8/v9/v10/v11 探针脚本与结果见 `scripts/probe-40838-multiselect-save8/9/10/11.mjs` 与 `hidden/` 下同名 JSON。**第三个根因——保存链概率性卡住（2026-10-28 探针 v12–v16）**：修完 `load` 等待后整轮仍失败，v12 只读重读站上真实状态：A 与小何1 三字段全对，小何2 的多选仍是空、**产品4 根本没建出来**——失败点仍是小何2 的设值，不是产品4，报告里产品在复用名单只表示“处理到了它”，不代表设值成功。v13（时间线轮询 + 全流量）：checkbox 页面内确实勾上、保存点击触发了 verify（GET 回 `{}`），但随后 30 秒内既无 POST `/prod/similarityJudge` 也无弹窗，流程在 verify 回包之后就断了。v14（每秒快照页面状态）：114 个点全程无任何弹窗层、无行内校验报错、敏感词数组全为 0、保存窗口内无页面报错——排除敏感词弹窗、排除已知的 SKU/批发校验、排除 JS 异常杀链。读页面源码（`prod_config.js`，451KB）确认链路：verify 回 `{}` → `SMT.func(config.saveProdContent)` → 敏感词数组非空则弹提示窗、否则 `prodSubmit()` → SKU/名称/批发等大段校验（任一失败都静默 return，只留行内报错）→ `getFieldSetting()`（把 `#fieldContent` 内已勾 checkbox 等收进 `#submitFieldJson`）→ `SMT.ajax(similarityJudge)` → message 为空直接保存、否则弹“重复确认”。v15（手动流程 + 包装器）再次成功，链路完整 logged；**v16（runner 同法 + addInitScript 包装器）这次成功了**：verify → similarityJudge → 弹窗 → 点确定 → doUpdate 200，小何2 的多选落库。结论：runner 的保存不是系统性坏，是**概率性卡住**（runner 实测 2/7 成功，手动 3/3；另有一组时序数据点：成功的保存点击多在页面加载后 2–4 秒，失败的在 5–6 秒，但机制未证实）。已修：`saveCms` 加**保存点击重试，仅产品保存**（`saveProduct` 传 `{ retryClicks: 2 }`）：点保存后 5 秒内无保存链请求、或 verify 回包后 3 秒内无 similarityJudge/doUpdate/弹窗，即重找保存按钮再点一次，最多 2 次；成功时 similarityJudge 总在 verify 后约 1 秒内到，3 秒是宽裕阈值；弹窗已打开时不重试；字段保存不走重试（接口不同、重复提交是真风险）。v12–v16 探针脚本与结果见 `scripts/probe-40838-fixture-read.mjs`、`scripts/probe-40838-multiselect-save13/14/15/16.mjs` 与 `hidden/` 下同名 JSON。
+4. **40838 四产品真值表**：须在旧站配置（40083596）实核三字段类型、既有字段完整选项、产品上架和区块数据范围、4 件产品的全部值与前台精确集合；现有两个字段完整选项与画像不一致会明确报冲突，不自动修改或弱化判定。单选集/下拉集分别按产品实际声明值计算，不按产品数组位置假定谁翻了哪个字段。并集已知缺陷仍按 4 件断言。
+
+本实现不发布、不删除字段或产品。CMS 变更立即生效，刷新编辑器用于读取新增字段；收尾只恢复区块字段勾选，CMS 字段和产品常驻。预览不可交互时记 skip，已发布真前台的执行及发布职责仍待确定。

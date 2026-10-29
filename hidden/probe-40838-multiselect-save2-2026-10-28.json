@@ -1,0 +1,44 @@
+{
+  "at": "2026-10-28T08:41:11.774Z",
+  "site": "http://en-site40083596.ldyjz.com",
+  "steps": {
+    "clickedChecked": true,
+    "overlayAt": {
+      "t": "0.6s",
+      "layers": [
+        "如果您觉得我们提供的产品属性无法满足您的要求，您可以手动添加产品属性",
+        "开启后，产品描述富文本编辑器里的内容样式会按照富文本编辑器的设置生效。未开启，部分样式会继承组件样式或全局样式。",
+        "最多5组描述；多个描述间可拖动调整顺序； 建议图片尺寸：宽度不超过900px，高度不超过500px，大小不超过100kb。"
+      ],
+      "hasRepeatConfirm": false
+    },
+    "traffic": [
+      {
+        "t": "0.0s",
+        "dir": "req",
+        "method": "GET",
+        "url": "https://website.leadong.com/prod/doUpdate/verify?_=1793176920715&prodId=ENULQuzRFljy"
+      },
+      {
+        "t": "0.4s",
+        "dir": "res",
+        "status": 200,
+        "url": "https://website.leadong.com/prod/doUpdate/verify?_=1793176920715&prodId=ENULQuzRFljy"
+      }
+    ],
+    "afterSave": {
+      "url": "https://website.leadong.com/prod?invokeAction=prod_new_update&prodId=ENULQuzRFljy",
+      "hasRepeatConfirm": false
+    },
+    "reread": [
+      {
+        "label": "多选4-10",
+        "checked": false
+      },
+      {
+        "label": "多选8-10",
+        "checked": false
+      }
+    ]
+  }
+}

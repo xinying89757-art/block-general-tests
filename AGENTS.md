@@ -79,6 +79,13 @@ BLOCK_ID=<id> npm run test:block
 （`TARGET_PAGE` / `TARGET_PAGE_KIND` 只作一次性覆盖，平时用画像里的目标页。）
 区块刚加上去时，运行器自动按画像 `baseline` 配好再跑；`APPLY_BASELINE=1` 可强制
 重配一次（已在页上的区块也按基线重配一遍）。
+**分段跑**：整跑超过运行环境重启窗口时（47748 全套件约 96 分钟，曾连续三次被重启打断），
+用 `CAPABILITY_FILTER` 按能力分段跑，每段单独出报告，再用
+`node scripts/merge-reports.mjs <报告1> <报告2> [输出]` 合并成一份完整报告
+（检查按 ID 去重、后一段覆盖前一段；summary 重算；记 `mergedFrom`）。
+例如：`CAPABILITY_FILTER=button-link,product-category-select,custom-filter-fields npm run test:block`。
+被打断后先用只读探针核查基线、有翻转残留先按画像基线恢复并重读确认，再重跑，不要直接重跑。
+**自定义筛选夹具准备（v1.12，手册 §22）**：支不支持筛选、支持哪几种类型是前置判定——首次设置时问用户或看需求文档/设计稿，记进画像，运行器以画像为准，不要开弹窗现判定。缺字段或缺产品时按 §22 建夹具（字段与产品名加 `AUTOTEST-` 前缀；真值表 N 个字段 → N+1 件产品）；收尾只恢复区块设置，字段与产品不恢复、不删除。代码实现与首次实跑核查见手册 §23（v1.13）、`src/cms.mjs`、`src/fixture.mjs` 及 `cff-oracle-*` 检查。
 跑之前先说一句开始了、大概多久；跑的时候不刷屏；用户问进度时告诉他当前阶段。
 跑完先说结论：有没有新问题，还是上次那几个已知问题。
 细节在报告页面：`node scripts/report-html.mjs reports/<runId>.json`，

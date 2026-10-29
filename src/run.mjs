@@ -5,6 +5,7 @@ import { loadConfig } from './config.mjs';
 import { launchSession } from './browser.mjs';
 import { openEditor, ensureTargetPage, addBlockIfNeeded, savePage, openPreview, resolveTargetPage, getPreviewShareLink } from './editor.mjs';
 import { applyBaseline } from './baseline.mjs';
+import { prepareFixture, restoreFixture } from './fixture.mjs';
 import { runFrontChecks } from './checks.mjs';
 import * as customFilterFields from './capabilities/custom-filter-fields.mjs';
 import * as productListDisplay from './capabilities/product-list-display.mjs';
@@ -28,7 +29,8 @@ export const capabilityRegistry = {
 
 export async function runCapabilityLayer(capabilities, layer, args, registry = capabilityRegistry) {
   const checks = [];
-  const method = layer === 'settings' ? 'runSettingsLayer' : 'runFrontLayer';
+  const { profile } = args;
+  const method = { settings: 'runSettingsLayer', backend: 'runBackendLayer', front: 'runFrontLayer' }[layer];
   // capabilities are profile entries, not bare ids: a module may need its
   // profile parameters (dialogTitle, wrapIndex, variant) to locate its dialog
   // when several sub-regions share one editor type.
@@ -37,9 +39,9 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
     const module = registry[id];
     if (typeof module?.[method] !== 'function') continue;
     try {
-      const returned = await module[method]({ ...args, capability });
+      const returned = await module[method]({ ...args, capability, profile });
       checks.push(...returned);
-      await captureCheckScreenshots(returned, layer === 'settings' ? args.page : args.previewPage,
+      await captureCheckScreenshots(returned, layer === 'front' ? args.previewPage : args.page,
         args.screenshotDir, args.runId, args.report, layer);
     }
     catch (error) {
@@ -48,7 +50,7 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
         status: 'fail', detail: error.message, suite: `capability:${id}`,
         ...checkReportText(name, 'fail', error.message) };
       checks.push(check);
-      await captureCheckScreenshots([check], layer === 'settings' ? args.page : args.previewPage,
+      await captureCheckScreenshots([check], layer === 'front' ? args.previewPage : args.page,
         args.screenshotDir, args.runId, args.report, layer);
     }
   }
@@ -95,7 +97,13 @@ async function main() {
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
   }
-  const capabilities = profile?.capabilities || [];
+  let capabilities = profile?.capabilities || [];
+  if (config.capabilityFilter?.length) {
+    capabilities = capabilities.filter(({ id }) => config.capabilityFilter.includes(id));
+    if (!capabilities.length) {
+      throw new Error(`CAPABILITY_FILTER 未匹配到任何能力：${config.capabilityFilter.join(',')}`);
+    }
+  }
   const capabilityIds = capabilities.map(({ id }) => id);
   // Page selection lives in the profile (recorded at first-run setup);
   // env TARGET_PAGE / TARGET_PAGE_KIND override it for one-off runs.
@@ -112,6 +120,7 @@ async function main() {
   const report = {
     runId,
     startedAt,
+    capabilityFilter: config.capabilityFilter ?? null,
     profile: profile ? { blockId: profile.blockId, capabilities: capabilityIds } : null,
     config: {
       blockId: config.blockId,
@@ -127,6 +136,7 @@ async function main() {
     },
     added: null,
     baseline: null,
+    fixture: null,
     page: null,
     checks: [],
     summary: { pass: 0, fail: 0, skip: 0, na: 0, record: 0 },
@@ -138,14 +148,19 @@ async function main() {
   };
   let session;
   let previewPage;
+  let canvas;
+  let fixturePreparation;
   let stage = 'launch-session';
   try {
     console.log(`[block] 开始：BLOCK_ID=${config.blockId}，TARGET_PAGE=${config.resolvedTarget.page}（${config.resolvedTarget.kind === 'custom' ? '自定义页面' : '系统页面'}）`);
+    if (config.capabilityFilter?.length) console.log(`[block] 能力过滤：${config.capabilityFilter.join(',')}`);
     session = await launchSession(config);
     stage = 'open-editor';
     session.page = (await openEditor(session.page, config)).page;
     stage = 'goto-target-page';
-    const { frame: canvas, created: pageCreated } = await ensureTargetPage(session.page, config);
+    const target = await ensureTargetPage(session.page, config);
+    canvas = target.frame;
+    const pageCreated = target.created;
     report.page = { ...config.resolvedTarget, created: pageCreated };
     stage = 'add-block';
     report.added = await addBlockIfNeeded(session.page, canvas, config);
@@ -168,12 +183,40 @@ async function main() {
     } else {
       report.baseline = { applied: false, reason: 'block already on page' };
     }
+    if (profile?.fixture) {
+      if (config.capabilityFilter?.length && !config.capabilityFilter.includes('custom-filter-fields')) {
+        report.fixture = { applied: false, reason: 'CAPABILITY_FILTER 未包含 custom-filter-fields，跳过夹具准备。' };
+      } else {
+        stage = 'fixture-prep';
+        try {
+          fixturePreparation = await prepareFixture({ page: session.page, canvas, context: session.context, config, profile });
+          report.checks.push(...fixturePreparation.checks);
+          report.fixture = { applied: true, created: fixturePreparation.created, reused: fixturePreparation.reused,
+            restored: null, restoreErrors: [] };
+        } catch (error) {
+          fixturePreparation = error.fixturePreparation;
+          report.checks.push(...(fixturePreparation?.checks || []));
+          report.fixture = { applied: false, reason: error.message,
+            created: fixturePreparation?.created || { fields: [], products: [] },
+            reused: fixturePreparation?.reused || { fields: [], products: [] },
+            restored: fixturePreparation?.restored ?? null, restoreErrors: fixturePreparation?.restoreErrors || [] };
+          const name = '自定义筛选夹具准备';
+          report.checks.push({ id: 'fixture-prep', name, status: 'fail', suite: 'fixture-prep', detail: error.message,
+            ...checkReportText(name, 'fail', error.message, undefined, 'fixture-prep'),
+            expected: '夹具字段、产品及区块勾选状态应按画像准备完成并回读核对。' });
+        }
+      }
+    }
     stage = 'capability-settings';
     report.checks.push(...await runCapabilityLayer(capabilities, 'settings', {
-      page: session.page, canvas, context: session.context, config, screenshotDir, runId, report,
+      page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
     }));
     stage = 'save-page';
     await savePage(session.page);
+    stage = 'capability-backend';
+    report.checks.push(...await runCapabilityLayer(capabilities, 'backend', {
+      page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
+    }));
     stage = 'open-preview';
     const preview = await openPreview(session.page, session.context);
     previewPage = preview.previewPage;
@@ -189,10 +232,27 @@ async function main() {
     report.checks.push(...frontChecks);
     // The style capability switches viewports and takes screenshots, so it
     // needs the preview page, not just its content frame.
-    report.checks.push(...await runCapabilityLayer(capabilities, 'front', { frame: preview.frame, previewPage: preview.previewPage, config, screenshotDir, runId, report }));
+    report.checks.push(...await runCapabilityLayer(capabilities, 'front', { frame: preview.frame, previewPage: preview.previewPage, config, profile, screenshotDir, runId, report }));
   } catch (error) {
     report.failure = { stage, message: error.message };
   } finally {
+    // A fixture-prep exception may carry a partial snapshot too. Retrying the
+    // full restoration here also covers failures in later capabilities.
+    if (fixturePreparation?.originalFieldStates && session) {
+      try {
+        await restoreFixture({ page: session.page, canvas, config,
+          originalFieldStates: fixturePreparation.originalFieldStates });
+        await savePage(session.page);
+        report.fixture.restored = true;
+      } catch (error) {
+        report.fixture.restored = false;
+        report.fixture.restoreErrors.push(error.message);
+        const name = '夹具字段勾选收尾恢复';
+        report.checks.push({ id: 'fixture-restore', name, status: 'fail', suite: 'fixture-prep', detail: error.message,
+          ...checkReportText(name, 'fail', error.message, undefined, 'fixture-restore'),
+          expected: '全部字段勾选状态应恢复运行前快照、保存，并经新会话回读一致。' });
+      }
+    }
     // Preserve both views on success and best-effort failure evidence. If
     // openPreview throws after creating its tab, recover that tab for evidence.
     if (!previewPage && session) {

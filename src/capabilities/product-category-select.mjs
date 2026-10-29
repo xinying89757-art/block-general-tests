@@ -1,5 +1,6 @@
+import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, rememberCategoryState } from './effect-checks.mjs';
 import { savePage, openPreview } from '../editor.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText, readBackWithRetry } from './shared.mjs';
 
 const SUITE = 'capability:product-category-select';
 const NAMES = {
@@ -73,7 +74,9 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
         await session.save();
       }
       await session.open();
-      const after = await probeControls(session);
+      const after = await probeControls(session, (items) =>
+        items.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay').find((item) => item.checked)?.label === originalMode
+        && categoriesOf(items).filter((item) => item.checked).length === originalChecked.length);
       const restoredMode = after.controls?.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay').find((item) => item.checked)?.label;
       const restoredChecked = categoriesOf(after.controls || []).filter((item) => item.checked).length;
       evidence.restored = { mode: restoredMode, checkedCount: restoredChecked };
@@ -114,7 +117,11 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
       await session.save();
       await savePage(page);
       await session.open();
-      const verify = await probeControls(session);
+      const verify = await probeControls(session, (items) => {
+        const checked = categoriesOf(items).filter((item) => item.checked).map((item) => (item.label || '').trim());
+        return items.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay').find((item) => item.checked)?.label === '选择部分产品分类'
+          && checked.length === 1 && checked[0] === target;
+      });
       const persistedMode = verify.controls?.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay').find((item) => item.checked)?.label;
       const persistedChecked = categoriesOf(verify.controls || []).filter((item) => item.checked).map((item) => (item.label || '').trim());
       evidence.persisted = { mode: persistedMode, checked: persistedChecked };
@@ -219,7 +226,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   const initial = await probeControls(session);
   const checks = [];
   try {
-    if (initial.reason) return Object.keys(NAMES).filter((id) => id !== 'pcs-front-note')
+    if (initial.reason) return ['pcs-state', 'pcs-mode-persist', 'pcs-category-persist', 'pcs-category-front']
       .map((id) => result(id, 'skip', `无法读取产品分类弹窗：${initial.reason}`));
     const categories = categoriesOf(initial.controls);
     const mode = initial.controls.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay');
@@ -266,7 +273,9 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
               await session.set(all, true);
               await session.save();
               await session.open();
-              const restored = findControl(await session.read(), all);
+              const restored = await readBackWithRetry(
+                async () => findControl(await session.read(), all), (item) => item?.checked,
+                async () => { await session.cancel(); await session.open(); });
               if (!restored?.checked) errors.push('选择方式未恢复为“选择所有产品分类”');
             }
           } catch (error) { errors.push(`恢复选择方式失败：${error.message}`); }
@@ -286,6 +295,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       if (last) { last.status = 'fail'; last.detail += `；最终取消失败：${error.message}`; }
     }
   }
+  checks.push(...await categoryEffects({ page, canvas, context, config, capability }, 'front'));
   return checks;
 }
 
@@ -299,3 +309,97 @@ export async function runFrontLayer({ frame, config }) {
     return [result('pcs-front-note', 'record', `分类前台可观察性探查不可用：${error.message}`)];
   }
 }
+
+Object.assign(NAMES, {
+  'pcs-mode-backend': '所有与部分分类在画布生效',
+  'pcs-mode-front': '所有与部分分类在预览生效',
+  'pcs-categories-backend': '画布分类导航完整集合',
+  'pcs-categories-front': '预览分类导航完整集合',
+});
+function categoryNavigation(root) {
+  const nav = root.querySelector('.pf-cate-wrap');
+  if (!nav) return null;
+  // The editor inserts its toolbar INSIDE .pf-cate-wrap. Scoping to the
+  // container alone still includes 设置 / 编辑样式 (both widgettool-btns).
+  const entries = [...nav.querySelectorAll('a')]
+    .filter((node) => !node.closest('.backstage-widgettool-btns'))
+    .map((node) => {
+      let depth = 0;
+      for (let parent = node.parentElement; parent && parent !== nav; parent = parent.parentElement) {
+        if (parent.tagName === 'LI') depth++;
+      }
+      return { name: (node.textContent || '').replace(/\s+/g, ' ').trim(), depth,
+        visible: Boolean(node.getClientRects().length) && getComputedStyle(node).visibility !== 'hidden' };
+    }).filter((item) => item.name);
+  // Include collapsed links already rendered in the DOM, not just visible
+  // rows. Do not invent links for CMS categories absent from this navigation.
+  return { names: entries.map((item) => item.name), entries };
+}
+function categoryControl(controls, name) {
+  const candidates = categoriesOf(controls).filter((item) => item.label.includes(name));
+  // A parent's label includes descendant names. Its own name starts the
+  // label; exact matches take precedence. Never use the whole tree as a name
+  // or pick the first ancestor whose label happens to contain the child.
+  const exact = candidates.filter((item) => item.label === name);
+  const own = exact.length ? exact : candidates.filter((item) => item.label.startsWith(`${name} `));
+  if (own.length !== 1) unavailable(`分类“${name}”没有唯一对应的勾选框，需核实分类树结构。`);
+  return own[0];
+}
+async function categoryEffects(args, layer) {
+  const checks = [];
+  for (const kind of ['mode', 'categories']) {
+    const session = widgetSession({ ...args, type: 'phoenix_blocks_gallery',
+      title: args.capability?.dialogTitle || '设置产品分类', wrapIndex: args.capability?.wrapIndex ?? 0 });
+    checks.push(await effectCheck({ ...args, session, result, id: `pcs-${kind}-${layer}`, layer, run: async (tx) => {
+      const controls = await tx.controls();
+      const all = uniqueControl(controls, (item) => item.type === 'radio' && item.name === 'selectGroupWay'
+        && item.label === '选择所有产品分类', '本区块没有分类选择方式设置项。');
+      const partial = uniqueControl(controls, (item) => item.type === 'radio' && item.name === all.name
+        && item.label === '选择部分产品分类', '本区块没有部分分类设置项。');
+      rememberCategoryState(tx, session, controls, 'selectGroupWay');
+      const readNavigation = async () => {
+        const snapshot = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, categoryNavigation)
+          : await tx.observe((frame) => readEffectRoot(frame, args.config, categoryNavigation));
+        if (!snapshot?.names.length) unavailable('该层暂时没有可读取的分类导航，需实站核实。');
+        return snapshot;
+      };
+      // Establish clean names in ALL mode before flipping to a subset. The
+      // 2026-10-27 report has 42 rendered names vs 44 CMS/dialog categories:
+      // Container Liner Bag and Cosmetic Packaging Bag are absent as links,
+      // although present in nested dialog labels. textContent reads collapsed
+      // DOM links too, so mere CSS collapse does not explain that difference.
+      // Whether deeper levels load on expansion needs a live probe. Our set is
+      // the navigation actually rendered in all mode, with no fixed 42/44 count.
+      await tx.set(all, true);
+      await tx.save();
+      const reference = await readNavigation();
+      const complete = reference.names;
+      if (!complete.length || new Set(complete).size !== complete.length) unavailable('分类名称为空或重名，不能建立唯一的完整分类清单。');
+      const referenceControls = await tx.controls();
+      const represented = new Set(complete.map((name) => categoryControl(referenceControls, name).index));
+      tx.evidence.categoryReference = { mode: '选择所有产品分类', ...reference,
+        checkboxCount: categoriesOf(referenceControls).length,
+        controlsWithoutRenderedLink: categoriesOf(referenceControls).filter((item) => !represented.has(item.index)) };
+      const subsets = kind === 'mode' ? [complete, complete.slice(0, Math.min(2, complete.length))]
+        : [complete.slice(0, Math.min(2, complete.length)), complete.slice(-Math.min(3, complete.length))];
+      tx.expected(subsets.map((items, index) => `第 ${index + 1} 次导航应恰好包含 ${items.length} 个分类：${sentenceList(items)}`).join('；') + '。');
+      for (let index = 0; index < subsets.length; index++) {
+        const wanted = subsets[index];
+        await tx.set(kind === 'mode' && index === 0 ? all : partial, true);
+        // Save/reopen to let disabled category controls follow the selected mode.
+        await tx.save();
+        if (!(kind === 'mode' && index === 0)) {
+          const current = await tx.controls();
+          const selected = new Set(wanted.map((name) => categoryControl(current, name).index));
+          for (const item of categoriesOf(current)) await tx.set(item, selected.has(item.index));
+          await tx.save();
+        }
+        const snapshot = await readNavigation(), nav = snapshot.names;
+        (tx.evidence.navigation ||= []).push({ wanted, actual: nav, entries: snapshot.entries });
+        tx.assert(sameSet(nav, wanted), `第 ${index + 1} 次分类导航实际有 ${nav.length} 个：${sentenceList(nav)}；应为 ${sentenceList(wanted)}，已逐项比较完整清单。`);
+      }
+    } }));
+  }
+  return checks;
+}
+export async function runBackendLayer(args) { return categoryEffects(args, 'backend'); }

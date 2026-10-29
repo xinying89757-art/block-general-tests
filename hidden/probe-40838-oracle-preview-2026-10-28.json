@@ -1,0 +1,43 @@
+{
+  "at": "2026-10-28T10:59:02.928Z",
+  "blockId": "40838",
+  "dialogFields": [
+    {
+      "label": "测试单选按钮A",
+      "checked": false
+    },
+    {
+      "label": "测试下拉列表",
+      "checked": false
+    },
+    {
+      "label": "AUTOTEST-多选",
+      "checked": false
+    }
+  ],
+  "radios": {
+    "logic": "交集（查询出共有的部分）",
+    "trigger": "点击“搜索”按钮进行筛选"
+  },
+  "saved": true,
+  "previewUrl": "http://website.leadong.com/phoenix/pagebuilder/preview",
+  "preview": {
+    "groupCount": 5,
+    "titles": [
+      "Series",
+      "Category",
+      "测试单选按钮A",
+      "测试下拉列表",
+      "AUTOTEST-多选"
+    ],
+    "firstTitleInside": true,
+    "firstHtml": "<div class=\"prodfield-single swiper-slide prodfield-col-series\" id=\"series_level\" data-type=\"3\" data-col-kind=\"series\"> <div class=\"prodfield-single-bag\"> <div class=\"prodfield-left-fieldname\"> <span>Series</span> </div> <div class=\"prodfield-left-search\"> <input type=\"text\" class=\"prodfield-col-search\" placeholder=\"Please enter the content…\"> <div class=\"search_svg\"> <svg class=\"icon\" viewBox=\"0 0 1024 1024\" width=\"15\" height=\"15\"> <path d=\"M675.328 252.928a298.6496 298.6496 0 1 0-422.4 422.4 298.6496 298.6496 0 0 0 422.4-422.4zM192.6144 192.6656a384 384 0 0 1 571.5968 511.232l152.4736 152.5248-60.3136 60.3136-152.5248-152.4736A384.0512 384.0512 0 0 1 192.6144 192.6144z\" fill=\"#C0C0C0\"></pa",
+    "productNames": []
+  },
+  "oracleMatches": {
+    "测试单选按钮A": 0,
+    "测试下拉列表": 0,
+    "AUTOTEST-多选": 0
+  },
+  "restored": true
+}

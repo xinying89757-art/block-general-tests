@@ -112,5 +112,55 @@
   "testData": {
     "requirements": [],
     "status": "to-be-defined"
+  },
+  "fixture": {
+    "note": "前置判定结论：<用户确认日期或需求/设计稿依据>。可选段，不支持筛选时删除本段；每种支持类型一个字段，N 个字段配 N+1 件产品。多选主表每件只挂一个值；字段与产品常驻不删，收尾只恢复区块设置。示例占位符须替换，新建名称保留 AUTOTEST- 前缀。",
+    "supportedTypes": [
+      "单选按钮",
+      "多选按钮"
+    ],
+    "fields": [
+      {
+        "name": "AUTOTEST-<单选字段名>",
+        "type": "单选按钮",
+        "typeCode": 1,
+        "options": [
+          "<单选第一值>",
+          "<单选第二值>"
+        ]
+      },
+      {
+        "name": "AUTOTEST-<多选字段名>",
+        "type": "多选按钮",
+        "typeCode": 3,
+        "options": [
+          "<多选第一值>",
+          "<多选第二值>"
+        ]
+      }
+    ],
+    "products": [
+      {
+        "name": "AUTOTEST-<基准产品名>",
+        "values": {
+          "AUTOTEST-<单选字段名>": "<单选第一值>",
+          "AUTOTEST-<多选字段名>": "<多选第一值>"
+        }
+      },
+      {
+        "name": "AUTOTEST-<翻单选产品名>",
+        "values": {
+          "AUTOTEST-<单选字段名>": "<单选第二值>",
+          "AUTOTEST-<多选字段名>": "<多选第一值>"
+        }
+      },
+      {
+        "name": "AUTOTEST-<翻多选产品名>",
+        "values": {
+          "AUTOTEST-<单选字段名>": "<单选第一值>",
+          "AUTOTEST-<多选字段名>": "<多选第二值>"
+        }
+      }
+    ]
   }
 }

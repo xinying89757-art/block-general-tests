@@ -1,0 +1,35 @@
+{
+  "at": "2026-10-28T11:52:06.361Z",
+  "blockId": "40838",
+  "searchBeforeSelect": {
+    "exists": true,
+    "display": "block",
+    "visibility": "hidden",
+    "rect": {
+      "w": 169.81666564941406,
+      "h": 48,
+      "x": 311.70001220703125,
+      "y": 2758.36669921875
+    },
+    "html": "<button type=\"button\" class=\"prodfield-search\" style=\"visibility: hidden;pointer-events: none;\">search</button>"
+  },
+  "groupIndex": 2,
+  "labelCount": 1,
+  "selectedObserved": true,
+  "searchAfterSelect": {
+    "exists": true,
+    "display": "block",
+    "visibility": "hidden",
+    "rect": {
+      "w": 169.81666564941406,
+      "h": 48,
+      "x": 311.70001220703125,
+      "y": 626.066650390625
+    },
+    "html": "<button type=\"button\" class=\"prodfield-search\" style=\"visibility: hidden;pointer-events: none;\">search</button>"
+  },
+  "searchVisibleCount": 0,
+  "clickedVia": "dom",
+  "products": [],
+  "restored": true
+}

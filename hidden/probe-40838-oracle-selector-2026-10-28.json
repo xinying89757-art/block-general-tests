@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-28T11:01:27.557Z",
+  "blockId": "40838",
+  "variants": {
+    "1 title+hasText regex": 0,
+    "2 group+hasText substring": 1,
+    "3 oracle exact (root title locator)": 0,
+    "4 group.filter has frame title locator": 0,
+    "5 group.filter hasText regex on group": 0,
+    "6 DOM evaluate exact title in group": 1,
+    "7 title locator count (all)": 5,
+    "8 group locator count (all)": 5
+  },
+  "restored": true
+}

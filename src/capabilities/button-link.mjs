@@ -1,4 +1,6 @@
-import { clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText } from './shared.mjs';
+import { effectCheck, unavailable, readEffectRoot } from './effect-checks.mjs';
+import { clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
+import { retryTransient, uiWaitConfig } from '../ui-waits.mjs';
 
 const SUITE = 'capability:button-link';
 const DEFAULT_TEXT = 'Please set up the required pop-up form here.';
@@ -56,7 +58,7 @@ function popoverSession({ page, canvas, config }) {
     const buttons = root.locator('xpath=..').getByText('保存', { exact: true }).filter({ visible: true });
     if (await buttons.count() !== 1) throw new Error('editor-box 或紧邻操作区的保存控件不唯一');
     await buttons.click({ timeout: TIMEOUT });
-    await root.waitFor({ state: 'hidden', timeout: TIMEOUT });
+    await retryTransient(() => root.waitFor({ state: 'hidden', timeout: uiWaitConfig().saveTimeout }));
   };
   const cancel = async () => {
     if (!await root.isVisible()) return;
@@ -122,10 +124,13 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
     catch (error) { return checks.concat(ids.slice(1).map((id) => result(id, 'skip', `浮层关闭/重开定位不稳定：${error.message}`))); }
     for (const [id, key, alternate] of [
       ['btn-text-persist', 'text', current.text.value === 'AUTOTEST-BTN' ? 'AUTOTEST-BTN-ALT' : 'AUTOTEST-BTN'],
-      ['btn-url-persist', 'url', current.url.value.startsWith('mailto:')
-        ? 'mailto:autotest@example.com' : 'https://example.com/autotest'],
+      ['btn-url-persist', 'url', BAIDU],
       ['btn-target-persist', 'target', !current.target.checked],
     ]) {
+      if (id === 'btn-url-persist') {
+        checks.push(await urlPersistenceCheck({ page, canvas, context, config }, session));
+        continue;
+      }
       const probe = await probeControls(session);
       const currentIndices = await session.root.evaluate((root) => [...root.querySelectorAll('input, textarea')]
         .map((input, index) => ({ input, index })).filter(({ input }) => input.getClientRects().length
@@ -141,6 +146,7 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
     }
     await canvas.locator(`[${MARKER}]`).evaluateAll((nodes) => nodes.forEach((node) => node.removeAttribute('data-autotest-button-link-root'))).catch(() => {});
   }
+  checks.push(...await buttonEffectChecks({ page, canvas, context, config }, 'front'));
   return checks;
 }
 
@@ -159,3 +165,182 @@ export async function runFrontLayer({ frame, config }) {
       { expected: `预览中应有按钮文字“${expected}”，且文字内容应与设置值完全一致。` })];
   }
 }
+
+const BAIDU = 'https://www.baidu.com';
+Object.assign(NAMES, {
+  'btn-text-backend': '修改后的按钮文字在画布生效',
+  'btn-text-front': '修改后的按钮文字在预览生效',
+  'btn-url-backend': '百度链接在画布生效',
+  'btn-url-front': '百度链接在预览生效',
+  'btn-target-backend': '按钮打开方式在画布生效',
+  'btn-target-front': '按钮打开方式在预览生效',
+});
+
+async function buttonControls(session) {
+  const probe = await probeControls(session);
+  if (probe.reason) unavailable('按钮设置浮层暂时读不到。');
+  const indices = await session.root.evaluate((root) => [...root.querySelectorAll('input, textarea')]
+    .map((input, index) => ({ input, index })).filter(({ input }) => input.getClientRects().length
+      && getComputedStyle(input).visibility !== 'hidden').map(({ index }) => index));
+  const current = identify(probe.controls.filter((item) => indices.includes(item.index)));
+  if (!current.text || !current.url || !current.target) unavailable('不能唯一确定按钮的文字、链接和新窗口设置。');
+  return current;
+}
+
+// Prefer an unambiguous active-tab marker. Some editor versions expose no
+// usable marker; readLinkType below preserves the previously working URL rule.
+async function linkTabs(session, click) {
+  return session.root.evaluate((root, wanted) => {
+    const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
+    const visible = (node) => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden';
+    const tabs = ['域名', '邮箱地址'].map((text) => {
+      const candidates = [...root.querySelectorAll('a, button, li, label, span, div, [role="tab"]')]
+        .filter((node) => visible(node) && norm(node.innerText) === text);
+      const leaves = candidates.filter((node) => !candidates.some((other) => other !== node && node.contains(other)));
+      const node = leaves.length === 1 ? leaves[0] : null;
+      const active = (item) => item && (item.getAttribute('aria-selected') === 'true'
+        || /(^|\s)(active|selected|current|on)(\s|$)/i.test(item.className || '')
+        || item.querySelector('input[type="radio"]:checked'));
+      return { text, node, selected: Boolean(node && (active(node) || active(node.parentElement))) };
+    });
+    const selected = tabs.filter((tab) => tab.selected);
+    if (wanted) {
+      const tab = tabs.find((item) => item.text === wanted);
+      if (!tab?.node) return { found: false };
+      tab.node.click();
+    }
+    return { found: tabs.every((tab) => tab.node), selected: selected.length === 1 ? selected[0].text : null,
+      tabs: tabs.map(({ text, selected }) => ({ text, selected })) };
+  }, click);
+}
+
+async function readLinkType(session, current) {
+  const tabs = await linkTabs(session);
+  return { ...tabs, selected: tabs.selected || (/^mailto:/i.test(current.url.value) ? '邮箱地址' : '域名'),
+    source: tabs.selected ? 'tab-marker' : 'url-prefix' };
+}
+
+async function setLink(session, tab, value) {
+  await session.open();
+  const structure = await linkTabs(session);
+  if (!structure.found) unavailable('链接类型页签无法唯一定位，未改写链接。');
+  if (structure.selected !== tab) {
+    await linkTabs(session, tab);
+    // Without markers, the old content still describes the old type at this
+    // point. Click the requested tab, fill, then verify after save/reopen;
+    // polling the old mailto: value here would prevent switching to a domain.
+    if (structure.selected) {
+      const ready = await poll(() => linkTabs(session), (data) => data.selected === tab);
+      if (!ready.matched) throw new Error('切换后无法确认链接类型页签');
+    }
+  }
+  const current = await buttonControls(session);
+  await session.set(current.url, value);
+  await session.save();
+  await session.open();
+  const back = await buttonControls(session);
+  const tabs = await readLinkType(session, back);
+  if (back.url.value !== value || tabs.selected !== tab) throw new Error('链接类型或链接保存重开后不一致');
+  return tabs;
+}
+
+async function prepareBaidu(tx, session) {
+  const original = await buttonControls(session);
+  const tabs = await readLinkType(session, original);
+  tx.evidence.linkTabs = tabs;
+  if (!tabs.found) unavailable('链接类型页签无法唯一定位，未改写链接。');
+  tx.remember('button-url-and-type', async () => {
+    const restored = await setLink(session, tabs.selected, original.url.value);
+    tx.evidence.restoredLink = { type: restored.selected, source: restored.source, value: original.url.value };
+  });
+  tx.evidence.baiduLinkType = await setLink(session, '域名', BAIDU);
+  return original;
+}
+
+async function urlPersistenceCheck(args, session) {
+  return effectCheck({ ...args, session, result, id: 'btn-url-persist', layer: 'settings', run: async (tx) => {
+    const original = await prepareBaidu(tx, session);
+    tx.expected(`链接改为百度 ${BAIDU} 后保存重开应保持百度，恢复后链接及域名或邮箱类型应与原设置一致。`);
+    const back = await buttonControls(session);
+    tx.assert(back.url.value === BAIDU, `原链接为“${original.url.value}”，保存重开后链接为“${back.url.value}”。`);
+  } });
+}
+
+const BUTTON = 'a.blocks-button, .backstage-component-btn, .pf-btn-wrap a, .pf-btn-wrap button';
+function buttonSnapshot(root) {
+  const candidates = [...root.querySelectorAll('a.blocks-button, .backstage-component-btn, .pf-btn-wrap a, .pf-btn-wrap button')]
+    .filter((node) => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden');
+  // Deduplicate nested editor/preview wrappers, but never pick an arbitrary link.
+  const nodes = candidates.filter((node) => !candidates.some((other) => other !== node && node.contains(other)));
+  if (nodes.length !== 1) return { unique: false, count: nodes.length };
+  const node = nodes[0], link = node.matches('a') ? node : node.closest('a');
+  return { unique: true, text: (node.innerText || '').trim(), href: link?.getAttribute('href') ?? null,
+    target: link?.getAttribute('target') ?? null, scripted: Boolean(link?.getAttribute('onclick') || node.getAttribute('onclick')) };
+}
+const isBaidu = (value) => { try { const url = new URL(value); return url.origin === BAIDU && url.pathname === '/' && !url.search && !url.hash; } catch { return false; } };
+
+async function inspectButton(frame, previewPage, config, kind, wanted) {
+  const observed = await readEffectRoot(frame, config, buttonSnapshot);
+  if (!observed.unique) unavailable('目标按钮无法唯一定位，未以区块中的其他链接替代。');
+  if (kind === 'text') return observed;
+  const real = observed.href && /^(https?:|mailto:)/i.test(observed.href);
+  if (real && !observed.scripted) return { ...observed, sameAddress: isBaidu(observed.href), newWindow: observed.target === '_blank' };
+  if (!previewPage) unavailable('画布按钮使用占位地址或脚本控制，后台看不到真实链接或打开方式。');
+  const context = previewPage.context(), before = new Set(context.pages());
+  const originalUrl = frame.url(), originalTopUrl = previewPage.url();
+  const root = frame.locator(blockSelector(config.blockId)).first();
+  const button = root.locator(BUTTON).filter({ visible: true });
+  if (await button.count() !== 1) unavailable('临时预览中可点击的目标按钮不唯一。');
+  const navigations = [];
+  const onNavigation = (changed) => { if (changed === frame) navigations.push(changed.url()); };
+  const onRequest = (request) => { if (request.isNavigationRequest() && request.frame() === frame) navigations.push(request.url()); };
+  previewPage.on('framenavigated', onNavigation);
+  previewPage.on('request', onRequest);
+  try {
+    await button.click({ timeout: TIMEOUT, noWaitAfter: true });
+    const landed = await poll(async () => {
+      const tabs = context.pages().filter((tab) => !before.has(tab));
+      const popup = tabs[0];
+      const addresses = popup ? [popup.url(), ...popup.frames().map((child) => child.url())] : [frame.url(), previewPage.url(), ...navigations];
+      return { tabs: tabs.length, addresses, changed: Boolean(popup || navigations.length || frame.url() !== originalUrl || previewPage.url() !== originalTopUrl) };
+    }, (value) => value.changed && value.addresses.some(isBaidu));
+    return { ...observed, click: landed.value, sameAddress: landed.matched, newWindow: Boolean(landed.value?.tabs), wanted };
+  } finally {
+    previewPage.off('framenavigated', onNavigation);
+    previewPage.off('request', onRequest);
+  }
+}
+
+async function buttonEffectChecks(args, layer) {
+  const checks = [];
+  for (const kind of ['text', 'url', 'target']) {
+    const session = popoverSession(args), id = `btn-${kind}-${layer}`;
+    checks.push(await effectCheck({ ...args, session, result, id, layer, run: async (tx) => {
+      const initial = await buttonControls(session);
+      if (kind === 'text') {
+        const value = initial.text.value === 'AUTOTEST-BTN' ? 'AUTOTEST-BTN-ALT' : 'AUTOTEST-BTN';
+        tx.expected(`目标按钮本身的文字应恰好为“${value}”。`);
+        await tx.set(initial.text, value); await tx.save();
+        const observed = layer === 'backend' ? await inspectButton(args.canvas, null, args.config, kind)
+          : await tx.observe((frame, tab) => inspectButton(frame, tab, args.config, kind));
+        tx.evidence.button = observed;
+        tx.assert(observed.text === value, `目标按钮文字为“${observed.text}”，设置文字为“${value}”。`);
+      } else {
+        await prepareBaidu(tx, session);
+        const states = kind === 'target' ? [false, true] : [initial.target.checked];
+        tx.expected(`目标按钮地址应为百度 ${BAIDU}；${kind === 'target' ? '取消新窗口时应在当前页打开，勾选时应新开页面' : `打开方式应保持${initial.target.checked ? '新窗口' : '当前页'}`}。`);
+        for (const checked of states) {
+          const current = await buttonControls(session);
+          await tx.set(current.target, checked); await tx.save();
+          const observed = layer === 'backend' ? await inspectButton(args.canvas, null, args.config, kind, checked)
+            : await tx.observe((frame, tab) => inspectButton(frame, tab, args.config, kind, checked));
+          (tx.evidence.buttons ||= []).push(observed);
+          tx.assert(observed.sameAddress && observed.newWindow === checked,
+            `设置为${checked ? '新窗口' : '当前页'}打开百度；观察到地址“${observed.href || '由点击跳转取证'}”，${observed.newWindow ? '新开页面' : '当前页打开'}，地址核对${observed.sameAddress ? '一致' : '不一致'}。`);
+        }
+      }
+    } }));
+  }
+  return checks;
+}
+export async function runBackendLayer(args) { return buttonEffectChecks(args, 'backend'); }

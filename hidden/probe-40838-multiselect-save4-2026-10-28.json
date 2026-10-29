@@ -1,0 +1,52 @@
+{
+  "at": "2026-10-28T08:45:45.796Z",
+  "site": "http://en-site40083596.ldyjz.com",
+  "steps": {
+    "dialogClick": {
+      "at": "32.1s"
+    },
+    "updates": [
+      {
+        "url": "https://website.leadong.com/prod/new/update",
+        "method": "POST",
+        "hasOption911698": false,
+        "optionSnippet": [],
+        "payloadLen": 101,
+        "payloadTail": "searchGroupId=&searchShowFlag=&searchHotFlag=&searchNewFlag=&searchRecommendFlag=&prodId=ENULQuzRFljy"
+      },
+      {
+        "responseFor": "https://website.leadong.com/prod/new/update",
+        "status": 200,
+        "body": "\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\n\n\n\n\t\n\n\n\t\n\n<div class=\"top-title\">\n\t<p>添加产品</p>\n\t\n</div>\n\n<input type=\"hidden\" id=\"isHasMoliAiAuth\" value=\"true\"/>\n<div id=\"conBox\" class=\"new_right_body prodIcon-left-55\" data-lanCode=\"0\" style=\"padding:0;\">\n\t<h4 class=\"faqTit faqTitBold\" style=\"margin-left:50px;\">\n\t\t<div class=\"position_inline_block\"></div><span>基本信息</span>\n\t</h4>\n"
+      },
+      {
+        "url": "https://website.leadong.com/prod/new/update",
+        "method": "POST",
+        "hasOption911698": false,
+        "optionSnippet": [],
+        "payloadLen": 101,
+        "payloadTail": "searchGroupId=&searchShowFlag=&searchHotFlag=&searchNewFlag=&searchRecommendFlag=&prodId=ENULQuzRFljy"
+      },
+      {
+        "responseFor": "https://website.leadong.com/prod/new/update",
+        "status": 200,
+        "body": "\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\n\n\n\n\t\n\n\n\t\n\n<div class=\"top-title\">\n\t<p>添加产品</p>\n\t\n</div>\n\n<input type=\"hidden\" id=\"isHasMoliAiAuth\" value=\"true\"/>\n<div id=\"conBox\" class=\"new_right_body prodIcon-left-55\" data-lanCode=\"0\" style=\"padding:0;\">\n\t<h4 class=\"faqTit faqTitBold\" style=\"margin-left:50px;\">\n\t\t<div class=\"position_inline_block\"></div><span>基本信息</span>\n\t</h4>\n"
+      }
+    ],
+    "afterSave": {
+      "url": "https://website.leadong.com/prod?invokeAction=prod_new_update&prodId=ENULQuzRFljy",
+      "hasRepeatConfirm": false,
+      "dialogOpen": false
+    },
+    "reread": [
+      {
+        "label": "多选4-10",
+        "checked": false
+      },
+      {
+        "label": "多选8-10",
+        "checked": false
+      }
+    ]
+  }
+}

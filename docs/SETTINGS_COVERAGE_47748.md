@@ -177,3 +177,28 @@ Oracle 来源（用户指定）：内容管理后台产品管理上方分类筛�
 ## v1.9 第二轮入口回归尝试（2026-10-27，受沙箱网络阻断）
 
 本轮只改编辑器入口、登录、浏览器选项及操作页传递，未改检查断言、画像或基线。`BLOCK_ID=47748 npm run test:block` 已尝试，排错报告 `reports/report-47748-2026-10-27T08-53-25-089Z.json`，HTML 同名；在固定入口 `https://website.leadong.com/phoenix/pagebuilder/layout` 的 `open-editor` 阶段报 `page.goto: NS_ERROR_SOCKET_CREATE_FAILED`，退出码 1。实际输出为 **0 pass / 0 fail / 0 skip / 0 na / 0 record**，检查项没有执行，也没有修改站上设置，不能视为通过或无新增问题。覆盖结论继续以 v1.8 的 **31 pass / 5 fail / 5 skip / 5 na / 10 record** 为最近实站结果；需在可联网环境补验一致性。第二轮离线配置与隔离模拟结果见 `docs/REUSE_MANUAL.md` §19。
+
+## 三层验证与分段重跑（v1.11，2026-10-28，合并报告 report-47748-merged-2026-10-27T19-24-26-038Z.json）
+
+三层验证（回显＋后台＋预览）的 35 个新检查全部实跑验证。96 分钟整跑连续三次被运行时重启杀掉（8 分 43 秒、18 分 03 秒、1 小时 18 分，无报告），改按能力分两段跑再合并：上半段 `CAPABILITY_FILTER=button-link,product-category-select,custom-filter-fields`，45 项 **25 pass / 0 fail / 5 skip / 9 na / 6 record**（约 79 分钟）；下半段 `CAPABILITY_FILTER=product-list-display,block-color-scheme,module-width,block-style-spec`，53 项 **27 pass / 7 fail / 11 skip / 4 na / 4 record**（约 21 分钟）；`scripts/merge-reports.mjs` 合并后 91 项 **48 pass / 7 fail / 13 skip / 13 na / 10 record**。报告页面同名 `.html`，结论“已知问题，没有新增”。
+
+| 检查 | 合并结果 | 结论 |
+| --- | --- | --- |
+| `btn-url-persist` | pass | 首跑的 skip 已修好（页签标记缺失时按 `mailto:` 回落），链接回显恢复通过 |
+| `btn-url-front`、`btn-url-backend`、`btn-target-front`、`btn-target-backend` | 4 项 pass | 首跑的 skip 已修好，按钮前后端链接与打开方式验证通过 |
+| `pcs-mode-front`、`pcs-mode-backend`、`pcs-categories-front`、`pcs-categories-backend` | 4 项 pass | 首跑的 fail 已修好（期望名单按实际渲染的 42 个干净分类名建参照集；后台导航限定 `.pf-cate-wrap`、排除编辑器按钮） |
+| `bss-nav-leaf`、`bss-filter-option`、`bss-details-link`、`bss-pagination-current`、`bss-pagination-other` | 5 项 fail | 用户已确认的样式偏差，无新增 |
+| `mw-width-front`、`mw-width-backend` | 2 项 fail | 只有全屏 fail（实测 1440px、预期无限制），预设与自定义均通过，两段结果逐字一致；是真问题还是量法问题待核查，需用户定是否算缺陷 |
+| `pld-source-all/filter/products` 前后端、`pld-fields` 前后端 | 8 项 skip | 数据来源缺完整产品名单夹具；展示字段有重复副本、未猜生效副本 |
+| `cff-facet-narrow`、`cff-clear-restore` | 2 项 skip | 预览筛选组不可交互，只验证组渲染（与 v1.8 一致） |
+| `css-font-follow`、`css-word-break`、`carousel-arrows` | 3 项 skip | 未找到样式表、无 Slick 轮播（与此前一致） |
+| 其余 | pass / na / record | 无新增 fail；4 个分类 fail 与 5 个按钮 skip 全部转为 pass |
+
+三次被打断都在分类检查翻转中途被杀，每次站上都留下分类选择方式被翻到“选择部分产品分类”的残留（第三次还带残缺的分类勾选）；每次都是只读探针核查基线、按画像基线恢复并重读确认后再重跑。另：`cff-fields-backend`/`cff-fields-front` 只断言了测试单选按钮A与测试下拉列表两个字段组，第 3 个基线字段 Series-xiala 未进该检查的预期，属检查覆盖缺口，待补。
+
+## 探查结论（2026-10-28 凌晨，探针 scripts/probe-47748-fullscreen-42-44.mjs）
+
+- **全屏宽度是真上限**：全屏时外层 wrap 的 max-width 是 none，但宽度壳 `.hasDefaultWidth` 的计算 max-width 为 1440px、渲染宽度 1440px；预览视口拉到 2560px 宽，壳仍是 1440px。对照组 1920 预设同一元素计算 max-width 为 1920px、2560 视口下渲染 1920px。全屏实际被平台卡在 1440px，检查量的元素没错。算不算缺陷、预期是否改成 1440px，需用户定。
+- **42/44 已查清**：导航 DOM 一共 42 个分类链接（34 个可见 + 8 个收起的二级链接），展开前后完全一致；Container Liner Bag 与 Cosmetic Packaging Bag 在导航 DOM 里不存在（不是收起的子级，Chemical Bag 的 li 标着 `hasNoUlChild`，无子列表）。导航的 42 个名字就是完整集合，检查参照集正确；内容管理 44 个分类、导航只渲染 42 个，是产品侧呈现差异。
+- 宽度已恢复回自定义 1440 并回读确认；分类部分只读预览与弹窗，未改站上设置。
+- 登录态过期后刷新：`explore-login.mjs` 连续 3 次“登录后仍停留在登录页”、第 4 次不改代码重跑即通过；账号密码无问题，属登录过程偶发抖动，见手册 §21 第 7 条。

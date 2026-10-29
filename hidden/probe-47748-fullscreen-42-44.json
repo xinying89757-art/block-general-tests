@@ -1,0 +1,681 @@
+{
+  "blockId": "47748",
+  "width": {
+    "initial": {
+      "checked": {
+        "value": "-1",
+        "label": "自定义（需不小于1200px）",
+        "checked": true
+      },
+      "effective": 1440,
+      "customVal": "1440"
+    },
+    "fullscreen": {
+      "atDefault": {
+        "viewportWidth": 1600,
+        "wrapWidth": 1600,
+        "wrapMaxWidth": "none",
+        "shell": {
+          "maxWidth": "1440px",
+          "width": 1440,
+          "cls": "location_blockCon47648_pack hasDefaultWidth "
+        },
+        "container": null,
+        "chain": [
+          {
+            "tag": "DIV",
+            "cls": "location_blockCon47648_pack hasDefaultWidth ",
+            "maxWidth": "1440px",
+            "width": 1440
+          },
+          {
+            "tag": "DIV",
+            "cls": "siteblocks-container",
+            "maxWidth": "none",
+            "width": 1600
+          },
+          {
+            "tag": "DIV",
+            "cls": "siteblocks-setting-wrap ndfpKUAZwmtS_20261009095342 siteblocks-obfKUpAjvIRn-2026",
+            "maxWidth": "none",
+            "width": 1600
+          },
+          {
+            "tag": "DIV",
+            "cls": "",
+            "maxWidth": "none",
+            "width": 1600
+          },
+          {
+            "tag": "BODY",
+            "cls": "",
+            "maxWidth": "none",
+            "width": 1600
+          }
+        ]
+      },
+      "at2560": {
+        "viewportWidth": 2560,
+        "wrapWidth": 2560,
+        "wrapMaxWidth": "none",
+        "shell": {
+          "maxWidth": "1440px",
+          "width": 1440,
+          "cls": "location_blockCon47648_pack hasDefaultWidth "
+        },
+        "container": null,
+        "chain": [
+          {
+            "tag": "DIV",
+            "cls": "location_blockCon47648_pack hasDefaultWidth ",
+            "maxWidth": "1440px",
+            "width": 1440
+          },
+          {
+            "tag": "DIV",
+            "cls": "siteblocks-container",
+            "maxWidth": "none",
+            "width": 2560
+          },
+          {
+            "tag": "DIV",
+            "cls": "siteblocks-setting-wrap ndfpKUAZwmtS_20261009095342 siteblocks-obfKUpAjvIRn-2026",
+            "maxWidth": "none",
+            "width": 2560
+          },
+          {
+            "tag": "DIV",
+            "cls": "",
+            "maxWidth": "none",
+            "width": 2560
+          },
+          {
+            "tag": "BODY",
+            "cls": "",
+            "maxWidth": "none",
+            "width": 2560
+          }
+        ]
+      }
+    },
+    "preset1920": {
+      "atDefault": {
+        "viewportWidth": 1600,
+        "wrapWidth": 1600,
+        "wrapMaxWidth": "none",
+        "shell": {
+          "maxWidth": "1920px",
+          "width": 1600,
+          "cls": "location_blockCon47648_pack hasDefaultWidth container"
+        },
+        "container": {
+          "maxWidth": "1920px",
+          "width": 1600,
+          "cls": "location_blockCon47648_pack hasDefaultWidth container"
+        },
+        "chain": [
+          {
+            "tag": "DIV",
+            "cls": "location_blockCon47648_pack hasDefaultWidth container",
+            "maxWidth": "1920px",
+            "width": 1600
+          },
+          {
+            "tag": "DIV",
+            "cls": "siteblocks-container",
+            "maxWidth": "none",
+            "width": 1600
+          },
+          {
+            "tag": "DIV",
+            "cls": "siteblocks-setting-wrap ndfpKUAZwmtS_20261009095342 siteblocks-obfKUpAjvIRn-2026",
+            "maxWidth": "none",
+            "width": 1600
+          },
+          {
+            "tag": "DIV",
+            "cls": "",
+            "maxWidth": "none",
+            "width": 1600
+          },
+          {
+            "tag": "BODY",
+            "cls": "",
+            "maxWidth": "none",
+            "width": 1600
+          }
+        ]
+      },
+      "at2560": {
+        "viewportWidth": 2560,
+        "wrapWidth": 2560,
+        "wrapMaxWidth": "none",
+        "shell": {
+          "maxWidth": "1920px",
+          "width": 1920,
+          "cls": "location_blockCon47648_pack hasDefaultWidth container"
+        },
+        "container": {
+          "maxWidth": "1920px",
+          "width": 1920,
+          "cls": "location_blockCon47648_pack hasDefaultWidth container"
+        },
+        "chain": [
+          {
+            "tag": "DIV",
+            "cls": "location_blockCon47648_pack hasDefaultWidth container",
+            "maxWidth": "1920px",
+            "width": 1920
+          },
+          {
+            "tag": "DIV",
+            "cls": "siteblocks-container",
+            "maxWidth": "none",
+            "width": 2560
+          },
+          {
+            "tag": "DIV",
+            "cls": "siteblocks-setting-wrap ndfpKUAZwmtS_20261009095342 siteblocks-obfKUpAjvIRn-2026",
+            "maxWidth": "none",
+            "width": 2560
+          },
+          {
+            "tag": "DIV",
+            "cls": "",
+            "maxWidth": "none",
+            "width": 2560
+          },
+          {
+            "tag": "BODY",
+            "cls": "",
+            "maxWidth": "none",
+            "width": 2560
+          }
+        ]
+      }
+    },
+    "restored": {
+      "checked": {
+        "value": "-1",
+        "label": "自定义（需不小于1200px）",
+        "checked": true
+      },
+      "effective": 1440,
+      "customVal": "1440"
+    }
+  },
+  "categories": {
+    "preview": {
+      "before": [
+        {
+          "name": "Anti Static Packaging Materials",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Chemical Bag",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Clutch and brake",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Composite Packaging Materials",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Custom hydraulic cylinder",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Fitness resistance",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Hydraulic adapter",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Hydraulic cylinder",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Others Hydraulic cylinder",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Standard Welded hydraulic cylinder",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Tie Rod Hydraulic Cylinder",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Hydraulic manifold block",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Hydraulic power unit",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "HYDRAULIC ROD ENDS",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Linear Actuator / Electric cylinder",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Mesh Fence",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Multi-Function Packing Machine",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Multilateral Sealing Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "other",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Packaging Bags",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Packing Machinery Parts",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Pet Food Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Plastic Film",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Roll Film",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Shrink Film",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Snack Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Special Shaped Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Spout Pouch",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Stand Up Pouch",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Storage Cage",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Telescopic hydraulic cylinder",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "U Shaped Container Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Vacuum Packing Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Valve Integrated hydraulic cylinder",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Zipper Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Basic resistor series",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Circular mil - spec connector series for aerospace applications",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Pressure sensor series for industrial applications",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Resettable polymeric positive temperature coefficient fuse series",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "测试分类",
+          "depth": 1,
+          "visible": true
+        }
+      ],
+      "beforeCount": 42,
+      "twoNamesBefore": [
+        {
+          "name": "Container Liner Bag",
+          "present": false
+        },
+        {
+          "name": "Cosmetic Packaging Bag",
+          "present": false
+        }
+      ],
+      "expandAttempt": {
+        "liHtml": "<li class=\"prodli hasNoUlChild\"> <a groupid=\"19669124\" href=\"/Chemical-Bag-pl46792297.html\">Chemical Bag</a> </li>",
+        "hasExpander": false,
+        "expanderCls": null,
+        "clicked": "link itself"
+      },
+      "after": [
+        {
+          "name": "Anti Static Packaging Materials",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Chemical Bag",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Clutch and brake",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Composite Packaging Materials",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Custom hydraulic cylinder",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Fitness resistance",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Hydraulic adapter",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Hydraulic cylinder",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Others Hydraulic cylinder",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Standard Welded hydraulic cylinder",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Tie Rod Hydraulic Cylinder",
+          "depth": 2,
+          "visible": false
+        },
+        {
+          "name": "Hydraulic manifold block",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Hydraulic power unit",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "HYDRAULIC ROD ENDS",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Linear Actuator / Electric cylinder",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Mesh Fence",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Multi-Function Packing Machine",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Multilateral Sealing Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "other",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Packaging Bags",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Packing Machinery Parts",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Pet Food Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Plastic Film",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Roll Film",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Shrink Film",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Snack Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Special Shaped Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Spout Pouch",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Stand Up Pouch",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Storage Cage",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Telescopic hydraulic cylinder",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "U Shaped Container Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Vacuum Packing Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Valve Integrated hydraulic cylinder",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Zipper Bag",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Basic resistor series",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Circular mil - spec connector series for aerospace applications",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Pressure sensor series for industrial applications",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "Resettable polymeric positive temperature coefficient fuse series",
+          "depth": 1,
+          "visible": true
+        },
+        {
+          "name": "测试分类",
+          "depth": 1,
+          "visible": true
+        }
+      ],
+      "afterCount": 42,
+      "twoNamesAfter": [
+        {
+          "name": "Container Liner Bag",
+          "present": false,
+          "depth": null,
+          "visible": null
+        },
+        {
+          "name": "Cosmetic Packaging Bag",
+          "present": false,
+          "depth": null,
+          "visible": null
+        }
+      ]
+    },
+    "dialogTree": {
+      "Container Liner Bag": {
+        "parentName": "",
+        "ownText": "Container Liner Bag Cosmetic Packaging Bag"
+      },
+      "Cosmetic Packaging Bag": {
+        "parentName": "",
+        "ownText": "Cosmetic Packaging Bag"
+      },
+      "Chemical Bag": {
+        "parentName": "",
+        "ownText": "Chemical Bag"
+      }
+    }
+  }
+}

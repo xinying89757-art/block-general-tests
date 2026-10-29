@@ -1,3 +1,5 @@
+import { effectCheck, unavailable } from './effect-checks.mjs';
+import { waitForStable } from '../ui-waits.mjs';
 // Module width (模块宽度): the block-level width setting in the right
 // icon rail (模块展开 → .moduleWidth flyout). Radios 1200/1440/1600/1920/
 // 全屏/自定义（≥1200px). The design default is 1440px, stored as
@@ -5,8 +7,8 @@
 // is asserted, not which radio is checked. The globalApply checkbox is
 // never touched: it would apply the width to other modules.
 import { savePage, openPreview } from '../editor.mjs';
-import { TIMEOUT, previewSelector, checkReportText } from './shared.mjs';
-import { RAIL, openRailPanel, readModuleWidth, setModuleWidth, saveWidthPanel } from './rail.mjs';
+import { TIMEOUT, previewSelector, checkReportText, readBackWithRetry } from './shared.mjs';
+import { RAIL, openRailPanel, readModuleWidth, setModuleWidth, saveWidthPanel, cancelWidthPanel } from './rail.mjs';
 
 const SUITE = 'capability:module-width';
 const NAMES = {
@@ -59,13 +61,13 @@ async function withPreview(page, context, fn) {
   }
 }
 
-export async function runSettingsLayer({ page, canvas, context, config }) {
+export async function runSettingsLayer({ page, canvas, context, config, capability }) {
   const checks = [];
   let panel;
   try {
     ({ panel } = await openRailPanel(canvas, config.blockId, RAIL.widthIcon, RAIL.widthPanel));
   } catch (error) {
-    return Object.keys(NAMES).map((id) => result(id, 'skip', `无法打开模块宽度浮层：${error.message}`));
+    return ['mw-state', 'mw-width-persist', 'mw-front-width', 'mw-width-front'].map((id) => result(id, 'skip', `无法打开模块宽度浮层：${error.message}`));
   }
   const initial = await readModuleWidth(canvas);
   const initialEffective = initial.effective;
@@ -86,10 +88,11 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
     await openRailPanel(canvas, config.blockId, RAIL.widthIcon, RAIL.widthPanel);
     return readModuleWidth(canvas);
   };
+  const ready = () => openRailPanel(canvas, config.blockId, RAIL.widthIcon, RAIL.widthPanel);
   try {
     await setModuleWidth(canvas, { preset: ALT_WIDTH });
     await saveWidthPanel(canvas);
-    evidence.alt = await readBack();
+    evidence.alt = await readBackWithRetry(readBack, (value) => value.effective === 1200, ready);
     if (evidence.alt.effective !== 1200) {
       persistErrors.push(`改 1200px 保存重开后生效宽度为 ${JSON.stringify(evidence.alt.effective)}，不是 1200`);
     } else if (context) {
@@ -115,7 +118,8 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
         }
         await saveWidthPanel(canvas);
       }
-      evidence.restored = await readBack();
+      evidence.restored = await readBackWithRetry(readBack,
+        (value) => value.effective === initialEffective, ready);
       if (evidence.restored.effective !== initialEffective) {
         persistErrors.push(`恢复后生效宽度为 ${JSON.stringify(evidence.restored.effective)}，不是 ${initialEffective}`);
       } else if (context && evidence.measureAlt) {
@@ -142,6 +146,7 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
         : '宽度翻转未完成，未能量取预览效果。',
     { measureAlt: evidence.measureAlt, measureRestored: evidence.measureRestored },
     { expected: `切换为 1200px 后前台容器最大宽度应为 1200px，恢复后应为 ${initialEffective === 'fullscreen' ? '无限制' : `${initialEffective}px`}。` }));
+  checks.push(await widthEffect({ page, canvas, context, config, capability }, 'front'));
   return checks;
 }
 
@@ -151,3 +156,49 @@ export async function runFrontLayer() {
   // must be unique across layers.
   return [];
 }
+
+Object.assign(NAMES, {
+  'mw-width-backend': '画布模块宽度全部选项生效',
+  'mw-width-front': '预览模块宽度其余选项生效',
+});
+async function widthEffect(args, layer) {
+  const session = {
+    open: () => openRailPanel(args.canvas, args.config.blockId, RAIL.widthIcon, RAIL.widthPanel),
+    cancel: async () => {
+      if (await args.canvas.locator(`${RAIL.widthPanel}:visible`).count()) await cancelWidthPanel(args.canvas);
+    },
+  };
+  return effectCheck({ ...args, session, result, id: `mw-width-${layer}`, layer, run: async (tx) => {
+    await session.open();
+    const initial = await readModuleWidth(args.canvas);
+    if (!initial.checked || initial.effective === null) unavailable('无法读取原模块宽度，未改写。');
+    const presets = layer === 'backend' ? [1200, 1440, 1600, 1920] : [1440, 1600, 1920];
+    const cases = [...presets.map((value) => ({ preset: `${value}px`, expected: `${value}px`, label: `${value} 像素预设` })),
+      { preset: '全屏', expected: 'none', label: '全屏' }, { custom: '1300', expected: '1300px', label: '自定义 1300 像素' }];
+    tx.expected(cases.map((item) => `${item.label}的容器最大宽度应为${item.expected === 'none' ? '无限制' : item.expected}`).join('；') + '。');
+    tx.remember('module-width', async () => {
+      // Restore the dormant custom input as well as the selected preset.
+      if (initial.customVal && Number(initial.customVal) >= 1200) await setModuleWidth(args.canvas, { custom: initial.customVal });
+      if (initial.checked.value !== '-1') await setModuleWidth(args.canvas, { preset: initial.checked.label });
+      await saveWidthPanel(args.canvas);
+      await session.open();
+      const restored = await readModuleWidth(args.canvas);
+      tx.evidence.restoredWidth = restored;
+      if (restored.effective !== initial.effective || restored.checked?.value !== initial.checked.value
+        || restored.customVal !== initial.customVal || restored.globalApply !== initial.globalApply) throw new Error('模块宽度或自定义值未恢复');
+    });
+    for (const item of cases) {
+      await session.open();
+      await setModuleWidth(args.canvas, item); await saveWidthPanel(args.canvas);
+      await session.cancel(); await savePage(args.page);
+      const measured = layer === 'backend'
+        ? await waitForStable(() => measureWidth(args.canvas, args.config.blockId))
+        : await tx.observe((frame) => waitForStable(() => measureWidth(frame, args.config.blockId)));
+      if (measured.maxWidth === null) unavailable('该层没有可识别的模块宽度容器，需实站核实。');
+      (tx.evidence.widths ||= []).push({ setting: item.label, expected: item.expected, actual: measured });
+      tx.assert(measured.maxWidth === item.expected,
+        `${item.label}时，容器最大宽度实际为${measured.maxWidth === 'none' ? '无限制' : measured.maxWidth}，应为${item.expected === 'none' ? '无限制' : item.expected}；实际显示宽度受画布或预览视口限制。`);
+    }
+  } });
+}
+export async function runBackendLayer(args) { return [await widthEffect(args, 'backend')]; }
