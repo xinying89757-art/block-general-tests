@@ -9,7 +9,8 @@ function blockSelector(blockId) {
   return `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(blockId))}]`;
 }
 
-const EDITOR_URL = 'https://website.leadong.com/phoenix/pagebuilder/layout';
+export const SITE_LIST_URL = 'https://www.leadong.com/website.html';
+const PLATFORM_HOSTS = new Set(['www.leadong.com', 'website.leadong.com', 'jianzhan.leadong.com']);
 const LANGUAGE_NAMES = { 0: '英语', 1: '中文（简体）', 3: '阿拉伯语', 4: '法语', 10: '日语', 11: '韩语' };
 const LANGUAGE_PREFIXES = { en: 0, cn: 1, sa: 3, fr: 4, jp: 10, kr: 11 };
 
@@ -28,6 +29,10 @@ export function targetLanguage(config) {
   return LANGUAGE_NAMES[LANGUAGE_PREFIXES[prefix] ?? 0];
 }
 
+export function matchAttachedCardIndexes(hosts, targetHost) {
+  return hosts.flatMap((host, index) => host === targetHost ? [index] : []);
+}
+
 export async function discoverPublicBaseUrl(card) {
   const urls = await card.locator('a[href], [data-url], [data-href]').evaluateAll((nodes) =>
     nodes.flatMap((node) => ['href', 'data-url', 'data-href'].map((attr) => node.getAttribute(attr)).filter(Boolean)),
@@ -43,10 +48,8 @@ export async function discoverPublicBaseUrl(card) {
   return '';
 }
 
-async function enterSiteFromList(page, config) {
+export async function enterSiteFromList(page, config) {
   const cards = page.locator('.mySiteBox');
-  // Wait for asynchronous list rendering before declaring the selector obsolete.
-  await cards.first().waitFor({ state: 'attached', timeout: 15_000 }).catch(() => {});
   if (await cards.count() === 0) {
     if (config.editSiteUrl) {
       console.warn('[editor] 站点列表未找到 .mySiteBox，退回备选 EDIT_SITE_URL。');
@@ -57,19 +60,19 @@ async function enterSiteFromList(page, config) {
     throw new Error(`站点列表结构可能已变化，未找到 .mySiteBox，且未配置备选 EDIT_SITE_URL；需要重新探查选择器。当前地址：${page.url()}`);
   }
 
-  const visibleCards = [];
-  const matches = [];
+  const availableCards = [];
+  const hosts = [];
   const targetHost = hostOf(config.siteDomain);
   for (let index = 0; index < await cards.count(); index += 1) {
     const card = cards.nth(index);
-    if (!await card.isVisible()) continue;
-    visibleCards.push(card);
     const publicUrl = await discoverPublicBaseUrl(card);
-    if (targetHost && hostOf(publicUrl) === targetHost) matches.push(card);
+    hosts.push(hostOf(publicUrl));
+    availableCards.push(card);
   }
+  const matches = matchAttachedCardIndexes(hosts, targetHost).map((index) => availableCards[index]);
   // A name is an optional fallback, never a way to hide ambiguous host matches.
   if (!matches.length && config.siteName) {
-    for (const card of visibleCards) {
+    for (const card of availableCards) {
       if (await card.getByText(config.siteName, { exact: true }).count()) matches.push(card);
     }
   }
@@ -77,6 +80,7 @@ async function enterSiteFromList(page, config) {
     throw new Error(`站点列表匹配到 ${matches.length} 张卡片（SITE_DOMAIN=${config.siteDomain}，SITE_NAME=${config.siteName || '未设置'}）。必须唯一；请检查站名、语言和站点权限，账号无目标站权限时请换账号。当前地址：${page.url()}`);
   }
   const card = matches[0];
+  await card.scrollIntoViewIfNeeded();
   const name = targetLanguage(config);
   const languages = card.locator('.lansSelect .lanItem');
   let language;
@@ -127,15 +131,53 @@ async function enterSiteFromList(page, config) {
 }
 
 export async function openEditor(page, config) {
-  await page.goto(EDITOR_URL, { waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
-  let editorPage = page;
-  if (page.url().includes('/website.html')) editorPage = await enterSiteFromList(page, config);
+  await page.goto(SITE_LIST_URL, { waitUntil: 'domcontentloaded' });
+  if (/\/login(?:\.html)?(?:[?#]|$)/i.test(page.url())) {
+    throw new Error(`站点列表已跳转到登录页（${page.url()}），请重跑 scripts/explore-login.mjs 刷新登录态。`);
+  }
+  try {
+    await page.locator('.mySiteBox').first().waitFor({ state: 'attached', timeout: 30_000 });
+  } catch {
+    if (!config.editSiteUrl) throw new Error(`等待站点列表 .mySiteBox 超时，当前地址：${page.url()}。`);
+  }
+  let editorPage;
+  try {
+    editorPage = await enterSiteFromList(page, config);
+  } catch (error) {
+    if (!config.editSiteUrl || !String(error.message).includes('未找到 .mySiteBox')) throw error;
+    console.warn('[editor] 站点列表结构变化，退回备选 EDIT_SITE_URL。');
+    await page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded' });
+    editorPage = page;
+  }
   if (!editorPage.url().includes('/phoenix/pagebuilder')) {
     throw new Error(`未进入领动编辑器，当前地址：${editorPage.url()}。请检查站名、语言和站点权限；登录态失效时重跑 scripts/explore-login.mjs。`);
   }
+  await verifyEditorSiteIdentity(editorPage, config);
   await waitForEditorReady(editorPage);
   return { page: editorPage };
+}
+
+export async function verifyEditorSiteIdentity(page, config) {
+  const expectedHost = hostOf(config.siteDomain);
+  if (!expectedHost) return;
+  const foundHosts = new Set();
+  const current = hostOf(page.url());
+  if (current && !PLATFORM_HOSTS.has(current)) foundHosts.add(current);
+  try {
+    const hosts = await page.evaluate(() => {
+      const values = [...document.querySelectorAll('[data-site-domain], [data-domain]')]
+        .flatMap((node) => ['data-site-domain', 'data-domain'].map((key) => node.getAttribute(key)).filter(Boolean));
+      return values.map((value) => { try { return new URL(value, location.href).host.toLowerCase(); } catch { return ''; } });
+    });
+    for (const host of hosts) if (host && !PLATFORM_HOSTS.has(host)) foundHosts.add(host);
+  } catch { /* Some editor shells prevent DOM inspection; identity remains unverified. */ }
+  if (!foundHosts.size) {
+    console.warn(`[editor] 无法从编辑器页面确认当前站点身份（目标 host: ${expectedHost}）。`);
+    return;
+  }
+  if (!foundHosts.has(expectedHost)) {
+    throw new Error(`编辑器站点身份不匹配：目标 host 为 ${expectedHost}，页面可识别 host 为 ${[...foundHosts].join(', ')}。`);
+  }
 }
 
 async function waitForEditorReady(page) {
