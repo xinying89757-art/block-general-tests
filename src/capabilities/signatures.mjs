@@ -34,17 +34,22 @@ const accepts = (pattern, value) => pattern == null || (pattern instanceof RegEx
 export const isSelectAll = (c) => c?.type === 'checkbox' && /^全选(?:\s|$)/.test(c.label || '');
 export const isSystemAttribute = (c) => /^-\d+$/.test(String(c?.value ?? ''));
 export function displayFieldControls(region) {
+  // A dialog may hold several select-all groups (e.g. a category tree before
+  // the display fields). The display-field group is the one that contains
+  // system attributes (non-positive ids); fall back to none, never guess.
   const controls = region.controls || [];
-  const start = controls.findIndex(isSelectAll);
-  if (start < 0) return [];
-  const result = [], seen = new Set();
-  for (const c of controls.slice(start + 1)) {
-    if (c.type !== 'checkbox' || isSelectAll(c)) break;
-    const key = String(c.value ?? c.label);
-    if (seen.has(key)) continue;
-    seen.add(key); result.push(c);
+  for (let start = 0; start < controls.length; start++) {
+    if (!isSelectAll(controls[start])) continue;
+    const result = [], seen = new Set();
+    for (const c of controls.slice(start + 1)) {
+      if (c.type !== 'checkbox' || isSelectAll(c)) break;
+      const key = String(c.value ?? c.label);
+      if (seen.has(key)) continue;
+      seen.add(key); result.push(c);
+    }
+    if (result.some(isSystemAttribute)) return result;
   }
-  return result;
+  return [];
 }
 // Structural noise that is never a setting by itself: hidden inputs (ids,
 // serialized state) and select-all toggles; duplicate copies by name+value.

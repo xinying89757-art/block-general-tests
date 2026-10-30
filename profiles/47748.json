@@ -1120,12 +1120,26 @@
       },
       {
         "id": "module-width"
+      },
+      {
+        "id": "pld-page-size",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
+      },
+      {
+        "id": "pld-product-count",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
       }
     ],
     "notes": [
       "筛选逻辑、触发和范围为已确认的隐藏固定值，跳转与背景颜色不存在；是否应纳入需求清单待人工确认。",
-      "列表数量随分页切换含义，能力说明有数量输入，但基线未捕获该控件（skippedNoLabel）；pld-page-size 和 pld-product-count 待人工确认。",
-      "显示字段类型需求尚未提供，待人工确认。"
+      "显示字段类型需求尚未提供，待人工确认。",
+      "数量输入（显示产品总数量）与分页单选已由 2026-10-30 实站探查确认存在，按分页=否为总数量、分页=是为每页数量。"
     ]
   }
 }

@@ -98,7 +98,7 @@ test('右侧面板匹配，未知图标保留', () => {
 });
 test('展示字段类型只按指定弹窗中的 AUTOTEST 夹具核对', () => {
   const profile = { requirements: { displayFieldTypes: ['单选', '多选'] }, fixture: { displayFields: { fields: [{ name: 'AUTOTEST-单选', type: '单选' }] } } };
-  const group = [{ type: 'checkbox', label: '全选' }, { type: 'checkbox', label: 'AUTOTEST-单选', value: '1', disabled: false }];
+  const group = [{ type: 'checkbox', label: '全选' }, { type: 'checkbox', label: 'Brand', value: '-3' }, { type: 'checkbox', label: 'AUTOTEST-单选', value: '1', disabled: false }];
   const inventory = [{ type: 'phoenix_blocks_gallery', title: '设置产品列表', controls: group }];
   let result = checkDisplayFieldRequirement(inventory, profile);
   assert.equal(result.status, 'unknown');
@@ -127,4 +127,13 @@ test('展示字段效果检查以需求为准，缺需求时跳过', () => {
   assert.deepEqual(displayFieldRequirements(profile), ['单选按钮']);
   delete profile.requirements;
   assert.throws(() => displayFieldRequirements(profile), error => error.effectStatus === 'skip' && /需求未提供，需人工补充/.test(error.message));
+});
+test('实站 47748：显示字段组按系统属性识别，不把分类树当显示字段；数量与分页双匹配', async () => {
+  const { displayFieldControls } = await import('../src/capabilities/signatures.mjs');
+  const inventory = await sample('47748');
+  const list = inventory.find(r => r.title === '设置与选取数据');
+  const group = displayFieldControls(list);
+  assert.ok(group.length && group.every(c => c.name === 'langBarSort'));
+  const ids = matchCapabilities(inventory).matched.map(m => m.id);
+  for (const id of ['pld-page-size', 'pld-product-count', 'pld-pagination', 'pld-data-source', 'product-category']) assert.ok(ids.includes(id), id);
 });

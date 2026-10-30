@@ -1,773 +1,1838 @@
 [
-  {
-    "type": "phoenix_blocks_button",
-    "wrapIndex": 0,
-    "title": null,
-    "kind": "button-popover",
-    "controls": [],
-    "skipped": "打开后 10 秒内未出现 widget dialog（可能打开的是画布内浮层而非设置弹窗）"
-  },
-  {
-    "type": "phoenix_blocks_gallery",
-    "wrapIndex": 0,
-    "title": "设置产品分类",
-    "kind": "widget-dialog",
-    "controls": [
-      {
-        "label": "选择所有产品分类",
-        "type": "radio",
-        "checked": true
-      }
-    ]
-  },
-  {
-    "type": "phoenix_blocks_filterStyle",
-    "wrapIndex": 0,
-    "title": "设置自定义字段筛选",
-    "kind": "widget-dialog",
-    "controls": [
-      {
-        "label": "全选 测试单选按钮A 测试下拉列表 Series-xiala 测试文本 测试单选2 测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2 test1分类 test2分类 测试多选-改为文本 测试多选2 Series-duoxuan Series-danxuan 202608241522 多选1542 多选1705 55555555 自定义字段 测试数字",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试单选按钮A",
-        "type": "checkbox",
-        "checked": true
-      },
-      {
-        "label": "单选1-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "单选2-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "单选3-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "单选4-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "单选5-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "单选6-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "单选7-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "单选8-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "单选9-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "单选10-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试下拉列表",
-        "type": "checkbox",
-        "checked": true
-      },
-      {
-        "label": "下拉列表1-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "下拉列表21-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "下拉列表3-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "下拉列表4-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "下拉列表5-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "下拉列表6-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "下拉列表7-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "下拉列表8-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "下拉列表9-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "下拉列表10-10",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Series-xiala",
-        "type": "checkbox",
-        "checked": true
-      },
-      {
-        "label": "Capacitor series with high vol",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Resistor series",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Resistor series with high - pr",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Diode series",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Inductor series",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Transistor series",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Connector series",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "PCB series",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Sensor series with high Sensor",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Integrated circuit seriesInteg",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试文本",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试单选2",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "product 1",
-        "type": "checkbox",
-        "value": "829824_1",
-        "checked": false
-      },
-      {
-        "label": "product 2",
-        "type": "checkbox",
-        "value": "829824_2",
-        "checked": false
-      },
-      {
-        "label": "product 3",
-        "type": "checkbox",
-        "value": "829824_3",
-        "checked": false
-      },
-      {
-        "label": "测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "product 1",
-        "type": "checkbox",
-        "value": "829844_1",
-        "checked": false
-      },
-      {
-        "label": "product 2",
-        "type": "checkbox",
-        "value": "829844_2",
-        "checked": false
-      },
-      {
-        "label": "product 3",
-        "type": "checkbox",
-        "value": "829844_3",
-        "checked": false
-      },
-      {
-        "label": "test1分类",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "aaa",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "bbb",
-        "type": "checkbox",
-        "value": "890114_2",
-        "checked": false
-      },
-      {
-        "label": "ccc",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "test2分类",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "xxx",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "bbb",
-        "type": "checkbox",
-        "value": "890124_2",
-        "checked": false
-      },
-      {
-        "label": "vvv",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试多选-改为文本",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试多选2",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Series-duoxuan",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Series-danxuan",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "202608241522",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "多选1542",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "多选1705",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "55555555",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "自定义字段",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试数字",
-        "type": "checkbox",
-        "checked": false
-      }
-    ]
-  },
-  {
-    "type": "phoenix_blocks_gallery",
-    "wrapIndex": 1,
-    "title": "设置与选取数据",
-    "kind": "widget-dialog",
-    "controls": [
-      {
-        "label": "所有产品",
-        "type": "radio",
-        "checked": true
-      },
-      {
-        "label": "热门产品",
-        "type": "checkbox",
-        "value": "",
-        "checked": false
-      },
-      {
-        "label": "新产品",
-        "type": "checkbox",
-        "value": "",
-        "checked": false
-      },
-      {
-        "label": "推荐产品",
-        "type": "checkbox",
-        "value": "",
-        "checked": false
-      },
-      {
-        "label": "热门产品",
-        "type": "checkbox",
-        "value": "",
-        "checked": false
-      },
-      {
-        "label": "新产品",
-        "type": "checkbox",
-        "value": "",
-        "checked": false
-      },
-      {
-        "label": "推荐产品",
-        "type": "checkbox",
-        "value": "",
-        "checked": false
-      },
-      {
-        "label": "搜索",
-        "type": "text",
-        "value": ""
-      },
-      {
-        "label": "共4,117页 到第页",
-        "type": "text",
-        "value": ""
-      },
-      {
-        "label": "全选 Anti Static Packaging Materials Chemical Bag Container Liner Bag Cosmetic Packaging Bag Clutch and brake COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS Composite Packaging Materials Custom hydraulic cylinder Fitness resistance Hydraulic adapter Hydraulic cylinder Others Hydraulic cylinder Standard Welded hydraulic cylinder Tie Rod Hydraulic Cylinder Hydraulic manifold block Hydraulic power unit HYDRAULIC ROD ENDS Linear Actuator / Electric cylinder Mesh Fence Multi-Function Packing Machine Multilateral Sealing Bag other Packaging Bags Packing Machinery Parts Pet Food Bag Plastic Film Roll Film Shrink Film Snack Bag Special Shaped Bag Spout Pouch Stand Up Pouch Storage Cage Telescopic hydraulic cylinder U Shaped Container Bag Vacuum Packing Bag Valve Integrated hydraulic cylinder Zipper Bag PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high Basic resistor series Circular mil - spec connector series for aerospace applications Pressure sensor series for industrial applications Resettable polymeric positive temperature coefficient fuse series 测试分类",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Anti Static Packaging Materials Chemical Bag Container Liner Bag Cosmetic Packaging Bag Clutch and brake COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS Composite Packaging Materials Custom hydraulic cylinder",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Chemical Bag Container Liner Bag Cosmetic Packaging Bag",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Container Liner Bag Cosmetic Packaging Bag",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Cosmetic Packaging Bag",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Clutch and brake",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "COMPONENTS / PARTS FOR HYDRAULIC CYLINDERS",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Composite Packaging Materials",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Custom hydraulic cylinder",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Fitness resistance",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Hydraulic adapter",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Hydraulic cylinder Others Hydraulic cylinder Standard Welded hydraulic cylinder Tie Rod Hydraulic Cylinder",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Others Hydraulic cylinder",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Standard Welded hydraulic cylinder",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Tie Rod Hydraulic Cylinder",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Hydraulic manifold block",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Hydraulic power unit",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "HYDRAULIC ROD ENDS",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Linear Actuator / Electric cylinder",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Mesh Fence",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Multi-Function Packing Machine",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Multilateral Sealing Bag",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "other",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Packaging Bags",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Packing Machinery Parts",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Pet Food Bag",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Plastic Film",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Roll Film",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Shrink Film",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Snack Bag",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Special Shaped Bag",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Spout Pouch",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Stand Up Pouch",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Storage Cage",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Telescopic hydraulic cylinder",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "U Shaped Container Bag",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Vacuum Packing Bag",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Valve Integrated hydraulic cylinder",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Zipper Bag",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high - current handling PCB series with high - thermal conductivity and high",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Basic resistor series",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Circular mil - spec connector series for aerospace applications",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Pressure sensor series for industrial applications",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Resettable polymeric positive temperature coefficient fuse series",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试分类",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "全选 Brand Product Code Model Brief 测试单选按钮A 测试下拉列表 Series-xiala 测试文本 测试单选2 测试文本域 测试色卡 这是下载文件 测试色卡2 测试色卡3 测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2 test1分类 test2分类 测试多选-改为文本 测试多选2 Series-duoxuan Series-danxuan 202608241522 多选1542 多选1705 55555555 自定义字段 测试数字",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Brand",
-        "type": "checkbox",
-        "checked": true
-      },
-      {
-        "label": "Product Code",
-        "type": "checkbox",
-        "checked": true
-      },
-      {
-        "label": "Model",
-        "type": "checkbox",
-        "checked": true
-      },
-      {
-        "label": "Brief",
-        "type": "checkbox",
-        "checked": true
-      },
-      {
-        "label": "测试单选按钮A",
-        "type": "checkbox",
-        "checked": true
-      },
-      {
-        "label": "测试下拉列表",
-        "type": "checkbox",
-        "checked": true
-      },
-      {
-        "label": "Series-xiala",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试文本",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试单选2",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试文本域",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试色卡",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "这是下载文件",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试色卡2",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试色卡3",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试下拉列表2测试下拉列表2测试下拉列表2测试下拉列表2",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "test1分类",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "test2分类",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试多选-改为文本",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试多选2",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Series-duoxuan",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "Series-danxuan",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "202608241522",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "多选1542",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "多选1705",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "55555555",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "自定义字段",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "测试数字",
-        "type": "checkbox",
-        "checked": false
-      },
-      {
-        "label": "是",
-        "type": "radio",
-        "checked": true
-      }
-    ]
-  }
+ {
+  "type": "phoenix_blocks_button",
+  "wrapIndex": 0,
+  "title": null,
+  "kind": "button-popover",
+  "controls": [
+   {
+    "label": "按钮文本",
+    "type": "text",
+    "value": "New Machine"
+   },
+   {
+    "label": "链接网址",
+    "type": "text",
+    "value": "javascript:void(0);"
+   },
+   {
+    "label": "新窗口打开",
+    "type": "checkbox",
+    "checked": false
+   }
+  ]
+ },
+ {
+  "title": "设置产品分类",
+  "type": "phoenix_blocks_gallery",
+  "wrapIndex": 0,
+  "kind": "widget-dialog",
+  "controls": [
+   {
+    "index": 0,
+    "tag": "INPUT",
+    "type": "radio",
+    "name": "selectGroupWay",
+    "label": "选择所有产品分类",
+    "context": "选择所有产品分类",
+    "value": "0",
+    "checked": true,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 1,
+    "tag": "INPUT",
+    "type": "radio",
+    "name": "selectGroupWay",
+    "label": "选择部分产品分类",
+    "context": "选择部分产品分类",
+    "value": "1",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 2,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector IDC-type Box Header Connector Automotive Connector BMS Signal Connector Automotive Sealed Waterproof Connector Automotive Sensor Connector 1.27 SMC Connector A-type New Energy Connector Automotive Signal Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Pluggable Terminal Blocks MCS Multi-purpose Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch",
+    "context": "全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-b",
+    "value": "on",
+    "checked": true,
+    "disabled": true,
+    "readOnly": false
+   },
+   {
+    "index": 115,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector IDC-type Box Header Connector Automotive Connector BMS Signal Connector Automotive Sealed Waterproof Connector Automotive Sensor Connector 1.27 SMC Connector A-type New Energy Connector Automotive Signal Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Pluggable Terminal Blocks MCS Multi-purpose Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch 取消 保存",
+    "context": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Ph",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 116,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector IDC-type Box Header Connector Automotive Connector BMS Signal Connector Automotive Sealed Waterproof Connector Automotive Sensor Connector 1.27 SMC Connector A-type New Energy Connector Automotive Signal Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Pluggable Terminal Blocks MCS Multi-purpose Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch 取消 保存",
+    "context": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Ph",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 117,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "settingId",
+    "label": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector IDC-type Box Header Connector Automotive Connector BMS Signal Connector Automotive Sealed Waterproof Connector Automotive Sensor Connector 1.27 SMC Connector A-type New Energy Connector Automotive Signal Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Pluggable Terminal Blocks MCS Multi-purpose Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch 取消 保存",
+    "context": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Ph",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 118,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "nodeId",
+    "label": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector IDC-type Box Header Connector Automotive Connector BMS Signal Connector Automotive Sealed Waterproof Connector Automotive Sensor Connector 1.27 SMC Connector A-type New Energy Connector Automotive Signal Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Pluggable Terminal Blocks MCS Multi-purpose Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch 取消 保存",
+    "context": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Ph",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 119,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "appIsDev",
+    "label": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector IDC-type Box Header Connector Automotive Connector BMS Signal Connector Automotive Sealed Waterproof Connector Automotive Sensor Connector 1.27 SMC Connector A-type New Energy Connector Automotive Signal Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Pluggable Terminal Blocks MCS Multi-purpose Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch 取消 保存",
+    "context": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Ph",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 120,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "templateSetting",
+    "label": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector IDC-type Box Header Connector Automotive Connector BMS Signal Connector Automotive Sealed Waterproof Connector Automotive Sensor Connector 1.27 SMC Connector A-type New Energy Connector Automotive Signal Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Pluggable Terminal Blocks MCS Multi-purpose Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch 取消 保存",
+    "context": "设置产品分类 内容 选择方式 选择所有产品分类 选择部分产品分类 请选择产品分类 全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Ph",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   }
+  ]
+ },
+ {
+  "title": "设置自定义字段筛选",
+  "type": "phoenix_blocks_filterStyle",
+  "wrapIndex": 0,
+  "kind": "widget-dialog",
+  "controls": [
+   {
+    "index": 0,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "全选 测试多选 正式版测试多选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
+    "context": "全选 测试多选 正式版测试多选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
+    "value": "on",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 1,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "测试多选 正式版测试多选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
+    "context": "测试多选 正式版测试多选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 2,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "测试多选",
+    "context": "测试多选",
+    "value": "898508",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 3,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "正式版测试多选",
+    "context": "正式版测试多选",
+    "value": "899828",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 4,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "AUTOTEST-单选按钮A",
+    "context": "AUTOTEST-单选按钮A",
+    "value": "911778",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 5,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "单选4-10",
+    "context": "单选4-10",
+    "value": "911778_1",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 6,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "单选6-10",
+    "context": "单选6-10",
+    "value": "911778_2",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 7,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "AUTOTEST-下拉列表",
+    "context": "AUTOTEST-下拉列表",
+    "value": "911788",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 8,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "下拉列表4-10",
+    "context": "下拉列表4-10",
+    "value": "911788_1",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 9,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "下拉列表8-10",
+    "context": "下拉列表8-10",
+    "value": "911788_2",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 10,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "AUTOTEST-多选",
+    "context": "AUTOTEST-多选",
+    "value": "911798",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 11,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "多选4-10",
+    "context": "多选4-10",
+    "value": "911798_1",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 12,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "多选8-10",
+    "context": "多选8-10",
+    "value": "911798_2",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 13,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Category",
+    "context": "Category",
+    "value": "889928",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 14,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Card insertion connector serie",
+    "context": "Card insertion connector serie",
+    "value": "889928_1",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 15,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "M12 Circular Waterproof Connec",
+    "context": "M12 Circular Waterproof Connec",
+    "value": "889928_2",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 16,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "M25 Circular Waterproof Connec",
+    "context": "M25 Circular Waterproof Connec",
+    "value": "889928_3",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 17,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "M15 Circular Waterproof Connec",
+    "context": "M15 Circular Waterproof Connec",
+    "value": "889928_4",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 18,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Aviation Waterproof plug conne",
+    "context": "Aviation Waterproof plug conne",
+    "value": "889928_5",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 19,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Single-core High-current Energ",
+    "context": "Single-core High-current Energ",
+    "value": "889928_6",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 20,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "MC4 Photovoltaic Waterproof Co",
+    "context": "MC4 Photovoltaic Waterproof Co",
+    "value": "889928_7",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 21,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "IDC Connector",
+    "context": "IDC Connector",
+    "value": "889928_8",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 22,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Box Header Connector",
+    "context": "Box Header Connector",
+    "value": "889928_9",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 23,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Ejector Header Connector",
+    "context": "Ejector Header Connector",
+    "value": "889928_10",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 24,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Wafer Connector Connector",
+    "context": "Wafer Connector Connector",
+    "value": "889928_11",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 25,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "FPC/FFC Connector",
+    "context": "FPC/FFC Connector",
+    "value": "889928_12",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 26,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "IDC-type Ejector Header Connec",
+    "context": "IDC-type Ejector Header Connec",
+    "value": "889928_13",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 27,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "IDC-type Box Header Connector",
+    "context": "IDC-type Box Header Connector",
+    "value": "889928_14",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 28,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "BMS Signal Connector",
+    "context": "BMS Signal Connector",
+    "value": "889928_15",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 29,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Automotive Sealed Waterproof C",
+    "context": "Automotive Sealed Waterproof C",
+    "value": "889928_16",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 30,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Automotive Sensor Connector",
+    "context": "Automotive Sensor Connector",
+    "value": "889928_17",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 31,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "1.27 SMC Connector",
+    "context": "1.27 SMC Connector",
+    "value": "889928_18",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 32,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "A-type New Energy Connector",
+    "context": "A-type New Energy Connector",
+    "value": "889928_19",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 33,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Automotive Signal Connector",
+    "context": "Automotive Signal Connector",
+    "value": "889928_20",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 34,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Pin Header Connector",
+    "context": "Pin Header Connector",
+    "value": "889928_21",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 35,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Machined Pin Header Connector",
+    "context": "Machined Pin Header Connector",
+    "value": "889928_22",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 36,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Mini Jumper",
+    "context": "Mini Jumper",
+    "value": "889928_23",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 37,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Female Header Connector",
+    "context": "Female Header Connector",
+    "value": "889928_24",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 38,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Machined Female Header Connect",
+    "context": "Machined Female Header Connect",
+    "value": "889928_25",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 39,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Pluggable Terminal Blocks",
+    "context": "Pluggable Terminal Blocks",
+    "value": "889928_26",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 40,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "MCS Multi-purpose Terminal Blo",
+    "context": "MCS Multi-purpose Terminal Blo",
+    "value": "889928_27",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 41,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Spring Terminal Blocks",
+    "context": "Spring Terminal Blocks",
+    "value": "889928_28",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 42,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Feed Through Terminal Blocks",
+    "context": "Feed Through Terminal Blocks",
+    "value": "889928_29",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 43,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "PCS Universal Screw Terminal B",
+    "context": "PCS Universal Screw Terminal B",
+    "value": "889928_30",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 44,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Barrier Terminal Blocks",
+    "context": "Barrier Terminal Blocks",
+    "value": "889928_31",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 45,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "PCB Soldering Terminal",
+    "context": "PCB Soldering Terminal",
+    "value": "889928_32",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 46,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Ground Modular Terminal Blocks",
+    "context": "Ground Modular Terminal Blocks",
+    "value": "889928_33",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 47,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Machined IC Socket Connector",
+    "context": "Machined IC Socket Connector",
+    "value": "889928_34",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 48,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Power Pin Header Connector",
+    "context": "Power Pin Header Connector",
+    "value": "889928_35",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 49,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "PLC Connector",
+    "context": "PLC Connector",
+    "value": "889928_36",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 50,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "OPS Connector",
+    "context": "OPS Connector",
+    "value": "889928_37",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 51,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "PCI/SFP Shielding Cover/PCMC C",
+    "context": "PCI/SFP Shielding Cover/PCMC C",
+    "value": "889928_38",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 52,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "YFCS-YFCT Male/Female Connecto",
+    "context": "YFCS-YFCT Male/Female Connecto",
+    "value": "889928_39",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 53,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Floating Board to Board Connec",
+    "context": "Floating Board to Board Connec",
+    "value": "889928_40",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 54,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "High-current Board to Board Co",
+    "context": "High-current Board to Board Co",
+    "value": "889928_41",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 55,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Board to Board Connector",
+    "context": "Board to Board Connector",
+    "value": "889928_42",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 56,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "High-speed Board to Board Conn",
+    "context": "High-speed Board to Board Conn",
+    "value": "889928_43",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 57,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "5015 Aviation Socket& Plug Con",
+    "context": "5015 Aviation Socket& Plug Con",
+    "value": "889928_44",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 58,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "YD28 Aviation Socket& Plug Con",
+    "context": "YD28 Aviation Socket& Plug Con",
+    "value": "889928_45",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 59,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Servo Motor Power Encoder Conn",
+    "context": "Servo Motor Power Encoder Conn",
+    "value": "889928_46",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 60,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "CM10 Servo Motor Connector",
+    "context": "CM10 Servo Motor Connector",
+    "value": "889928_47",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 61,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Encoder Battery Box Connector",
+    "context": "Encoder Battery Box Connector",
+    "value": "889928_48",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 62,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "E-CON Connector",
+    "context": "E-CON Connector",
+    "value": "889928_49",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 63,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "DIN41612 Connector",
+    "context": "DIN41612 Connector",
+    "value": "889928_50",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 64,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "HCP Power Connector",
+    "context": "HCP Power Connector",
+    "value": "889928_51",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 65,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "CPCI High-speed Connector",
+    "context": "CPCI High-speed Connector",
+    "value": "889928_52",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 66,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "DIN 41612 Connector",
+    "context": "DIN 41612 Connector",
+    "value": "889928_53",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 67,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "FUTURE BUS Connector",
+    "context": "FUTURE BUS Connector",
+    "value": "889928_54",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 68,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Card Edge Power Connector",
+    "context": "Card Edge Power Connector",
+    "value": "889928_55",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 69,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "CE Connector",
+    "context": "CE Connector",
+    "value": "889928_56",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 70,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "SLOT Connector",
+    "context": "SLOT Connector",
+    "value": "889928_57",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 71,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Red Micro Match Connector",
+    "context": "Red Micro Match Connector",
+    "value": "889928_58",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 72,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "White Micro Match Connector",
+    "context": "White Micro Match Connector",
+    "value": "889928_59",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 73,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "JU254 Connector",
+    "context": "JU254 Connector",
+    "value": "889928_60",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 74,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "PCR Connector",
+    "context": "PCR Connector",
+    "value": "889928_61",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 75,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "D-SUB Connector",
+    "context": "D-SUB Connector",
+    "value": "889928_62",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 76,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "RJ45 Connector",
+    "context": "RJ45 Connector",
+    "value": "889928_63",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 77,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "SCSI Connector",
+    "context": "SCSI Connector",
+    "value": "889928_64",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 78,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "IEEE1394 Connector",
+    "context": "IEEE1394 Connector",
+    "value": "889928_65",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 79,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "SIM Card Holder Connector",
+    "context": "SIM Card Holder Connector",
+    "value": "889928_66",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   }
+  ]
+ },
+ {
+  "title": "设置与选取数据",
+  "type": "phoenix_blocks_gallery",
+  "wrapIndex": 1,
+  "kind": "widget-dialog",
+  "controls": [
+   {
+    "index": 0,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量",
+    "context": "内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 1,
+    "tag": "INPUT",
+    "type": "radio",
+    "name": "selectProdType",
+    "label": "所有产品",
+    "context": "所有产品",
+    "value": "0",
+    "checked": true,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 2,
+    "tag": "INPUT",
+    "type": "radio",
+    "name": "selectProdType",
+    "label": "使用筛选条件",
+    "context": "使用筛选条件",
+    "value": "1",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 3,
+    "tag": "INPUT",
+    "type": "radio",
+    "name": "selectProdType",
+    "label": "选择指定产品",
+    "context": "选择指定产品",
+    "value": "2",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 4,
+    "tag": "INPUT",
+    "type": "radio",
+    "name": "selectProdType",
+    "label": "选择部分产品分类",
+    "context": "选择部分产品分类",
+    "value": "5",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 5,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "选择产品分类",
+    "context": "选择产品分类",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 6,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "热门产品",
+    "context": "热门产品",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 7,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "新产品",
+    "context": "新产品",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 8,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "推荐产品",
+    "context": "推荐产品",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 9,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "选择列表的产品数据",
+    "context": "选择列表的产品数据",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 10,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "热门产品",
+    "context": "热门产品",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 11,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "新产品",
+    "context": "新产品",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 12,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "推荐产品",
+    "context": "推荐产品",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 13,
+    "tag": "INPUT",
+    "type": "text",
+    "name": "",
+    "label": "搜索",
+    "context": "搜索",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 14,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "AUTOTEST-产品小何2 AUTOTEST-产品小何1 AUTOTEST-产品A 1234...163»共163页 到第页确定",
+    "context": "AUTOTEST-产品小何2 AUTOTEST-产品小何1 AUTOTEST-产品A 1234...163»共163页 到第页确定",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 15,
+    "tag": "INPUT",
+    "type": "text",
+    "name": "",
+    "label": "共163页 到第页",
+    "context": "共163页 到第页",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 16,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "已选择 （0） | 未选择 487 | 全部",
+    "context": "已选择 （0） | 未选择 487 | 全部",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 17,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector IDC-type Box Header Connector Automotive Connector BMS Signal Connector Automotive Sealed Waterproof Connector Automotive Sensor Connector 1.27 SMC Connector A-type New Energy Connector Automotive Signal Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Pluggable Terminal Blocks MCS Multi-purpose Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch",
+    "context": "全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-b",
+    "value": "on",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 18,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "leafProdGroup",
+    "label": "Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector",
+    "context": "Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector",
+    "value": "on",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 19,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "leafProdGroup",
+    "label": "M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉",
+    "context": "M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉",
+    "value": "on",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 130,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector IDC-type Box Header Connector Automotive Connector BMS Signal Connector Automotive Sealed Waterproof Connector Automotive Sensor Connector 1.27 SMC Connector A-type New Energy Connector Automotive Signal Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Pluggable Terminal Blocks MCS Multi-purpose Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch",
+    "context": "全选 Circular Connector M12 Circular Waterproof Connector 产品名称 欧式插座/2排/90°母座/无鱼叉 M25 Circular Waterproof Connector M15 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Single-core High-current Energy Storage Connector MC4 Photovoltaic Waterproof Connector Wire-to-b",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 131,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类",
+    "context": "选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 132,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类",
+    "context": "选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 133,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "全选 Brand Product Code Model Brief 图纸 测试多选 正式版测试多选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
+    "context": "全选 Brand Product Code Model Brief 图纸 测试多选 正式版测试多选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
+    "value": "on",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 134,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Brand",
+    "context": "Brand",
+    "value": "-3",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 135,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Product Code",
+    "context": "Product Code",
+    "value": "-4",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 136,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Model",
+    "context": "Model",
+    "value": "-5",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 137,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Brief",
+    "context": "Brief",
+    "value": "-9",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 138,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "图纸",
+    "context": "图纸",
+    "value": "889998",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 139,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "测试多选",
+    "context": "测试多选",
+    "value": "898508",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 140,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "正式版测试多选",
+    "context": "正式版测试多选",
+    "value": "899828",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 141,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "AUTOTEST-单选按钮A",
+    "context": "AUTOTEST-单选按钮A",
+    "value": "911778",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 142,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "AUTOTEST-下拉列表",
+    "context": "AUTOTEST-下拉列表",
+    "value": "911788",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 143,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "AUTOTEST-多选",
+    "context": "AUTOTEST-多选",
+    "value": "911798",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 144,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Category",
+    "context": "Category",
+    "value": "889928",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 145,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Rated Current",
+    "context": "Rated Current",
+    "value": "889968",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 146,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Installation Method",
+    "context": "Installation Method",
+    "value": "889958",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 147,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Spacing",
+    "context": "Spacing",
+    "value": "889948",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 148,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "Rated voltage",
+    "context": "Rated voltage",
+    "value": "889988",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 149,
+    "tag": "INPUT",
+    "type": "radio",
+    "name": "pagination",
+    "label": "是",
+    "context": "是",
+    "value": "1",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 150,
+    "tag": "INPUT",
+    "type": "radio",
+    "name": "pagination",
+    "label": "否",
+    "context": "否",
+    "value": "0",
+    "checked": true,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 151,
+    "tag": "INPUT",
+    "type": "text",
+    "name": "",
+    "label": "",
+    "context": "显示产品总数量",
+    "value": "20",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 152,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "设置与选取数据 内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量 关闭 保存",
+    "context": "设置与选取数据 内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量 关闭 保存",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 153,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "settingId",
+    "label": "设置与选取数据 内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量 关闭 保存",
+    "context": "设置与选取数据 内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量 关闭 保存",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 154,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "nodeId",
+    "label": "设置与选取数据 内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量 关闭 保存",
+    "context": "设置与选取数据 内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量 关闭 保存",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 155,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "appIsDev",
+    "label": "设置与选取数据 内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量 关闭 保存",
+    "context": "设置与选取数据 内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量 关闭 保存",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 156,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "templateSetting",
+    "label": "设置与选取数据 内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量 关闭 保存",
+    "context": "设置与选取数据 内容 选择列表的产品数据 所有产品 使用筛选条件 选择指定产品 选择部分产品分类 分页显示 是 否 显示产品总数量 关闭 保存",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   }
+  ]
+ },
+ {
+  "kind": "rail-icon",
+  "type": "rail:icon",
+  "wrapIndex": 0,
+  "title": "ID",
+  "controls": [
+   {
+    "type": "icon",
+    "label": "",
+    "context": "ID",
+    "value": "block-operate-btn"
+   }
+  ]
+ },
+ {
+  "kind": "rail-icon",
+  "type": "rail:icon",
+  "wrapIndex": 1,
+  "title": "ctner-background-btns block-operate-btn",
+  "controls": [
+   {
+    "type": "icon",
+    "label": "",
+    "context": "",
+    "value": "ctner-background-btns block-operate-btn"
+   }
+  ]
+ },
+ {
+  "kind": "right-panel",
+  "type": "rail:module-width",
+  "wrapIndex": 2,
+  "title": "module-width",
+  "controls": [
+   {
+    "type": "radio",
+    "label": "1200px",
+    "value": "1",
+    "checked": false
+   },
+   {
+    "type": "radio",
+    "label": "1440px",
+    "value": "2",
+    "checked": false
+   },
+   {
+    "type": "radio",
+    "label": "1600px",
+    "value": "3",
+    "checked": false
+   },
+   {
+    "type": "radio",
+    "label": "1920px",
+    "value": "4",
+    "checked": false
+   },
+   {
+    "type": "radio",
+    "label": "全屏",
+    "value": "-2",
+    "checked": false
+   },
+   {
+    "type": "radio",
+    "label": "自定义（需不小于1200px）",
+    "value": "-1",
+    "checked": true
+   },
+   {
+    "type": "text",
+    "label": "自定义宽度",
+    "value": "1440"
+   },
+   {
+    "type": "checkbox",
+    "label": "全局应用",
+    "checked": false
+   },
+   {
+    "type": "value",
+    "label": "生效宽度",
+    "value": 1440
+   }
+  ]
+ },
+ {
+  "kind": "right-panel",
+  "type": "rail:color-scheme",
+  "wrapIndex": 3,
+  "title": "color-scheme",
+  "controls": [
+   {
+    "type": "color",
+    "label": "配色1",
+    "name": "colorVal1",
+    "value": "rgb(242, 242, 245)"
+   }
+  ]
+ },
+ {
+  "kind": "rail-icon",
+  "type": "rail:icon",
+  "wrapIndex": 4,
+  "title": "backstage-container-padding block-operate-btn",
+  "controls": [
+   {
+    "type": "icon",
+    "label": "",
+    "context": "",
+    "value": "backstage-container-padding block-operate-btn"
+   }
+  ]
+ },
+ {
+  "kind": "rail-icon",
+  "type": "rail:icon",
+  "wrapIndex": 5,
+  "title": "backstage-container-moveDown siteblocks-operateTool",
+  "controls": [
+   {
+    "type": "icon",
+    "label": "",
+    "context": "",
+    "value": "backstage-container-moveDown siteblocks-operateTool"
+   }
+  ]
+ },
+ {
+  "kind": "rail-icon",
+  "type": "rail:icon",
+  "wrapIndex": 6,
+  "title": "backstage-container-copy",
+  "controls": [
+   {
+    "type": "icon",
+    "label": "",
+    "context": "",
+    "value": "backstage-container-copy"
+   }
+  ]
+ },
+ {
+  "kind": "rail-icon",
+  "type": "rail:icon",
+  "wrapIndex": 7,
+  "title": "backstage-container-delete",
+  "controls": [
+   {
+    "type": "icon",
+    "label": "",
+    "context": "",
+    "value": "backstage-container-delete"
+   }
+  ]
+ }
 ]
