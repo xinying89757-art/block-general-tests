@@ -1076,5 +1076,90 @@
       ],
       "skippedNoLabel": 1
     }
-  ]
+  ],
+  "requirements": {
+    "capabilities": [
+      {
+        "id": "btn-text"
+      },
+      {
+        "id": "btn-url"
+      },
+      {
+        "id": "btn-target"
+      },
+      {
+        "id": "product-category"
+      },
+      {
+        "id": "cff-fields"
+      },
+      {
+        "id": "pld-data-source",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
+      },
+      {
+        "id": "pld-display-fields",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
+      },
+      {
+        "id": "pld-pagination",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
+      },
+      {
+        "id": "color-scheme"
+      },
+      {
+        "id": "module-width"
+      },
+      {
+        "id": "pld-page-size",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
+      },
+      {
+        "id": "pld-product-count",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
+      },
+      {
+        "id": "cff-logic",
+        "mode": "fixed-front",
+        "fixedValue": "交集"
+      },
+      {
+        "id": "cff-trigger",
+        "mode": "fixed-front",
+        "fixedValue": "更改筛选项后自动筛选"
+      },
+      {
+        "id": "cff-scope",
+        "mode": "fixed-front",
+        "fixedValue": "当前分类产品"
+      }
+    ],
+    "notes": [
+      "数量输入（显示产品总数量）与分页单选已由 2026-10-30 实站探查确认存在，按分页=否为总数量、分页=是为每页数量。",
+      "筛选逻辑/触发/范围为隐藏固定值（mode=fixed-front），探查报告固定值，不算缺失；在前台按固定值验证（2026-10-30 用户确认）。",
+      "显示字段类型：单选按钮、多选按钮、下拉列表（2026-10-30 用户确认）。"
+    ],
+    "displayFieldTypes": [
+      "单选按钮",
+      "多选按钮",
+      "下拉列表"
+    ]
+  }
 }

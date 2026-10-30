@@ -1,0 +1,347 @@
+[
+ {
+  "title": null,
+  "type": "phoenix_blocks_image",
+  "wrapIndex": 0,
+  "kind": "widget-dialog",
+  "controls": [],
+  "skipped": "打开后 10 秒内未出现 widget dialog（可能打开的是画布内浮层而非设置弹窗）"
+ },
+ {
+  "title": "设置高级导航",
+  "type": "phoenix_blocks_navigation",
+  "wrapIndex": 0,
+  "kind": "widget-dialog",
+  "controls": [],
+  "skipped": "等待控件或保存状态稳定超时"
+ },
+ {
+  "title": "设置产品搜索",
+  "type": "phoenix_blocks_serach",
+  "wrapIndex": 0,
+  "kind": "widget-dialog",
+  "controls": [
+   {
+    "index": 0,
+    "tag": "INPUT",
+    "type": "text",
+    "name": "",
+    "label": "",
+    "context": "预留关键字",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 1,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "设置产品搜索 内容 预留关键字 取消 保存",
+    "context": "设置产品搜索 内容 预留关键字 取消 保存",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 2,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "settingId",
+    "label": "设置产品搜索 内容 预留关键字 取消 保存",
+    "context": "设置产品搜索 内容 预留关键字 取消 保存",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 3,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "nodeId",
+    "label": "设置产品搜索 内容 预留关键字 取消 保存",
+    "context": "设置产品搜索 内容 预留关键字 取消 保存",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 4,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "appIsDev",
+    "label": "设置产品搜索 内容 预留关键字 取消 保存",
+    "context": "设置产品搜索 内容 预留关键字 取消 保存",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 5,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "templateSetting",
+    "label": "设置产品搜索 内容 预留关键字 取消 保存",
+    "context": "设置产品搜索 内容 预留关键字 取消 保存",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   }
+  ]
+ },
+ {
+  "title": "设置语言栏",
+  "type": "phoenix_blocks_langBar",
+  "wrapIndex": 0,
+  "kind": "widget-dialog",
+  "controls": [
+   {
+    "index": 0,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "",
+    "label": "全选 English 简体中文 العربية 日本語",
+    "context": "全选 English 简体中文 العربية 日本語",
+    "value": "on",
+    "checked": true,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 1,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "全选 English 简体中文 العربية 日本語",
+    "context": "全选 English 简体中文 العربية 日本語",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 2,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "English",
+    "context": "English",
+    "value": "",
+    "checked": true,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 3,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "简体中文",
+    "context": "简体中文",
+    "value": "",
+    "checked": true,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 4,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "العربية",
+    "context": "العربية",
+    "value": "",
+    "checked": true,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 5,
+    "tag": "INPUT",
+    "type": "checkbox",
+    "name": "langBarSort",
+    "label": "日本語",
+    "context": "日本語",
+    "value": "",
+    "checked": true,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 6,
+    "tag": "SELECT",
+    "type": "select-one",
+    "name": "",
+    "label": "English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi",
+    "context": "English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina",
+    "value": "0",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false,
+    "options": [
+     {
+      "value": "0",
+      "label": "English",
+      "disabled": false
+     },
+     {
+      "value": "1",
+      "label": "简体中文",
+      "disabled": false
+     },
+     {
+      "value": "2",
+      "label": "繁体中文",
+      "disabled": false
+     }
+    ]
+   },
+   {
+    "index": 7,
+    "tag": "INPUT",
+    "type": "text",
+    "name": "",
+    "label": "",
+    "context": "选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slove",
+    "value": "http://",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 8,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi 网站地址： 添加 取消 保存",
+    "context": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақш",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 9,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi 网站地址： 添加 取消 保存",
+    "context": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақш",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 10,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi 网站地址： 添加 取消 保存",
+    "context": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақш",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 11,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi 网站地址： 添加 取消 保存",
+    "context": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақш",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 12,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi 网站地址： 添加 取消 保存",
+    "context": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақш",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 13,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "",
+    "label": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi 网站地址： 添加 取消 保存",
+    "context": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақш",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 14,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "settingId",
+    "label": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi 网站地址： 添加 取消 保存",
+    "context": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақш",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 15,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "nodeId",
+    "label": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi 网站地址： 添加 取消 保存",
+    "context": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақш",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 16,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "appIsDev",
+    "label": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi 网站地址： 添加 取消 保存",
+    "context": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақш",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   },
+   {
+    "index": 17,
+    "tag": "INPUT",
+    "type": "hidden",
+    "name": "templateSetting",
+    "label": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақша Сербия हिन्दी فارسی Kiswahili slovenského jazyk Slovenščina norsk språk svenska Українська Ελληνικά Suomalainen Հայերեն עִברִית Latine Dansk اردو Shqiptare বাংলা Hrvatski Afrikaans Gaeilge Eestlane Maori සිංහල नेपाली o'zbek latviski Кыргыз тили Runasimi 网站地址： 添加 取消 保存",
+    "context": "设置语言栏 内容 选择显示的语言版本 全选 English 简体中文 العربية 日本語 新增自定义语言 选择语言： English 简体中文 繁体中文 العربية Français Pусский Español Português Deutsch Italia 日本語 한국어 Nederlands Tiếng Việt ไทย Polski Türk dili ኢትዮጵያዊ ລາວ ភាសាខ្មែរ Melayu မြန်မာ தமிழ் மொழி Filipino Bahasa indonesia magyar românesc Česky Монгол улс Қазақш",
+    "value": "",
+    "checked": false,
+    "disabled": false,
+    "readOnly": false
+   }
+  ]
+ },
+ {
+  "type": "phoenix_blocks_button",
+  "wrapIndex": 0,
+  "title": null,
+  "kind": "button-popover",
+  "controls": [],
+  "skipped": "locator.click: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('ifra"
+ }
+]

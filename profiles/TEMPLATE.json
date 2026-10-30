@@ -162,5 +162,25 @@
         }
       }
     ]
+  },
+  "requirements": {
+    "displayFieldTypes": [
+      "单选按钮",
+      "多选按钮",
+      "下拉列表"
+    ],
+    "_note": "设置项 id 来自 signatures；params 可选，用于限制弹窗标题和区域序号。弹窗里隐藏、取固定值的需求写 mode=fixed-front 和 fixedValue：探查只报告固定值，不算缺失，由前台验证。展示字段类型缺需求时需人工补充。",
+    "capabilities": [
+      {
+        "id": "pld-display-fields",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
+      },
+      {
+        "id": "color-scheme"
+      }
+    ]
   }
 }

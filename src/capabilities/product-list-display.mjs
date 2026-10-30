@@ -368,7 +368,7 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
     evidence, { expected: `数据来源只选“${target}”后，产品列表应与后台的 ${expected.length} 个上架产品完全一致${offShelfCount == null ? '' : `，并排除 ${offShelfCount} 个下架产品`}。` });
 }
 
-export async function runSettingsLayer({ page, canvas, context, config, capability }) {
+export async function runSettingsLayer({ page, canvas, context, config, capability, profile }) {
   if (config.frontOnly) return listEffects({ page, canvas, context, config, capability }, 'front');
   // The dialog title and the wrap index come from the profile: 40838 uses
   // title 设置产品列表 at gallery wrap 0, while 47748 uses 设置与选取数据
@@ -383,7 +383,9 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     if (initial.reason) return ['pld-fields', 'pld-page-size-persist', 'pld-pagination-persist', 'pld-compare-persist', 'pld-compare-front', 'pld-data-source-category-front', 'pld-display-field-persist', 'pld-data-source-persist']
       .map((id) => result(id, 'skip', `无法读取产品列表弹窗：${initial.reason}`));
     const fields = fieldsOf(initial.controls);
-    checks.push(result('pld-fields', 'record', `展示字段 ${fields.length} 个（排除全选，含系统属性与自定义字段）。`, fields));
+    checks.push(Array.isArray(profile?.requirements?.displayFieldTypes) && profile.requirements.displayFieldTypes.length
+      ? result('pld-fields', 'record', `展示字段 ${fields.length} 个（排除全选，含系统属性与自定义字段）；需求类型：${profile.requirements.displayFieldTypes.join('、')}。`, fields)
+      : result('pld-fields', 'skip', '需求未提供，需人工补充', fields));
     // Data source is a 4-option radio in 47748 (所有产品 / 使用筛选条件 /
     // 选择指定产品 / 选择部分产品分类); 40838 has no such group, so a
     // missing group correctly degrades to na via radioGroupPersist.
@@ -401,7 +403,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     // The number's meaning depends on pagination (user-confirmed 2026-10-26):
     // pagination=是 → per-page count; pagination=否 → total count.
     const paginationChecked = initial.controls.find((item) => item.type === 'radio' && item.name === 'pagination' && item.checked);
-    const sizeMeaning = paginationChecked?.label === '是' ? '每页产品数量' : '总数量';
+    const sizeMeaning = paginationChecked?.label === '是' ? '每页产品数量' : paginationChecked?.label === '否' ? '总数量' : '未知含义';
     const sizeOutcome = pageSize ? await persistControl({ session, page,
       target: pageSize, alternate: Number(pageSize.value) === 10 ? '20' : '10' }) : null;
     checks.push(sizeOutcome
@@ -553,16 +555,21 @@ function cardFieldSnapshot(root, fieldLabels = []) {
       })).slice(0, 40) };
   });
 }
+export function displayFieldRequirements(profile) {
+  const required = profile?.requirements?.displayFieldTypes;
+  if (!Array.isArray(required) || !required.length) unavailable('需求未提供，需人工补充');
+  return required;
+}
+
 async function listFieldsEffect(args, layer) {
   const session = listSession(args);
   return effectCheck({ ...args, session, result, id: `pld-fields-${layer}`, layer, run: async (tx) => {
+    const supportedTypes = displayFieldRequirements(args.profile);
     const fields = await effectListFields(tx, session);
-    // 展示字段覆盖独立于筛选真值表：画像 fixture.displayFields 声明区块支持的
-    // 自定义字段类型、每类型一个 CMS 字段及其在 AUTOTEST 产品上的期望值。
+    // 需求定义类型，夹具提供每类型对应字段及产品值。
     const display = args.profile?.fixture?.displayFields || {};
     const fixtureFields = display.fields || [];
-    const supportedTypes = display.supportedTypes || [];
-    if (!fixtureFields.length || !supportedTypes.length) unavailable('画像没有产品卡自定义字段类型夹具，不能把系统属性当作自定义字段。');
+    if (!fixtureFields.length) unavailable('画像没有产品卡自定义字段类型夹具，不能把系统属性当作自定义字段。');
     const selected = supportedTypes.map((type) => {
       const declared = fixtureFields.filter((field) => field.type === type);
       if (declared.length !== 1) unavailable(`画像类型 ${type} 应唯一对应一个 CMS 夹具字段。`);

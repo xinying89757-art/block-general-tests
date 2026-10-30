@@ -169,11 +169,6 @@
       "union": "40838 并集为已知缺陷（只返回先选字段的集合），仍按正确预期断言，不弱化。"
     },
     "displayFields": {
-      "supportedTypes": [
-        "单选按钮",
-        "多选按钮",
-        "下拉列表"
-      ],
       "fields": [
         {
           "name": "AUTOTEST-单选按钮A",
@@ -484,5 +479,62 @@
         }
       ]
     }
-  ]
+  ],
+  "requirements": {
+    "displayFieldTypes": [
+      "单选按钮",
+      "多选按钮",
+      "下拉列表"
+    ],
+    "capabilities": [
+      {
+        "id": "cff-fields"
+      },
+      {
+        "id": "cff-logic"
+      },
+      {
+        "id": "cff-trigger"
+      },
+      {
+        "id": "cff-scope"
+      },
+      {
+        "id": "cff-jump"
+      },
+      {
+        "id": "cff-background"
+      },
+      {
+        "id": "pld-display-fields"
+      },
+      {
+        "id": "pld-pagination"
+      },
+      {
+        "id": "pld-page-size"
+      },
+      {
+        "id": "pld-product-count"
+      },
+      {
+        "id": "pld-compare"
+      },
+      {
+        "id": "btn-text"
+      },
+      {
+        "id": "btn-url"
+      },
+      {
+        "id": "btn-target"
+      },
+      {
+        "id": "color-scheme"
+      }
+    ],
+    "notes": [
+      "40838 无模块宽度设置（2026-10-30 用户确认），不列入需求。"
+    ]
+  }
 }

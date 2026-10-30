@@ -461,3 +461,17 @@ BLOCK_ID=40838 CAPABILITY_FILTER=custom-filter-fields npm run test:block
 - 画像有 `baseline` 时，运行器在能力修改前只读打开各设置并取消，比较持久化值；任何 `AUTOTEST-` 字符串都按残留处理。发现差异即按画像恢复，另开新浏览器 context（复用 storageState）重读；恢复或新会话复验失败时终止本轮。结果写入 `report.baselineGuard`，控制台和 HTML 报告显示差异、恢复与复验状态。画像无基线则记录 `no baseline in profile`。
 - 按钮区基线用 `{ type: "phoenix_blocks_button", wrapIndex, title: null, kind: "button-popover", want }`，覆盖按钮文本、链接网址、新窗口打开；捕获只读，应用后保存并回读。40838 的基线值按画像保存，不以运行时观察值覆盖。
 - 能力事务恢复时优先使用画像中该控件的值；画像没有时才恢复开跑快照。快照为 `AUTOTEST-` 按钮文本时回退至默认按钮文案，证据记录恢复目标来源。残留演练可用 `node scripts/set-button-text.mjs <TEXT>`，仅在测试站执行。
+
+### 探查新区块设置项（probe-settings）
+
+探查仅在接入、换站或区块改版时运行，结果保存复用。已有目标页和区块、登录态可用时运行 `node scripts/probe-settings.mjs <区块ID>`；目标页按画像及 `TARGET_PAGE` / `TARGET_PAGE_KIND` 解析，必须已存在。草稿写入 `drafts/<siteHost>/<blockId>.json`，可用 `PROBE_OUT` 覆盖路径。区块不在目标页时列出当前页已有区块并停止，不添加区块。
+
+画像 `requirements.capabilities` 声明设置项 ID（见 `src/capabilities/signatures.mjs`），可用 `params.dialogTitle` 和 `params.wrapIndex` 限制位置。探查按规则逐项输出已定位或缺失（问题）、位置与控件证据；数量依赖分页时记录当前分页值及生效含义。未被需求认领的控件、弹窗和右侧图标列为需求外设置，不推断能力。另对比画像能力模块的弹窗标题和区域序号。没有画像或需求时仍盘点，全部列为需求外设置并提示人工补充需求。盘点范围有限，隐藏或无法读取的设置需要人工核实。
+
+`requirements.displayFieldTypes` 提供需要核对的类型。只在标题为“设置产品列表”的显示字段复选框里查找 `fixture.displayFields.fields` 中对应类型的唯一 `AUTOTEST-` 字段：可勾选为 ok；字段存在但禁用为问题；画像缺该类型夹具字段、复选框未找到字段或弹窗不可读为 unknown，并提示先准备夹具或人工确认。没有类型需求时提示“需求未提供，需人工补充”。这一步不读取 CMS，找不到字段不能证明区块不支持该类型。
+
+探查只导航到已有页面，打开设置读取后取消或关闭，不创建页面或区块，不保存页面或发布。按钮浮层无取消按钮，读取后先按 Esc 或点空白关闭，仍不关时点浮层内“保存”（值未改动，不触发页面保存/发布）。配色与模块宽度只读盘点右侧面板，其他图标列入需求外设置；读取失败保留原因，不进入基线。
+
+### 固定值需求（fixed-front）
+
+`requirements.capabilities` 条目可写 `{ "id": "cff-logic", "mode": "fixed-front", "fixedValue": "交集" }`，表示编辑器里没有该设置（隐藏），取需求给定的固定值，在前台按此值验证。探查结果状态为 `fixed`，报告固定值，不算缺失；若编辑器里反而找到该设置，提示人工确认。前台检查通过 `fixedRequirementValues(profile)` 读取固定值。显示字段类型核对使用 `pld-display-fields` 需求的 `params.dialogTitle`/`wrapIndex` 定位弹窗（默认“设置产品列表”）。

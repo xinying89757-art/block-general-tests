@@ -33,3 +33,28 @@ test('profile validation rejects capabilities without a module', () => {
   profile.capabilities.push({ id: 'not-a-real-capability' });
   assert.ok(validateProfile(profile, template, { capabilities }).some((error) => /未知能力 not-a-real-capability/.test(error)));
 });
+
+test('display field requirements are optional string arrays', () => {
+  const profile = structuredClone(profiles[0]);
+  profile.requirements.displayFieldTypes = ['单选按钮', 1];
+  assert.ok(validateProfile(profile, template, { capabilities }).some(error => /requirements.displayFieldTypes/.test(error)));
+  delete profile.requirements;
+  assert.deepEqual(validateProfile(profile, template, { capabilities }), []);
+});
+
+test('requirement setting ids and optional location parameters are validated', () => {
+  const profile = structuredClone(profiles[0]);
+  profile.requirements.capabilities = [{ id: 'not-a-setting' }, { id: 'btn-text', params: { wrapIndex: -1 } }];
+  const errors = validateProfile(profile, template, { capabilities });
+  assert.ok(errors.some(e => /已知设置项 id/.test(e)));
+  assert.ok(errors.some(e => /wrapIndex/.test(e)));
+  profile.requirements.capabilities = {};
+  assert.ok(validateProfile(profile, template, { capabilities }).some(e => /requirements.capabilities 必须是数组/.test(e)));
+});
+test('fixed-front requirements need a fixedValue', () => {
+  const p = structuredClone(profiles[0]);
+  p.requirements.capabilities = [{ id: 'cff-logic', mode: 'fixed-front' }];
+  assert.ok(validateProfile(p, template, { capabilities }).some(e => /fixedValue/.test(e)));
+  p.requirements.capabilities = [{ id: 'cff-logic', mode: 'fixed-front', fixedValue: '交集' }];
+  assert.equal(validateProfile(p, template, { capabilities }).filter(e => /requirements/.test(e)).length, 0);
+});
