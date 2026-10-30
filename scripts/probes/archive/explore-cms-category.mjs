@@ -1,8 +1,8 @@
 // Read-only: category list, add-category form, product category picker (no saves).
-import { loadConfig } from '../../src/config.mjs';
-import { launchSession } from '../../src/browser.mjs';
-import { openEditor } from '../../src/editor.mjs';
-import { openProdPage } from '../../src/cms.mjs';
+import { loadConfig } from '../../../src/config.mjs';
+import { launchSession } from '../../../src/browser.mjs';
+import { openEditor } from '../../../src/editor.mjs';
+import { openProdPage } from '../../../src/cms.mjs';
 import fs from 'node:fs';
 const config = loadConfig();
 const { browser, context, page } = await launchSession(config);

@@ -1,8 +1,8 @@
 // Read-only DOM probe for fixture CMS locators (field id, categories, product categories).
-import { loadConfig } from '../../src/config.mjs';
-import { launchSession } from '../../src/browser.mjs';
-import { openEditor } from '../../src/editor.mjs';
-import { openProdPage, listCustomFields, findProduct } from '../../src/cms.mjs';
+import { loadConfig } from '../../../src/config.mjs';
+import { launchSession } from '../../../src/browser.mjs';
+import { openEditor } from '../../../src/editor.mjs';
+import { openProdPage, listCustomFields, findProduct } from '../../../src/cms.mjs';
 import fs from 'node:fs';
 const config = loadConfig();
 const { browser, context, page } = await launchSession(config);
