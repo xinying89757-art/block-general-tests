@@ -32,6 +32,10 @@ test('new blocks apply baseline before capabilities and prepare a selected CFF f
     settings: true, backend: false, front: true, capabilities: ['custom-filter-fields'],
   });
   assert.equal(frontRunPhases({ frontOnly: true }, profile, false).baselineGuard, true);
+  assert.deepEqual(frontRunPhases({ frontOnly: true, applyBaseline: true }, profile, false), {
+    baselineGuard: false, applyBaseline: true, prepareFixture: true,
+    settings: true, backend: false, front: true, capabilities: ['custom-filter-fields'],
+  });
 });
 
 test('fixture preparation covers category and product list filters, but skips unrelated capabilities', () => {
