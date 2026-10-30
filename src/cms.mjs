@@ -560,7 +560,7 @@ export async function findCategory(page, name) {
   return page.evaluate(wanted => {
     const rows = [...document.querySelectorAll('input[type="checkbox"][name="dataId"]')].filter(n => (n.getAttribute('groupname') || '').trim() === wanted);
     if (rows.length > 1) throw new Error('夹具分类重名。');
-    return rows.length ? { name: wanted, id: rows[0].value } : null;
+    return rows.length ? { name: wanted, id: rows[0].value, parents: rows[0].closest('tr')?.getAttribute('parentgroup') ?? null } : null;
   }, name);
 }
 export async function createCategory(page, name) {
@@ -568,9 +568,23 @@ export async function createCategory(page, name) {
   await gotoAction(page, 'prod_group_add');
   const limit = await page.evaluate(() => /分类数量已经达到最大限制/.test(document.body.innerText || ''));
   if (limit) throw new CategoryLimitError('站点产品分类数量已达上限，无法新建 AUTOTEST 分类。');
-  // The add-category form has not been observed live yet (the test site is at
-  // its limit); refuse rather than guess its controls.
-  throw new Error('新增产品分类表单尚未实站探查，需先确认表单结构。');
+  const form = await unique(page.locator('form[action="/prod/group/doAdd"]'), '新增分类表单');
+  const selected = form.locator('#treeboxbox_tree_pop .selectedTreeRow');
+  if (await selected.count() !== 1 || (await selected.innerText()).trim() !== '所有分组'
+      || await form.locator('#strParentGroup').inputValue() !== '') {
+    throw new Error('新增分类表单未选中顶级位置。');
+  }
+  const input = await unique(form.locator('input[name="group.groupName"]'), '分类名称');
+  await input.fill(name);
+  await input.blur();
+  const save = await unique(page.locator('a[action="prod_group_save_verify"][flag="list"]').filter({ visible: true }), '保存分类');
+  await saveCms(page, async () => {
+    if (await save.getAttribute('disabled') !== null) throw new Error('保存分类按钮不可用。');
+    await save.evaluate(node => node.click());
+  });
+  const created = await findCategory(page, name);
+  if (!created || created.parents !== '-1') throw new Error('创建后未找到唯一顶级夹具分类。');
+  return created;
 }
 async function openAutoProduct(page, prodId) {
   await openProduct(page, prodId);
