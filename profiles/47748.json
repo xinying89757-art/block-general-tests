@@ -619,37 +619,43 @@
           "label": "热门产品",
           "type": "checkbox",
           "value": "",
-          "to": false
+          "to": false,
+          "occurrence": 0
         },
         {
           "label": "新产品",
           "type": "checkbox",
           "value": "",
-          "to": false
+          "to": false,
+          "occurrence": 0
         },
         {
           "label": "推荐产品",
           "type": "checkbox",
           "value": "",
-          "to": false
+          "to": false,
+          "occurrence": 0
         },
         {
           "label": "热门产品",
           "type": "checkbox",
           "value": "",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "新产品",
           "type": "checkbox",
           "value": "",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "推荐产品",
           "type": "checkbox",
           "value": "",
-          "to": false
+          "to": false,
+          "occurrence": 1
         },
         {
           "label": "搜索",
