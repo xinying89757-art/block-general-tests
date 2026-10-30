@@ -19,6 +19,7 @@
 import { clickSettings, controlValue, probeControls, widgetSession, TIMEOUT } from './capabilities/shared.mjs';
 import { readButtonPopover, writeButtonPopover } from './capabilities/button-link.mjs';
 import { matchControl, normalizeControlIdentity } from './baseline-identity.mjs';
+import { uiWaitConfig, waitForStable } from './ui-waits.mjs';
 
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 const TITLE = '.backstage-dialog-title, .layui-layer-title';
@@ -214,11 +215,15 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
     try {
       const probe = await probeControls(session);
       if (probe.reason) { step.errors.push(probe.reason); steps.push(step); allVerified = false; continue; }
+      const readyTimeout = Math.max(30_000, Number(process.env.UI_READY_TIMEOUT_MS) || 0);
+      const controls = await waitForStable((remaining) => session.read(remaining),
+        (items) => stepDef.want.every((wanted) => Boolean(matchControl(items, wanted))),
+        { timeout: readyTimeout, stableMs: uiWaitConfig().stableMs });
       // Do not partially save a dialog when its recorded controls cannot all
       // be resolved. A changing or incompletely loaded list needs investigation.
       const missing = [];
       for (const w of stepDef.want) {
-        try { if (!matchControl(probe.controls, w)) missing.push(w.label); }
+        try { if (!matchControl(controls, w)) missing.push(w.label); }
         catch (error) { step.errors.push(error.message); }
       }
       if (missing.length || step.errors.length) {
@@ -229,7 +234,7 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
       }
       for (const w of stepDef.want) {
         let target;
-        try { target = matchControl(probe.controls, w); }
+        try { target = matchControl(controls, w); }
         catch (error) { step.errors.push(error.message); step.set.push(`${w.label}：身份不唯一`); continue; }
         if (!target) { step.set.push(`${w.label}：未找到`); continue; }
         const current = controlValue(target);

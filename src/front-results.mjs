@@ -26,7 +26,10 @@ export function frontRunPhases(config = {}, profile = {}, added = false) {
   const capabilities = profile.capabilities || [];
   const filter = config.capabilityFilter;
   return {
-    baselineGuard: Array.isArray(profile.baseline) && profile.baseline.length > 0,
+    // A newly inserted block starts with factory defaults, so compare only
+    // blocks that were already on the page. New blocks are configured from
+    // the saved baseline immediately below and that transaction verifies it.
+    baselineGuard: !added && Array.isArray(profile.baseline) && profile.baseline.length > 0,
     applyBaseline: Array.isArray(profile.baseline) && profile.baseline.length > 0
       && (added || Boolean(config.applyBaseline)),
     prepareFixture: Boolean(profile.fixture)
