@@ -4,6 +4,7 @@ import { savePage, openPreview } from '../editor.mjs';
 import { baselineRestoreTarget, blockSelector, probeControls, findControl, controlValue, TIMEOUT } from './shared.mjs';
 import { waitForStable, readBackWithRetry } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
+import { withTimeout } from '../run-safety.mjs';
 
 export const sameSet = (left, right) => JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
 export const sentenceList = (items) => items.length ? items.join('、') : '无';
@@ -49,6 +50,7 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
     return result(id, 'deferred', 'deferred-to-front-runner', { deferred: true });
   }
   console.log(`[progress] ${new Date().toISOString()} 效果检查开始：${id}`);
+  config.watchdogProgress?.();
   const errors = [], evidence = { observations: [], restored: [] }, journal = new Map(), pending = new Map();
   let status = 'pass', detail = '', expected;
   const controls = async () => {
@@ -111,16 +113,25 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
   };
   try {
     if (layer === 'front' && !context) unavailable('未提供浏览器环境，无法打开临时预览。');
-    await run(tx);
+    await withTimeout(() => run(tx), config.checkTimeoutMs || 300_000, `检查 ${id}`);
     detail = evidence.observations.join('；') || '设置对应的效果与预期一致。';
   } catch (error) {
+    const environmentStatus = error.envStatus || config.environmentStatus;
+    if (environmentStatus === 'env-paused' || environmentStatus === 'env-timeout') {
+      status = environmentStatus;
+      detail = error.message;
+      evidence.error = error.message;
+      try { if (error.envStatus) await config.onEnvironmentFailure?.(error); } catch {}
+    } else {
     status = error.effectStatus || 'fail';
     detail = error.effectStatus ? error.message : '效果检查操作失败，详细错误保留在结构化证据中。';
     evidence.error = error.message;
     if (!error.effectStatus) errors.push(detail);
+    }
   } finally {
     // Each undo/save is independent so a failed undo cannot suppress the rest.
-    for (const { target, value, restore } of [...journal.values()].reverse()) {
+    for (const { target, value, restore } of status === 'env-paused' || status === 'env-timeout'
+      ? [] : [...journal.values()].reverse()) {
       try {
         await session.cancel();
         await session.open();
@@ -142,10 +153,17 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
         (evidence.restoreErrors ||= []).push(error.message);
       }
     }
-    try { await session.cancel(); } catch (error) { errors.push('退出设置面板失败。'); evidence.dismissError = error.message; }
-    if (journal.size) {
+    if (status !== 'env-paused' && status !== 'env-timeout') {
+      try { await session.cancel(); } catch (error) { errors.push('退出设置面板失败。'); evidence.dismissError = error.message; }
+    }
+    if (journal.size && status !== 'env-paused' && status !== 'env-timeout') {
       try { await savePage(page); } catch (error) { errors.push('保存恢复后的页面失败。'); evidence.saveError = error.message; }
     }
+  }
+  if (status === 'env-paused' || status === 'env-timeout') {
+    return result(id, status, detail, { ...evidence, retryable: true }, {
+      ...(expected ? { expected } : {}), actual: detail, evidenceText: [detail],
+    });
   }
   if (errors.length) { status = 'fail'; detail = `${detail}；${errors.join('；')}`; }
   return result(id, status, detail, evidence, {

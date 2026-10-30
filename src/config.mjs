@@ -91,5 +91,10 @@ export function loadConfig() {
     frontOnly: parseBoolean((firstDefined(process.env.FRONT_ONLY) || '').trim() || 'false', 'FRONT_ONLY'),
     reportDir: firstDefined(process.env.REPORT_DIR, 'reports').trim(),
     screenshotDir: firstDefined(process.env.SCREENSHOT_DIR, 'screenshots').trim(),
+    actionTimeoutMs: Math.max(1_000, Number(firstDefined(process.env.PLAYWRIGHT_ACTION_TIMEOUT_MS, '30000'))),
+    navigationTimeoutMs: Math.max(1_000, Number(firstDefined(process.env.PLAYWRIGHT_NAVIGATION_TIMEOUT_MS, '60000'))),
+    checkTimeoutMs: Math.max(1_000, Number(firstDefined(process.env.CHECK_TIMEOUT_MS, '300000'))),
+    layerTimeoutMs: Math.max(1_000, Number(firstDefined(process.env.LAYER_TIMEOUT_MS, '600000'))),
+    watchdogTimeoutMs: Math.max(60_000, Number(firstDefined(process.env.RUN_WATCHDOG_TIMEOUT_MS, '900000'))),
   };
 }

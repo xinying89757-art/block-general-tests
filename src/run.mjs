@@ -18,6 +18,8 @@ import * as moduleWidth from './capabilities/module-width.mjs';
 import * as blockStyleSpec from './capabilities/block-style-spec.mjs';
 import { checkReportText } from './capabilities/shared.mjs';
 import { acquireRunLock } from './run-lock.mjs';
+import { createPauseDetector, createProgressWatchdog, RunTimeoutError, withTimeout, writeCheckpoint } from './run-safety.mjs';
+import { spawnSync } from 'node:child_process';
 export { frontRunPhases, shouldRunLayer } from './front-results.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -72,18 +74,44 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
     const previousCapabilityId = args.config?.baselineCapabilityId;
     if (args.config) args.config.baselineCapabilityId = id;
     console.log(`[progress] ${new Date().toISOString()} 能力 ${id} ${layer} 层开始`);
+    args.config?.watchdogProgress?.();
     try {
-      const returned = await module[selectedMethod]({ ...args, capability, profile });
-      checks.push(...returned);
-      await captureCheckScreenshots(returned, layer === 'front' ? args.previewPage : args.page,
-        args.screenshotDir, args.runId, args.report, layer);
+      let returned;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          returned = await withTimeout(() => module[selectedMethod]({ ...args, capability, profile }),
+            args.config?.layerTimeoutMs || 600_000, `能力 ${id} ${layer} 层`);
+          const envChecks = returned.filter((item) => ['env-paused', 'env-timeout'].includes(item.status));
+          if (!envChecks.length) break;
+          if (attempt === 1 || typeof args.config?.recoverEnvironment !== 'function') break;
+          Object.assign(args, await args.config.recoverEnvironment(envChecks[0].status));
+        } catch (error) {
+          if (!(error.envStatus || error instanceof RunTimeoutError) || attempt === 1
+            || typeof args.config?.recoverEnvironment !== 'function') throw error;
+          Object.assign(args, await args.config.recoverEnvironment(error.envStatus || 'env-timeout'));
+        }
+      }
+      if (returned) {
+        const environmentIssue = returned.find((item) => ['env-paused', 'env-timeout'].includes(item.status));
+        if (environmentIssue) {
+          const replacement = { ...environmentIssue, status: environmentIssue.status,
+            evidence: { ...(environmentIssue.evidence || {}), retryExhausted: true } };
+          returned = returned.map((item) => item.id === replacement.id ? replacement : item);
+        }
+        checks.push(...returned);
+        for (const check of returned) await args.config?.checkpointCheck?.(check, id, layer);
+        await captureCheckScreenshots(returned, layer === 'front' ? args.previewPage : args.page,
+          args.screenshotDir, args.runId, args.report, layer);
+      }
     }
     catch (error) {
       const name = `${id} ${layer} 层异常`;
+      const status = error.envStatus || (error instanceof RunTimeoutError ? 'env-timeout' : 'fail');
       const check = { id: `${id}-${layer}-error`, name,
-        status: 'fail', detail: error.message, suite: `capability:${id}`,
-        ...checkReportText(name, 'fail', error.message) };
+        status, detail: error.message, suite: `capability:${id}`,
+        ...checkReportText(name, status, error.message) };
       checks.push(check);
+      await args.config?.checkpointCheck?.(check, id, layer);
       await captureCheckScreenshots([check], layer === 'front' ? args.previewPage : args.page,
         args.screenshotDir, args.runId, args.report, layer);
     }
@@ -190,7 +218,7 @@ async function main() {
     fixture: null,
     page: null,
     checks: [],
-    summary: { pass: 0, fail: 0, skip: 0, na: 0, record: 0, deferred: 0 },
+    summary: { pass: 0, fail: 0, skip: 0, na: 0, record: 0, deferred: 0, 'env-paused': 0, 'env-timeout': 0 },
     previewLink: null,
     previewLinkExpiresAt: null,
     screenshots: {},
@@ -202,6 +230,33 @@ async function main() {
   let canvas;
   let fixturePreparation;
   let stage = 'launch-session';
+  const checkpointPath = path.join(projectRoot, '.run-state', `${runId}.json`);
+  const environmentEvents = [];
+  const closeCurrentBrowser = async () => { try { await session?.browser.close(); } catch {} };
+  config.onEnvironmentFailure = async (error) => {
+    config.environmentStatus = error.envStatus || 'env-timeout';
+    environmentEvents.push({ status: config.environmentStatus, message: error.message, at: new Date().toISOString() });
+    await closeCurrentBrowser();
+  };
+  config.checkpointCheck = async (check, capability, layer) => {
+    const checks = [...report.checks, check];
+    await writeCheckpoint(checkpointPath, { runId, blockId: config.blockId, capability, layer,
+      currentCheckId: check.id, completedChecks: redact(checks, config), updatedAt: new Date().toISOString() });
+    watchdog?.progress();
+  };
+  let watchdog;
+  const pauseDetector = createPauseDetector({ onPause: (event) => {
+    environmentEvents.push({ status: 'env-paused', ...event });
+    config.environmentStatus = 'env-paused';
+    void closeCurrentBrowser();
+  } });
+  watchdog = createProgressWatchdog({ timeoutMs: config.watchdogTimeoutMs, onTimeout: () => {
+    const error = new RunTimeoutError(`运行 ${Math.round(config.watchdogTimeoutMs / 60_000)} 分钟没有检查进度`);
+    environmentEvents.push({ status: 'env-timeout', message: error.message, at: new Date().toISOString() });
+    config.environmentStatus = 'env-timeout';
+    void closeCurrentBrowser();
+  } });
+  config.watchdogProgress = () => watchdog.progress();
   try {
     console.log(`[block] 开始：BLOCK_ID=${config.blockId}，TARGET_PAGE=${config.resolvedTarget.page}（${config.resolvedTarget.kind === 'custom' ? '自定义页面' : '系统页面'}）`);
     if (config.capabilityFilter?.length) console.log(`[block] 能力过滤：${config.capabilityFilter.join(',')}`);
@@ -216,6 +271,28 @@ async function main() {
     stage = 'add-block';
     report.added = await addBlockIfNeeded(session.page, canvas, config);
     const baseline = Array.isArray(profile?.baseline) ? profile.baseline : [];
+    config.recoverEnvironment = async (reason) => {
+      environmentEvents.push({ status: reason, message: '关闭浏览器后重新登录态启动并复验基线', at: new Date().toISOString() });
+      await closeCurrentBrowser();
+      const openFresh = async () => {
+        session = await launchSession(config);
+        session.page = (await openEditor(session.page, config)).page;
+        canvas = (await ensureTargetPage(session.page, config)).frame;
+      };
+      try { await openFresh(); }
+      catch {
+        await closeCurrentBrowser();
+        const login = spawnSync(process.execPath, ['scripts/explore-login.mjs', '--force-login'],
+          { cwd: projectRoot, stdio: 'ignore', timeout: 120_000, env: process.env });
+        if (login.error || login.status !== 0) throw new Error('环境恢复时重新登录失败');
+        await openFresh();
+      }
+      const verification = await guardBaseline({ page: session.page, canvas, config, baseline });
+      if (verification.residue && !verification.verifiedFresh) throw new Error('环境恢复后基线复原未通过');
+      config.environmentStatus = null;
+      watchdog.progress();
+      return { session, page: session.page, canvas, context: session.context };
+    };
     const phases = frontRunPhases(config, profile || {}, report.added?.added === true);
     if (baseline.length) {
       config.baselineValue = (type, label) => {
@@ -266,8 +343,20 @@ async function main() {
       } else {
         stage = 'fixture-prep';
         try {
-          fixturePreparation = await prepareFixture({ page: session.page, canvas, context: session.context, config, profile });
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            try {
+              fixturePreparation = await withTimeout(() => prepareFixture({ page: session.page, canvas, context: session.context, config, profile }),
+                config.layerTimeoutMs, '夹具准备');
+              break;
+            } catch (error) {
+              if (!(error.envStatus || error instanceof RunTimeoutError) || attempt === 1) throw error;
+              const recovered = await config.recoverEnvironment(error.envStatus || 'env-timeout');
+              session = recovered.session;
+              canvas = recovered.canvas;
+            }
+          }
           report.checks.push(...fixturePreparation.checks);
+          for (const check of fixturePreparation.checks) await config.checkpointCheck(check, 'fixture-prep', 'fixture');
           report.fixture = { applied: !fixturePreparation.skipped,
             ...(fixturePreparation.skipped ? { reason: '筛选字段组探查为无此设置项，未准备夹具。' } : {}),
             created: fixturePreparation.created, reused: fixturePreparation.reused, records: fixturePreparation.records, writes: fixturePreparation.writes,
@@ -318,15 +407,16 @@ async function main() {
       report.checks.push(...['block-present', 'img-alt', 'link-href', 'cursor-pointer', 'css-font-follow', 'css-word-break', 'carousel-arrows']
         .map((id) => deferredCheck(id, id)));
     } else {
-      const frontChecks = await runFrontChecks(preview.frame, config.blockId,
-        { previewPage, screenshotDir, runId, report });
+      const frontChecks = await withTimeout(() => runFrontChecks(preview.frame, config.blockId,
+        { previewPage, screenshotDir, runId, report }), config.layerTimeoutMs, '前台检查层');
       report.checks.push(...frontChecks);
+      for (const check of frontChecks) await config.checkpointCheck(check, 'front-runner', 'front');
     }
     // The style capability switches viewports and takes screenshots, so it
     // needs the preview page, not just its content frame.
     report.checks.push(...await runCapabilityLayer(capabilities, 'front', { frame: preview?.frame, previewPage: preview?.previewPage, config, profile, screenshotDir, runId, report }));
   } catch (error) {
-    report.failure = { stage, message: error.message };
+    report.failure = { stage, message: error.message, ...(config.environmentStatus ? { status: config.environmentStatus } : {}) };
     if (stage === 'baseline-guard') {
       const name = '基线守卫';
       report.checks.push({ id: 'baseline-guard', name, status: 'fail', suite: 'baseline-guard', detail: error.message,
@@ -344,6 +434,8 @@ async function main() {
       }
     }
   } finally {
+    pauseDetector.stop();
+    watchdog.stop();
     // A fixture-prep exception may carry a partial snapshot too. Retrying the
     // full restoration here also covers failures in later capabilities.
     if (fixturePreparation?.originalFieldStates && session) {
@@ -384,11 +476,13 @@ async function main() {
     }
   }
 
+  report.environmentEvents = environmentEvents;
+  if (report.failure?.status && Object.hasOwn(report.summary, report.failure.status)) report.summary[report.failure.status] += 1;
   for (const check of report.checks) {
     if (Object.hasOwn(report.summary, check.status)) report.summary[check.status] += 1;
   }
   report.finishedAt = new Date().toISOString();
-  report.status = report.failure || report.summary.fail || report.artifactErrors.length ? 'failed' : 'passed';
+  report.status = report.failure || report.summary.fail || report.summary['env-paused'] || report.summary['env-timeout'] || report.artifactErrors.length ? 'failed' : 'passed';
   const safeReport = redact(report, config);
   await writeFile(reportPath, `${JSON.stringify(safeReport, null, 2)}\n`, 'utf8');
   const { pass, fail, skip, na, record, deferred } = report.summary;

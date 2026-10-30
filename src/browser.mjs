@@ -53,8 +53,8 @@ export async function launchSession(config) {
       viewport: { width: 1600, height: 1000 },
     });
     await prepareContext(context, config);
-    context.setDefaultTimeout(30_000);
-    context.setDefaultNavigationTimeout(60_000);
+    context.setDefaultTimeout(Number(config.actionTimeoutMs) || 30_000);
+    context.setDefaultNavigationTimeout(Number(config.navigationTimeoutMs) || 60_000);
     const page = await context.newPage();
     return { browser, context, page };
   } catch (error) {
