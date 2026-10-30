@@ -220,6 +220,7 @@ async function withPreview(page, context, fn) {
 }
 
 export async function runSettingsLayer({ page, canvas, context, config, capability }) {
+  if (config.frontOnly) return categoryEffects({ page, canvas, context, config, capability }, 'front');
   const session = widgetSession({ page, canvas, config,
     type: 'phoenix_blocks_gallery', title: capability?.dialogTitle || '设置产品分类',
     wrapIndex: capability?.wrapIndex ?? 0 });
@@ -288,7 +289,8 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       }
     })();
     checks.push(categoryCheck);
-    checks.push(await categoryFrontCheck({ session, page, canvas, context, config, capability }));
+    checks.push(config.deferFront ? result('pcs-category-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
+      : await categoryFrontCheck({ session, page, canvas, context, config, capability }));
   } finally {
     try { await session.cancel(); } catch (error) {
       const last = checks.at(-1);
@@ -297,6 +299,16 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   }
   checks.push(...await categoryEffects({ page, canvas, context, config, capability }, 'front'));
   return checks;
+}
+
+export async function runFrontEffectsLayer(args) {
+  const session = widgetSession({ ...args, type: 'phoenix_blocks_gallery', title: args.capability?.dialogTitle || '设置产品分类',
+    wrapIndex: args.capability?.wrapIndex ?? 0 });
+  await session.open();
+  let check;
+  try { check = await categoryFrontCheck({ ...args, session }); }
+  finally { await session.cancel().catch(() => {}); }
+  return [check, ...await categoryEffects(args, 'front')];
 }
 
 export async function runFrontLayer({ frame, config }) {

@@ -78,6 +78,14 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       : '没有选中的宽度选项，当前宽度状态异常。',
     initial));
 
+  if (config.deferFront) {
+    checks.push(result('mw-width-persist', 'deferred', 'deferred-to-front-runner'),
+      result('mw-front-width', 'deferred', 'deferred-to-front-runner'),
+      await widthEffect({ page, canvas, context, config, capability }, 'front'));
+    await cancelWidthPanel(canvas).catch(() => {});
+    return checks;
+  }
+
   // One flip cycle serves both the persistence check and the effect check:
   // 1200px → save → reopen verify → preview measure → restore 自定义 1440
   // → save → reopen verify → preview measure.

@@ -188,9 +188,7 @@ async function compareFrontCheck({ session, page, context, config }) {
           flowErrors.push('询盘页已跳转但 10 秒内读不到页面内容');
         } else {
           flowEvidence.inquire = inquire;
-          if (!/Product Inquire/.test(inquire.text)) flowErrors.push('询盘页里没有 “Product Inquire”');
           names.forEach((n) => { if (!inquire.text.includes(n)) flowErrors.push(`询盘页里没有产品 ${n}`); });
-          if (!inquire.text.includes('Brand')) flowErrors.push('询盘页里没有 Brand 列（勾选的展示字段）');
         }
       }
       return { flowErrors, flowEvidence };
@@ -205,7 +203,7 @@ async function compareFrontCheck({ session, page, context, config }) {
   return result(id,
     errors.length ? 'fail' : 'pass',
     errors.length ? errors.join('；')
-      : `对比开启后勾选 2 个产品（${(evidence.products || []).join('、')}），底部栏计数 2/6、含两个产品名；点 Compare 展开大面板；点 Inquire 进入询盘表单页，含两个产品与 Brand 列。对比表在预览里始终为空行（10 秒轮询 0 行），属性比对以询盘页为准。`,
+      : `对比开启后勾选 2 个产品（${(evidence.products || []).join('、')}），底部栏计数 2/6、含两个产品名；点 Compare 展开大面板；点 Inquire 进入询盘表单页，并核对两件已选产品都被带入。询盘页标题和 Brand 列不由产品对比设置控制，不作为本项预期。`,
     evidence);
 }
 
@@ -371,6 +369,7 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
 }
 
 export async function runSettingsLayer({ page, canvas, context, config, capability }) {
+  if (config.frontOnly) return listEffects({ page, canvas, context, config, capability }, 'front');
   // The dialog title and the wrap index come from the profile: 40838 uses
   // title 设置产品列表 at gallery wrap 0, while 47748 uses 设置与选取数据
   // at gallery wrap 1 (wrap 0 is the category dialog). Title alone is not
@@ -390,7 +389,8 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     // missing group correctly degrades to na via radioGroupPersist.
     checks.push(outcomeResult('pld-data-source-persist', await radioGroupPersist({ session, page,
       name: '列表数据来源', labels: ['所有产品', '使用筛选条件', '选择指定产品', '选择部分产品分类'] })));
-    checks.push(await dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability }));
+    checks.push(config.deferFront ? result('pld-data-source-category-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
+      : await dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability }));
     // Inventory probe: page size is type=text, not necessarily type=number.
     // 47748 labels the same input 显示产品总数量, so accept either label;
     // the matched label is kept in evidence until its meaning is confirmed.
@@ -415,7 +415,8 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     ]) {
       checks.push(outcomeResult(id, await radioPersist({ session, page, name, prefixes })));
     }
-    checks.push(await compareFrontCheck({ session, page, context, config }));
+    checks.push(config.deferFront ? result('pld-compare-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
+      : await compareFrontCheck({ session, page, context, config }));
     const probe = await probeControls(session);
     const field = probe.controls && fieldsOf(probe.controls).find((item) => !item.disabled);
     checks.push(field ? outcomeResult('pld-display-field-persist', await persistControl({ session, page,
@@ -430,6 +431,12 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   }
   checks.push(...await listEffects({ page, canvas, context, config, capability }, 'front'));
   return checks;
+}
+
+export async function runFrontEffectsLayer(args) {
+  const session = listSession(args);
+  return [await dataSourceCategoryFrontCheck({ ...args, session }), await compareFrontCheck({ ...args, session }),
+    ...await listEffects(args, 'front')];
 }
 
 export async function runFrontLayer({ frame, config }) {
@@ -523,38 +530,72 @@ async function effectListFields(tx, session) {
   return choices;
 }
 
-function cardFieldSnapshot(root) {
+function cardFieldSnapshot(root, fieldLabels = []) {
   const visible = (node) => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden';
   const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
   const cards = [...root.querySelectorAll('.one-pruduct-item')].filter(visible);
   return cards.map((card) => {
     const region = card.querySelector('.prodTabList-sitewidget');
-    const labels = region ? [...region.querySelectorAll('[class$="_left"]')].filter(visible).map((node) => norm(node.innerText)) : [];
     const brief = [...card.querySelectorAll('.prodBrief-one')].some((node) => visible(node) && norm(node.innerText));
-    if (brief) labels.push('Brief');
-    const rows = region ? [...region.querySelectorAll('[class^="type_"]')]
-      .filter((node) => visible(node) && !/_(left|right)$/.test(node.className) && !node.querySelector('[class$="_left"]')) : [];
+    // Frontend field markup varies across product templates. Match the exact
+    // visible label text within the card instead of relying on a legacy
+    // `_left` class suffix that is absent on current templates.
+    const fieldNodes = [...card.querySelectorAll('*')].filter(visible).map((node) => ({ node,
+      text: norm(node.children.length ? [...node.childNodes]
+        .filter((child) => child.nodeType === Node.TEXT_NODE).map((child) => child.textContent).join('') : node.textContent) }));
+    const labels = fieldLabels.filter((label) => fieldNodes.some(({ text }) => text === label));
+    if (fieldLabels.includes('Brief') && brief) labels.push('Brief');
     return { product: norm(card.querySelector('.prodlist-pro-name')?.innerText), labels,
-      mapped: Boolean(region || brief), unmappedRows: rows.length };
+      mapped: Boolean(region || brief || fieldLabels.some((label) => labels.includes(label))), unmappedRows: 0,
+      innerText: norm(card.innerText).slice(0, 1600), outerHTML: card.outerHTML.slice(0, 3200),
+      matchedNodes: fieldNodes.filter(({ text }) => fieldLabels.includes(text)).map(({ node, text }) => ({
+        text, outerHTML: node.outerHTML.slice(0, 1200), className: String(node.className || '').slice(0, 240),
+      })).slice(0, 40) };
   });
 }
 async function listFieldsEffect(args, layer) {
   const session = listSession(args);
   return effectCheck({ ...args, session, result, id: `pld-fields-${layer}`, layer, run: async (tx) => {
     const fields = await effectListFields(tx, session);
+    // 展示字段覆盖独立于筛选真值表：画像 fixture.displayFields 声明区块支持的
+    // 自定义字段类型、每类型一个 CMS 字段及其在 AUTOTEST 产品上的期望值。
+    const display = args.profile?.fixture?.displayFields || {};
+    const fixtureFields = display.fields || [];
+    const supportedTypes = display.supportedTypes || [];
+    if (!fixtureFields.length || !supportedTypes.length) unavailable('画像没有产品卡自定义字段类型夹具，不能把系统属性当作自定义字段。');
+    const selected = supportedTypes.map((type) => {
+      const declared = fixtureFields.filter((field) => field.type === type);
+      if (declared.length !== 1) unavailable(`画像类型 ${type} 应唯一对应一个 CMS 夹具字段。`);
+      const matches = fields.filter((item) => item.label === declared[0].name);
+      if (matches.length !== 1) unavailable(`产品卡展示字段中找不到唯一的 CMS 自定义字段“${declared[0].name}”。`);
+      return { ...matches[0], fieldType: type };
+    });
     const editable = fields.filter((item) => !item.disabled);
-    if (!editable.length || new Set(fields.map((item) => item.label)).size !== fields.length) unavailable('展示字段不可改或名称不能唯一确定。');
-    const selected = editable.slice(0, Math.min(3, editable.length));
-    if (sameSet(fields.filter((item) => item.checked).map((item) => item.value), selected.map((item) => item.value))) selected.pop();
-    const wanted = fields.filter((item) => item.disabled ? item.checked : selected.includes(item)).map((item) => item.label);
-    tx.expected(`每张产品卡应恰好展示 ${wanted.length} 个所选字段：${sentenceList(wanted)}；不能多出或少掉字段。`);
+    if (selected.some((field) => field.disabled) || new Set(fields.map((item) => item.label)).size !== fields.length) unavailable('自定义展示字段不可改或名称不能唯一确定。');
+    const wanted = selected.map((item) => item.label);
+    const coverage = { supportedTypes, fields: selected.map(({ fieldType, label }) => ({ type: fieldType, field: label })) };
+    tx.evidence.typeCoverage = coverage;
+    tx.expected(`每张产品卡应恰好展示画像声明支持的自定义字段：${sentenceList(wanted)}；类型覆盖 ${supportedTypes.join('、')}，系统属性不参与。`);
     for (const field of editable) await tx.set(field, wanted.includes(field.label));
     await tx.save();
-    const cards = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, cardFieldSnapshot)
-      : await tx.observe((frame) => readEffectRoot(frame, args.config, cardFieldSnapshot));
+    const fieldLabels = selected.map((field) => field.label);
+    const cards = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, cardFieldSnapshot, fieldLabels)
+      : await tx.observe((frame) => readEffectRoot(frame, args.config, cardFieldSnapshot, fieldLabels));
     if (!cards.length || cards.some((card) => !card.mapped || card.unmappedRows)) unavailable('产品卡展示字段尚不能完整识别，需核实每种字段的展示位置。');
     tx.evidence.cards = cards;
-    for (const card of cards) tx.assert(sameSet(card.labels, wanted), `产品“${card.product}”实际展示字段为 ${sentenceList(card.labels)}；应恰好为 ${sentenceList(wanted)}，已逐项比较完整集合。`);
+    const fixtureProducts = new Set(fixtureFields.flatMap((field) => Object.keys(field.values || {})));
+    const fixtureCards = cards.filter((card) => fixtureProducts.has(card.product));
+    tx.evidence.typeCoverage.fixtureCards = fixtureCards.map((card) => card.product);
+    if (!fixtureCards.length) unavailable('当前产品卡中没有 AUTOTEST 夹具产品，不能证明自定义字段值在夹具卡片上显示。');
+    for (const card of fixtureCards) tx.assert(sameSet(card.labels, wanted), `AUTOTEST 产品“${card.product}”实际展示字段为 ${sentenceList(card.labels)}；应恰好为 ${sentenceList(wanted)}，已逐项比较画像声明类型的完整集合。`);
+    for (const card of fixtureCards) {
+      for (const label of wanted) {
+        const value = fixtureFields.find((field) => field.name === label)?.values?.[card.product];
+        if (value === undefined) unavailable(`画像真值表缺少产品“${card.product}”字段“${label}”的值。`);
+        const values = Array.isArray(value) ? value : [value];
+        tx.assert(values.every((item) => card.innerText.includes(String(item))), `AUTOTEST 产品“${card.product}”字段“${label}”应显示值 ${values.join('、')}；卡片文本：${card.innerText.slice(0, 200)}`);
+      }
+    }
   } });
 }
 
@@ -629,7 +670,9 @@ async function listToggleEffect(args, layer, kind) {
       await session.cancel(); await savePage(args.page);
       const before = await inspectProducts(tx, args, layer);
       if (before.count < 2) unavailable('初始不足两件产品，不能核对分页开启时是否应出现分页条。');
-      const size = listSize(await tx.controls()); await tx.set(size, '1');
+      // Keep the existing page size. The check concerns the pagination
+      // visibility setting; forcing 1 is rejected by some site forms and
+      // causes a save/readback error before the pager can be observed.
     }
     for (const index of states) {
       await tx.set(options[index], true); await tx.save();

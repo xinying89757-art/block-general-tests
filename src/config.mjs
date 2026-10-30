@@ -87,6 +87,8 @@ export function loadConfig() {
     // Force one baseline application even when the block is already on the
     // page (re-apply the profile baseline to a block already in place).
     applyBaseline: parseBoolean((firstDefined(process.env.APPLY_BASELINE) || '').trim() || 'false', 'APPLY_BASELINE'),
+    deferFront: parseBoolean((firstDefined(process.env.DEFER_FRONT) || '').trim() || 'false', 'DEFER_FRONT'),
+    frontOnly: parseBoolean((firstDefined(process.env.FRONT_ONLY) || '').trim() || 'false', 'FRONT_ONLY'),
     reportDir: firstDefined(process.env.REPORT_DIR, 'reports').trim(),
     screenshotDir: firstDefined(process.env.SCREENSHOT_DIR, 'screenshots').trim(),
   };

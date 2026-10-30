@@ -5,8 +5,10 @@ import { loadConfig } from './config.mjs';
 import { launchSession } from './browser.mjs';
 import { openEditor, ensureTargetPage, addBlockIfNeeded, savePage, openPreview, resolveTargetPage, getPreviewShareLink } from './editor.mjs';
 import { applyBaseline } from './baseline.mjs';
+import { baselineValueFor, guardBaseline } from './baseline-guard.mjs';
 import { prepareFixture, restoreFixture } from './fixture.mjs';
 import { runFrontChecks } from './checks.mjs';
+import { frontRunPhases, shouldRunLayer } from './front-results.mjs';
 import * as customFilterFields from './capabilities/custom-filter-fields.mjs';
 import * as productListDisplay from './capabilities/product-list-display.mjs';
 import * as buttonLink from './capabilities/button-link.mjs';
@@ -15,6 +17,8 @@ import * as blockColorScheme from './capabilities/block-color-scheme.mjs';
 import * as moduleWidth from './capabilities/module-width.mjs';
 import * as blockStyleSpec from './capabilities/block-style-spec.mjs';
 import { checkReportText } from './capabilities/shared.mjs';
+import { acquireRunLock } from './run-lock.mjs';
+export { frontRunPhases, shouldRunLayer } from './front-results.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 export const capabilityRegistry = {
@@ -27,6 +31,23 @@ export const capabilityRegistry = {
   'block-style-spec': blockStyleSpec,
 };
 
+export function deferredCheck(id, name = id) {
+  return { id, name, suite: 'front-runner', status: 'deferred', detail: 'deferred-to-front-runner',
+    ...checkReportText(name, 'deferred', 'deferred-to-front-runner', { deferred: true }, id) };
+}
+
+export function deferredCapabilityChecks(capability) {
+  const ids = {
+    'button-link': ['btn-front-text'],
+    'product-list-display': ['pld-front-note'],
+    'product-category-select': ['pcs-front-note'],
+    'custom-filter-fields': ['cff-groups-baseline', 'cff-facet-narrow', 'cff-clear-restore'],
+    'block-style-spec': [...(capability.styleSpec?.items || []).map((item) => `bss-${item.id}`),
+      ...((capability.styleSpec?.items || []).some((item) => item.clamp) ? ['bss-product-name-clamp'] : [])],
+  }[capability.id] || [];
+  return ids.map((id) => deferredCheck(id, id));
+}
+
 export async function runCapabilityLayer(capabilities, layer, args, registry = capabilityRegistry) {
   const checks = [];
   const { profile } = args;
@@ -37,9 +58,22 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
   for (const capability of capabilities) {
     const id = capability.id;
     const module = registry[id];
-    if (typeof module?.[method] !== 'function') continue;
+    let selectedMethod = method;
+    if (layer === 'settings' && args.config?.frontOnly) {
+      if (typeof module?.runFrontEffectsLayer === 'function') selectedMethod = 'runFrontEffectsLayer';
+      else if (['block-color-scheme', 'module-width'].includes(id)) selectedMethod = 'runSettingsLayer';
+      else continue;
+    }
+    if (typeof module?.[selectedMethod] !== 'function') continue;
+    if (layer === 'front' && args.config?.deferFront) {
+      checks.push(...deferredCapabilityChecks(capability));
+      continue;
+    }
+    const previousCapabilityId = args.config?.baselineCapabilityId;
+    if (args.config) args.config.baselineCapabilityId = id;
+    console.log(`[progress] ${new Date().toISOString()} 能力 ${id} ${layer} 层开始`);
     try {
-      const returned = await module[method]({ ...args, capability, profile });
+      const returned = await module[selectedMethod]({ ...args, capability, profile });
       checks.push(...returned);
       await captureCheckScreenshots(returned, layer === 'front' ? args.previewPage : args.page,
         args.screenshotDir, args.runId, args.report, layer);
@@ -52,6 +86,12 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
       checks.push(check);
       await captureCheckScreenshots([check], layer === 'front' ? args.previewPage : args.page,
         args.screenshotDir, args.runId, args.report, layer);
+    }
+    finally {
+      if (args.config) {
+        if (previousCapabilityId === undefined) delete args.config.baselineCapabilityId;
+        else args.config.baselineCapabilityId = previousCapabilityId;
+      }
     }
   }
   return checks;
@@ -80,7 +120,7 @@ export function redact(value, config) {
       if (secret) text = text.split(secret).join('[redacted]');
     }
     if (key === 'previewLink') return text;
-    return text.replace(/https?:\/\/[^\s"'<>]+/g, (raw) => {
+    return text.replace(/https?:\/\/[^\s"'<>，。；：！？、（）【】“”‘’《》]+/g, (raw) => {
       try {
         const url = new URL(raw);
         return `${url.origin}${url.pathname}`;
@@ -89,8 +129,18 @@ export function redact(value, config) {
   }));
 }
 
+export function formatBaselineGuard(guard) {
+  if (!guard || guard.reason === 'no baseline in profile') return '[block] 基线守卫：no baseline in profile';
+  if (!guard.residue) return '[block] 基线守卫：无残留';
+  const rows = guard.diffs.map((d) => `${d.type} / ${d.label}: ${JSON.stringify(d.actual)} → ${JSON.stringify(d.expected)}（${d.reason}）`);
+  return `[block] 基线守卫：发现 ${rows.length} 项残留，已恢复；新会话复验${guard.verifiedFresh ? '通过（无差异）' : '失败'}\n${rows.join('\n')}`;
+}
+
 async function main() {
   const config = loadConfig();
+  const runLock = acquireRunLock({ site: config.siteDomain, mode: config.frontOnly ? 'front' : 'full' });
+  console.log(`[block] 运行锁已取得：${runLock.record.host} pid=${runLock.record.pid} mode=${runLock.record.mode}`);
+  console.log('[block] 注意：盒子端 live run 与 Mac 前台 run 使用独立文件系统锁，必须人工确保两者不重叠。');
   let profile = null;
   try {
     profile = JSON.parse(await readFile(path.resolve(projectRoot, config.profile || `profiles/${config.blockId}.json`), 'utf8'));
@@ -136,10 +186,11 @@ async function main() {
     },
     added: null,
     baseline: null,
+    baselineGuard: null,
     fixture: null,
     page: null,
     checks: [],
-    summary: { pass: 0, fail: 0, skip: 0, na: 0, record: 0 },
+    summary: { pass: 0, fail: 0, skip: 0, na: 0, record: 0, deferred: 0 },
     previewLink: null,
     previewLinkExpiresAt: null,
     screenshots: {},
@@ -164,14 +215,40 @@ async function main() {
     report.page = { ...config.resolvedTarget, created: pageCreated };
     stage = 'add-block';
     report.added = await addBlockIfNeeded(session.page, canvas, config);
+    const baseline = Array.isArray(profile?.baseline) ? profile.baseline : [];
+    const phases = frontRunPhases(config, profile || {}, report.added?.added === true);
+    if (baseline.length) {
+      config.baselineValue = (type, label) => {
+        const semantic = /按钮文本/.test(label) ? '按钮文本'
+          : /链接网址|域名|邮箱地址/.test(label) ? '链接网址'
+            : /在新窗口打开|新窗口打开/.test(label) ? '新窗口打开' : label;
+        return baselineValueFor(baseline, type, semantic) ?? baselineValueFor(baseline, type, label);
+      };
+      if (phases.baselineGuard) {
+        stage = 'baseline-guard';
+        report.baselineGuard = await guardBaseline({ page: session.page, canvas, config, baseline });
+        console.log(formatBaselineGuard(report.baselineGuard));
+        if (report.baselineGuard.residue) {
+          // Restoring leaves editor UI state (e.g. the button editor-box) in the
+          // main session; start capabilities from a fresh session instead.
+          stage = 'baseline-guard-reopen';
+          await session.browser.close();
+          session = await launchSession(config);
+          session.page = (await openEditor(session.page, config)).page;
+          canvas = (await ensureTargetPage(session.page, config)).frame;
+        }
+      }
+    } else {
+      report.baselineGuard = { reason: 'no baseline in profile' };
+      console.log(formatBaselineGuard(report.baselineGuard));
+    }
     stage = 'apply-baseline';
     // A freshly added block carries factory defaults, not the profile's
     // baseline, so capability checks that assume the baseline would skip
     // or misjudge. Apply the baseline once, right after adding. This is a
     // precondition, not a capability: a failed application stops the run
     // (fail-fast) instead of recording one fail per capability.
-    const baseline = Array.isArray(profile?.baseline) ? profile.baseline : [];
-    const shouldApplyBaseline = report.added?.added === true || config.applyBaseline;
+    const shouldApplyBaseline = phases.applyBaseline;
     if (shouldApplyBaseline && baseline.length > 0) {
       const applied = await applyBaseline({ page: session.page, canvas, config, baseline });
       report.baseline = { applied: true, steps: applied.steps };
@@ -183,7 +260,7 @@ async function main() {
     } else {
       report.baseline = { applied: false, reason: 'block already on page' };
     }
-    if (profile?.fixture) {
+    if (phases.prepareFixture) {
       if (config.capabilityFilter?.length && !config.capabilityFilter.includes('custom-filter-fields')) {
         report.fixture = { applied: false, reason: 'CAPABILITY_FILTER 未包含 custom-filter-fields，跳过夹具准备。' };
       } else {
@@ -191,7 +268,9 @@ async function main() {
         try {
           fixturePreparation = await prepareFixture({ page: session.page, canvas, context: session.context, config, profile });
           report.checks.push(...fixturePreparation.checks);
-          report.fixture = { applied: true, created: fixturePreparation.created, reused: fixturePreparation.reused,
+          report.fixture = { applied: !fixturePreparation.skipped,
+            ...(fixturePreparation.skipped ? { reason: '筛选字段组探查为无此设置项，未准备夹具。' } : {}),
+            created: fixturePreparation.created, reused: fixturePreparation.reused,
             restored: null, restoreErrors: [] };
         } catch (error) {
           fixturePreparation = error.fixturePreparation;
@@ -207,34 +286,62 @@ async function main() {
         }
       }
     }
-    stage = 'capability-settings';
-    report.checks.push(...await runCapabilityLayer(capabilities, 'settings', {
-      page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
-    }));
+    if (shouldRunLayer('settings', config)) {
+      stage = config.frontOnly ? 'capability-front-effects' : 'capability-settings';
+      report.checks.push(...await runCapabilityLayer(capabilities, 'settings', {
+        page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
+      }));
+    }
     stage = 'save-page';
     await savePage(session.page);
-    stage = 'capability-backend';
-    report.checks.push(...await runCapabilityLayer(capabilities, 'backend', {
-      page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
-    }));
+    if (phases.backend) {
+      stage = 'capability-backend';
+      report.checks.push(...await runCapabilityLayer(capabilities, 'backend', {
+        page: session.page, canvas, context: session.context, config, profile, screenshotDir, runId, report,
+      }));
+    }
     stage = 'open-preview';
-    const preview = await openPreview(session.page, session.context);
-    previewPage = preview.previewPage;
-    report.previewLink = await getPreviewShareLink(previewPage);
-    if (report.previewLink) {
-      const expires = new Date(startedAt);
-      expires.setUTCDate(expires.getUTCDate() + 7);
-      report.previewLinkExpiresAt = expires.toISOString().slice(0, 10);
+    let preview;
+    if (!config.deferFront) {
+      preview = await openPreview(session.page, session.context);
+      previewPage = preview.previewPage;
+      report.previewLink = await getPreviewShareLink(previewPage);
+      if (report.previewLink) {
+        const expires = new Date(startedAt);
+        expires.setUTCDate(expires.getUTCDate() + 7);
+        report.previewLinkExpiresAt = expires.toISOString().slice(0, 10);
+      }
     }
     stage = 'front-checks';
-    const frontChecks = await runFrontChecks(preview.frame, config.blockId,
-      { previewPage, screenshotDir, runId, report });
-    report.checks.push(...frontChecks);
+    if (config.deferFront) {
+      report.checks.push(...['block-present', 'img-alt', 'link-href', 'cursor-pointer', 'css-font-follow', 'css-word-break', 'carousel-arrows']
+        .map((id) => deferredCheck(id, id)));
+    } else {
+      const frontChecks = await runFrontChecks(preview.frame, config.blockId,
+        { previewPage, screenshotDir, runId, report });
+      report.checks.push(...frontChecks);
+    }
     // The style capability switches viewports and takes screenshots, so it
     // needs the preview page, not just its content frame.
-    report.checks.push(...await runCapabilityLayer(capabilities, 'front', { frame: preview.frame, previewPage: preview.previewPage, config, profile, screenshotDir, runId, report }));
+    report.checks.push(...await runCapabilityLayer(capabilities, 'front', { frame: preview?.frame, previewPage: preview?.previewPage, config, profile, screenshotDir, runId, report }));
   } catch (error) {
     report.failure = { stage, message: error.message };
+    if (stage === 'baseline-guard') {
+      const name = '基线守卫';
+      report.checks.push({ id: 'baseline-guard', name, status: 'fail', suite: 'baseline-guard', detail: error.message,
+        ...checkReportText(name, 'fail', error.message, undefined, 'baseline-guard') });
+      for (const id of ['block-present', 'img-alt', 'link-href', 'cursor-pointer', 'css-font-follow', 'css-word-break', 'carousel-arrows']) {
+        const check = deferredCheck(id, id);
+        report.checks.push({ ...check, status: 'blocked', detail: `基线守卫失败，未运行：${error.message}`,
+          actual: '基线守卫未通过，后续检查被阻止。', evidenceText: ['基线守卫失败，后续检查未执行。'] });
+      }
+      for (const capability of capabilities) {
+        for (const check of deferredCapabilityChecks(capability)) {
+          report.checks.push({ ...check, status: 'blocked', detail: `基线守卫失败，未运行：${error.message}`,
+            actual: '基线守卫未通过，后续检查被阻止。', evidenceText: ['基线守卫失败，后续检查未执行。'] });
+        }
+      }
+    }
   } finally {
     // A fixture-prep exception may carry a partial snapshot too. Retrying the
     // full restoration here also covers failures in later capabilities.
@@ -283,8 +390,8 @@ async function main() {
   report.status = report.failure || report.summary.fail || report.artifactErrors.length ? 'failed' : 'passed';
   const safeReport = redact(report, config);
   await writeFile(reportPath, `${JSON.stringify(safeReport, null, 2)}\n`, 'utf8');
-  const { pass, fail, skip, na, record } = report.summary;
-  console.log(`[block] ${report.status}：pass=${pass} fail=${fail} skip=${skip} na=${na} record=${record}`);
+  const { pass, fail, skip, na, record, deferred } = report.summary;
+  console.log(`[block] ${report.status}：pass=${pass} fail=${fail} skip=${skip} na=${na} record=${record} deferred=${deferred}`);
   console.log(`[block] 报告：${reportPath}`);
   for (const check of safeReport.checks.filter((item) => item.status === 'fail')) {
     console.error(`[block] ${check.id}：${check.detail}`);
@@ -292,6 +399,7 @@ async function main() {
   if (safeReport.failure) console.error(`[block] ${safeReport.failure.stage}：${safeReport.failure.message}`);
   for (const error of safeReport.artifactErrors) console.error(`[block] 截图 ${error.artifact}：${error.message}`);
   if (report.status === 'failed') process.exitCode = 1;
+  runLock.release();
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(() => {

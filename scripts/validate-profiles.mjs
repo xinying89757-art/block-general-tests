@@ -28,9 +28,9 @@ function validateBaseline(baseline, errors) {
       return;
     }
     if (typeof step.type !== 'string') errors.push(`${label}.type 必须是字符串`);
-    // title 可为 null：画像中 want 为空、仅占位的步骤（如 47748 的按钮步骤）没有标题。
+    // title 可为 null：占位步骤（want 为空），或 kind=button-popover（按钮浮层无对话框标题）。
     if (step.title !== null && typeof step.title !== 'string') errors.push(`${label}.title 必须是字符串或 null`);
-    if (step.title === null && step.want?.length) errors.push(`${label}.title 为 null 时 want 必须为空`);
+    if (step.title === null && step.kind !== 'button-popover' && step.want?.length) errors.push(`${label}.title 为 null 时 want 必须为空（button-popover 步骤除外）`);
     if (typeof step.wrapIndex !== 'number' || !Number.isFinite(step.wrapIndex)) {
       errors.push(`${label}.wrapIndex 必须是数字`);
     }

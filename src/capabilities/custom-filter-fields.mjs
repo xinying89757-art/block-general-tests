@@ -240,6 +240,9 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       checks.push(fromOutcome('cff-settings-persist', await persistControl({
         session, page, target: field, alternate: !field.checked,
       })));
+      if (config.deferFront) {
+        checks.push(result('cff-field-front-group', 'deferred', 'deferred-to-front-runner', { deferred: true }));
+      } else {
       // The same field is reused after the persistence transaction has restored it.
       // Prefer an unchecked field, so enabling it must expose its named group.
       const probe = await probeControls(session);
@@ -276,12 +279,13 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
           },
         })));
       }
+      }
     }
 
     const outcomes = [];
     for (const group of TEXT.radioGroups) {
       let beforeScope;
-      if (group.name === '产品范围' && context) {
+      if (group.name === '产品范围' && context && !config.deferFront) {
         try {
           await session.cancel();
           beforeScope = await scopeBaseline(page, context, config);
@@ -289,7 +293,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       }
       // Scope changes depend on data. Record the alternate preview universe but
       // never assert a specific difference, unlike the two persistence-only groups.
-      const afterSwitch = group.name === '产品范围' && context ? async (evidence, stage) => {
+      const afterSwitch = group.name === '产品范围' && context && !config.deferFront ? async (evidence, stage) => {
         stage('记录切换产品范围后的预览基线');
         try {
           evidence.scopePreview = { before: beforeScope, after: await scopeBaseline(page, context, config) };
@@ -347,7 +351,9 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
 function frontSnapshot(root, selectors) {
   const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
   const counts = new Map();
-  const groups = [...root.querySelectorAll(selectors.group)].map((group) => {
+  const groups = [...root.querySelectorAll(selectors.group)].filter((group) =>
+    group.getClientRects().length > 0 && group.ownerDocument.defaultView.getComputedStyle(group).visibility !== 'hidden')
+    .map((group) => {
     const title = normalize(group.querySelector(selectors.groupTitle)?.innerText);
     const occurrence = counts.get(title) || 0;
     counts.set(title, occurrence + 1);
@@ -475,9 +481,9 @@ const filterFields = (controls) => controls.filter(isFieldCheckbox);
 // values are the USER-CONFIRMED fixture in docs/FILTER_TEST_DATA.md, not
 // expectations inferred from UI results. In particular do not weaken union.
 const CONFIRMED_40838 = {
-  fields: [{ title: '测试单选按钮A', value: '单选4-10' }, { title: '测试下拉列表', value: '下拉列表4-10' }],
-  single: ['测试产品A', '测试产品小何1'], intersection: ['测试产品A'],
-  union: ['测试产品A', '测试产品小何1', '测试产品小何2'],
+  fields: [{ title: 'AUTOTEST-单选按钮A', value: '单选4-10' }, { title: 'AUTOTEST-下拉列表', value: '下拉列表4-10' }],
+  single: ['AUTOTEST-产品A', 'AUTOTEST-产品小何1'], intersection: ['AUTOTEST-产品A'],
+  union: ['AUTOTEST-产品A', 'AUTOTEST-产品小何1', 'AUTOTEST-产品小何2'],
 };
 function filterOracle(args) {
   return args.capability?.oracle?.fields ? args.capability.oracle
@@ -485,8 +491,24 @@ function filterOracle(args) {
 }
 function groupSnapshot(root) {
   const titles = [...root.querySelectorAll('.prodfield-left-fieldname, .pf-field-title')]
+    .filter((node) => node.getClientRects().length > 0
+      && node.ownerDocument.defaultView.getComputedStyle(node).visibility !== 'hidden')
     .map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
   return titles;
+}
+// 40838 renders built-in Series and Category groups before its custom groups.
+// If Category is selected as a custom field, a title-only filter must discard
+// exactly the first built-in occurrence and retain the custom occurrence(s).
+export function customGroupTitles(titles, blockId) {
+  const builtinCounts = String(blockId) === '40838' ? new Map([['Series', 1], ['Category', 1]]) : new Map();
+  const seen = new Map();
+  return titles.filter((title) => {
+    const occurrence = seen.get(title) || 0;
+    seen.set(title, occurrence + 1);
+    const builtins = builtinCounts.get(title) || 0;
+    if (occurrence < builtins) return false;
+    return true;
+  });
 }
 async function filterFieldsEffect(args, layer) {
   const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
@@ -505,10 +527,9 @@ async function filterFieldsEffect(args, layer) {
     const titles = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, groupSnapshot)
       : await tx.observe((frame) => readEffectRoot(frame, args.config, groupSnapshot));
     if (!titles.length) unavailable('该层没有渲染筛选组标题，完整字段集合暂时不可观察。');
-    // Series/Category are the two built-in 40838 category groups, not custom
-    // field toggles. Unknown group titles remain in actual and therefore fail.
+    // Unknown group titles remain in actual and therefore fail.
     const builtin = String(args.config.blockId) === '40838' ? ['Series', 'Category'] : [];
-    const actual = titles.filter((title) => !builtin.includes(title) || fields.some((item) => item.label === title));
+    const actual = customGroupTitles(titles, args.config.blockId);
     tx.evidence.groups = { titles, excludedBuiltins: builtin, wanted, actual };
     tx.assert(sameSet(actual, wanted), `自定义筛选组实际为 ${sentenceList(actual)}，应恰好为 ${sentenceList(wanted)}；内置分类组另行记录，不计作自定义字段。`);
   } });
@@ -533,9 +554,26 @@ async function setFilterColor(session, page, color) {
   if (normalizeColor(await input.inputValue()) !== normalizeColor(color)) throw new Error('背景色改写后读值不一致');
 }
 function filterBackground(root) {
-  let nodes = [...root.querySelectorAll('.prodfield-form')];
-  if (!nodes.length) nodes = [...root.querySelectorAll('.pf-filter-wrap')];
-  return nodes.length === 1 ? getComputedStyle(nodes[0]).backgroundColor : null;
+  const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
+  const ancestors = (node) => {
+    const out = [];
+    for (let current = node, depth = 0; current && depth < 6; current = current.parentElement, depth++) {
+      out.push({ tag: current.tagName, className: String(current.className || '').slice(0, 240),
+        background: getComputedStyle(current).backgroundColor });
+    }
+    return out;
+  };
+  // `.prodfield-form` also appears on the block's category chooser (Series /
+  // Category), whose transparent background is unrelated to the custom
+  // filter color setting. Sample only the actual custom-filter wrapper.
+  const nodes = [...root.querySelectorAll('.pf-filter-wrap')];
+  const samples = nodes.map((node) => ({ selector: '.pf-filter-wrap',
+    background: getComputedStyle(node).backgroundColor, outerHTML: node.outerHTML.slice(0, 2400),
+    text: norm(node.innerText).slice(0, 800), ancestors: ancestors(node) }));
+  const colors = samples.map((sample) => sample.background);
+  const painted = colors.filter((color) => color !== 'rgba(0, 0, 0, 0)');
+  return { color: nodes.length === 1
+    ? (painted.length ? painted[0] : colors[0]) : null, matchedCount: nodes.length, samples };
 }
 async function backgroundEffect(args, layer) {
   const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
@@ -551,10 +589,11 @@ async function backgroundEffect(args, layer) {
       if (normalizeColor(await input.inputValue()) !== normalizeColor(original)) throw new Error('背景颜色恢复回读不一致');
     });
     await setFilterColor(session, args.page, alternate); await tx.save();
-    const actual = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, filterBackground)
+    const sample = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, filterBackground)
       : await tx.observe((frame) => readEffectRoot(frame, args.config, filterBackground));
+    const actual = sample.color;
     if (actual === null) unavailable('筛选区域背景的读取位置尚不能唯一确定，需实站探查。');
-    tx.evidence.color = { original, alternate, actual };
+    tx.evidence.color = { original, alternate, actual, sample };
     tx.assert(normalizeColor(actual) === normalizeColor(alternate), `筛选区域背景实际为 ${actual}，应为 ${alternate}。`);
   } });
 }
@@ -720,6 +759,41 @@ async function filterInteractionEffect(args, kind) {
 }
 export async function runBackendLayer(args) {
   return [await filterFieldsEffect(args, 'backend'), await backgroundEffect(args, 'backend')];
+}
+
+async function fieldFrontGroupEffect(args) {
+  const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
+  const probe = await probeControls(session);
+  if (probe.reason) return result('cff-field-front-group', 'skip', probe.reason);
+  const fields = probe.controls.filter(isFieldCheckbox);
+  const field = fields.find((item) => !item.disabled && !item.checked) || fields.find((item) => !item.disabled);
+  if (!field) return result('cff-field-front-group', fields.length ? 'skip' : 'na', '没有可切换的自定义筛选字段。');
+  if (!args.context) return result('cff-field-front-group', 'skip', '未提供浏览器 context，无法打开临时预览。');
+  return fromOutcome('cff-field-front-group', await persistControl({ session, page: args.page,
+    target: field, alternate: !field.checked,
+    afterSwitch: async (evidence, stage) => {
+      stage('保存页面并打开临时预览');
+      await withPreview(args.page, args.context, async (frame) => {
+        stage('断言预览筛选组标题');
+        const root = frame.locator(previewSelector(args.config.blockId)).first();
+        await root.waitFor({ state: 'attached', timeout: TIMEOUT });
+        const read = (timeout) => root.locator(SELECTORS.groupTitle).evaluateAll(
+          (nodes) => nodes.map((node) => (node.innerText || '').replace(/\s+/g, ' ').trim()), undefined, { timeout });
+        const observed = await poll(read, (titles) => titles.includes(field.label) === !field.checked);
+        evidence.field = field.label;
+        evidence.expectedPresent = !field.checked;
+        evidence.previewTitles = observed.value;
+        if (!observed.value.length) { evidence.frontObservable = false; return; }
+        if (!observed.matched) throw new Error(`字段 ${field.label} 翻转后筛选组${field.checked ? '仍出现' : '未出现'}`);
+      });
+    } }));
+}
+
+export async function runFrontEffectsLayer(args) {
+  const checks = [await fieldFrontGroupEffect(args), await filterFieldsEffect(args, 'front'), await backgroundEffect(args, 'front')];
+  if (args.profile?.fixture) checks.push(...oldInteractionSkips(), ...await fixtureOracleChecks(args));
+  else for (const kind of ['logic', 'trigger', 'scope', 'jump']) checks.push(await filterInteractionEffect(args, kind));
+  return checks;
 }
 
 Object.assign(NAMES, {

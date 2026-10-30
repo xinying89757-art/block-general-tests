@@ -1,8 +1,13 @@
 import { savePage } from '../editor.mjs';
-import { waitForControlsReady, retryTransient, saveAndWait, readBackWithRetry, uiWaitConfig } from '../ui-waits.mjs';
+import { waitForControlsReady, retryTransient, saveAndWait, readBackWithRetry, uiWaitConfig, waitForDialogState } from '../ui-waits.mjs';
 export { readBackWithRetry } from '../ui-waits.mjs';
 
 export const TIMEOUT = 10_000;
+export function baselineRestoreTarget({ snapshot, baselineValue, defaultValue }) {
+  if (baselineValue !== undefined && baselineValue !== null) return { value: baselineValue, source: 'baseline' };
+  if (typeof snapshot === 'string' && /^AUTOTEST-/i.test(snapshot)) return { value: defaultValue, source: 'default-after-autotest-snapshot' };
+  return { value: snapshot, source: 'snapshot' };
+}
 // Bare numeric IDs identify fields; e.g. 826554_1 identifies a value option.
 export const isFieldCheckbox = (item) => item.type === 'checkbox'
   && /^\d+$/.test(item.value || '') && item.label !== '全选';
@@ -123,7 +128,8 @@ const EXPECTED = {
   'bss-product-name-clamp': '产品名称最多显示两行，超出部分应隐藏。',
   'pcs-category-front': '仅选择后台的目标分类后，导航应只剩该分类，列表应与该分类的上架产品清单完全一致。',
   'pld-data-source-category-front': '仅选择后台的目标分类后，产品列表应与该分类的上架产品清单完全一致。',
-  'pld-compare-front': '启用产品对比并选择两件产品后，对比栏、计数、产品名称和询盘页内容应与所选产品一致。',
+  // Inquiry page heading and Brand column are independent of product-compare settings.
+  'pld-compare-front': '启用产品对比并选择产品后，询盘页应带入已选择的产品。',
 };
 export function checkReportText(name, status, detail, evidence, id) {
   const label = reportName(name);
@@ -241,18 +247,55 @@ export function controlSession(root, lifecycle) {
 }
 
 export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0 }) {
+  const dialogRoot = page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe')
+    .filter({ hasText: title }).first();
   const root = page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe')
     .filter({ hasText: title }).filter({ visible: true }).first();
   const anyDialog = page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe')
     .filter({ visible: true }).first();
-  const open = async () => {
-    if (!await root.isVisible()) await clickSettings(canvas, config, type, wrapIndex);
-    await root.waitFor({ state: 'visible', timeout: TIMEOUT });
-    await root.locator('.backstage-dialog-bottom').waitFor({ state: 'visible', timeout: TIMEOUT });
+  const open = async ({ timeout = Math.max(TIMEOUT, uiWaitConfig().timeout) } = {}) => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (!await root.isVisible().catch(() => false)) {
+        await retryTransient(() => clickSettings(canvas, config, type, wrapIndex));
+      }
+      try {
+        await retryTransient(() => waitForDialogState(dialogRoot, 'open', timeout));
+        await root.locator('.backstage-dialog-bottom').waitFor({ state: 'visible', timeout });
+        return;
+      } catch (error) {
+        if (attempt === 2) throw error;
+        // If a partially rendered dialog exists, dismiss it before the next
+        // idempotent open attempt rather than clicking through its backdrop.
+        if (await root.isVisible().catch(() => false)) {
+          const cancel = root.locator('.backstage-dialog-bottom').getByText(/^(取消|关闭)$/, { exact: true }).first();
+          if (await cancel.count().catch(() => 0)) await cancel.evaluate((node) => node.click()).catch(() => {});
+          await waitForDialogState(dialogRoot, 'closed', TIMEOUT).catch(() => {});
+        }
+      }
+    }
   };
   const close = async (text) => {
-    await root.locator('.backstage-dialog-bottom').getByText(text, { exact: true }).click({ timeout: TIMEOUT });
-    await retryTransient(() => root.waitFor({ state: 'hidden', timeout: uiWaitConfig().saveTimeout }));
+    const button = root.locator('.backstage-dialog-bottom').getByText(text, { exact: true });
+    const count = await button.count();
+    if (count !== 1) throw new Error(`弹窗“${title}”底部“${text}”按钮应唯一，实际 ${count} 个。`);
+    // The editor sometimes leaves a transparent popup locker over the modal.
+    // The footer handlers are ordinary JS actions; click the uniquely scoped
+    // button directly, then retain the same close/save completion checks.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (!await root.isVisible().catch(() => false)) return;
+      const activeButton = root.locator('.backstage-dialog-bottom').getByText(text, { exact: true });
+      if (await activeButton.count() !== 1) throw new Error(`重试时弹窗“${title}”底部“${text}”按钮不唯一。`);
+      await activeButton.evaluate((node) => node.click());
+      try {
+        await retryTransient(() => waitForDialogState(dialogRoot, 'closed', uiWaitConfig().saveTimeout));
+        return;
+      } catch (error) {
+        if (attempt === 2) throw error;
+        // A save callback can miss its first click while the editor is
+        // rebuilding the dialog. Reacquire the footer button before retrying.
+        await root.waitFor({ state: 'visible', timeout: TIMEOUT }).catch(() => {});
+      }
+    }
   };
   // The dismiss button is 取消 in most dialogs but 关闭 in 47748's
   // 设置与选取数据 dialog. Try both, in that order.
@@ -260,8 +303,10 @@ export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0
     for (const text of ['取消', '关闭']) {
       const button = dialog.locator('.backstage-dialog-bottom').getByText(text, { exact: true });
       if (await button.count()) {
-        await button.click({ timeout: TIMEOUT });
-        await dialog.waitFor({ state: 'hidden', timeout: TIMEOUT });
+        const count = await button.count();
+        if (count !== 1) throw new Error(`弹窗底部“${text}”按钮不唯一：${count} 个。`);
+        await button.evaluate((node) => node.click());
+        await waitForDialogState(dialog, 'closed', uiWaitConfig().saveTimeout);
         return;
       }
     }
@@ -325,8 +370,9 @@ export async function probeControls(session, accepts) {
 // A mutation is a transaction: verify the alternate persisted value, then always
 // attempt recovery, verify it, close the editor UI, and save the restored page.
 // Discovery failures skip; failures from the first attempted write onward fail.
-export async function persistControl({ session, page, target, alternate, afterSwitch }) {
-  const evidence = { control: target.label || target.context, original: controlValue(target), alternate, controlType: target.type };
+export async function persistControl({ session, page, target, alternate, afterSwitch, restoreValue = controlValue(target), restoreSource = 'snapshot' }) {
+  const evidence = { control: target.label || target.context, original: controlValue(target), alternate, controlType: target.type,
+    restoreTarget: restoreValue, restoreSource };
   const errors = [];
   let stage = '翻转控件';
   try {
@@ -351,23 +397,32 @@ export async function persistControl({ session, page, target, alternate, afterSw
     }
   } catch (error) { errors.push(`${stage}失败：${error.message}`); }
   finally {
-    try {
-      stage = '恢复前重新打开';
-      await session.cancel();
-      await session.open();
-      stage = '恢复原值';
-      await session.set(target, evidence.original);
-      stage = '保存恢复状态';
-      await session.save();
-      stage = '重开断言恢复';
-      await session.open();
-      const restored = await readBackWithRetry(
-        async () => findControl(await session.read(), target),
-        (control) => control && controlValue(control) === evidence.original,
-        async () => { await session.cancel(); await session.open(); });
-      evidence.restored = restored ? controlValue(restored) : null;
-      if (!restored || evidence.restored !== evidence.original) throw new Error('未恢复原值');
-    } catch (error) { errors.push(`${stage}失败：${error.message}`); }
+    let restoreError;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        stage = '恢复前重新打开';
+        await session.cancel();
+        await session.open();
+        stage = '恢复原值';
+        await session.set(target, restoreValue);
+        stage = '保存恢复状态';
+        await session.save();
+        stage = '重开断言恢复';
+        await session.open();
+        const restored = await readBackWithRetry(
+          async () => findControl(await session.read(), target),
+          (control) => control && controlValue(control) === restoreValue,
+          async () => { await session.cancel(); await session.open(); });
+        evidence.restored = restored ? controlValue(restored) : null;
+        if (!restored || evidence.restored !== restoreValue) throw new Error('未恢复目标值');
+        restoreError = null;
+        break;
+      } catch (error) {
+        restoreError = error;
+        try { await session.cancel(); } catch { /* next attempt reopens explicitly */ }
+      }
+    }
+    if (restoreError) errors.push(`${stage}失败：${restoreError.message}`);
     // Keep these attempts independent: failed readback must not prevent page save.
     try { await session.cancel(); } catch (error) { errors.push(`退出设置失败：${error.message}`); }
     try { await savePage(page); } catch (error) { errors.push(`保存恢复页面失败：${error.message}`); }
@@ -375,9 +430,10 @@ export async function persistControl({ session, page, target, alternate, afterSw
   const display = (value) => typeof value === 'boolean'
     ? (/是|否/.test(evidence.control) ? (value ? '是' : '否') : (value ? '勾选' : '未勾选')) : String(value);
   const originalText = display(evidence.original);
+  const restoreText = display(restoreValue);
   const alternateText = display(alternate);
   return { status: errors.length ? 'fail' : 'pass',
-    detail: `控件“${evidence.control}”原值是“${originalText}”，改为“${alternateText}”后保存，重新打开${evidence.afterSave === alternate ? `仍为“${alternateText}”` : '未保持切换值'}，恢复后${evidence.restored === evidence.original ? `回到“${originalText}”` : '未回到原值'}。${errors.join('；') || '恢复页面已保存。'}`, evidence };
+    detail: `控件“${evidence.control}”原值是“${originalText}”，改为“${alternateText}”后保存，重新打开${evidence.afterSave === alternate ? `仍为“${alternateText}”` : '未保持切换值'}，恢复目标为“${restoreText}”${evidence.restored === restoreValue ? '且回读一致' : '但回读不一致'}。${errors.join('；') || '恢复页面已保存。'}`, evidence };
 }
 
 export async function radioPersist({ session, page, name, prefixes, afterSwitch }) {
