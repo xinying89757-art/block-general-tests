@@ -216,9 +216,18 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
       const probe = await probeControls(session);
       if (probe.reason) { step.errors.push(probe.reason); steps.push(step); allVerified = false; continue; }
       const readyTimeout = Math.max(30_000, Number(process.env.UI_READY_TIMEOUT_MS) || 0);
-      const controls = await waitForStable((remaining) => session.read(remaining),
-        (items) => stepDef.want.every((wanted) => Boolean(matchControl(items, wanted))),
-        { timeout: readyTimeout, stableMs: uiWaitConfig().stableMs });
+      let controls;
+      try {
+        controls = await waitForStable((remaining) => session.read(remaining),
+          (items) => stepDef.want.every((wanted) => Boolean(matchControl(items, wanted))),
+          { timeout: readyTimeout, stableMs: uiWaitConfig().stableMs });
+      } catch (error) {
+        const observed = await session.read().catch(() => []);
+        const missing = stepDef.want.filter((wanted) => {
+          try { return !matchControl(observed, wanted); } catch { return true; }
+        }).map((wanted) => wanted.label);
+        throw new Error(`基线“${title}”控件集未稳定：读到 ${observed.length} 个控件，缺少 ${missing.length}/${stepDef.want.length}${missing.length ? `（${missing.slice(0, 12).join('、')}）` : ''}；${error.message}`);
+      }
       // Do not partially save a dialog when its recorded controls cannot all
       // be resolved. A changing or incompletely loaded list needs investigation.
       const missing = [];

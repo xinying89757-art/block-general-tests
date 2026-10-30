@@ -119,9 +119,18 @@ export async function readCurrentState({ page, canvas, config, baseline }) {
       // settings dialog after editor startup. Give the builder time to finish
       // mounting it, while retaining the same reopen/retry lifecycle as checks.
       await session.open({ timeout: Math.max(30_000, Number(process.env.UI_READY_TIMEOUT_MS) || 0) });
-      const controls = await waitForStable((remaining) => session.read(remaining),
-        (items) => baselineControlsReady(items, definition.want),
-        { timeout: Math.max(30_000, Number(process.env.UI_READY_TIMEOUT_MS) || 0), stableMs: uiWaitConfig().stableMs });
+      let controls;
+      try {
+        controls = await waitForStable((remaining) => session.read(remaining),
+          (items) => baselineControlsReady(items, definition.want),
+          { timeout: Math.max(30_000, Number(process.env.UI_READY_TIMEOUT_MS) || 0), stableMs: uiWaitConfig().stableMs });
+      } catch (error) {
+        const observed = await session.read().catch(() => []);
+        const missing = (definition.want || []).filter((wanted) => {
+          try { return !matchControl(observed, wanted); } catch { return true; }
+        }).map((wanted) => wanted.label);
+        throw new Error(`基线“${definition.title}”控件集未稳定：读到 ${observed.length} 个控件，缺少 ${missing.length}/${definition.want?.length || 0}${missing.length ? `（${missing.slice(0, 12).join('、')}）` : ''}；${error.message}`);
+      }
       const want = withOccurrences(controls, serialize);
       current.push({ ...structuredClone(definition), want });
     } finally { await session.cancel(); }
