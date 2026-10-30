@@ -10,6 +10,18 @@ export class RunTimeoutError extends Error {
   }
 }
 
+export async function retryWithEnvironmentRecovery(action, recover, isClosed) {
+  let recovery = null;
+  if (isClosed()) recovery = await recover();
+  try {
+    return { value: await action(recovery), recovery };
+  } catch (error) {
+    if (recovery || !isClosed(error)) throw error;
+    recovery = await recover(error);
+    return { value: await action(recovery), recovery };
+  }
+}
+
 export async function withTimeout(operation, timeoutMs, label = '操作', { onTimeout, settleMs = 10_000 } = {}) {
   let timer;
   const work = Promise.resolve().then(operation);

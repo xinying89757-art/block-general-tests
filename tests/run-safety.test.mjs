@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { checksToResume, createPauseDetector, RunTimeoutError, withTimeout, writeCheckpoint } from '../src/run-safety.mjs';
+import { checksToResume, createPauseDetector, retryWithEnvironmentRecovery, RunTimeoutError, withTimeout, writeCheckpoint } from '../src/run-safety.mjs';
 
 test('pause detector flags wall-clock jumps beyond its threshold once', () => {
   let wall = 1_000, monotonic = 500, pauseCount = 0;
@@ -44,4 +44,30 @@ test('withTimeout runs the environment abort hook and lets the timed-out action 
   (error) => error.envStatus === 'env-timeout');
   assert.equal(aborted, true);
   assert.equal(settled, true);
+});
+
+test('fixture cleanup can recover a browser that was already closed', async () => {
+  let closed = true, recoveries = 0, actions = 0;
+  const result = await retryWithEnvironmentRecovery(async (recovery) => {
+    actions++;
+    assert.equal(recovery.session.id, 'fresh');
+    return 'restored';
+  }, async () => { recoveries++; closed = false; return { session: { id: 'fresh' } }; }, () => closed);
+  assert.equal(result.value, 'restored');
+  assert.equal(recoveries, 1);
+  assert.equal(actions, 1);
+});
+
+test('fixture cleanup retries once when its page closes during restoration', async () => {
+  let closed = false, recoveries = 0, actions = 0;
+  const result = await retryWithEnvironmentRecovery(async (recovery) => {
+    actions++;
+    if (actions === 1) { closed = true; throw new Error('Target page, context or browser has been closed'); }
+    assert.equal(recovery.session.id, 'fresh');
+    return 'restored';
+  }, async () => { recoveries++; closed = false; return { session: { id: 'fresh' } }; }, (error) =>
+    closed || /Target page, context or browser has been closed/i.test(error?.message || ''));
+  assert.equal(result.value, 'restored');
+  assert.equal(recoveries, 1);
+  assert.equal(actions, 2);
 });

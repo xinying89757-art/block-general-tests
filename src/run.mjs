@@ -18,7 +18,7 @@ import * as moduleWidth from './capabilities/module-width.mjs';
 import * as blockStyleSpec from './capabilities/block-style-spec.mjs';
 import { checkReportText } from './capabilities/shared.mjs';
 import { acquireRunLock } from './run-lock.mjs';
-import { createPauseDetector, createProgressWatchdog, RunTimeoutError, withTimeout, writeCheckpoint } from './run-safety.mjs';
+import { createPauseDetector, createProgressWatchdog, retryWithEnvironmentRecovery, RunTimeoutError, withTimeout, writeCheckpoint } from './run-safety.mjs';
 import { spawnSync } from 'node:child_process';
 export { frontRunPhases, shouldRunLayer } from './front-results.mjs';
 
@@ -454,16 +454,24 @@ async function main() {
       }
     }
   } finally {
-    pauseDetector.stop();
-    watchdog.stop();
     // A fixture-prep exception may carry a partial snapshot too. Retrying the
     // full restoration here also covers failures in later capabilities.
     if (fixturePreparation?.originalFieldStates && session) {
       try {
-        await restoreFixture({ page: session.page, canvas, config,
-          originalFieldStates: fixturePreparation.originalFieldStates });
-        await savePage(session.page);
+        if (typeof config.recoverEnvironment !== 'function') throw new Error('环境恢复入口不可用。');
+        const restoreResult = await retryWithEnvironmentRecovery(async (recovery) => {
+          if (recovery) {
+            session = recovery.session;
+            canvas = recovery.canvas;
+          }
+          await restoreFixture({ page: session.page, canvas, config,
+            originalFieldStates: fixturePreparation.originalFieldStates });
+          await savePage(session.page);
+        }, () => config.recoverEnvironment(config.environmentStatus || 'env-timeout'), (error) =>
+          !session?.page || session.page.isClosed?.() || session.browser?.isConnected?.() === false
+          || /Target page, context or browser has been closed/i.test(error?.message || ''));
         report.fixture.restored = true;
+        if (restoreResult.recovery) report.fixture.restoreRecovery = 'browser-relaunched';
       } catch (error) {
         report.fixture.restored = false;
         report.fixture.restoreErrors.push(error.message);
@@ -473,6 +481,8 @@ async function main() {
           expected: '全部字段勾选状态应恢复运行前快照、保存，并经新会话回读一致。' });
       }
     }
+    pauseDetector.stop();
+    watchdog.stop();
     // Preserve both views on success and best-effort failure evidence. If
     // openPreview throws after creating its tab, recover that tab for evidence.
     if (!previewPage && session) {
