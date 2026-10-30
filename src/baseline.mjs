@@ -82,7 +82,7 @@ async function readDialogTitle(dialog) {
   return text.split('\n').map((line) => line.trim()).find(Boolean) || '';
 }
 
-export async function captureBaseline({ page, canvas, config, blockId }) {
+export async function inventorySettings({ page, canvas, config, blockId, onProgress }) {
   const wrapLocator = canvas.locator(
     `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(blockId))}] .backstage-blocksEditor-wrap`);
   if (!await wrapLocator.count()) throw new Error(`区块 ${blockId} 不在当前页。`);
@@ -94,19 +94,20 @@ export async function captureBaseline({ page, canvas, config, blockId }) {
     seen.set(type, wrapIndex + 1);
     return { type, wrapIndex };
   });
-
-  const steps = [];
-  for (const { type, wrapIndex } of regions) {
+  const inventory = [];
+  for (const [index, { type, wrapIndex }] of regions.entries()) {
+    onProgress?.({ index: index + 1, total: regions.length, type, wrapIndex });
     if (type === 'phoenix_blocks_button') {
+      const region = { type, wrapIndex, title: null, kind: 'button-popover', controls: [] };
       try {
         const popover = await readButtonPopover({ page, canvas, config });
-        steps.push({ type, wrapIndex, title: null, kind: 'button-popover', want: popover.want });
-      } catch (error) {
-        steps.push({ type, wrapIndex, title: null, kind: 'button-popover', want: [], skipped: error.message });
-      }
+        region.controls = popover.want.map(({ to, ...item }) => ({ ...item,
+          ...(item.type === 'checkbox' ? { checked: to } : { value: to }) }));
+      } catch (error) { region.skipped = error.message; }
+      inventory.push(region);
       continue;
     }
-    const step = { title: null, type, wrapIndex, want: [] };
+    const region = { title: null, type, wrapIndex, kind: 'widget-dialog', controls: [] };
     let dialog = null;
     let session = null;
     try {
@@ -115,14 +116,38 @@ export async function captureBaseline({ page, canvas, config, blockId }) {
       await dialog.waitFor({ state: 'visible', timeout: TIMEOUT });
       const title = await readDialogTitle(dialog);
       if (!title) {
-        step.skipped = '读不到 dialog 标题';
-        steps.push(step);
+        region.skipped = '读不到 dialog 标题';
         await closeDialog(dialog);
+        inventory.push(region);
         continue;
       }
-      step.title = title;
+      region.title = title;
       session = widgetSession({ page, canvas, config, type, title, wrapIndex });
-      const controls = await session.read();
+      region.controls = await session.read();
+      await session.cancel();
+    } catch (error) {
+      region.skipped = /Timeout.*exceeded/.test(error.message)
+        ? '打开后 10 秒内未出现 widget dialog（可能打开的是画布内浮层而非设置弹窗）'
+        : error.message;
+      try { if (session) await session.cancel(); else if (dialog) await closeDialog(dialog); } catch {}
+      await dismissCanvasPopover(page, canvas);
+    }
+    inventory.push(region);
+  }
+  return inventory;
+}
+
+export async function captureBaseline(args) {
+  const inventory = await inventorySettings(args);
+  return inventory.map((region) => {
+    const { title, type, wrapIndex, controls } = region;
+    if (region.kind === 'button-popover') {
+      return { type, wrapIndex, title: null, kind: 'button-popover',
+        want: controls.map((c) => ({ label: c.label, type: c.type, to: c.type === 'checkbox' ? c.checked : c.value })),
+        ...(region.skipped ? { skipped: region.skipped } : {}) };
+    }
+    const step = { title, type, wrapIndex, want: [] };
+    if (title && controls.length) {
       const keyCounts = new Map();
       for (const control of controls) {
         const key = `${control.type}::${control.label}`;
@@ -154,21 +179,10 @@ export async function captureBaseline({ page, canvas, config, blockId }) {
       step.want = captured;
       if (skippedDisabled) step.skippedDisabled = skippedDisabled;
       if (skippedNoLabel) step.skippedNoLabel = skippedNoLabel;
-      await session.cancel();
-    } catch (error) {
-      // No widget dialog appeared (the button zone opens an in-canvas
-      // editor-box popover instead), or the settings button itself failed.
-      step.skipped = /Timeout.*exceeded/.test(error.message)
-        ? '打开后 10 秒内未出现 widget dialog（可能打开的是画布内浮层而非设置弹窗）'
-        : error.message;
-      // A widget dialog may still be open if the failure came after it
-      // appeared; close it before dismissing any canvas popover.
-      try { if (session) await session.cancel(); else if (dialog) await closeDialog(dialog); } catch {}
-      await dismissCanvasPopover(page, canvas);
     }
-    steps.push(step);
-  }
-  return steps;
+    if (region.skipped) step.skipped = region.skipped;
+    return step;
+  });
 }
 
 export async function applyBaseline({ page, canvas, config, baseline }) {

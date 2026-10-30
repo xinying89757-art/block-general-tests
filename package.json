@@ -9,7 +9,8 @@
     "check:syntax": "node scripts/check-syntax.mjs",
     "check:imports": "node scripts/check-relative-imports.mjs",
     "check:profiles": "node scripts/validate-profiles.mjs",
-    "ci": "npm run check:syntax && npm run check:imports && npm run check:profiles && npm test"
+    "ci": "npm run check:syntax && npm run check:imports && npm run check:profiles && npm run check:signatures && npm test",
+    "check:signatures": "node scripts/check-signatures.mjs"
   },
   "keywords": [],
   "author": "",

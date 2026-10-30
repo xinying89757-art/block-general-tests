@@ -12,3 +12,5 @@ hidden/
 .auth/
 .run-lock/
 logs/
+
+drafts/
