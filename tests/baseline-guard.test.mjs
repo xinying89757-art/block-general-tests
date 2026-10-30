@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { baselineRestoreTarget, diffAgainstBaseline } from '../src/baseline-guard.mjs';
+import { baselineControlsReady, baselineRestoreTarget, diffAgainstBaseline } from '../src/baseline-guard.mjs';
 
 const step = (want) => [{ title: '设置', type: 'widget', wrapIndex: 0, want }];
 const item = (label, to, type = 'text') => ({ label, type, to });
@@ -8,6 +8,15 @@ const item = (label, to, type = 'text') => ({ label, type, to });
 test('baseline diff is empty when values match', () => {
   const baseline = step([item('标题', '默认')]);
   assert.deepEqual(diffAgainstBaseline(baseline, step([item('标题', '默认')])), []);
+});
+
+test('baseline readiness waits for every recorded control identity', () => {
+  const wants = [item('标题', '默认'), { label: '启用', type: 'checkbox', value: 'on', to: true }];
+  assert.equal(baselineControlsReady([{ label: '标题', type: 'text', value: '默认' }], wants), false);
+  assert.equal(baselineControlsReady([
+    { label: '标题', type: 'text', value: '默认' },
+    { label: '启用', type: 'checkbox', value: 'on', checked: true },
+  ], wants), true);
 });
 
 test('baseline diff reports changed values', () => {

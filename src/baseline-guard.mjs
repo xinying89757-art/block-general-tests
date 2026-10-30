@@ -3,7 +3,8 @@ import { launchSession } from './browser.mjs';
 import { openEditor, ensureTargetPage } from './editor.mjs';
 import { baselineRestoreTarget, widgetSession } from './capabilities/shared.mjs';
 import { readButtonPopover } from './capabilities/button-link.mjs';
-import { assertOccurrencesUnambiguous, withOccurrences, normalizeControlIdentity } from './baseline-identity.mjs';
+import { assertOccurrencesUnambiguous, matchControl, withOccurrences, normalizeControlIdentity } from './baseline-identity.mjs';
+import { uiWaitConfig, waitForStable } from './ui-waits.mjs';
 
 const isAutotest = (value) => typeof value === 'string' && /^AUTOTEST-/i.test(value);
 const sameControl = (a, b) => {
@@ -21,6 +22,10 @@ export function baselineValueFor(baseline, type, label) {
     if (item) return item.to;
   }
   return undefined;
+}
+
+export function baselineControlsReady(controls, wants) {
+  return (wants || []).every((wanted) => Boolean(matchControl(controls, wanted)));
 }
 
 function assertBaselineClean(baseline) {
@@ -114,7 +119,9 @@ export async function readCurrentState({ page, canvas, config, baseline }) {
       // settings dialog after editor startup. Give the builder time to finish
       // mounting it, while retaining the same reopen/retry lifecycle as checks.
       await session.open({ timeout: Math.max(30_000, Number(process.env.UI_READY_TIMEOUT_MS) || 0) });
-      const controls = await session.read();
+      const controls = await waitForStable((remaining) => session.read(remaining),
+        (items) => baselineControlsReady(items, definition.want),
+        { timeout: Math.max(30_000, Number(process.env.UI_READY_TIMEOUT_MS) || 0), stableMs: uiWaitConfig().stableMs });
       const want = withOccurrences(controls, serialize);
       current.push({ ...structuredClone(definition), want });
     } finally { await session.cancel(); }
