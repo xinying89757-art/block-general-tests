@@ -39,19 +39,26 @@ export function fixturePlan(profile) {
 // Resolve names on every run; a record is a cache of verified identities, not authority.
 export async function ensureFixtureData({ page, profile, cms, previous = null }) {
   const plan = fixturePlan(profile), records = { fields: {}, products: {}, category: null }, writes = [];
+  let step = '列出现有自定义字段';
+  const atStep = (name) => { step = name; };
+  const attachStep = (error) => { error.fixtureStep ||= step; throw error; };
+  try {
   const existing = await cms.listCustomFields(page);
   for (const field of plan.fields) {
     const hits = existing.filter(f => f.name === field.name);
     if (hits.length > 1) throw new Error(`字段 ${field.name} 重名。`);
     let found = hits[0];
-    if (!found) { found = await cms.createCustomField(page, field); writes.push(`create-field:${field.name}`); }
+    if (!found) { atStep(`创建字段 ${field.name}`); found = await cms.createCustomField(page, field); writes.push(`create-field:${field.name}`); }
     else {
+      atStep(`核对字段 ${field.name} 选项`);
       const options = found.type === field.type ? await cms.readCustomFieldOptions(page, field.name) : [];
       const missing = field.options.filter(o => !options.includes(o));
-      if (found.status !== '开启' || missing.length || found.type !== field.type) { await cms.updateCustomField(page, field.name, { missing, type: field.type, enable: found.status !== '开启' }); writes.push(`update-field:${field.name}`); }
+      if (found.status !== '开启' || missing.length || found.type !== field.type) { atStep(`更新字段 ${field.name}`); await cms.updateCustomField(page, field.name, { missing, type: field.type, enable: found.status !== '开启' }); writes.push(`update-field:${field.name}`); }
     }
+    atStep(`回读字段 ${field.name} 身份`);
     const verified = await cms.getCustomFieldIdentity(page, field.name);
     if (!verified?.id || verified.type !== field.type || verified.status !== '开启') throw new Error(`字段 ${field.name} 身份/类型/状态回读失败。`);
+    atStep(`回读字段 ${field.name} 选项`);
     const options = await cms.readCustomFieldOptions(page, field.name);
     if (field.options.some(o => !options.includes(o))) throw new Error(`字段 ${field.name} 选项回读失败。`);
     records.fields[field.name] = verified.id;
@@ -60,34 +67,41 @@ export async function ensureFixtureData({ page, profile, cms, previous = null })
   // Then category-scoped checks are skipped with this reason; fields and
   // products are still ensured. Never borrow an existing site category.
   let verifiedCategory = null;
+  atStep(`查找分类 ${plan.category.name}`);
   let category = await cms.findCategory(page, plan.category.name);
   if (!category) {
-    try { category = await cms.createCategory(page, plan.category.name); writes.push(`create-category:${plan.category.name}`); }
+    try { atStep(`创建分类 ${plan.category.name}`); category = await cms.createCategory(page, plan.category.name); writes.push(`create-category:${plan.category.name}`); }
     catch (error) {
       if (!(cms.CategoryLimitError && error instanceof cms.CategoryLimitError) && error?.code !== 'CATEGORY_LIMIT') throw error;
       records.category = { name: plan.category.name, id: null, unavailable: error.message };
     }
   }
   if (category) {
+    atStep(`回读分类 ${plan.category.name}`);
     verifiedCategory = await cms.findCategory(page, plan.category.name);
     if (!verifiedCategory?.id || verifiedCategory.id !== category.id) throw new Error('夹具分类身份回读失败。');
     records.category = { name: plan.category.name, id: verifiedCategory.id };
   }
   for (const product of plan.products) {
+    atStep(`查找产品 ${product.name}`);
     let id = await cms.findProduct(page, product.name);
-    if (!id) { id = await cms.createProduct(page, product); writes.push(`create-product:${product.name}`); }
+    if (!id) { atStep(`创建产品 ${product.name}`); id = await cms.createProduct(page, product); writes.push(`create-product:${product.name}`); }
+    atStep(`回读产品 ${product.name} 身份`);
     if (!id || await cms.findProduct(page, product.name) !== id) throw new Error(`产品 ${product.name} 身份回读失败。`);
     const actual = await cms.readProductFieldValues(page, id, Object.keys(product.values));
     const changed = Object.fromEntries(Object.entries(product.values).filter(([name, value]) => !sameValue(actual[name], value)));
-    if (Object.keys(changed).length) { const updated = await cms.setProductFieldValues(page, id, changed); if (Object.entries(changed).some(([n,v]) => !sameValue(updated[n],v))) throw new Error(`产品 ${product.name} 字段回读失败。`); writes.push(`update-product:${product.name}`); }
+    if (Object.keys(changed).length) { atStep(`更新产品 ${product.name} 字段值`); const updated = await cms.setProductFieldValues(page, id, changed); if (Object.entries(changed).some(([n,v]) => !sameValue(updated[n],v))) throw new Error(`产品 ${product.name} 字段回读失败。`); writes.push(`update-product:${product.name}`); }
     if (verifiedCategory) {
+    atStep(`回读产品 ${product.name} 分类`);
     const categories = await cms.readProductCategories(page, id);
-    if (!categories.includes(verifiedCategory.id)) { await cms.addProductCategory(page, id, verifiedCategory.id, plan.category.name); writes.push(`category-product:${product.name}`); }
+    if (!categories.includes(verifiedCategory.id)) { atStep(`为产品 ${product.name} 添加分类`); await cms.addProductCategory(page, id, verifiedCategory.id, plan.category.name); writes.push(`category-product:${product.name}`); }
+    atStep(`确认产品 ${product.name} 分类`);
     if (!(await cms.readProductCategories(page, id)).includes(verifiedCategory.id)) throw new Error(`产品 ${product.name} 分类回读失败。`);
     }
     records.products[product.name] = id;
   }
   return { plan, records, writes, previousMatches: previous ? JSON.stringify(previous) === JSON.stringify(records) : null };
+  } catch (error) { attachStep(error); }
 }
 export function fixtureRecordPath(config, root = 'fixtures-state') {
   const host = new URL(config.siteDomain).host.toLowerCase();

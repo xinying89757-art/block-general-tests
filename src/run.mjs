@@ -276,6 +276,7 @@ async function main() {
           fixturePreparation = error.fixturePreparation;
           report.checks.push(...(fixturePreparation?.checks || []));
           report.fixture = { applied: false, reason: error.message,
+            ...(error.fixtureStep ? { failedStep: error.fixtureStep } : {}),
             created: fixturePreparation?.created || { fields: [], products: [] },
             reused: fixturePreparation?.reused || { fields: [], products: [] },
             restored: fixturePreparation?.restored ?? null, restoreErrors: fixturePreparation?.restoreErrors || [] };
