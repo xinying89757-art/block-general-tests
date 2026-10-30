@@ -10,15 +10,37 @@ export class RunTimeoutError extends Error {
   }
 }
 
-export function withTimeout(operation, timeoutMs, label = '操作') {
+export async function withTimeout(operation, timeoutMs, label = '操作', { onTimeout, settleMs = 10_000 } = {}) {
   let timer;
-  return Promise.race([
-    Promise.resolve().then(operation),
-    new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new RunTimeoutError(`${label}超过 ${timeoutMs}ms`)), timeoutMs);
-      timer.unref?.();
-    }),
-  ]).finally(() => clearTimeout(timer));
+  const work = Promise.resolve().then(operation);
+  // A timed-out Playwright promise must not keep mutating while recovery
+  // opens a replacement browser. Closing the browser interrupts its actions;
+  // wait briefly for that promise to unwind before returning the timeout.
+  work.catch(() => {});
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new RunTimeoutError(`${label}超过 ${timeoutMs}ms`)), timeoutMs);
+    timer.unref?.();
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } catch (error) {
+    if (!(error instanceof RunTimeoutError)) throw error;
+    let abortTimer;
+    await Promise.race([
+      Promise.resolve().then(() => onTimeout?.(error)).catch(() => {}),
+      new Promise((resolve) => { abortTimer = setTimeout(resolve, 10_000); abortTimer.unref?.(); }),
+    ]);
+    clearTimeout(abortTimer);
+    let settleTimer;
+    await Promise.race([work.catch(() => {}), new Promise((resolve) => {
+      settleTimer = setTimeout(resolve, settleMs);
+      settleTimer.unref?.();
+    })]);
+    clearTimeout(settleTimer);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function createPauseDetector({ intervalMs = 10_000, pauseThresholdMs = 30_000,
@@ -58,12 +80,16 @@ export function checksToResume(checks, completedIds = []) {
 export function createProgressWatchdog({ timeoutMs, onTimeout, now = Date.now } = {}) {
   let lastProgressAt = now();
   let stopped = false;
+  let triggered = false;
   const timer = setInterval(() => {
-    if (!stopped && now() - lastProgressAt >= timeoutMs) onTimeout({ lastProgressAt });
+    if (!stopped && !triggered && now() - lastProgressAt >= timeoutMs) {
+      triggered = true;
+      onTimeout({ lastProgressAt });
+    }
   }, Math.min(10_000, Math.max(1000, timeoutMs / 10)));
   timer.unref?.();
   return {
-    progress: () => { lastProgressAt = now(); },
+    progress: () => { lastProgressAt = now(); triggered = false; },
     stop: () => { stopped = true; clearInterval(timer); },
     lastProgress: () => lastProgressAt,
   };

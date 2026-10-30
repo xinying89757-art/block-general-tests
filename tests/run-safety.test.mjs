@@ -32,6 +32,16 @@ test('checkpoints persist completed checks and resume only pending checks', asyn
 });
 
 test('withTimeout rejects with a distinct environment timeout', async () => {
-  await assert.rejects(withTimeout(() => new Promise(() => {}), 5, 'unit check'),
+  await assert.rejects(withTimeout(() => new Promise(() => {}), 5, 'unit check', { settleMs: 5 }),
     (error) => error instanceof RunTimeoutError && error.envStatus === 'env-timeout');
+});
+
+test('withTimeout runs the environment abort hook and lets the timed-out action unwind', async () => {
+  let aborted = false, settled = false;
+  await assert.rejects(withTimeout(() => new Promise((resolve) => setTimeout(() => {
+    settled = true; resolve();
+  }, 25)), 5, 'recoverable check', { onTimeout: () => { aborted = true; } }),
+  (error) => error.envStatus === 'env-timeout');
+  assert.equal(aborted, true);
+  assert.equal(settled, true);
 });

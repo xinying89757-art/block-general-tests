@@ -49,6 +49,8 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
   if (config.deferFront && layer === 'front') {
     return result(id, 'deferred', 'deferred-to-front-runner', { deferred: true });
   }
+  const cached = config.replayCachedCheck ? config.resumeChecks?.get(id) : null;
+  if (cached && !['env-paused', 'env-timeout'].includes(cached.status)) return cached;
   console.log(`[progress] ${new Date().toISOString()} 效果检查开始：${id}`);
   config.watchdogProgress?.();
   const errors = [], evidence = { observations: [], restored: [] }, journal = new Map(), pending = new Map();
@@ -113,7 +115,9 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
   };
   try {
     if (layer === 'front' && !context) unavailable('未提供浏览器环境，无法打开临时预览。');
-    await withTimeout(() => run(tx), config.checkTimeoutMs || 300_000, `检查 ${id}`);
+    await withTimeout(() => run(tx), config.checkTimeoutMs || 300_000, `检查 ${id}`, {
+      onTimeout: (error) => config.abortEnvironment?.(error.envStatus),
+    });
     detail = evidence.observations.join('；') || '设置对应的效果与预期一致。';
   } catch (error) {
     const environmentStatus = error.envStatus || config.environmentStatus;
@@ -161,15 +165,19 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
     }
   }
   if (status === 'env-paused' || status === 'env-timeout') {
-    return result(id, status, detail, { ...evidence, retryable: true }, {
+    const check = result(id, status, detail, { ...evidence, retryable: true }, {
       ...(expected ? { expected } : {}), actual: detail, evidenceText: [detail],
     });
+    await config.checkpointCheck?.(check, config.baselineCapabilityId || 'unknown', layer);
+    return check;
   }
   if (errors.length) { status = 'fail'; detail = `${detail}；${errors.join('；')}`; }
-  return result(id, status, detail, evidence, {
+  const check = result(id, status, detail, evidence, {
     ...(expected ? { expected } : {}), actual: detail,
     evidenceText: [...evidence.observations, ...(status === 'pass' ? ['已在同一次浏览器会话中恢复原设置并保存页面。'] : [detail])],
   });
+  await config.checkpointCheck?.(check, config.baselineCapabilityId || 'unknown', layer);
+  return check;
 }
 
 // All snapshots count visible content; hidden grid/list duplicates are excluded.

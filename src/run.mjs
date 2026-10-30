@@ -72,23 +72,29 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
       continue;
     }
     const previousCapabilityId = args.config?.baselineCapabilityId;
+    const previousReplayMode = args.config?.replayCachedCheck;
     if (args.config) args.config.baselineCapabilityId = id;
     console.log(`[progress] ${new Date().toISOString()} 能力 ${id} ${layer} 层开始`);
     args.config?.watchdogProgress?.();
     try {
       let returned;
       for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (attempt > 0 && args.config) args.config.replayCachedCheck = true;
         try {
           returned = await withTimeout(() => module[selectedMethod]({ ...args, capability, profile }),
-            args.config?.layerTimeoutMs || 600_000, `能力 ${id} ${layer} 层`);
+            args.config?.layerTimeoutMs || 600_000, `能力 ${id} ${layer} 层`, {
+              onTimeout: (error) => args.config?.abortEnvironment?.(error.envStatus),
+            });
           const envChecks = returned.filter((item) => ['env-paused', 'env-timeout'].includes(item.status));
           if (!envChecks.length) break;
           if (attempt === 1 || typeof args.config?.recoverEnvironment !== 'function') break;
           Object.assign(args, await args.config.recoverEnvironment(envChecks[0].status));
         } catch (error) {
-          if (!(error.envStatus || error instanceof RunTimeoutError) || attempt === 1
+          const environmentStatus = error.envStatus || args.config?.environmentStatus
+            || (error instanceof RunTimeoutError ? error.envStatus : null);
+          if (!(environmentStatus === 'env-paused' || environmentStatus === 'env-timeout') || attempt === 1
             || typeof args.config?.recoverEnvironment !== 'function') throw error;
-          Object.assign(args, await args.config.recoverEnvironment(error.envStatus || 'env-timeout'));
+          Object.assign(args, await args.config.recoverEnvironment(environmentStatus));
         }
       }
       if (returned) {
@@ -106,7 +112,8 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
     }
     catch (error) {
       const name = `${id} ${layer} 层异常`;
-      const status = error.envStatus || (error instanceof RunTimeoutError ? 'env-timeout' : 'fail');
+      const status = error.envStatus || args.config?.environmentStatus
+        || (error instanceof RunTimeoutError ? 'env-timeout' : 'fail');
       const check = { id: `${id}-${layer}-error`, name,
         status, detail: error.message, suite: `capability:${id}`,
         ...checkReportText(name, status, error.message) };
@@ -117,6 +124,7 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
     }
     finally {
       if (args.config) {
+        args.config.replayCachedCheck = previousReplayMode;
         if (previousCapabilityId === undefined) delete args.config.baselineCapabilityId;
         else args.config.baselineCapabilityId = previousCapabilityId;
       }
@@ -238,12 +246,18 @@ async function main() {
     environmentEvents.push({ status: config.environmentStatus, message: error.message, at: new Date().toISOString() });
     await closeCurrentBrowser();
   };
+  config.abortEnvironment = async (status = 'env-timeout') => {
+    config.environmentStatus = status;
+    await closeCurrentBrowser();
+  };
   config.checkpointCheck = async (check, capability, layer) => {
     const checks = [...report.checks, check];
+    if (!['env-paused', 'env-timeout'].includes(check.status)) config.resumeChecks.set(check.id, redact(check, config));
     await writeCheckpoint(checkpointPath, { runId, blockId: config.blockId, capability, layer,
       currentCheckId: check.id, completedChecks: redact(checks, config), updatedAt: new Date().toISOString() });
     watchdog?.progress();
   };
+  config.resumeChecks = new Map();
   let watchdog;
   const pauseDetector = createPauseDetector({ onPause: (event) => {
     environmentEvents.push({ status: 'env-paused', ...event });
@@ -272,7 +286,9 @@ async function main() {
     report.added = await addBlockIfNeeded(session.page, canvas, config);
     const baseline = Array.isArray(profile?.baseline) ? profile.baseline : [];
     config.recoverEnvironment = async (reason) => {
-      environmentEvents.push({ status: reason, message: '关闭浏览器后重新登录态启动并复验基线', at: new Date().toISOString() });
+      const existingEvent = [...environmentEvents].reverse().find((event) => event.status === reason && !event.recoveryStartedAt);
+      if (existingEvent) existingEvent.recoveryStartedAt = new Date().toISOString();
+      else environmentEvents.push({ status: reason, at: new Date().toISOString() });
       await closeCurrentBrowser();
       const openFresh = async () => {
         session = await launchSession(config);
@@ -346,11 +362,13 @@ async function main() {
           for (let attempt = 0; attempt < 2; attempt += 1) {
             try {
               fixturePreparation = await withTimeout(() => prepareFixture({ page: session.page, canvas, context: session.context, config, profile }),
-                config.layerTimeoutMs, '夹具准备');
+                config.layerTimeoutMs, '夹具准备', { onTimeout: (error) => config.abortEnvironment(error.envStatus) });
               break;
             } catch (error) {
-              if (!(error.envStatus || error instanceof RunTimeoutError) || attempt === 1) throw error;
-              const recovered = await config.recoverEnvironment(error.envStatus || 'env-timeout');
+              const environmentStatus = error.envStatus || config.environmentStatus
+                || (error instanceof RunTimeoutError ? 'env-timeout' : null);
+              if (!(environmentStatus === 'env-paused' || environmentStatus === 'env-timeout') || attempt === 1) throw error;
+              const recovered = await config.recoverEnvironment(environmentStatus);
               session = recovered.session;
               canvas = recovered.canvas;
             }
@@ -408,7 +426,9 @@ async function main() {
         .map((id) => deferredCheck(id, id)));
     } else {
       const frontChecks = await withTimeout(() => runFrontChecks(preview.frame, config.blockId,
-        { previewPage, screenshotDir, runId, report }), config.layerTimeoutMs, '前台检查层');
+        { previewPage, screenshotDir, runId, report }), config.layerTimeoutMs, '前台检查层', {
+          onTimeout: (error) => config.abortEnvironment(error.envStatus),
+        });
       report.checks.push(...frontChecks);
       for (const check of frontChecks) await config.checkpointCheck(check, 'front-runner', 'front');
     }
@@ -477,9 +497,13 @@ async function main() {
   }
 
   report.environmentEvents = environmentEvents;
-  if (report.failure?.status && Object.hasOwn(report.summary, report.failure.status)) report.summary[report.failure.status] += 1;
+  if (report.failure?.status && Object.hasOwn(report.summary, report.failure.status)
+    && !report.checks.some((check) => check.status === report.failure.status)) report.summary[report.failure.status] += 1;
   for (const check of report.checks) {
     if (Object.hasOwn(report.summary, check.status)) report.summary[check.status] += 1;
+  }
+  for (const status of ['env-paused', 'env-timeout']) {
+    report.summary[status] = Math.max(report.summary[status], environmentEvents.filter((event) => event.status === status).length);
   }
   report.finishedAt = new Date().toISOString();
   report.status = report.failure || report.summary.fail || report.summary['env-paused'] || report.summary['env-timeout'] || report.artifactErrors.length ? 'failed' : 'passed';

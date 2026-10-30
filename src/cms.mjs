@@ -277,14 +277,32 @@ async function settleCmsNavigation(page, action) {
   }
 }
 
+export function exactProductId(matches, name) {
+  const ids = [...new Set(matches.map(({ productName, productId }) =>
+    productName === name ? productId : null).filter(Boolean))];
+  if (ids.length > 1) throw new Error(`产品名“${name}”不唯一，匹配 ${ids.length} 个产品。`);
+  return ids[0] || null;
+}
+
 export async function findProduct(page, name) {
   await assertProd(page);
   // Live probe 2026-10-30: navigating to /prod?invokeAction=prod_list_sub
   // opens the observed product table directly. The sidebar prod_list toggle
   // did not reveal its submenu when the SPA opened on the product form.
   await gotoAction(page, 'prod_list_sub');
-  // Search structure is unprobed: use observed semantic attributes/labels,
-  // require a unique input plus a unique search button before using it.
+  const findOnCurrentPage = async () => exactProductId(await page.evaluate(() => {
+    const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
+    const links = [...document.querySelectorAll('table tr a[href*="prodId="]')]
+      .filter((link) => link.getClientRects().length)
+      .map((link) => ({ productName: norm(link.innerText),
+        productId: new URL(link.getAttribute('href'), location.origin).searchParams.get('prodId') }));
+    return links;
+  }), name);
+  const firstPageId = await findOnCurrentPage();
+  if (firstPageId) return firstPageId;
+  // The live product list has no product-name search field in the current
+  // layout; its visible text input is the pagination jump control. Keep the
+  // semantic search path for versions that provide one, then scan pages.
   const inputs = page.locator('input[type="text"], input[type="search"]').filter({ visible: true });
   const searchIndexes = await inputs.evaluateAll((nodes) => nodes.flatMap((node, index) => {
     const labels = [node.placeholder, node.getAttribute('aria-label'), ...(node.labels || [])].map((value) => typeof value === 'string' ? value : value?.innerText || '');
@@ -295,7 +313,7 @@ export async function findProduct(page, name) {
     }
     return /搜索|产品名|产品名称|关键词|关键字/.test(labels.join(' ')) ? [index] : [];
   }));
-  if (searchIndexes.length !== 1) throw new Error(`按产品名搜索不唯一或不可用：看到 ${searchIndexes.length} 个搜索输入框；不能把第一页未找到视为不存在。`);
+  if (searchIndexes.length > 1) throw new Error(`产品名称搜索输入框不唯一：看到 ${searchIndexes.length} 个。`);
   if (searchIndexes.length === 1) {
     await inputs.nth(searchIndexes[0]).fill(name);
     const search = page.getByRole('button', { name: /搜索|查询/ }).or(page.locator('a').filter({ hasText: /搜索|查询/ })).filter({ visible: true });
@@ -307,20 +325,31 @@ export async function findProduct(page, name) {
     // sidebar entries and the save button: the handler is JS, the overlay
     // cannot block a DOM click.
     await settleCmsNavigation(page, async () => (await unique(search, '产品名称搜索按钮')).evaluate((el) => el.click()));
+    return findOnCurrentPage();
   }
-  // If search is unavailable and the product is beyond page one, this scan
-  // may report it absent. First live run MUST verify the search path. New
-  // AUTOTEST products have no such risk; recently updated fixtures tend to
-  // appear on page one. Do not guess undocumented search selectors.
-  await page.locator('table').filter({ visible: true }).first().waitFor({ state: 'visible', timeout: TIMEOUT });
-  return waitForStable(() => page.evaluate((wanted) => {
-    const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
-    const links = [...document.querySelectorAll('table tr a[href*="prodId="]')]
-      .filter((link) => link.getClientRects().length && norm(link.innerText) === wanted);
-    const ids = [...new Set(links.map((link) => new URL(link.getAttribute('href'), location.origin).searchParams.get('prodId')))];
-    if (ids.length > 1) throw new Error(`产品名“${wanted}”不唯一，匹配 ${ids.length} 个产品。`);
-    return ids[0] || null;
-  }, name));
+  const totalPages = await page.evaluate(() => {
+    const match = (document.body.innerText || '').match(/共\s*(\d+)\s*页/);
+    return match ? Number(match[1]) : null;
+  });
+  if (!Number.isSafeInteger(totalPages) || totalPages < 1) {
+    throw new Error('产品名称搜索不可用，且分页总数未能唯一读出；不能判定产品不存在。');
+  }
+  if (totalPages > 1) {
+    const pageInput = page.locator('#pageNumInput').filter({ visible: true });
+    await unique(pageInput, '产品列表页码输入框');
+    const confirm = page.locator('a').filter({ visible: true });
+    for (let pageNumber = 2; pageNumber <= totalPages; pageNumber += 1) {
+      await pageInput.fill(String(pageNumber));
+      const confirmCount = await confirm.evaluateAll((nodes) => nodes.filter((node) => (node.innerText || '').replace(/\s+/g, ' ').trim() === '确认').length);
+      if (confirmCount !== 1) throw new Error(`跳转到第 ${pageNumber} 页的“确认”控件不唯一：${confirmCount} 个。`);
+      await settleCmsNavigation(page, async () => {
+        await confirm.evaluateAll((nodes) => nodes.find((node) => (node.innerText || '').replace(/\s+/g, ' ').trim() === '确认').click());
+      });
+      const productId = await findOnCurrentPage();
+      if (productId) return productId;
+    }
+  }
+  return null;
 }
 
 export async function createProduct(page, { name }) {

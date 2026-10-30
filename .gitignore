@@ -16,3 +16,4 @@ logs/
 drafts/
 
 fixtures-state/
+.run-state/
