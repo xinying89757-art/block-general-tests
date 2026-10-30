@@ -10,27 +10,6 @@
     {
       "dialogTitle": "设置产品分类",
       "id": "product-category-select",
-      "oracle": {
-        "category": "测试分类",
-        "cmsTotal": 11,
-        "note": "内容管理后台产品管理上方分类筛选 2026-10-26 实测：测试分类共 11 条；前台只展示上架（CMS 上架列 shelve）产品，下架（offShelve：3号、80\"-30\"、4号、2号）不展示。夹具数据若变（增删产品、上下架），同步更新 onShelf。",
-        "offShelf": [
-          "3号",
-          "80\"-30\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
-          "4号",
-          "2号"
-        ],
-        "onShelf": [
-          "测试产品A",
-          "测试产品芋圆1",
-          "测试6号",
-          "测试5号",
-          "100\"-40\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
-          "产品7",
-          "测试产品hap"
-        ],
-        "source": "内容管理后台产品管理上方分类筛选"
-      },
       "reuseNote": "全新能力，40838 没有。选择方式 radio + 44 个分类多选；分类在“所有”模式下 disabled，闭环先切“部分”再操作。",
       "settingName": "产品分类选择",
       "status": "implemented-v1",
@@ -53,27 +32,6 @@
     {
       "dialogTitle": "设置与选取数据",
       "id": "product-list-display",
-      "oracle": {
-        "category": "测试分类",
-        "cmsTotal": 11,
-        "note": "内容管理后台产品管理上方分类筛选 2026-10-26 实测：测试分类共 11 条；前台只展示上架（CMS 上架列 shelve）产品，下架（offShelve：3号、80\"-30\"、4号、2号）不展示。夹具数据若变（增删产品、上下架），同步更新 onShelf。",
-        "offShelf": [
-          "3号",
-          "80\"-30\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
-          "4号",
-          "2号"
-        ],
-        "onShelf": [
-          "测试产品A",
-          "测试产品芋圆1",
-          "测试6号",
-          "测试5号",
-          "100\"-40\" 2 Bundles Natural Wavy 3A Virgin Brazilian Hair Natural Black 250gC",
-          "产品7",
-          "测试产品hap"
-        ],
-        "source": "内容管理后台产品管理上方分类筛选"
-      },
       "reuseNote": "变体：弹窗标题是“设置与选取数据”不是“设置产品列表”，且是第 2 个 gallery 子区域；新增数据来源选择 radio；分页默认否；无产品对比；展示字段 27 项（40838 是 31 项）。数量输入含义随分页变：分页=是时为每页产品数量，分页=否时为总数量（2026-10-26 用户确认）。",
       "settingName": "产品列表设置",
       "status": "implemented-v1",
@@ -1159,6 +1117,107 @@
     "displayFieldTypes": [
       "单选按钮",
       "多选按钮",
+      "下拉列表"
+    ]
+  },
+  "fixture": {
+    "note": "筛选真值表使用单选按钮、下拉列表两个字段和三件产品；产品卡展示字段覆盖见 displayFields（本区块展示字段支持单选、多选、下拉，各类型一个 AUTOTEST- CMS 字段）。",
+    "supportedTypes": [
+      "单选按钮",
+      "下拉列表"
+    ],
+    "fields": [
+      {
+        "name": "AUTOTEST-单选按钮A",
+        "type": "单选按钮",
+        "typeCode": 1,
+        "options": [
+          "单选4-10",
+          "单选6-10"
+        ]
+      },
+      {
+        "name": "AUTOTEST-下拉列表",
+        "type": "下拉列表",
+        "typeCode": 2,
+        "options": [
+          "下拉列表4-10",
+          "下拉列表8-10"
+        ]
+      }
+    ],
+    "products": [
+      {
+        "name": "AUTOTEST-产品A",
+        "values": {
+          "AUTOTEST-单选按钮A": "单选4-10",
+          "AUTOTEST-下拉列表": "下拉列表4-10"
+        }
+      },
+      {
+        "name": "AUTOTEST-产品小何1",
+        "values": {
+          "AUTOTEST-单选按钮A": "单选4-10",
+          "AUTOTEST-下拉列表": "下拉列表8-10"
+        }
+      },
+      {
+        "name": "AUTOTEST-产品小何2",
+        "values": {
+          "AUTOTEST-单选按钮A": "单选6-10",
+          "AUTOTEST-下拉列表": "下拉列表4-10"
+        }
+      }
+    ],
+    "notes": {},
+    "displayFields": {
+      "fields": [
+        {
+          "name": "AUTOTEST-单选按钮A",
+          "type": "单选按钮",
+          "values": {
+            "AUTOTEST-产品A": "单选4-10",
+            "AUTOTEST-产品小何1": "单选4-10",
+            "AUTOTEST-产品小何2": "单选6-10"
+          },
+          "options": [
+            "单选4-10",
+            "单选6-10"
+          ]
+        },
+        {
+          "name": "AUTOTEST-下拉列表",
+          "type": "下拉列表",
+          "values": {
+            "AUTOTEST-产品A": "下拉列表4-10",
+            "AUTOTEST-产品小何1": "下拉列表8-10",
+            "AUTOTEST-产品小何2": "下拉列表4-10"
+          },
+          "options": [
+            "下拉列表4-10",
+            "下拉列表8-10"
+          ]
+        },
+        {
+          "name": "AUTOTEST-多选",
+          "type": "多选按钮",
+          "values": {
+            "AUTOTEST-产品A": "多选4-10",
+            "AUTOTEST-产品小何1": "多选4-10",
+            "AUTOTEST-产品小何2": "多选4-10"
+          },
+          "options": [
+            "多选4-10",
+            "多选6-10"
+          ]
+        }
+      ]
+    },
+    "category": {
+      "name": "AUTOTEST-筛选分类"
+    },
+    "filterFieldTypes": [
+      "单选按钮",
       "下拉列表"
     ]
   }

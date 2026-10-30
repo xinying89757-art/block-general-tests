@@ -306,7 +306,7 @@ export async function findProduct(page, name) {
     }
     return /搜索|产品名|产品名称|关键词|关键字/.test(labels.join(' ')) ? [index] : [];
   }));
-  if (searchIndexes.length > 1) throw new Error(`按产品名搜索不唯一：看到 ${searchIndexes.length} 个搜索输入框，须实跑核实。`);
+  if (searchIndexes.length !== 1) throw new Error(`按产品名搜索不唯一或不可用：看到 ${searchIndexes.length} 个搜索输入框；不能把第一页未找到视为不存在。`);
   if (searchIndexes.length === 1) {
     await inputs.nth(searchIndexes[0]).fill(name);
     const search = page.getByRole('button', { name: /搜索|查询/ }).or(page.locator('a').filter({ hasText: /搜索|查询/ })).filter({ visible: true });
@@ -503,4 +503,99 @@ export async function setProductFieldValues(page, prodId, values) {
     } catch (error) { lastError = error.message; }
   } while (Date.now() < deadline);
   throw new Error(`产品字段保存后回读超时，不一致字段：${mismatch.join('、')}；实际 ${JSON.stringify(actual || {})}${lastError ? `；${lastError}` : ''}。`);
+}
+
+// These semantic CMS locators are deliberately strict; their DOM structure must
+// be checked on a test site before enabling fixture writes in production use.
+const autoName = name => typeof name === 'string' && name.startsWith('AUTOTEST-') && name.length > 9;
+function requireAuto(name) { if (!autoName(name)) throw new Error('拒绝操作非 AUTOTEST 数据。'); }
+export async function getCustomFieldIdentity(page, name) {
+  requireAuto(name);
+  await openField(page, name);
+  const id = await page.evaluate(() => {
+    const inputs = [...document.querySelectorAll('input[type="hidden"]')].filter(x => /^(field\.)?(fieldId|id)$/i.test(x.name || x.id));
+    const ids = [...new Set(inputs.map(x => x.value).filter(Boolean))];
+    if (ids.length !== 1) throw new Error('字段 ID 隐藏控件不唯一，需核实 CMS 表单。');
+    return ids[0];
+  });
+  const record = (await listCustomFields(page)).filter(f => f.name === name);
+  if (record.length !== 1) throw new Error('字段名称不唯一。');
+  return { ...record[0], id };
+}
+export async function updateCustomField(page, name, { missing = [], type, enable = false }) {
+  requireAuto(name);
+  await openField(page, name);
+  if (type) {
+    const radio = page.locator(`input[name="field.fieldType"][value=${quote(FIELD_TYPE_CODES[type])}]`);
+    if (await radio.count() !== 1 || await radio.isDisabled()) throw new Error('字段类型控件不可安全修改。');
+    if (!await radio.isChecked()) await radio.check();
+  }
+  if (enable) await page.locator('input[name="field.fieldStatus"][value="1"]').check();
+  for (const option of missing) {
+    const inputs = optionInputs(page), before = await inputs.count();
+    await (await unique(page.getByText(/^\+\s*添加选择项/).filter({ visible: true }), '添加选择项')).click();
+    if (await inputs.count() !== before + 1) throw new Error('新增字段选项控件数量不一致。');
+    await inputs.nth(before).fill(option); await inputs.nth(before).blur();
+  }
+  await saveCms(page, () => clickAction(page, 'saveFieldContent'));
+}
+async function categoryList(page) {
+  await assertProd(page);
+  const menu = page.locator('[action], [data-action]').filter({ visible: true }).filter({ hasText: /^\s*(管理产品分类|产品分类管理)\s*$/ });
+  await settleCmsNavigation(page, async () => (await unique(menu, '产品分类管理入口')).evaluate(el => el.click()));
+}
+export async function findCategory(page, name) {
+  requireAuto(name); await categoryList(page);
+  return page.evaluate(wanted => {
+    const norm = s => (s || '').replace(/\s+/g, ' ').trim();
+    const rows = [...document.querySelectorAll('tr')].filter(row => row.getClientRects().length && [...row.querySelectorAll('td')].some(td => norm(td.textContent) === wanted));
+    if (rows.length > 1) throw new Error('夹具分类重名。');
+    {
+      const paging = [...document.querySelectorAll('[class*=pagination], [class*=pager], [aria-label*=分页]')].filter(node => node.getClientRects().length);
+      if (paging.some(node => [...node.querySelectorAll('a,button')].some(link => /^(?:[2-9]\d*|下一页|下页|next)$/i.test(norm(link.textContent)) && !link.disabled && link.getAttribute('aria-disabled') !== 'true'))) throw new Error('分类列表有其他页，不能确认分类不存在；需实现全页查找。');
+    }
+    if (!rows.length) return null;
+    const row = rows[0], ids = new Set();
+    for (const node of [row, ...row.querySelectorAll('[href], [data-id], input')]) {
+      const id = node.dataset?.id || (node.tagName === 'INPUT' && /id/i.test(node.name) ? node.value : null);
+      if (id) ids.add(id);
+      if (node.getAttribute('href')) { const u = new URL(node.getAttribute('href'), location.href); for (const key of ['groupId','prodGroupId']) if (u.searchParams.has(key)) ids.add(u.searchParams.get(key)); }
+    }
+    if (ids.size !== 1) throw new Error('夹具分类 ID 不唯一，需核实分类列表。');
+    return { name: wanted, id: [...ids][0] };
+  }, name);
+}
+export async function createCategory(page, name) {
+  requireAuto(name); await categoryList(page);
+  const add = page.getByText(/^(添加|新增)产品分类$/).filter({ visible: true });
+  await (await unique(add, '新增分类入口')).click();
+  const input = page.getByLabel(/^(产品分类名称|分类名称)$/).filter({ visible: true });
+  await (await unique(input, '分类名称输入框')).fill(name);
+  const save = page.getByRole('button', { name: /^(保存|提交)$/ }).filter({ visible: true });
+  await saveCms(page, async () => (await unique(save, '分类保存')).click());
+  const found = await findCategory(page, name);
+  if (!found) throw new Error('新增分类保存后未找到。');
+  return found;
+}
+async function categoryControls(page, prodId) {
+  await openProduct(page, prodId);
+  const input = await unique(page.locator('input[name="product.prodName"]'), '产品名称');
+  requireAuto(await input.inputValue());
+  return page.locator('input[type="checkbox"][name*="group" i], input[type="checkbox"][name*="category" i]').filter({ visible: true });
+}
+export async function readProductCategories(page, prodId) {
+  const controls = await categoryControls(page, prodId);
+  if (!await controls.count()) throw new Error('产品分类复选控件未找到，需核实产品编辑表单。');
+  return controls.evaluateAll(nodes => nodes.filter(n => n.checked).map(n => n.value));
+}
+export async function addProductCategory(page, prodId, categoryId, categoryName) {
+  requireAuto(categoryName);
+  const controls = await categoryControls(page, prodId);
+  // Attribute matching plus exact label avoids assigning an unrelated category.
+  const found = await controls.evaluateAll((nodes, { id, name }) => nodes.flatMap((n, i) => {
+    const label = (n.closest('label')?.innerText || [...(n.labels || [])].map(l => l.innerText).join('')).trim();
+    return n.value === id && label === name ? [i] : [];
+  }), { id: categoryId, name: categoryName });
+  if (found.length !== 1) throw new Error('产品分类控件或名称不唯一。');
+  await controls.nth(found[0]).check(); await saveProduct(page);
 }

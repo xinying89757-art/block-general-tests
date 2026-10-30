@@ -44,7 +44,7 @@ async function contentFrame(previewPage) {
   return found || previewPage.mainFrame();
 }
 
-// Product-compare front effect (40838 only; 47748 has no compare setting
+// Product-compare front effect (样本区块 only; 另一样本区块 has no compare setting
 // and skips). Ground truth from probes 2026-10-26:
 // each product card carries `input.compared-input[type=checkbox]` +
 // bare text "Add to Compare" (two copies per card, grid + list markup;
@@ -57,9 +57,11 @@ async function contentFrame(previewPage) {
 // is `.opt-btn .save` ("Inquire"), posting #comparedForm to
 // /phoenix/admin/prod/inquire. The checked display fields show on the
 // product cards (e.g. Brand) and as columns on the inquiry form.
-async function compareFrontCheck({ session, page, context, config }) {
+async function compareFrontCheck({ session, page, context, config, profile, report }) {
   const id = 'pld-compare-front';
   const skip = (detail) => result(id, 'skip', detail);
+  const fixtureNames = profile?.fixture?.products?.map(p => p.name) || [];
+  if (fixtureNames.length < 2 || report?.fixture?.applied === false) return skip('缺少已准备的至少两个 AUTOTEST 产品。');
   const probe = await probeControls(session);
   if (probe.reason) return skip(`无法读取产品列表弹窗：${probe.reason}`);
   const pair = ['关闭', '开启'].map((label) => probe.controls
@@ -119,13 +121,17 @@ async function compareFrontCheck({ session, page, context, config }) {
       await root.waitFor({ state: 'attached', timeout: TIMEOUT });
       await frame.waitForTimeout(3000);
       const boxes = root.locator('input.compared-input:visible');
-      const boxCount = await boxes.count();
-      flowEvidence.compareBoxCount = boxCount;
-      if (boxCount < 2) {
-        flowErrors.push(`预览里只找到 ${boxCount} 个可见的对比勾选框，不到 2 个`);
+      const fixtureBoxes = [];
+      for (let i = 0; i < await boxes.count(); i++) {
+        const name = await boxes.nth(i).evaluate(box => (box.closest('.one-pruduct-item')?.querySelector('.prodlist-pro-name')?.innerText || '').trim());
+        if (fixtureNames.includes(name) && !fixtureBoxes.some(item => item.name === name)) fixtureBoxes.push({ index: i, name });
+      }
+      flowEvidence.compareBoxCount = fixtureBoxes.length;
+      if (fixtureBoxes.length < 2) {
+        flowErrors.push(`预览里只有 ${fixtureBoxes.length} 个可见的 AUTOTEST 对比产品，不到 2 个`);
         return { flowErrors, flowEvidence };
       }
-      for (let i = 0; i < 2; i++) await boxes.nth(i).check({ timeout: TIMEOUT });
+      for (const item of fixtureBoxes.slice(0, 2)) await boxes.nth(item.index).check({ timeout: TIMEOUT });
       await frame.waitForTimeout(1500);
       flowEvidence.checkedCount = await root.locator('input.compared-input:visible:checked').count();
       const names = await root.evaluate((wrap) => {
@@ -207,7 +213,7 @@ async function compareFrontCheck({ session, page, context, config }) {
     evidence);
 }
 
-// List data-source category front effect (47748 only; 40838 has no data
+// List data-source category front effect (另一样本区块 only; 样本区块 has no data
 // source group and skips — the check needs capability.oracle from the
 // profile). This is the LIST's own category selection, separate from the
 // category NAV setting (product-category-select): data source
@@ -218,9 +224,10 @@ async function compareFrontCheck({ session, page, context, config }) {
 // oracle products (CMS 测试分类共 11 条，下架 4 个不展示）, while the
 // category nav still shows all 44 categories (the nav setting is
 // untouched).
-async function dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability }) {
+async function dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability, profile, report }) {
   const id = 'pld-data-source-category-front';
-  const oracle = capability?.oracle;
+  const oracle = profile?.fixture?.category ? { category: profile.fixture.category.name, onShelf: profile.fixture.products.map(p => p.name) } : null;
+  if (report?.fixture?.applied === false) return result(id, 'skip', '夹具准备失败，不能断言分类产品。');
   if (!oracle?.category || !Array.isArray(oracle.onShelf)) {
     return result(id, 'skip', '未提供后台分类和上架产品清单，无法比对。');
   }
@@ -341,7 +348,7 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
         }
         flowEvidence.list = { count: names.length, names };
         const missing = expected.filter((n) => !names.includes(n));
-        const extra = names.filter((n) => !expected.includes(n));
+        const extra = names.filter((n) => n.startsWith('AUTOTEST-') && !expected.includes(n));
         if (missing.length) flowErrors.push(`列表缺 ${missing.length} 个后台产品：“${missing.join('”、“')}”`);
         if (extra.length) flowErrors.push(`列表多 ${extra.length} 个非该分类产品：“${extra.join('”、“')}”`);
         // Independence evidence (record only): the category nav is a
@@ -368,10 +375,10 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
     evidence, { expected: `数据来源只选“${target}”后，产品列表应与后台的 ${expected.length} 个上架产品完全一致${offShelfCount == null ? '' : `，并排除 ${offShelfCount} 个下架产品`}。` });
 }
 
-export async function runSettingsLayer({ page, canvas, context, config, capability, profile }) {
-  if (config.frontOnly) return listEffects({ page, canvas, context, config, capability }, 'front');
-  // The dialog title and the wrap index come from the profile: 40838 uses
-  // title 设置产品列表 at gallery wrap 0, while 47748 uses 设置与选取数据
+export async function runSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
+  if (config.frontOnly) return listEffects({ page, canvas, context, config, capability, profile, report }, 'front');
+  // The dialog title and the wrap index come from the profile: 样本区块 uses
+  // title 设置产品列表 at gallery wrap 0, while 另一样本区块 uses 设置与选取数据
   // at gallery wrap 1 (wrap 0 is the category dialog). Title alone is not
   // enough when two gallery sub-regions share one editor type.
   const session = widgetSession({ page, canvas, config,
@@ -386,15 +393,15 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     checks.push(Array.isArray(profile?.requirements?.displayFieldTypes) && profile.requirements.displayFieldTypes.length
       ? result('pld-fields', 'record', `展示字段 ${fields.length} 个（排除全选，含系统属性与自定义字段）；需求类型：${profile.requirements.displayFieldTypes.join('、')}。`, fields)
       : result('pld-fields', 'skip', '需求未提供，需人工补充', fields));
-    // Data source is a 4-option radio in 47748 (所有产品 / 使用筛选条件 /
-    // 选择指定产品 / 选择部分产品分类); 40838 has no such group, so a
+    // Data source is a 4-option radio in 另一样本区块 (所有产品 / 使用筛选条件 /
+    // 选择指定产品 / 选择部分产品分类); 样本区块 has no such group, so a
     // missing group correctly degrades to na via radioGroupPersist.
     checks.push(outcomeResult('pld-data-source-persist', await radioGroupPersist({ session, page,
       name: '列表数据来源', labels: ['所有产品', '使用筛选条件', '选择指定产品', '选择部分产品分类'] })));
     checks.push(config.deferFront ? result('pld-data-source-category-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
-      : await dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability }));
+      : await dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability, profile, report }));
     // Inventory probe: page size is type=text, not necessarily type=number.
-    // 47748 labels the same input 显示产品总数量, so accept either label;
+    // 另一样本区块 labels the same input 显示产品总数量, so accept either label;
     // the matched label is kept in evidence until its meaning is confirmed.
     const numbers = initial.controls.filter((item) => !item.disabled && !item.readOnly && ['text', 'number'].includes(item.type)
       && /^\d+$/.test(item.value) && Number(item.value) >= 1 && Number(item.value) <= 100);
@@ -418,7 +425,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       checks.push(outcomeResult(id, await radioPersist({ session, page, name, prefixes })));
     }
     checks.push(config.deferFront ? result('pld-compare-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
-      : await compareFrontCheck({ session, page, context, config }));
+      : await compareFrontCheck({ session, page, context, config, profile, report }));
     const probe = await probeControls(session);
     const field = probe.controls && fieldsOf(probe.controls).find((item) => !item.disabled);
     checks.push(field ? outcomeResult('pld-display-field-persist', await persistControl({ session, page,
@@ -431,7 +438,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       if (last) { last.status = 'fail'; last.detail += `；最终取消失败：${error.message}`; }
     }
   }
-  checks.push(...await listEffects({ page, canvas, context, config, capability }, 'front'));
+  checks.push(...await listEffects({ page, canvas, context, config, capability, profile, report }, 'front'));
   return checks;
 }
 
@@ -619,11 +626,12 @@ async function sourceEffect(args, layer, kind) {
     const labels = { all: '所有产品', filter: '使用筛选条件', products: '选择指定产品', category: '选择部分产品分类' };
     const source = uniqueControl(items, (item) => item.type === 'radio' && item.name === 'selectProdType'
       && item.label === labels[kind], `本区块没有“${labels[kind]}”数据来源设置项。`);
-    const oracle = args.capability?.oracle;
+    const oracle = args.profile?.fixture?.category ? { category: args.profile.fixture.category.name, onShelf: args.profile.fixture.products.map(p => p.name) } : null;
+    if (args.report?.fixture?.applied === false) unavailable('夹具准备失败。');
     // Selecting a source alone cannot set up a new condition or product list.
     // These require their own configured fixtures; never reuse the category
     // oracle as the all-products/explicit-products universe.
-    const fixture = { all: oracle?.allProducts, filter: oracle?.filteredProducts,
+    const fixture = { all: oracle?.onShelf, filter: oracle?.filteredProducts,
       products: oracle?.specifiedProducts, category: oracle?.onShelf }[kind];
     if (!Array.isArray(fixture)) unavailable(`画像没有“${labels[kind]}”的完整产品名单夹具，暂不编造结果。`);
     if (['filter', 'products'].includes(kind) && oracle?.configuredSource !== kind) unavailable(`画像尚未确认“${labels[kind]}”已有条件或产品清单，条件编辑和选产品操作留待后续探查。`);
@@ -643,12 +651,12 @@ async function sourceEffect(args, layer, kind) {
     const current = await tx.controls();
     const pagination = current.filter((item) => item.type === 'radio' && item.name === 'pagination' && item.label === '否');
     const size = listSize(current);
-    await tx.set(size, String(Math.max(1, fixture.length)));
+    await tx.set(size, String(kind === 'all' ? 100 : Math.max(1, fixture.length)));
     if (pagination.length === 1) await tx.set(pagination[0], true);
     await tx.save();
     const actual = await inspectProducts(tx, args, layer);
     tx.evidence.products = { wanted: fixture, actual: actual.names };
-    tx.assert(sameSet(actual.names, fixture), `来源为“${labels[kind]}”，应显示 ${sentenceList(fixture)}，实际显示 ${sentenceList(actual.names)}，已逐项核对完整产品名单。`);
+    tx.assert(kind === 'all' ? actual.names.some(name => fixture.includes(name)) : sameSet(actual.names.filter(name => name.startsWith('AUTOTEST-')), fixture), `来源为“${labels[kind]}”，应显示 ${sentenceList(fixture)}，实际显示 ${sentenceList(actual.names)}，已逐项核对完整产品名单。`);
   } });
 }
 

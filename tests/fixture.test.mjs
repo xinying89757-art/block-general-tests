@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildFixtureTruthTable, customGroupTitles, runSettingsLayer } from '../src/capabilities/custom-filter-fields.mjs';
+import { buildFixtureTruthTable, customGroupTitles, fixtureScenarioPolicy, runSettingsLayer } from '../src/capabilities/custom-filter-fields.mjs';
 import { prepareFixture, validateFixture } from '../src/fixture.mjs';
 import { FIELD_TYPE_CODES } from '../src/cms.mjs';
 import { isFieldCheckbox } from '../src/capabilities/shared.mjs';
@@ -11,10 +11,10 @@ const profile = JSON.parse(readFileSync(new URL('../profiles/40838.json', import
 const fresh = () => structuredClone(profile.fixture);
 
 test('40838 built-in Category is excluded without dropping the same-named custom field', () => {
-  assert.deepEqual(customGroupTitles(['Series', 'Category'], '40838'), []);
-  assert.deepEqual(customGroupTitles(['Series', 'Category', 'Category', 'Rated Current'], '40838'),
+  assert.deepEqual(customGroupTitles(['Series', 'Category'], profile.capabilities.find(c => c.id === 'custom-filter-fields').builtinGroups), []);
+  assert.deepEqual(customGroupTitles(['Series', 'Category', 'Category', 'Rated Current'], profile.capabilities.find(c => c.id === 'custom-filter-fields').builtinGroups),
     ['Category', 'Rated Current']);
-  assert.deepEqual(customGroupTitles(['Category', 'Category'], 'other'), ['Category', 'Category']);
+  assert.deepEqual(customGroupTitles(['Category', 'Category']), ['Category', 'Category']);
 });
 
 test('40838 two-field truth table has three AUTOTEST products and distinct single/intersection/union sets', () => {
@@ -62,7 +62,9 @@ test('duplicate flips and products that flip multiple fields are rejected', () =
 
 test('fixture validation rejects malformed inputs before opening any CMS page', async () => {
   const variants = [
-    (f) => { f.supportedTypes = []; },
+    (f) => { f.filterFieldTypes = []; },
+    (f) => { f.fields[0].name = 'existing-field'; },
+    (f) => { f.products[0].name = 'existing-product'; },
     (f) => { f.fields[0].options = ['only-one']; },
     (f) => { f.products.pop(); },
     (f) => { delete f.products[0].values['AUTOTEST-下拉列表']; },
@@ -127,4 +129,21 @@ test('unavailable settings produce explicit legacy and six oracle skips with tex
   const withoutFixture = await runSettingsLayer({ page, canvas, config: { blockId: profile.blockId } });
   assert.equal(withoutFixture.length, 7);
   assert.ok(withoutFixture.every((check) => !check.id.startsWith('cff-oracle-')));
+});
+
+ test('fixed-front fixture scenarios never request unsupported logic changes', () => {
+  const p = JSON.parse(readFileSync(new URL('../profiles/47748.json', import.meta.url)));
+  assert.match(fixtureScenarioPolicy(p, true).na, /固定为交集/);
+  assert.deepEqual(fixtureScenarioPolicy(p, false), { logic: '交集', trigger: '更改筛选项后自动筛选', scope: '当前分类产品' });
+  delete p.fixture.category;
+  assert.match(fixtureScenarioPolicy(p, false).skip, /AUTOTEST/);
+});
+
+test('single-field union is computed from values and excludes the flipped product', () => {
+  const field = { name: 'AUTOTEST-field', options: ['yes', 'no'] };
+  const table = buildFixtureTruthTable({ fields: [field], products: [
+    { name: 'AUTOTEST-1', values: { 'AUTOTEST-field': 'yes' } },
+    { name: 'AUTOTEST-2', values: { 'AUTOTEST-field': 'no' } },
+  ] });
+  assert.deepEqual(table.union, ['AUTOTEST-1']);
 });

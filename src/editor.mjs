@@ -348,7 +348,7 @@ export async function addBlockIfNeeded(page, frame, config) {
       await search.fill(String(config.blockId));
       await search.press('Enter');
     } else {
-      // The panel may not have this tab at all (47748: only the review tab
+      // The panel may not have this tab at all (另一样本区块: only the review tab
       // exists, no develop tab). Skip a missing tab instead of timing out.
       const value = moduleType === 'develop' ? '-1' : '-2';
       const tab = panel.locator(`.user-handle-module[value="${value}"]`).first();

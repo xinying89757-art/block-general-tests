@@ -9,7 +9,7 @@ const envPath = path.join(projectRoot, '.env');
 
 // dotenv does not replace variables already supplied by the process, so CI or
 // shell values retain precedence over the local .env file.
-if (fs.existsSync(envPath)) {
+if (process.env.FIXTURE_OFFLINE !== '1' && fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 }
 
@@ -52,7 +52,7 @@ export function loadBrowserConfig(env = process.env) {
 export function loadConfig() {
   const blockId = firstDefined(process.env.BLOCK_ID)?.trim();
   if (!blockId) {
-    throw new Error('BLOCK_ID is required. Set BLOCK_ID in .env or process.env (for example: BLOCK_ID=40838).');
+    throw new Error('BLOCK_ID is required. Set BLOCK_ID in .env or process.env (for example: BLOCK_ID=<id>).');
   }
 
   const moduleType = firstDefined(process.env.MODULE_TYPE, 'review').trim().toLowerCase();
@@ -69,7 +69,7 @@ export function loadConfig() {
     // Page kind: 'system' (default) or 'custom'. The runner resolves the
     // final value from the block profile when the env var is absent; see run.mjs.
     targetPageKind: (firstDefined(process.env.TARGET_PAGE_KIND) || '').trim().toLowerCase(),
-    siteDomain: firstDefined(process.env.SITE_DOMAIN, 'https://www.leadong.com').trim().replace(/\/$/, ''),
+    siteDomain: (process.env.SITE_DOMAIN || '').trim().replace(/\/$/, ''),
     siteName: (process.env.SITE_NAME || '').trim(),
     account: firstDefined(
       process.env.ACCOUNT,

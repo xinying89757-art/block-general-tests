@@ -28,7 +28,11 @@
         "字段内搜索选项后勾选",
         "删除单个已选标签、每组 Reset、Clear Filters 清空、Search 执行筛选"
       ],
-      "variant": "multi-select"
+      "variant": "multi-select",
+      "builtinGroups": [
+        "Series",
+        "Category"
+      ]
     },
     {
       "id": "product-list-display",
@@ -177,7 +181,11 @@
             "AUTOTEST-产品A": "单选4-10",
             "AUTOTEST-产品小何1": "单选4-10",
             "AUTOTEST-产品小何2": "单选6-10"
-          }
+          },
+          "options": [
+            "单选4-10",
+            "单选6-10"
+          ]
         },
         {
           "name": "AUTOTEST-下拉列表",
@@ -186,7 +194,11 @@
             "AUTOTEST-产品A": "下拉列表4-10",
             "AUTOTEST-产品小何1": "下拉列表8-10",
             "AUTOTEST-产品小何2": "下拉列表4-10"
-          }
+          },
+          "options": [
+            "下拉列表4-10",
+            "下拉列表8-10"
+          ]
         },
         {
           "name": "AUTOTEST-多选",
@@ -195,10 +207,21 @@
             "AUTOTEST-产品A": "多选4-10",
             "AUTOTEST-产品小何1": "多选4-10",
             "AUTOTEST-产品小何2": "多选4-10"
-          }
+          },
+          "options": [
+            "多选4-10",
+            "多选6-10"
+          ]
         }
       ]
-    }
+    },
+    "category": {
+      "name": "AUTOTEST-筛选分类"
+    },
+    "filterFieldTypes": [
+      "单选按钮",
+      "下拉列表"
+    ]
   },
   "baseline": [
     {

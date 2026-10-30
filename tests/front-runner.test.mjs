@@ -33,9 +33,11 @@ test('FRONT_ONLY still guards/applies baseline and prepares a selected CFF fixtu
   });
 });
 
-test('fixture preparation stays omitted when a capability filter excludes CFF', () => {
+test('fixture preparation covers category and product list filters, but skips unrelated capabilities', () => {
   const profile = { baseline: [], fixture: {}, capabilities: [{ id: 'custom-filter-fields' }] };
-  assert.equal(frontRunPhases({ frontOnly: true, capabilityFilter: ['product-list-display'] }, profile).prepareFixture, false);
+  assert.equal(frontRunPhases({ frontOnly: true, capabilityFilter: ['product-list-display'] }, profile).prepareFixture, true);
+  assert.equal(frontRunPhases({ frontOnly: true, capabilityFilter: ['product-category-select'] }, profile).prepareFixture, true);
+  assert.equal(frontRunPhases({ frontOnly: true, capabilityFilter: ['button-link'] }, profile).prepareFixture, false);
 });
 
 test('FRONT_ONLY dispatches only a capability’s transactional front effects from settings layer', async () => {

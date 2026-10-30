@@ -90,7 +90,7 @@ export async function readSchemeColor(canvas) {
 }
 
 // Set the scheme color through the Spectrum jQuery API (same approach as
-// the 40838 background-color closed loop), falling back to the Spectrum
+// the 样本区块 background-color closed loop), falling back to the Spectrum
 // popup UI inside the canvas frame. Two lessons from 2026-10-26:
 // (1) the API must run on the visible panel's exact input element, not
 // on the first `.siteblocks-setting-operateColor input` in document

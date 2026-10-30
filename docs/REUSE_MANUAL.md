@@ -475,3 +475,9 @@ BLOCK_ID=40838 CAPABILITY_FILTER=custom-filter-fields npm run test:block
 ### 固定值需求（fixed-front）
 
 `requirements.capabilities` 条目可写 `{ "id": "cff-logic", "mode": "fixed-front", "fixedValue": "交集" }`，表示编辑器里没有该设置（隐藏），取需求给定的固定值，在前台按此值验证。探查结果状态为 `fixed`，报告固定值，不算缺失；若编辑器里反而找到该设置，提示人工确认。前台检查通过 `fixedRequirementValues(profile)` 读取固定值。显示字段类型核对使用 `pld-display-fields` 需求的 `params.dialogTitle`/`wrapIndex` 定位弹窗（默认“设置产品列表”）。
+
+### AUTOTEST 夹具与离线验证
+
+字段类型按展示字段需求与筛选字段类型取并集，展示需求缺省才回退旧 `supportedTypes` 并警告。夹具实体按名称核验，身份记录放在 `fixtures-state/`，按站点 host 与区块隔离。精确集合只比较 AUTOTEST 产品；数量检查只要求数量足够，所有分类要求夹具产品存在。固定当前分类时先选择夹具分类并验证筛选；固定交集时并集记为 na，可切换并集的区块仍断言正确的并集。
+
+CMS 分类入口、分类 ID、产品分类控件、字段 ID 及字段类型修改路径尚待测试站验证，定位不唯一时准备终止。离线 CI 设置 `FIXTURE_OFFLINE=1`，避免加载本地 `.env`。

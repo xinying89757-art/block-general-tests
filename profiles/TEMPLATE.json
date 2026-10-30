@@ -115,10 +115,6 @@
   },
   "fixture": {
     "note": "前置判定结论：<用户确认日期或需求/设计稿依据>。可选段，不支持筛选时删除本段；每种支持类型一个字段，N 个字段配 N+1 件产品。多选主表每件只挂一个值；字段与产品常驻不删，收尾只恢复区块设置。示例占位符须替换，新建名称保留 AUTOTEST- 前缀。",
-    "supportedTypes": [
-      "单选按钮",
-      "多选按钮"
-    ],
     "fields": [
       {
         "name": "AUTOTEST-<单选字段名>",
@@ -161,13 +157,49 @@
           "AUTOTEST-<多选字段名>": "<多选第二值>"
         }
       }
-    ]
+    ],
+    "filterFieldTypes": [
+      "单选按钮",
+      "多选按钮"
+    ],
+    "category": {
+      "name": "AUTOTEST-<分类名>"
+    },
+    "displayFields": {
+      "fields": [
+        {
+          "name": "AUTOTEST-<单选字段名>",
+          "type": "单选按钮",
+          "options": [
+            "<单选第一值>",
+            "<单选第二值>"
+          ],
+          "values": {
+            "AUTOTEST-<基准产品名>": "<单选第一值>",
+            "AUTOTEST-<翻单选产品名>": "<单选第二值>",
+            "AUTOTEST-<翻多选产品名>": "<单选第一值>"
+          }
+        },
+        {
+          "name": "AUTOTEST-<多选字段名>",
+          "type": "多选按钮",
+          "options": [
+            "<多选第一值>",
+            "<多选第二值>"
+          ],
+          "values": {
+            "AUTOTEST-<基准产品名>": "<多选第一值>",
+            "AUTOTEST-<翻单选产品名>": "<多选第一值>",
+            "AUTOTEST-<翻多选产品名>": "<多选第二值>"
+          }
+        }
+      ]
+    }
   },
   "requirements": {
     "displayFieldTypes": [
       "单选按钮",
-      "多选按钮",
-      "下拉列表"
+      "多选按钮"
     ],
     "_note": "设置项 id 来自 signatures；params 可选，用于限制弹窗标题和区域序号。弹窗里隐藏、取固定值的需求写 mode=fixed-front 和 fixedValue：探查只报告固定值，不算缺失，由前台验证。展示字段类型缺需求时需人工补充。",
     "capabilities": [

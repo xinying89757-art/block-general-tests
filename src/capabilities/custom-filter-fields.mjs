@@ -5,7 +5,7 @@ import { savePage, openPreview } from '../editor.mjs';
 import { fixedRequirementValues } from './signatures.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText, readBackWithRetry, isFieldCheckbox } from './shared.mjs';
 
-// Editor/dialog selectors: docs/SETTINGS_INVENTORY_40838.md,
+// Editor/dialog selectors: docs/SETTINGS_INVENTORY_样本区块.md,
 // scripts/probes/probe-settings8.mjs and probe-settings10/12.mjs (control label context).
 // Preview selectors: scripts/probes/probe-searchnav.mjs, docs/FILTER_TEST_DATA.md,
 // and the verified facet/tag/Clear Filters observations supplied for this v1.
@@ -19,9 +19,9 @@ const SELECTORS = {
   radio: 'input[type="radio"]',
   controlContext: 'li, label, .el-form-item, div',
   // Preview root is shared.previewSelector (data-appid wrap); the LA class
-  // does not exist for every block (47748 has none in preview).
-  // Filter DOM has two variants: 40838's .prodfield-single /
-  // .prodfield-left-fieldname, and 47748's .pf-field-group / .pf-field-title
+  // does not exist for every block (另一样本区块 has none in preview).
+  // Filter DOM has two variants: 样本区块's .prodfield-single /
+  // .prodfield-left-fieldname, and 另一样本区块's .pf-field-group / .pf-field-title
   // (values are label.pf-opt in both).
   group: '.prodfield-single, .pf-field-group',
   groupTitle: '.prodfield-left-fieldname, .pf-field-title',
@@ -206,7 +206,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   }
   // Fields are the checkboxes whose value is the bare numeric field id.
   // Value sub-options (value like 826554_1, shown under single/dropdown
-  // fields in 47748) are not fields; counting them inflated 47748 to 60.
+  // fields in 另一样本区块) are not fields; counting them inflated 另一样本区块 to 60.
   const fields = initial.controls.filter(isFieldCheckbox);
   const radios = initial.controls.filter((item) => item.type === 'radio');
   const state = Object.fromEntries(TEXT.radioGroups.map(({ name, prefixes }) => {
@@ -219,10 +219,10 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     return candidates.length > 0 && candidates.filter((radio) => radio.checked).length !== 1;
   }).map(({ name }) => name);
   checks.push(result('cff-settings-fields', 'record', `可选字段 ${fields.length} 个（不含全选与字段值子选项）。`, fields));
-  // A radio group that does not exist in this block is not a failure: 47748
+  // A radio group that does not exist in this block is not a failure: 另一样本区块
   // has no logic/trigger/scope groups at all. Only a present-but-broken
   // group fails; an absent group is recorded. When the profile declares a
-  // design-fixed value for an absent group (47748: the three groups are
+  // design-fixed value for an absent group (另一样本区块: the three groups are
   // hidden in the editor but fixed by the Figma design), report that value.
   const required = fixedRequirementValues(profile);
   const fixed = { ...(capability?.fixedSettings || {}), ...Object.fromEntries(Object.entries({ 'cff-logic': '筛选逻辑', 'cff-trigger': '筛选触发', 'cff-scope': '产品范围' })
@@ -233,7 +233,8 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     { ...state, absentGroups: absent, allRadioGroups: Object.entries(Object.groupBy(radios, (item) => item.name || `unnamed:${item.index}`))
       .map(([name, options]) => ({ name, checkedLabels: options.filter((item) => item.checked).map((item) => item.label), options })) }));
 
-  const field = fields.find((item) => !item.disabled && !item.checked) || fields.find((item) => !item.disabled);
+  const fixtureNames = new Set((profile?.fixture?.fields || []).map(field => field.name));
+  const field = fields.find((item) => fixtureNames.has(item.label) && !item.disabled && !item.checked) || fields.find((item) => fixtureNames.has(item.label) && !item.disabled);
   try {
     if (!field) {
       const noFields = fields.length === 0;
@@ -269,7 +270,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
               evidence.field = field.label;
               evidence.expectedPresent = !field.checked;
               evidence.previewTitles = observed.value;
-              // Some blocks render no facet groups at all in preview (47748:
+              // Some blocks render no facet groups at all in preview (另一样本区块:
               // the filter container stays empty even with a field enabled).
               // That is not a settings-layer failure; record it and let the
               // front layer decide observability instead of failing here.
@@ -367,7 +368,7 @@ function frontSnapshot(root, selectors) {
         .filter((value) => value && !selectors.nonValues.includes(value.toLowerCase())))],
     };
   });
-  return { groups, selected: [...root.querySelectorAll(selectors.selected)].map((node) => normalize(node.innerText)) };
+  return { groups: groups.filter(group => group.title.startsWith('AUTOTEST-')), selected: [...root.querySelectorAll(selectors.selected)].map((node) => normalize(node.innerText)) };
 }
 
 function sameGroups(left, right) {
@@ -387,7 +388,7 @@ export async function runFrontLayer({ frame, config }) {
     await root.waitFor({ state: 'attached', timeout: TIMEOUT });
     const ready = await poll(read, (data) => data.groups.length > 0);
     baseline = ready.value || { groups: [], selected: [] };
-    // No facet groups in this block's preview (47748 rendered an empty
+    // No facet groups in this block's preview (另一样本区块 rendered an empty
     // filter container before it was configured). That is observability,
     // not a failure: record it and skip the facet interactions that need a
     // group to click.
@@ -396,7 +397,7 @@ export async function runFrontLayer({ frame, config }) {
         ...['cff-facet-narrow', 'cff-clear-restore'].map((id) => result(id, 'skip', '无可用筛选组基线。'))];
     }
     checks.push(result('cff-groups-baseline', 'record', `采集 ${baseline.groups.length} 个筛选组，值清单已去掉 All、Reset 等控件文本。`, baseline.groups));
-    // 47748's rendered groups are pointer-events:none in editor preview
+    // 另一样本区块's rendered groups are pointer-events:none in editor preview
     // (verified 2026-10-26: neither label.click() nor a forced input click
     // checks the radio). Attempting the facet interaction would fail for a
     // rendering reason, not a setting reason: skip it and only verify the
@@ -419,13 +420,15 @@ export async function runFrontLayer({ frame, config }) {
   let skipReason = '第一个筛选组没有可选的非 All 值。';
   if (value) {
     try {
-      clicked = await root.locator(SELECTORS.group).first().evaluate((group, { selector, checkbox, value }) => {
-        const label = [...group.querySelectorAll(selector)].find((node) => (node.innerText || '').replace(/\s+/g, ' ').trim() === value);
+      clicked = await root.evaluate((node, { groupSelector, titleSelector, title, selector, checkbox, value }) => {
+        const groups = [...node.querySelectorAll(groupSelector)].filter(group => (group.querySelector(titleSelector)?.innerText || '').replace(/\s+/g, ' ').trim() === title);
+        if (groups.length !== 1) return false;
+        const label = [...groups[0].querySelectorAll(selector)].find((node) => (node.innerText || '').replace(/\s+/g, ' ').trim() === value);
         if (!label || label.querySelector(checkbox)?.disabled || label.control?.disabled) return false;
         label.scrollIntoView({ block: 'center' });
         label.click();
         return true;
-      }, { selector: SELECTORS.value, checkbox: SELECTORS.checkbox, value });
+      }, { groupSelector: SELECTORS.group, titleSelector: SELECTORS.groupTitle, title: baseline.groups[0].title, selector: SELECTORS.value, checkbox: SELECTORS.checkbox, value });
       skipReason = `无法点击筛选值 ${value}。`;
     } catch (error) { skipReason = `无法点击筛选值 ${value}：${error.message}`; }
   }
@@ -480,17 +483,8 @@ Object.assign(NAMES, {
 });
 const filterFields = (controls) => controls.filter(isFieldCheckbox);
 
-// Fallback for 40838 profiles without fixture. These
-// values are the USER-CONFIRMED fixture in docs/FILTER_TEST_DATA.md, not
-// expectations inferred from UI results. In particular do not weaken union.
-const CONFIRMED_40838 = {
-  fields: [{ title: 'AUTOTEST-单选按钮A', value: '单选4-10' }, { title: 'AUTOTEST-下拉列表', value: '下拉列表4-10' }],
-  single: ['AUTOTEST-产品A', 'AUTOTEST-产品小何1'], intersection: ['AUTOTEST-产品A'],
-  union: ['AUTOTEST-产品A', 'AUTOTEST-产品小何1', 'AUTOTEST-产品小何2'],
-};
 function filterOracle(args) {
-  return args.capability?.oracle?.fields ? args.capability.oracle
-    : String(args.config.blockId) === '40838' ? CONFIRMED_40838 : null;
+  return args.capability?.oracle?.fields ? args.capability.oracle : null;
 }
 function groupSnapshot(root) {
   const titles = [...root.querySelectorAll('.prodfield-left-fieldname, .pf-field-title')]
@@ -499,11 +493,12 @@ function groupSnapshot(root) {
     .map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
   return titles;
 }
-// 40838 renders built-in Series and Category groups before its custom groups.
+// 样本区块 renders built-in Series and Category groups before its custom groups.
 // If Category is selected as a custom field, a title-only filter must discard
 // exactly the first built-in occurrence and retain the custom occurrence(s).
-export function customGroupTitles(titles, blockId) {
-  const builtinCounts = String(blockId) === '40838' ? new Map([['Series', 1], ['Category', 1]]) : new Map();
+export function customGroupTitles(titles, builtinGroups = []) {
+  const builtinCounts = new Map();
+  for (const title of builtinGroups) builtinCounts.set(title, (builtinCounts.get(title) || 0) + 1);
   const seen = new Map();
   return titles.filter((title) => {
     const occurrence = seen.get(title) || 0;
@@ -518,12 +513,13 @@ async function filterFieldsEffect(args, layer) {
   return effectCheck({ ...args, session, result, id: `cff-fields-${layer}`, layer, run: async (tx) => {
     const fields = filterFields(await tx.controls());
     if (!fields.length) unavailable('本区块没有自定义字段勾选设置项。', 'na');
-    const editable = fields.filter((item) => !item.disabled);
-    if (!editable.length) unavailable('当前没有可以改写的字段。');
+    const names = new Set((args.profile?.fixture?.fields || []).map(field => field.name));
+    const editable = fields.filter((item) => names.has(item.label) && !item.disabled);
+    if (!editable.length) unavailable('当前没有可以改写的 AUTOTEST 字段。');
     const selected = editable.slice(0, Math.min(3, editable.length));
     // Toggle the collection if the first three happen to be the baseline.
     if (sameSet(fields.filter((item) => item.checked).map((item) => item.value), selected.map((item) => item.value))) selected.pop();
-    const wanted = fields.filter((item) => item.disabled ? item.checked : selected.includes(item)).map((item) => item.label);
+    const wanted = fields.filter((item) => names.has(item.label) && (item.disabled ? item.checked : selected.includes(item))).map((item) => item.label);
     tx.expected(`自定义筛选组应恰好为 ${wanted.length} 个：${sentenceList(wanted)}；不能多出或少掉字段。`);
     for (const item of editable) await tx.set(item, wanted.includes(item.label));
     await tx.save();
@@ -531,8 +527,8 @@ async function filterFieldsEffect(args, layer) {
       : await tx.observe((frame) => readEffectRoot(frame, args.config, groupSnapshot));
     if (!titles.length) unavailable('该层没有渲染筛选组标题，完整字段集合暂时不可观察。');
     // Unknown group titles remain in actual and therefore fail.
-    const builtin = String(args.config.blockId) === '40838' ? ['Series', 'Category'] : [];
-    const actual = customGroupTitles(titles, args.config.blockId);
+    const builtin = args.capability?.builtinGroups || [];
+    const actual = customGroupTitles(titles, builtin).filter(title => title.startsWith('AUTOTEST-'));
     tx.evidence.groups = { titles, excludedBuiltins: builtin, wanted, actual };
     tx.assert(sameSet(actual, wanted), `自定义筛选组实际为 ${sentenceList(actual)}，应恰好为 ${sentenceList(wanted)}；内置分类组另行记录，不计作自定义字段。`);
   } });
@@ -664,10 +660,10 @@ async function filterProducts(frame, config) {
 }
 async function assertFilterSet(tx, frame, config, expected, label) {
   const root = frame.locator(blockSelector(config.blockId)).first();
-  const observed = await poll(() => root.evaluate(productSnapshot), (data) => data.hasList && sameSet(data.names, expected));
+  const observed = await poll(() => root.evaluate(productSnapshot), (data) => data.hasList && sameSet(data.names.filter(name => name.startsWith('AUTOTEST-')), expected));
   const actual = observed.value;
   if (!actual?.hasList) unavailable('被测区块内没有可读取的产品列表，不能以空集冒充筛选结果。');
-  (tx.evidence.productSets ||= []).push({ label, expected, actual: actual.names });
+  (tx.evidence.productSets ||= []).push({ label, expected, actual: actual.names.filter(name => name.startsWith('AUTOTEST-')) });
   tx.assert(observed.matched, `${label}应显示 ${sentenceList(expected)}；实际显示 ${sentenceList(actual.names)}，已逐项核对完整产品集合。`);
 }
 
@@ -730,7 +726,7 @@ async function filterInteractionEffect(args, kind) {
       // automatic filtering. The union fixture remains all THREE products.
       const trigger = radioPair(await tx.controls(), TEXT.radioGroups[1]);
       await tx.set(trigger[0], true);
-      tx.expected(`交集应恰好显示 ${sentenceList(oracle.intersection)}；并集应恰好显示 ${sentenceList(oracle.union)}。40838 并集只返回先选字段集合是已知缺陷，仍按三件产品断言。`);
+      tx.expected(`交集应恰好显示 ${sentenceList(oracle.intersection)}；并集应恰好显示 ${sentenceList(oracle.union)}。并集应包含满足任一条件的全部夹具产品。`);
       for (const [index, expected] of [oracle.intersection, oracle.union].entries()) {
         await tx.set(options[index], true); await tx.save();
         await tx.observe(async (frame) => {
@@ -769,7 +765,8 @@ async function fieldFrontGroupEffect(args) {
   const probe = await probeControls(session);
   if (probe.reason) return result('cff-field-front-group', 'skip', probe.reason);
   const fields = probe.controls.filter(isFieldCheckbox);
-  const field = fields.find((item) => !item.disabled && !item.checked) || fields.find((item) => !item.disabled);
+  const fixtureNames = new Set((profile?.fixture?.fields || []).map(field => field.name));
+  const field = fields.find((item) => fixtureNames.has(item.label) && !item.disabled && !item.checked) || fields.find((item) => fixtureNames.has(item.label) && !item.disabled);
   if (!field) return result('cff-field-front-group', fields.length ? 'skip' : 'na', '没有可切换的自定义筛选字段。');
   if (!args.context) return result('cff-field-front-group', 'skip', '未提供浏览器 context，无法打开临时预览。');
   return fromOutcome('cff-field-front-group', await persistControl({ session, page: args.page,
@@ -809,7 +806,7 @@ Object.assign(NAMES, {
 });
 
 // Pure: compute from declared values, never from observed preview results.
-// The N one-field flips may appear in any order (40838 preserves existing
+// The N one-field flips may appear in any order (样本区块 preserves existing
 // product order); index arithmetic alone would swap the single/dropdown sets.
 export function buildFixtureTruthTable(fixture) {
   const fields = fixture?.fields, entries = fixture?.products;
@@ -839,11 +836,25 @@ export function buildFixtureTruthTable(fixture) {
     pairs.push({ i: i + 1, j: j + 1, products: products.filter((name) => single[i].products.includes(name) && single[j].products.includes(name)) });
   }
   return { fields: fields.map((field) => ({ title: field.name, value: field.options[0] })),
-    products, single, pairs, intersection: [products[0]], union: [...products] };
+    products, single, pairs, intersection: products.filter(name => single.every(set => set.products.includes(name))),
+    union: products.filter(name => single.some(set => set.products.includes(name))) };
 }
 function oldInteractionSkips() {
   return ['logic', 'trigger', 'scope', 'jump'].map((kind) => result(`cff-${kind}-front`, 'skip', '已被 N 字段 fixture oracle 取代。', undefined,
     { expected: '该检查已被 N 字段 fixture oracle（cff-oracle-*）取代，不再单独执行。' }));
+}
+// A fixed-front requirement is never manipulated as an editor setting.
+export function fixtureScenarioPolicy(profile, union) {
+  const fixed = fixedRequirementValues(profile);
+  const logic = fixed['cff-logic'];
+  const trigger = fixed['cff-trigger'];
+  const scope = fixed['cff-scope'];
+  if (logic && !['交集', '并集'].includes(logic)) return { skip: `未知固定筛选逻辑：${logic}` };
+  if (trigger && !['点击“搜索”按钮', '更改筛选项后自动筛选'].includes(trigger)) return { skip: `未知固定筛选触发：${trigger}` };
+  if (scope && !['当前分类产品', '所有产品'].includes(scope)) return { skip: `未知固定产品范围：${scope}` };
+  if (logic && (logic === '并集') !== union) return { na: `筛选逻辑固定为${logic}，不能切换到${union ? '并集' : '交集'}` };
+  if (scope === '当前分类产品' && !profile?.fixture?.category?.name?.startsWith('AUTOTEST-')) return { skip: '当前分类固定，缺少 AUTOTEST 夹具分类' };
+  return { logic, trigger, scope };
 }
 async function fixtureOracleChecks(args, unavailableReason) {
   let table;
@@ -858,10 +869,11 @@ async function fixtureOracleChecks(args, unavailableReason) {
   const checks = [];
   for (const scenario of scenarios) {
     const note = scenario.union && typeof args.profile.fixture.notes?.union === 'string' ? args.profile.fixture.notes.union : '';
-    const expected = `手动点击搜索后，${scenario.indexes.map((i) => table.fields[i - 1].title).join('、')}取第一值的${scenario.union ? '并集' : '交集'}应恰好显示 ${sentenceList(scenario.products)}。`;
-    const reason = unavailableReason || (args.report?.fixture?.applied === false ? '夹具准备未成功完成，未执行依赖夹具的精确集合检查。' : '');
+    const policy = fixtureScenarioPolicy(args.profile, scenario.union);
+    const expected = `${policy.trigger === '更改筛选项后自动筛选' ? '更改筛选项后自动筛选' : '手动点击搜索后'}，${scenario.indexes.map((i) => table.fields[i - 1].title).join('、')}取第一值的${scenario.union ? '并集' : '交集'}应恰好显示 ${sentenceList(scenario.products)}。`;
+    const reason = unavailableReason || (args.report?.fixture?.applied === false ? '夹具准备未成功完成，未执行依赖夹具的精确集合检查。' : '') || policy.skip || policy.na;
     if (reason) {
-      checks.push(result(scenario.id, 'skip', `${reason}${note ? `；${note}` : ''}`, undefined, { expected }));
+      checks.push(result(scenario.id, policy.na && !unavailableReason && args.report?.fixture?.applied !== false ? 'na' : 'skip', `${reason}${note ? `；${note}` : ''}`, undefined, { expected }));
       continue;
     }
     const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: args.capability?.dialogTitle || TEXT.dialogTitle,
@@ -869,11 +881,11 @@ async function fixtureOracleChecks(args, unavailableReason) {
     const outcome = await effectCheck({ ...args, session, result, id: scenario.id, layer: 'front', run: async (tx) => {
       tx.expected(expected);
       const items = await tx.controls();
-      const logic = radioPair(items, TEXT.radioGroups[0]);
-      const trigger = radioPair(items, TEXT.radioGroups[1]);
+      const logic = policy.logic ? null : radioPair(items, TEXT.radioGroups[0]);
+      const trigger = policy.trigger ? null : radioPair(items, TEXT.radioGroups[1]);
       await enableOracleFields(tx, table.fields.map((field) => field.title));
-      await tx.set(trigger[0], true);
-      await tx.set(logic[scenario.union ? 1 : 0], true);
+      if (trigger) await tx.set(trigger[0], true);
+      if (logic) await tx.set(logic[scenario.union ? 1 : 0], true);
       await tx.save();
       await tx.observe(async (frame) => {
         const root = frame.locator(blockSelector(args.config.blockId)).first();
@@ -886,8 +898,13 @@ async function fixtureOracleChecks(args, unavailableReason) {
           return true;
         }, { group: SELECTORS.group });
         if (!interactive) unavailable('预览筛选组 pointer-events:none 或无可交互筛选值，未强制点击；发布流程待定，本次不发布。');
+        if (policy.scope === '当前分类产品') {
+          const nav = root.locator('.pf-cate-wrap a').getByText(args.profile.fixture.category.name, { exact: true });
+          if (await nav.count() !== 1) unavailable('无法唯一定位 AUTOTEST 当前分类。');
+          await nav.click({ timeout: TIMEOUT });
+        }
         for (const i of scenario.indexes) await selectFilterValue(root, table.fields[i - 1]);
-        await clickSearch(root);
+        if (policy.trigger !== '更改筛选项后自动筛选') await clickSearch(root);
         await assertFilterSet(tx, frame, args.config, scenario.products, NAMES[scenario.id] || `字段 ${scenario.indexes.join('、')} 筛选`);
       });
     } });

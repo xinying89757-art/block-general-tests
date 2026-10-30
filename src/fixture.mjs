@@ -1,36 +1,36 @@
-import { FIELD_TYPE_CODES, openProdPage, listCustomFields, readCustomFieldOptions,
-  createCustomField, findProduct, createProduct, readProductFieldValues, setProductFieldValues } from './cms.mjs';
+import * as cms from './cms.mjs';
+import { fixturePlan, ensureFixtureData, readFixtureRecord, writeFixtureRecord } from './fixture-data.mjs';
+import { FIELD_TYPE_CODES, openProdPage } from './cms.mjs';
 import { reloadEditor, openEditor, ensureTargetPage, savePage } from './editor.mjs';
 import { widgetSession, probeControls, isFieldCheckbox, checkReportText } from './capabilities/shared.mjs';
 import { buildFixtureTruthTable } from './capabilities/custom-filter-fields.mjs';
 import { prepareContext } from './browser.mjs';
 
 const DEFAULT_TITLE = '设置自定义字段筛选';
-const sameValues = (actual, wanted) => Array.isArray(actual)
-  ? actual.length === 1 && actual[0] === wanted : actual === wanted;
 const names = (items) => items.map((item) => item.name).join('、') || '无';
 function check(id, name, expected, detail, evidence) {
   return { id, name, status: 'pass', suite: 'fixture-prep', detail, evidence,
     ...checkReportText(name, 'pass', detail, evidence, id), expected };
 }
-export function validateFixture(fixture) {
+export function validateFixture(fixture, requirements = null) {
+  const supportedTypes = fixture?.filterFieldTypes ?? (requirements ? fixture?.fields?.map(field => field.type) : fixture?.supportedTypes);
   const fail = (message) => { throw new Error(`fixture 画像无效：${message}`); };
-  if (!fixture || typeof fixture !== 'object' || !Array.isArray(fixture.supportedTypes) || !fixture.supportedTypes.length
-    || fixture.supportedTypes.some((type) => typeof type !== 'string' || FIELD_TYPE_CODES[type] === undefined)
-    || new Set(fixture.supportedTypes).size !== fixture.supportedTypes.length) fail('supportedTypes 必须是非空且不重复的已知类型列表。');
+  if (!fixture || typeof fixture !== 'object' || !Array.isArray(supportedTypes) || !supportedTypes.length
+    || supportedTypes.some((type) => typeof type !== 'string' || FIELD_TYPE_CODES[type] === undefined)
+    || new Set(supportedTypes).size !== supportedTypes.length) fail('supportedTypes 必须是非空且不重复的已知类型列表。');
   if (!Array.isArray(fixture.fields) || !fixture.fields.length) fail('fields 至少一个字段。');
   for (const field of fixture.fields) {
-    if (!field || typeof field.name !== 'string' || !field.name.trim() || !fixture.supportedTypes.includes(field.type)
+    if (!field || typeof field.name !== 'string' || !field.name.startsWith('AUTOTEST-') || !supportedTypes.includes(field.type)
       || !Array.isArray(field.options) || field.options.length < 2
       || field.options.some((value) => typeof value !== 'string' || !value.trim())
       || new Set(field.options).size !== field.options.length
       || (field.typeCode !== undefined && field.typeCode !== FIELD_TYPE_CODES[field.type])) fail('每个字段须有 name/type、至少两个不同字符串选项，类型码须与类型一致。');
   }
   if (new Set(fixture.fields.map((field) => field.name)).size !== fixture.fields.length
-    || fixture.supportedTypes.some((type) => fixture.fields.filter((field) => field.type === type).length !== 1)) fail('每种支持类型应恰好一个字段，字段名不得重复。');
+    || supportedTypes.some((type) => fixture.fields.filter((field) => field.type === type).length !== 1)) fail('每种支持类型应恰好一个字段，字段名不得重复。');
   if (!Array.isArray(fixture.products) || fixture.products.length !== fixture.fields.length + 1) fail('products 数量必须为字段数 + 1。');
   for (const product of fixture.products) {
-    if (!product || typeof product.name !== 'string' || !product.name.trim() || !product.values
+    if (!product || typeof product.name !== 'string' || !product.name.startsWith('AUTOTEST-') || !product.values
       || fixture.fields.some((field) => typeof product.values[field.name] !== 'string' || !field.options.includes(product.values[field.name]))) fail('每件产品须有名称以及所有字段的单值字符串。');
   }
   if (new Set(fixture.products.map((product) => product.name)).size !== fixture.products.length) fail('产品名不得重复。');
@@ -53,7 +53,8 @@ function verifyStates(controls, states) {
 }
 export async function prepareFixture({ page, canvas, context, config, profile }) {
   if (!profile?.fixture) return { skipped: true };
-  const fixture = validateFixture(profile.fixture);
+  const fixture = validateFixture(profile.fixture, profile.requirements);
+  fixturePlan(profile);
   const capability = profile.capabilities?.find((item) => item.id === 'custom-filter-fields');
   const title = capability?.dialogTitle || DEFAULT_TITLE, wrapIndex = capability?.wrapIndex || 0;
   const prepared = { fixture, created: { fields: [], products: [] }, reused: { fields: [], products: [] }, originalFieldStates: null, checks: [] };
@@ -81,52 +82,15 @@ export async function prepareFixture({ page, canvas, context, config, profile })
   try {
     try {
       cmsPage = await openProdPage(context);
-      const existing = await listCustomFields(cmsPage);
-      for (const field of fixture.fields) {
-        const matches = existing.filter((item) => item.name === field.name);
-        if (matches.length > 1) throw new Error(`同名字段“${field.name}”有 ${matches.length} 条，无法复用。`);
-        const found = matches[0];
-        if (found) {
-          if (found.type !== field.type) throw new Error(`字段“${field.name}”类型冲突：画像 ${field.type}，CMS ${found.type}。`);
-          if (found.status !== '开启') throw new Error(`字段“${field.name}”当前关闭；不悄悄改已有字段。`);
-          const options = await readCustomFieldOptions(cmsPage, field.name);
-          // The profile lists the values the fixture needs, not necessarily the
-          // field's full option list (e.g. AUTOTEST-单选按钮A has 10 CMS options,
-          // the truth table uses 2). Reuse requires the declared values to
-          // exist; extra CMS options are fine and are never removed.
-          const missing = field.options.filter((option) => !options.includes(option));
-          if (missing.length) throw new Error(`字段“${field.name}”缺少画像要求的选项：${missing.join('、')}（CMS 现有：${options.join('、')}）；不改已有字段。`);
-          prepared.reused.fields.push(found);
-        } else {
-          if (!field.name.startsWith('AUTOTEST-')) throw new Error(`缺失字段“${field.name}”未使用 AUTOTEST- 前缀，拒绝新建。`);
-          prepared.created.fields.push(await createCustomField(cmsPage, field));
-        }
-      }
-      prepared.checks.push(check('fixture-prep-fields', '夹具字段准备与选项核对',
-        `字段类型、开启状态应与画像一致，画像要求的选项都应在 CMS 字段里（CMS 可有更多选项）：${names(fixture.fields)}。`,
-        `已核对 ${fixture.fields.length} 个字段；新建 ${names(prepared.created.fields)}；复用 ${names(prepared.reused.fields)}。`,
-        { created: prepared.created.fields, reused: prepared.reused.fields }));
-      for (const product of fixture.products) {
-        let prodId = await findProduct(cmsPage, product.name);
-        const reused = Boolean(prodId);
-        if (!prodId) {
-          if (!product.name.startsWith('AUTOTEST-')) throw new Error(`未找到既有产品“${product.name}”，且未使用 AUTOTEST- 前缀，拒绝猜测新建；须核查产品搜索路径。`);
-          prodId = await createProduct(cmsPage, product);
-        }
-        const record = { name: product.name, prodId, updatedFields: [] };
-        prepared[reused ? 'reused' : 'created'].products.push(record);
-        const actual = await readProductFieldValues(cmsPage, prodId, fixture.fields.map((field) => field.name));
-        const changed = Object.fromEntries(Object.entries(product.values).filter(([name, wanted]) => !sameValues(actual[name], wanted)));
-        if (Object.keys(changed).length) {
-          const after = await setProductFieldValues(cmsPage, prodId, changed);
-          for (const [name, wanted] of Object.entries(changed)) if (!sameValues(after[name], wanted)) throw new Error(`产品“${product.name}”字段“${name}”设值后验证失败。`);
-          record.updatedFields = Object.keys(changed);
-        }
-      }
-      prepared.checks.push(check('fixture-prep-products', '夹具产品真值表准备',
-        `${fixture.products.length} 件产品的每个字段值应与画像真值表一致；一致的值不重写。`,
-        `产品值已回读核对；新建 ${names(prepared.created.products)}；复用 ${names(prepared.reused.products)}。`,
-        { created: prepared.created.products, reused: prepared.reused.products }));
+      const previous = await readFixtureRecord(config);
+      const ensured = await ensureFixtureData({ page: cmsPage, profile, cms, previous });
+      await writeFixtureRecord(config, ensured.records);
+      prepared.records = ensured.records;
+      prepared.writes = ensured.writes;
+      prepared.checks.push(check('fixture-prep-data', 'AUTOTEST 夹具数据准备',
+        '按名称确保字段、分类、产品及其字段值和分类归属，并回读核对。',
+        `已核对 ${ensured.plan.fields.length} 个字段、${ensured.plan.products.length} 个产品；写入 ${ensured.writes.length} 项。`,
+        { records: ensured.records, writes: ensured.writes, previousMatches: ensured.previousMatches, fallback: ensured.plan.fallback }));
     } finally { if (cmsPage) await cmsPage.close(); }
     // A just-added block may not yet have a baseline/save. Preserve it before
     // reloading the editor to pick up newly created CMS fields.

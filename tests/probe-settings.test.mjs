@@ -151,5 +151,6 @@ test('实站 47748：显示字段类型在需求指定的弹窗中核对', async
   const inventory = await sample('47748');
   const profile = JSON.parse(await (await import('node:fs/promises')).readFile(new URL('../profiles/47748.json', import.meta.url)));
   const result = checkDisplayFieldRequirement(inventory, profile);
-  assert.ok(result.types.length === 3 && result.types.every(t => !/未识别/.test(t.message)), JSON.stringify(result));
+  assert.equal(result.status, 'ok', JSON.stringify(result));
+  assert.equal(result.types.length, 3);
 });

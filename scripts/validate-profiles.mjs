@@ -2,6 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFixture } from '../src/fixture.mjs';
+import { fixturePlan, fixtureTypes } from '../src/fixture-data.mjs';
 import { signatures } from '../src/capabilities/signatures.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -120,7 +121,8 @@ export function validateProfile(profile, template, { capabilities } = {}) {
 
   if (Object.hasOwn(profile, 'fixture')) {
     try {
-      validateFixture(profile.fixture);
+      validateFixture(profile.fixture, profile.requirements);
+      fixturePlan(profile);
     } catch (error) {
       errors.push(`fixture 无效：${error.message}`);
     }
@@ -161,6 +163,7 @@ async function main() {
       continue;
     }
     const errors = validateProfile(profile, template, { capabilities: capabilityIds });
+    if (profile.fixture && fixtureTypes(profile).fallback) console.warn(`${relativePath}: displayFieldTypes 未提供，回退到 fixture.supportedTypes。`);
     for (const error of errors) console.error(`${relativePath}: ${error}`);
     if (errors.length) failed = true;
   }

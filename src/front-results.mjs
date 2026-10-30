@@ -30,7 +30,7 @@ export function frontRunPhases(config = {}, profile = {}, added = false) {
     applyBaseline: Array.isArray(profile.baseline) && profile.baseline.length > 0
       && (added || Boolean(config.applyBaseline)),
     prepareFixture: Boolean(profile.fixture)
-      && (!filter?.length || filter.includes('custom-filter-fields')),
+      && (!filter?.length || filter.some(id => ['custom-filter-fields', 'product-category-select', 'product-list-display'].includes(id))),
     settings: true,
     backend: shouldRunLayer('backend', config),
     front: true,

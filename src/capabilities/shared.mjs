@@ -13,7 +13,7 @@ export const isFieldCheckbox = (item) => item.type === 'checkbox'
   && /^\d+$/.test(item.value || '') && item.label !== '全选';
 export const blockSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 // Preview root: the data-appid wrap exists for every block. The LA class
-// (e.g. LA40838) is block-specific: 47748 has no LA class in preview, so
+// (e.g. LA样本区块) is block-specific: 另一样本区块 has no LA class in preview, so
 // relying on it fails the front layer for blocks that never had one.
 export const previewSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 
@@ -69,7 +69,7 @@ const EXPECTED = {
   'pcs-categories-front': '预览分类导航应与本次勾选的完整名称清单逐项一致，不得多出或缺少分类。',
   'cff-fields-backend': '画布自定义筛选组应恰好包含本次勾选的全部字段，不得多出或缺少字段。',
   'cff-fields-front': '预览自定义筛选组应恰好包含本次勾选的全部字段，不得多出或缺少字段。',
-  'cff-logic-front': '40838 交集应为测试产品A；并集应为测试产品A、测试产品小何1、测试产品小何2，不得迎合已知并集缺陷。',
+  'cff-logic-front': '交集与并集应分别等于夹具真值表计算的产品集合。',
   'cff-trigger-front': '手动模式选值后应保持原产品集合，点搜索后应显示夹具结果；自动模式不点搜索也应显示同一夹具结果。',
   'cff-scope-front': '当前分类与所有产品两种范围的筛选结果应分别等于各自独立夹具中的完整产品名单。',
   'cff-jump-front': '选择另一筛选后跳转页并执行筛选后，临时预览应进入所选页面对应的已确认地址。',
@@ -77,7 +77,7 @@ const EXPECTED = {
   'cff-background-front': '预览筛选区域的背景色应等于本次设置的红绿蓝数值，恢复后应回到原颜色。',
   'pld-fields-backend': '画布每张产品卡应恰好展示本次勾选的完整字段集合，不能多出或缺少字段。',
   'pld-fields-front': '预览每张产品卡应恰好展示本次勾选的完整字段集合，不能多出或缺少字段。',
-  'pld-source-category-backend': '来源只选测试分类后，画布列表应恰好显示画像中的七件上架产品，不显示下架或其他分类的产品。',
+  'pld-source-category-backend': '来源只选夹具分类后，画布列表应显示夹具计算的上架产品集合。',
   'pld-size-backend': '画布产品数应等于新设置的数量与可用产品数量中的较小值，并记录具体数量及完整产品名。',
   'pld-size-front': '预览产品数应等于新设置的数量与可用产品数量中的较小值，并记录具体数量及完整产品名。',
   'pld-pagination-backend': '有至少两件可用产品、每页设为一件时，画布分页选是应显示分页条，选否应隐藏分页条。',
@@ -150,7 +150,7 @@ export async function poll(read, accepts) {
     // A read that times out on the last millisecond (or a predicate that
     // cannot handle an empty read) is a non-match, not a crash: callers
     // decide what an unmatched poll means. Without this, a block whose
-    // preview never yields groups (47748) fails the baseline check with a
+    // preview never yields groups (另一样本区块) fails the baseline check with a
     // 1ms evaluate timeout instead of recording "no groups".
     try { value = await read(Math.max(1, deadline - Date.now())); } catch { value = undefined; }
     try { if (accepts(value)) return { matched: true, value }; } catch { /* non-match */ }
@@ -162,7 +162,7 @@ export async function poll(read, accepts) {
 }
 
 export async function clickSettings(canvas, config, type, wrapIndex = 0) {
-  // Several sub-regions can share one type (47748 has two gallery wraps:
+  // Several sub-regions can share one type (另一样本区块 has two gallery wraps:
   // category at 0, list at 1). wrapIndex picks the nth wrap of that type.
   const button = canvas.locator(blockSelector(config.blockId)).first()
     .locator(`.backstage-blocksEditor-wrap[data-blockseditor-type=${JSON.stringify(type)}]`).nth(wrapIndex)
@@ -297,7 +297,7 @@ export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0
       }
     }
   };
-  // The dismiss button is 取消 in most dialogs but 关闭 in 47748's
+  // The dismiss button is 取消 in most dialogs but 关闭 in 另一样本区块's
   // 设置与选取数据 dialog. Try both, in that order.
   const dismiss = async (dialog) => {
     for (const text of ['取消', '关闭']) {

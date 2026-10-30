@@ -1,4 +1,4 @@
-import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, rememberCategoryState } from './effect-checks.mjs';
+import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, rememberCategoryState, productSnapshot } from './effect-checks.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText, readBackWithRetry } from './shared.mjs';
 
@@ -19,7 +19,7 @@ const outcomeResult = (id, outcome) => result(id, outcome.status, outcome.detail
 const categoriesOf = (controls) => controls.filter((item) => item.type === 'checkbox'
   && item.name === 'leafProdGroup');
 
-// Category-selection front effect (47748 only; 40838 has no category
+// Category-selection front effect (另一样本区块 only; 样本区块 has no category
 // setting and skips — the check needs capability.oracle from the profile).
 // Ground truth from probes 2026-10-26:
 // - CMS oracle: 产品管理上方分类筛选（a.title_show dropdown）选 测试分类
@@ -30,9 +30,10 @@ const categoriesOf = (controls) => controls.filter((item) => item.type === 'chec
 //   still shows all products (618 total, first 20). Clicking the nav link
 //   filters the list (AJAX, URL stays products.html) to exactly the 7
 //   on-shelf products, with a "测试分类 ✕ Clear Filters" chip.
-async function categoryFrontCheck({ session, page, canvas, context, config, capability }) {
+async function categoryFrontCheck({ session, page, canvas, context, config, capability, profile, report }) {
   const id = 'pcs-category-front';
-  const oracle = capability?.oracle;
+  const oracle = profile?.fixture?.category ? { category: profile.fixture.category.name, onShelf: profile.fixture.products.map(p => p.name) } : null;
+  if (report?.fixture?.applied === false) return result(id, 'skip', '夹具准备失败，不能断言分类产品。');
   if (!oracle?.category || !Array.isArray(oracle.onShelf)) {
     return result(id, 'skip', '未提供后台分类和上架产品清单，无法比对。');
   }
@@ -184,7 +185,7 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
         }
         flowEvidence.afterClick = { count: names.length, names };
         const missing = expected.filter((n) => !names.includes(n));
-        const extra = names.filter((n) => !expected.includes(n));
+        const extra = names.filter((n) => n.startsWith('AUTOTEST-') && !expected.includes(n));
         if (missing.length) flowErrors.push(`点分类后列表缺 ${missing.length} 个后台产品：“${missing.join('”、“')}”`);
         if (extra.length) flowErrors.push(`点分类后列表多 ${extra.length} 个非该分类产品：“${extra.join('”、“')}”`);
         return { flowErrors, flowEvidence };
@@ -219,8 +220,8 @@ async function withPreview(page, context, fn) {
   }
 }
 
-export async function runSettingsLayer({ page, canvas, context, config, capability }) {
-  if (config.frontOnly) return categoryEffects({ page, canvas, context, config, capability }, 'front');
+export async function runSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
+  if (config.frontOnly) return categoryEffects({ page, canvas, context, config, capability, profile, report }, 'front');
   const session = widgetSession({ page, canvas, config,
     type: 'phoenix_blocks_gallery', title: capability?.dialogTitle || '设置产品分类',
     wrapIndex: capability?.wrapIndex ?? 0 });
@@ -257,7 +258,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
         }
         const afterMode = await probeControls(session);
         if (afterMode.reason) return result('pcs-category-persist', 'skip', afterMode.reason);
-        const target = categoriesOf(afterMode.controls).find((item) => !item.disabled);
+        const target = categoriesOf(afterMode.controls).find((item) => !item.disabled && item.label.trim() === profile?.fixture?.category?.name);
         if (!target) return result('pcs-category-persist', 'skip', '切到“部分”后仍无可切换的分类。');
         const outcome = await persistControl({ session, page, target, alternate: !target.checked });
         return result('pcs-category-persist', outcome.status,
@@ -290,14 +291,14 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     })();
     checks.push(categoryCheck);
     checks.push(config.deferFront ? result('pcs-category-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
-      : await categoryFrontCheck({ session, page, canvas, context, config, capability }));
+      : await categoryFrontCheck({ session, page, canvas, context, config, capability, profile, report }));
   } finally {
     try { await session.cancel(); } catch (error) {
       const last = checks.at(-1);
       if (last) { last.status = 'fail'; last.detail += `；最终取消失败：${error.message}`; }
     }
   }
-  checks.push(...await categoryEffects({ page, canvas, context, config, capability }, 'front'));
+  checks.push(...await categoryEffects({ page, canvas, context, config, capability, profile, report }, 'front'));
   return checks;
 }
 
@@ -375,41 +376,27 @@ async function categoryEffects(args, layer) {
         if (!snapshot?.names.length) unavailable('该层暂时没有可读取的分类导航，需实站核实。');
         return snapshot;
       };
-      // Establish clean names in ALL mode before flipping to a subset. The
-      // 2026-10-27 report has 42 rendered names vs 44 CMS/dialog categories:
-      // Container Liner Bag and Cosmetic Packaging Bag are absent as links,
-      // although present in nested dialog labels. textContent reads collapsed
-      // DOM links too, so mere CSS collapse does not explain that difference.
-      // Whether deeper levels load on expansion needs a live probe. Our set is
-      // the navigation actually rendered in all mode, with no fixed 42/44 count.
-      await tx.set(all, true);
-      await tx.save();
-      const reference = await readNavigation();
-      const complete = reference.names;
-      if (!complete.length || new Set(complete).size !== complete.length) unavailable('分类名称为空或重名，不能建立唯一的完整分类清单。');
-      const referenceControls = await tx.controls();
-      const represented = new Set(complete.map((name) => categoryControl(referenceControls, name).index));
-      tx.evidence.categoryReference = { mode: '选择所有产品分类', ...reference,
-        checkboxCount: categoriesOf(referenceControls).length,
-        controlsWithoutRenderedLink: categoriesOf(referenceControls).filter((item) => !represented.has(item.index)) };
-      const subsets = kind === 'mode' ? [complete, complete.slice(0, Math.min(2, complete.length))]
-        : [complete.slice(0, Math.min(2, complete.length)), complete.slice(-Math.min(3, complete.length))];
-      tx.expected(subsets.map((items, index) => `第 ${index + 1} 次导航应恰好包含 ${items.length} 个分类：${sentenceList(items)}`).join('；') + '。');
-      for (let index = 0; index < subsets.length; index++) {
-        const wanted = subsets[index];
-        await tx.set(kind === 'mode' && index === 0 ? all : partial, true);
-        // Save/reopen to let disabled category controls follow the selected mode.
-        await tx.save();
-        if (!(kind === 'mode' && index === 0)) {
-          const current = await tx.controls();
-          const selected = new Set(wanted.map((name) => categoryControl(current, name).index));
-          for (const item of categoriesOf(current)) await tx.set(item, selected.has(item.index));
-          await tx.save();
-        }
-        const snapshot = await readNavigation(), nav = snapshot.names;
-        (tx.evidence.navigation ||= []).push({ wanted, actual: nav, entries: snapshot.entries });
-        tx.assert(sameSet(nav, wanted), `第 ${index + 1} 次分类导航实际有 ${nav.length} 个：${sentenceList(nav)}；应为 ${sentenceList(wanted)}，已逐项比较完整清单。`);
+      const target = args.profile?.fixture?.category?.name;
+      const products = args.profile?.fixture?.products?.map(p => p.name);
+      if (!target?.startsWith('AUTOTEST-') || !products?.length || args.report?.fixture?.applied === false) unavailable('缺少已准备的 AUTOTEST 分类与产品夹具。');
+      await tx.set(all, true); await tx.save();
+      const allNavigation = await readNavigation();
+      tx.evidence.allNavigation = allNavigation;
+      tx.assert(allNavigation.names.includes(target), `所有分类模式应包含夹具分类 ${target}。`);
+      if (kind === 'mode') {
+        const snapshot = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, productSnapshot)
+          : await tx.observe(frame => readEffectRoot(frame, args.config, productSnapshot));
+        if (!snapshot?.hasList) unavailable('无法读取产品列表。');
+        tx.expected('所有分类模式应显示 AUTOTEST 夹具产品。');
+        tx.assert(snapshot.names.some(name => products.includes(name)), '所有分类模式未显示 AUTOTEST 夹具产品。');
       }
+      await tx.set(partial, true); await tx.save();
+      const current = await tx.controls(), selected = categoryControl(current, target);
+      for (const item of categoriesOf(current)) await tx.set(item, item.index === selected.index);
+      await tx.save();
+      const nav = await readNavigation(); tx.evidence.navigation = nav;
+      tx.expected(`选择夹具分类后导航应仅显示 ${target}。`);
+      tx.assert(sameSet(nav.names, [target]), `选择夹具分类后导航为 ${sentenceList(nav.names)}。`);
     } }));
   }
   return checks;

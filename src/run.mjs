@@ -261,7 +261,7 @@ async function main() {
       report.baseline = { applied: false, reason: 'block already on page' };
     }
     if (phases.prepareFixture) {
-      if (config.capabilityFilter?.length && !config.capabilityFilter.includes('custom-filter-fields')) {
+      if (config.capabilityFilter?.length && !config.capabilityFilter.some(id => ['custom-filter-fields', 'product-category-select', 'product-list-display'].includes(id))) {
         report.fixture = { applied: false, reason: 'CAPABILITY_FILTER 未包含 custom-filter-fields，跳过夹具准备。' };
       } else {
         stage = 'fixture-prep';
@@ -270,7 +270,7 @@ async function main() {
           report.checks.push(...fixturePreparation.checks);
           report.fixture = { applied: !fixturePreparation.skipped,
             ...(fixturePreparation.skipped ? { reason: '筛选字段组探查为无此设置项，未准备夹具。' } : {}),
-            created: fixturePreparation.created, reused: fixturePreparation.reused,
+            created: fixturePreparation.created, reused: fixturePreparation.reused, records: fixturePreparation.records, writes: fixturePreparation.writes,
             restored: null, restoreErrors: [] };
         } catch (error) {
           fixturePreparation = error.fixturePreparation;
