@@ -99,3 +99,10 @@ export function matchCapabilities(inventory, rules = signatures) {
   }
   return { matched, absent: rules.filter(r => !claimedIds.has(r.id)).map(({ id, parentModule }) => ({ id, parentModule })), unrecognized };
 }
+
+// Fixed-value requirements ({ mode: 'fixed-front', fixedValue }) keyed by
+// setting id, for front-end checks that need the expected value.
+export function fixedRequirementValues(profile) {
+  return Object.fromEntries((profile?.requirements?.capabilities || [])
+    .filter(c => c?.mode === 'fixed-front' && typeof c.fixedValue === 'string').map(c => [c.id, c.fixedValue]));
+}

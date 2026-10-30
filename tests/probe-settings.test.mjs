@@ -137,3 +137,19 @@ test('实站 47748：显示字段组按系统属性识别，不把分类树当�
   const ids = matchCapabilities(inventory).matched.map(m => m.id);
   for (const id of ['pld-page-size', 'pld-product-count', 'pld-pagination', 'pld-data-source', 'product-category']) assert.ok(ids.includes(id), id);
 });
+test('固定值需求：报告固定值、不算缺失；编辑器存在该设置时提示确认', async () => {
+  const { fixedRequirementValues } = await import('../src/capabilities/signatures.mjs');
+  const requirements = { capabilities: [{ id: 'cff-logic', mode: 'fixed-front', fixedValue: '交集' }] };
+  let r = checkRequirements([], requirements).requirementCheck[0];
+  assert.equal(r.status, 'fixed'); assert.equal(r.fixedValue, '交集'); assert.equal(r.editorSetting, null);
+  const inventory = [{ type: 'phoenix_blocks_filterStyle', title: '设置自定义字段筛选', controls: [{ type: 'radio', label: '交集', name: 'logic' }] }];
+  r = checkRequirements(inventory, requirements).requirementCheck[0];
+  assert.equal(r.status, 'fixed'); assert.match(r.message, /人工确认/);
+  assert.deepEqual(fixedRequirementValues({ requirements }), { 'cff-logic': '交集' });
+});
+test('实站 47748：显示字段类型在需求指定的弹窗中核对', async () => {
+  const inventory = await sample('47748');
+  const profile = JSON.parse(await (await import('node:fs/promises')).readFile(new URL('../profiles/47748.json', import.meta.url)));
+  const result = checkDisplayFieldRequirement(inventory, profile);
+  assert.ok(result.types.length === 3 && result.types.every(t => !/未识别/.test(t.message)), JSON.stringify(result));
+});

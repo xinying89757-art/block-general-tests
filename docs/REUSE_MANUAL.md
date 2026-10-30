@@ -471,3 +471,7 @@ BLOCK_ID=40838 CAPABILITY_FILTER=custom-filter-fields npm run test:block
 `requirements.displayFieldTypes` 提供需要核对的类型。只在标题为“设置产品列表”的显示字段复选框里查找 `fixture.displayFields.fields` 中对应类型的唯一 `AUTOTEST-` 字段：可勾选为 ok；字段存在但禁用为问题；画像缺该类型夹具字段、复选框未找到字段或弹窗不可读为 unknown，并提示先准备夹具或人工确认。没有类型需求时提示“需求未提供，需人工补充”。这一步不读取 CMS，找不到字段不能证明区块不支持该类型。
 
 探查只导航到已有页面，打开设置读取后取消或关闭，不创建页面或区块，不保存页面或发布。按钮浮层无取消按钮，读取后先按 Esc 或点空白关闭，仍不关时点浮层内“保存”（值未改动，不触发页面保存/发布）。配色与模块宽度只读盘点右侧面板，其他图标列入需求外设置；读取失败保留原因，不进入基线。
+
+### 固定值需求（fixed-front）
+
+`requirements.capabilities` 条目可写 `{ "id": "cff-logic", "mode": "fixed-front", "fixedValue": "交集" }`，表示编辑器里没有该设置（隐藏），取需求给定的固定值，在前台按此值验证。探查结果状态为 `fixed`，报告固定值，不算缺失；若编辑器里反而找到该设置，提示人工确认。前台检查通过 `fixedRequirementValues(profile)` 读取固定值。显示字段类型核对使用 `pld-display-fields` 需求的 `params.dialogTitle`/`wrapIndex` 定位弹窗（默认“设置产品列表”）。

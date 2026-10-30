@@ -51,3 +51,10 @@ test('requirement setting ids and optional location parameters are validated', (
   profile.requirements.capabilities = {};
   assert.ok(validateProfile(profile, template, { capabilities }).some(e => /requirements.capabilities 必须是数组/.test(e)));
 });
+test('fixed-front requirements need a fixedValue', () => {
+  const p = structuredClone(profiles[0]);
+  p.requirements.capabilities = [{ id: 'cff-logic', mode: 'fixed-front' }];
+  assert.ok(validateProfile(p, template, { capabilities }).some(e => /fixedValue/.test(e)));
+  p.requirements.capabilities = [{ id: 'cff-logic', mode: 'fixed-front', fixedValue: '交集' }];
+  assert.equal(validateProfile(p, template, { capabilities }).filter(e => /requirements/.test(e)).length, 0);
+});

@@ -85,6 +85,9 @@ export function validateProfile(profile, template, { capabilities } = {}) {
         if (!item || typeof item !== 'object' || Array.isArray(item) || typeof item.id !== 'string' || !signatures.some(s => s.id === item.id)) errors.push(`${label}.id 必须是已知设置项 id`);
         else if (ids.has(item.id)) errors.push(`${label}.id 重复：${item.id}`);
         else ids.add(item.id);
+        if (item?.mode !== undefined && item.mode !== 'fixed-front') errors.push(`${label}.mode 只能是 fixed-front`);
+        if (item?.mode === 'fixed-front' && (typeof item.fixedValue !== 'string' || !item.fixedValue)) errors.push(`${label}.fixedValue 必须是非空字符串（fixed-front 时）`);
+        if (item?.fixedValue !== undefined && item?.mode !== 'fixed-front') errors.push(`${label}.fixedValue 只能与 mode=fixed-front 一起使用`);
         if (item?.params !== undefined && (!item.params || typeof item.params !== 'object' || Array.isArray(item.params))) errors.push(`${label}.params 必须是对象`);
         else if (item?.params) {
           if (item.params.dialogTitle !== undefined && typeof item.params.dialogTitle !== 'string') errors.push(`${label}.params.dialogTitle 必须是字符串`);

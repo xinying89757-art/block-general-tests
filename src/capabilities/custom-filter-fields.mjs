@@ -2,6 +2,7 @@ import { effectCheck, unavailable, readEffectRoot, sameSet, sentenceList, produc
 import { blockSelector } from './shared.mjs';
 import { normalizeColor } from './rail.mjs';
 import { savePage, openPreview } from '../editor.mjs';
+import { fixedRequirementValues } from './signatures.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText, readBackWithRetry, isFieldCheckbox } from './shared.mjs';
 
 // Editor/dialog selectors: docs/SETTINGS_INVENTORY_40838.md,
@@ -223,7 +224,9 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   // group fails; an absent group is recorded. When the profile declares a
   // design-fixed value for an absent group (47748: the three groups are
   // hidden in the editor but fixed by the Figma design), report that value.
-  const fixed = capability?.fixedSettings || {};
+  const required = fixedRequirementValues(profile);
+  const fixed = { ...(capability?.fixedSettings || {}), ...Object.fromEntries(Object.entries({ 'cff-logic': '筛选逻辑', 'cff-trigger': '筛选触发', 'cff-scope': '产品范围' })
+    .filter(([id]) => required[id]).map(([id, name]) => [name, required[id]])) };
   checks.push(result('cff-settings-state', broken.length ? 'fail' : absent.length === Object.keys(state).length
     ? 'record' : 'pass',
     Object.entries(state).map(([name, value]) => `${name}=${value ? `${value.label}（${value.value}）` : fixed[name] ? `${fixed[name]}（设计稿固定值，弹窗隐藏）` : '本区块无此设置'}`).join('；'),

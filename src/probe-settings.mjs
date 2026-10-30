@@ -9,8 +9,15 @@ export function checkRequirements(inventory, requirements) {
     return { ...signature, region: { ...signature.region, ...(params.dialogTitle !== undefined ? { expectedTitle: params.dialogTitle } : {}), ...(params.wrapIndex !== undefined ? { wrapIndex: params.wrapIndex } : {}) } };
   }).filter(Boolean);
   const result = matchCapabilities(inventory, rules);
-  const requirementCheck = requested.map(({ id }) => {
+  const requirementCheck = requested.map(({ id, mode, fixedValue }) => {
     const hits = result.matched.filter(m => m.id === id);
+    // Fixed-value requirement: no editor setting is expected; the value is
+    // given by the requirement and verified on the front end. Report it,
+    // never as a missing setting. If the editor does expose the setting,
+    // flag it for review instead.
+    if (mode === 'fixed-front') return { id, status: 'fixed', fixedValue, verifyOn: 'front',
+      editorSetting: hits.length ? hits.map(({ kind, type, wrapIndex, title }) => ({ kind, type, wrapIndex, title: title ?? null })) : null,
+      message: hits.length ? '需求为固定值，但编辑器存在该设置，需人工确认' : '固定值，编辑器无设置（隐藏），需前台验证' };
     if (!hits.length) return { id, status: 'missing', location: null, evidence: [] };
     // Keep all locations when a rule matches more than one region.
     const locations = hits.map(({ kind, type, wrapIndex, title }) => ({ kind, type, wrapIndex, title: title ?? null }));
@@ -22,7 +29,9 @@ export function checkRequirements(inventory, requirements) {
 export function checkDisplayFieldRequirement(inventory, profile) {
   const required = profile?.requirements?.displayFieldTypes;
   if (!Array.isArray(required) || !required.length) return { status: 'missing-requirement', message: '需求未提供，需人工补充', types: [] };
-  const regions = inventory.filter(r => r.type === 'phoenix_blocks_gallery' && r.title === '设置产品列表');
+  const params = (profile?.requirements?.capabilities || []).find(c => c.id === 'pld-display-fields')?.params || {};
+  const title = params.dialogTitle ?? '设置产品列表';
+  const regions = inventory.filter(r => r.type === 'phoenix_blocks_gallery' && r.title === title && (params.wrapIndex === undefined || r.wrapIndex === params.wrapIndex));
   const controls = regions.flatMap(displayFieldControls);
   const fixtures = profile?.fixture?.displayFields?.fields || [];
   const types = [...new Set(required)].map(type => {
