@@ -114,7 +114,25 @@ export async function prepareFixture({ page, canvas, context, config, profile })
       await session.save();
       await savePage(page);
       await session.open();
-      const back = await session.read();
+      let back = await session.read();
+      // Live run 2026-10-30 (40838): saving the dialog after newly created CMS
+      // fields left every radio group (logic/trigger/scope) unchecked. Guard:
+      // any radio group that had exactly one checked option must still have it.
+      const radioKey = (r) => `${r.name}\u0000${r.value}`;
+      const originalRadios = probe.controls.filter((c) => c.type === 'radio' && c.checked);
+      const lost = originalRadios.filter((r) => !back.some((c) => c.type === 'radio' && radioKey(c) === radioKey(r) && c.checked));
+      if (lost.length) {
+        for (const radio of lost) {
+          const current = back.find((c) => c.type === 'radio' && radioKey(c) === radioKey(radio));
+          if (!current) throw new Error(`保存后单选项“${radio.label}”消失，无法恢复。`);
+          await session.set(current, true);
+        }
+        await session.save(); await savePage(page); await session.open();
+        back = await session.read();
+        const still = originalRadios.filter((r) => !back.some((c) => c.type === 'radio' && radioKey(c) === radioKey(r) && c.checked));
+        if (still.length) throw new Error(`保存后单选设置被清空且恢复失败：${still.map((r) => r.label).join('、')}`);
+        prepared.radioRepaired = lost.map((r) => r.label);
+      }
       for (const field of fields) {
         const expected = wanted.includes(field) || field.checked;
         if (matchField(back, field).checked !== expected) throw new Error(`启用后字段“${field.label}”回读与要求不一致。`);
