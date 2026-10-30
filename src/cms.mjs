@@ -279,21 +279,10 @@ async function settleCmsNavigation(page, action) {
 
 export async function findProduct(page, name) {
   await assertProd(page);
-  // The product menu is a toggle. Repeated clicks while waiting for its
-  // submenu can collapse it again, leaving the runner waiting on a locator
-  // that was briefly present. Open it once, then wait for the observed entry.
-  let submenu = actionLocator(page, 'prod_list_sub').filter({ hasText: '产品名称' });
-  if (!await submenu.isVisible().catch(() => false)) {
-    await settleCmsNavigation(page, () => clickAction(page, 'prod_list', /^管理产品$/));
-  }
-  try { await submenu.waitFor({ state: 'visible', timeout: TIMEOUT }); }
-  catch (error) {
-    const menuEvidence = await page.locator('[action], [data-action]').filter({ visible: true }).evaluateAll((nodes) =>
-      nodes.map((node) => ({ action: node.getAttribute('action') || node.getAttribute('data-action'),
-        text: (node.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 80) }))
-        .filter(({ action, text }) => action === 'prod_list' || action === 'prod_list_sub' || /产品名称/.test(text)));
-    throw new Error(`产品管理导航未出现“产品名称”子菜单（prod_list_sub）；已见菜单项：${JSON.stringify(menuEvidence)}；${error.message}`);
-  }
+  // Live probe 2026-10-30: navigating to /prod?invokeAction=prod_list_sub
+  // opens the observed product table directly. The sidebar prod_list toggle
+  // did not reveal its submenu when the SPA opened on the product form.
+  await gotoAction(page, 'prod_list_sub');
   // Search structure is unprobed: use observed semantic attributes/labels,
   // require a unique input plus a unique search button before using it.
   const inputs = page.locator('input[type="text"], input[type="search"]').filter({ visible: true });
