@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { matchControl, withOccurrences } from '../src/baseline-identity.mjs';
+
+test('legacy select-all label matches its current dynamic label', () => {
+  const controls = [{ type: 'checkbox', label: '全选 新字段', value: 'on' }];
+  assert.equal(matchControl(controls, { type: 'checkbox', label: '全选 旧字段' }), controls[0]);
+});
 import { diffAgainstBaseline } from '../src/baseline-guard.mjs';
 import profile40838 from '../profiles/40838.json' with { type: 'json' };
 

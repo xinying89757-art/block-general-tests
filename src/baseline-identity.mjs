@@ -32,6 +32,7 @@ export function withOccurrences(controls, serialize) {
 }
 
 export function matchingControls(controls, wanted) {
+  wanted = normalizeControlIdentity(wanted);
   return controls.filter((candidate) => {
     const item = normalizeControlIdentity(candidate);
     return (wanted.identity ? item.identity === wanted.identity : item.label === wanted.label)

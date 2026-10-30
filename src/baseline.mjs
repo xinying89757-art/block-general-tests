@@ -214,6 +214,19 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
     try {
       const probe = await probeControls(session);
       if (probe.reason) { step.errors.push(probe.reason); steps.push(step); allVerified = false; continue; }
+      // Do not partially save a dialog when its recorded controls cannot all
+      // be resolved. A changing or incompletely loaded list needs investigation.
+      const missing = [];
+      for (const w of stepDef.want) {
+        try { if (!matchControl(probe.controls, w)) missing.push(w.label); }
+        catch (error) { step.errors.push(error.message); }
+      }
+      if (missing.length || step.errors.length) {
+        if (missing.length) step.errors.push(`恢复前找不到控件：${missing.join('、')}`);
+        allVerified = false;
+        steps.push(step);
+        continue;
+      }
       for (const w of stepDef.want) {
         let target;
         try { target = matchControl(probe.controls, w); }
