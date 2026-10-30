@@ -1,44 +1,53 @@
-import { displayFieldControls, isSystemAttribute } from './capabilities/signatures.mjs';
+import { displayFieldControls, matchCapabilities, signatures } from './capabilities/signatures.mjs';
 
-export function inferDisplayFieldTypes(controls, cmsFields) {
-  if (!Array.isArray(cmsFields)) return { supportedTypes: null, fields: [], reason: '无法只读取得 CMS 自定义字段列表。' };
-  if (!controls?.length) return { supportedTypes: null, fields: [], reason: '未能识别展示字段复选框组。' };
-  const fields = [];
-  for (const c of controls) {
-    const label = typeof c === 'string' ? c : c.label;
-    if (!label) continue;
-    const found = cmsFields.filter(f => f.name?.trim() === label.trim());
-    if (typeof c === 'object' && isSystemAttribute(c)) continue; // system attribute, not a custom field
-    fields.push({ label, type: found.length === 1 && found[0].type ? found[0].type : null });
-  }
-  if (fields.some(f => !f.type)) return { supportedTypes: null, fields, reason: '部分字段在 CMS 列表中无法唯一匹配或缺少类型。' };
-  if (!fields.length) return { supportedTypes: null, fields, reason: '未观察到可与 CMS 对照的自定义字段，不能推断支持类型。' };
-  return { supportedTypes: [...new Set(fields.map(f => f.type))].sort(), fields, reason: null };
+// params narrow the signature's region without changing its control rule.
+export function checkRequirements(inventory, requirements) {
+  const requested = Array.isArray(requirements?.capabilities) ? requirements.capabilities : [];
+  const rules = requested.map(({ id, params = {} }) => {
+    const signature = signatures.find(r => r.id === id);
+    if (!signature) return null;
+    return { ...signature, region: { ...signature.region, ...(params.dialogTitle !== undefined ? { expectedTitle: params.dialogTitle } : {}), ...(params.wrapIndex !== undefined ? { wrapIndex: params.wrapIndex } : {}) } };
+  }).filter(Boolean);
+  const result = matchCapabilities(inventory, rules);
+  const requirementCheck = requested.map(({ id }) => {
+    const hits = result.matched.filter(m => m.id === id);
+    if (!hits.length) return { id, status: 'missing', location: null, evidence: [] };
+    // Keep all locations when a rule matches more than one region.
+    const locations = hits.map(({ kind, type, wrapIndex, title }) => ({ kind, type, wrapIndex, title: title ?? null }));
+    return { id, status: 'located', location: locations[0], ...(locations.length > 1 ? { locations } : {}), evidence: hits.flatMap(m => m.evidence), ...(hits.find(m => m.dependsOn) ? { dependsOn: hits.find(m => m.dependsOn).dependsOn } : {}) };
+  });
+  return { requirementCheck, outOfScope: result.unrecognized, requirementMessage: requested.length ? null : '需求未提供，需人工补充' };
 }
-export function inspectDisplayFields(inventory, matched, cmsFields) {
-  const regions = matched.filter(m => m.id === 'pld-display-fields');
-  if (!regions.length) return inferDisplayFieldTypes([], cmsFields);
-  return inferDisplayFieldTypes(regions.flatMap(m => displayFieldControls(inventory.find(r => r.type === m.type && r.wrapIndex === m.wrapIndex) || {})), cmsFields);
+
+export function checkDisplayFieldRequirement(inventory, profile) {
+  const required = profile?.requirements?.displayFieldTypes;
+  if (!Array.isArray(required) || !required.length) return { status: 'missing-requirement', message: '需求未提供，需人工补充', types: [] };
+  const regions = inventory.filter(r => r.type === 'phoenix_blocks_gallery' && r.title === '设置产品列表');
+  const controls = regions.flatMap(displayFieldControls);
+  const fixtures = profile?.fixture?.displayFields?.fields || [];
+  const types = [...new Set(required)].map(type => {
+    const fields = fixtures.filter(f => f.type === type && typeof f.name === 'string' && f.name.startsWith('AUTOTEST-'));
+    if (fields.length !== 1) return { type, status: 'unknown', message: fields.length ? '夹具该类型字段不唯一，需人工确认' : '夹具缺该类型字段，需先准备夹具' };
+    const matches = controls.filter(c => c.label?.trim() === fields[0].name.trim());
+    if (!matches.length) return { type, field: fields[0].name, status: 'unknown', message: controls.length ? '复选框中未找到夹具字段；若夹具未建，先运行 fixture 准备' : '未识别“设置产品列表”的显示字段复选框；若夹具未建，先运行 fixture 准备' };
+    if (!matches.some(c => !c.disabled)) return { type, field: fields[0].name, status: 'problem', message: '夹具字段复选框存在但不可勾选' };
+    return { type, field: fields[0].name, status: 'ok', message: '夹具字段复选框可勾选' };
+  });
+  return { status: types.some(t => t.status === 'problem') ? 'problem' : types.some(t => t.status === 'unknown') ? 'unknown' : 'ok', types };
 }
+
 export function compareWithProfile(draft, profile) {
   if (!profile) return { available: false, comparisons: [] };
-  const items = [];
-  const add = (subject, observed, expected, comparable = true) => items.push({ subject, observed, expected, status: comparable ? (JSON.stringify(observed) === JSON.stringify(expected) ? '一致' : '不一致') : '无法比较' });
-  const actual = [...new Set((draft.matched || []).map(m => m.parentModule))].sort();
-  const expected = (profile.capabilities || []).map(c => c.id).sort();
-  add('capabilities 模块列表', actual, expected);
+  const comparisons = [];
   for (const cap of profile.capabilities || []) {
-    const found = (draft.matched || []).filter(m => m.parentModule === cap.id);
+    const ids = signatures.filter(s => s.parentModule === cap.id).map(s => s.id);
+    const found = (draft.requirementCheck || []).filter(c => ids.includes(c.id) && c.status === 'located').flatMap(c => c.locations || [c.location]);
     for (const [key, prop] of [['dialogTitle', 'title'], ['wrapIndex', 'wrapIndex']]) {
-      if (cap[key] !== undefined) {
-        const values = [...new Set(found.map(m => m[prop]))];
-        add(`${cap.id}.${key}`, values.length === 1 ? values[0] : values, cap[key], values.length > 0);
-      }
+      if (cap[key] === undefined) continue;
+      const values = [...new Set(found.map(m => m[prop]))];
+      const observed = values.length === 1 ? values[0] : values;
+      comparisons.push({ subject: `${cap.id}.${key}`, observed, expected: cap[key], status: !values.length ? '无法比较' : values.every(v => v === cap[key]) ? '一致' : '不一致' });
     }
   }
-  const types = draft.displayFields?.supportedTypes;
-  const wanted = profile.fixture?.displayFields?.supportedTypes;
-  add('fixture.displayFields.supportedTypes', Array.isArray(types) ? [...types].sort() : null,
-    Array.isArray(wanted) ? [...wanted].sort() : null, Array.isArray(types) && Array.isArray(wanted));
-  return { available: true, comparisons: items };
+  return { available: true, comparisons };
 }

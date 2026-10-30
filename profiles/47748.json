@@ -1076,5 +1076,56 @@
       ],
       "skippedNoLabel": 1
     }
-  ]
+  ],
+  "requirements": {
+    "capabilities": [
+      {
+        "id": "btn-text"
+      },
+      {
+        "id": "btn-url"
+      },
+      {
+        "id": "btn-target"
+      },
+      {
+        "id": "product-category"
+      },
+      {
+        "id": "cff-fields"
+      },
+      {
+        "id": "pld-data-source",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
+      },
+      {
+        "id": "pld-display-fields",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
+      },
+      {
+        "id": "pld-pagination",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 1
+        }
+      },
+      {
+        "id": "color-scheme"
+      },
+      {
+        "id": "module-width"
+      }
+    ],
+    "notes": [
+      "筛选逻辑、触发和范围为已确认的隐藏固定值，跳转与背景颜色不存在；是否应纳入需求清单待人工确认。",
+      "列表数量随分页切换含义，能力说明有数量输入，但基线未捕获该控件（skippedNoLabel）；pld-page-size 和 pld-product-count 待人工确认。",
+      "显示字段类型需求尚未提供，待人工确认。"
+    ]
+  }
 }

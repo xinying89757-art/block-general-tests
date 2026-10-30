@@ -5,10 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../src/config.mjs';
 import { launchSession } from '../src/browser.mjs';
 import { openEditor, gotoTargetPage, resolveTargetPage } from '../src/editor.mjs';
+import { inventoryRightPanel } from '../src/inventory-rail.mjs';
 import { inventorySettings } from '../src/baseline.mjs';
-import { openProdPage, listCustomFields } from '../src/cms.mjs';
-import { matchCapabilities } from '../src/capabilities/signatures.mjs';
-import { compareWithProfile, inspectDisplayFields } from '../src/probe-settings.mjs';
+import { compareWithProfile, checkRequirements, checkDisplayFieldRequirement } from '../src/probe-settings.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 if (process.argv[2]) process.env.BLOCK_ID = process.argv[2];
@@ -48,27 +47,29 @@ try {
   console.log('[probe] 读取设置区域…');
   const inventory = await inventorySettings({ page: session.page, canvas, config, blockId: config.blockId,
     onProgress: ({ index, total, type, wrapIndex }) => console.log(`[probe] 区域 ${index}/${total}：${type} #${wrapIndex} …`) });
-  console.log('[probe] 读取 CMS 自定义字段列表…');
-  let fields = null, cmsReason = null, cmsPage;
-  try { cmsPage = await openProdPage(session.context); fields = await listCustomFields(cmsPage); }
-  catch (error) { cmsReason = scrub(error.message); console.log(`[probe] CMS 字段列表不可用：${cmsReason}`); }
-  finally { if (cmsPage) await cmsPage.close(); }
-  const result = matchCapabilities(inventory);
-  const displayFields = inspectDisplayFields(inventory, result.matched, fields);
-  if (cmsReason) displayFields.reason = `CMS 读取失败：${cmsReason}`;
-  const draft = { inventory, ...result, displayFields };
+  console.log('[probe] 只读盘点右侧图标栏…');
+  inventory.push(...await inventoryRightPanel({ page: session.page, canvas, config, blockId: config.blockId,
+    onProgress: ({ index, total, title }) => console.log(`[probe] 右侧图标 ${index}/${total}：${title} …`) }));
+  const result = checkRequirements(inventory, profile?.requirements);
+  const displayFieldRequirement = checkDisplayFieldRequirement(inventory, profile);
+  const draft = { inventory, ...result, displayFieldRequirement };
   draft.profileComparison = compareWithProfile(draft, profile);
   const clean = scrub(draft);
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, `${JSON.stringify(clean, null, 2)}\n`, { mode: 0o600 });
-  console.log('\n已匹配能力');
-  for (const m of clean.matched) console.log(`- ${m.id} (${m.parentModule})：${m.type} #${m.wrapIndex}「${m.title || '按钮浮层'}」；${m.evidence.map(e => `${e.label}: ${e.value ?? ''}`).join('、')}`);
-  console.log('\n无此设置项（未识别到，不代表隐藏设置不存在）');
-  for (const a of clean.absent) console.log(`- ${a.id} (${a.parentModule})`);
-  console.log('\n未识别设置项');
-  for (const u of clean.unrecognized) console.log(`- ${u.type} #${u.wrapIndex}「${u.title || '无标题'}」：${u.controls.map(c => `${(c.label || c.context || '无标签').slice(0, 30)}[${c.type}${c.name ? ' name=' + c.name : ''}]`).join('、') || u.skipped || '无控件'}`);
+  console.log('\n需求核对');
+  if (clean.requirementMessage) console.log(`- ${clean.requirementMessage}`);
+  for (const c of clean.requirementCheck) {
+    const locations = c.locations || (c.location ? [c.location] : []);
+    console.log(`- ${c.id}：${c.status === 'located' ? '已定位' : '缺失（问题）'}；位置 ${JSON.stringify(locations)}；证据 ${JSON.stringify(c.evidence)}${c.dependsOn ? `；依赖${c.dependsOn.setting}，当前=${c.dependsOn.currentValue}，生效含义=${c.dependsOn.effectiveMeaning}` : ''}`);
+  }
+  console.log('\n显示字段类型核对');
+  if (clean.displayFieldRequirement.message) console.log(`- ${clean.displayFieldRequirement.message}`);
+  for (const c of clean.displayFieldRequirement.types) console.log(`- ${c.type}：${c.status}；${c.field || ''}；${c.message}`);
+  console.log('\n需求外设置');
+  for (const u of clean.outOfScope) console.log(`- ${u.kind || 'dialog'} ${u.type} #${u.wrapIndex}「${u.title || '无标题'}」：${u.controls.map(c => `${(c.label || c.context || '无标签').slice(0, 30)}[${c.type}${c.name ? ' name=' + c.name : ''}]`).join('、') || u.skipped || '无控件'}`);
   console.log('\n与现有画像对比');
   if (!clean.profileComparison.available) console.log('- 无画像');
   for (const c of clean.profileComparison.comparisons) console.log(`- ${c.subject}：${c.status}；探查 ${JSON.stringify(c.observed)}；画像 ${JSON.stringify(c.expected)}`);
-  console.log(`[probe] 草稿已写入 ${out}`);
+  console.log(`[probe] 草稿已写入 ${out}；探查仅在接入、换站或区块改版时运行，结果保存复用。`);
 } finally { await session.browser.close(); }

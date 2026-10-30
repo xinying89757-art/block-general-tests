@@ -2,11 +2,12 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFixture } from '../src/fixture.mjs';
+import { signatures } from '../src/capabilities/signatures.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const profilesDir = path.join(root, 'profiles');
 const capabilitiesDir = path.join(root, 'src/capabilities');
-const OPTIONAL_TEMPLATE_KEYS = new Set(['baseline', 'baselineNote', 'fixture']);
+const OPTIONAL_TEMPLATE_KEYS = new Set(['baseline', 'baselineNote', 'fixture', 'requirements']);
 
 function matchesTemplateType(value, example) {
   if (Array.isArray(example)) return Array.isArray(value);
@@ -73,6 +74,27 @@ export function validateProfile(profile, template, { capabilities } = {}) {
       errors.push(`顶层键 ${key} 类型错误：应为 ${Array.isArray(example) ? '数组' : typeof example}`);
     }
   }
+
+  if (profile.requirements && Object.hasOwn(profile.requirements, 'capabilities')) {
+    const items = profile.requirements.capabilities;
+    if (!Array.isArray(items)) errors.push('requirements.capabilities 必须是数组');
+    else {
+      const ids = new Set();
+      items.forEach((item, index) => {
+        const label = `requirements.capabilities[${index}]`;
+        if (!item || typeof item !== 'object' || Array.isArray(item) || typeof item.id !== 'string' || !signatures.some(s => s.id === item.id)) errors.push(`${label}.id 必须是已知设置项 id`);
+        else if (ids.has(item.id)) errors.push(`${label}.id 重复：${item.id}`);
+        else ids.add(item.id);
+        if (item?.params !== undefined && (!item.params || typeof item.params !== 'object' || Array.isArray(item.params))) errors.push(`${label}.params 必须是对象`);
+        else if (item?.params) {
+          if (item.params.dialogTitle !== undefined && typeof item.params.dialogTitle !== 'string') errors.push(`${label}.params.dialogTitle 必须是字符串`);
+          if (item.params.wrapIndex !== undefined && (!Number.isInteger(item.params.wrapIndex) || item.params.wrapIndex < 0)) errors.push(`${label}.params.wrapIndex 必须是非负整数`);
+        }
+      });
+    }
+  }
+
+  if (profile.requirements && Object.hasOwn(profile.requirements, 'displayFieldTypes') && (!Array.isArray(profile.requirements.displayFieldTypes) || !profile.requirements.displayFieldTypes.every(v => typeof v === 'string'))) errors.push('requirements.displayFieldTypes 必须是字符串数组');
 
   if (Object.hasOwn(profile, 'baseline')) validateBaseline(profile.baseline, errors);
 
