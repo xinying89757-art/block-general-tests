@@ -49,3 +49,12 @@ test('requirement types override legacy fallback and record is isolated by host 
   assert.notEqual(fixtureRecordPath({siteDomain:'https://a.example',blockId:'1'}),fixtureRecordPath({siteDomain:'https://a.example',blockId:'2'}));
   assert.notEqual(fixtureRecordPath({siteDomain:'https://a.example',blockId:'1'}),fixtureRecordPath({siteDomain:'https://b.example',blockId:'1'}));
 });
+test('category limit degrades: fields/products still ensured, category recorded unavailable',async()=>{
+  const m=mock(); m.api.createCategory=async()=>{ const e=new Error('站点产品分类数量已达上限'); e.code='CATEGORY_LIMIT'; throw e; };
+  const r=await ensureFixtureData({profile,cms:m.api});
+  assert.equal(r.records.category.id,null); assert.match(r.records.category.unavailable,/上限/);
+  assert.equal(m.products.size,fixturePlan(profile).products.length);
+  for (const p of m.products.values()) assert.deepEqual(p.categories,[]);
+  const { fixtureCategoryState } = await import('../src/capabilities/shared.mjs');
+  assert.match(fixtureCategoryState(profile,{fixture:{records:r.records}}).reason,/不可用/);
+});

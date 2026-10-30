@@ -1,6 +1,6 @@
 import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, rememberCategoryState, productSnapshot } from './effect-checks.mjs';
 import { savePage, openPreview } from '../editor.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText, readBackWithRetry } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText, readBackWithRetry, fixtureCategoryState } from './shared.mjs';
 
 const SUITE = 'capability:product-category-select';
 const NAMES = {
@@ -34,6 +34,7 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
   const id = 'pcs-category-front';
   const oracle = profile?.fixture?.category ? { category: profile.fixture.category.name, onShelf: profile.fixture.products.map(p => p.name) } : null;
   if (report?.fixture?.applied === false) return result(id, 'skip', '夹具准备失败，不能断言分类产品。');
+  { const cat = fixtureCategoryState(profile, report); if (oracle && cat.reason) return result(id, 'skip', cat.reason); }
   if (!oracle?.category || !Array.isArray(oracle.onShelf)) {
     return result(id, 'skip', '未提供后台分类和上架产品清单，无法比对。');
   }

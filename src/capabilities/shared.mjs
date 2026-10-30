@@ -470,3 +470,13 @@ export async function radioPersist({ session, page, name, prefixes, afterSwitch 
   outcome.detail = `“${name}”由“${original.label}”切换为“${alternate.label}”后保存重开，恢复后回到“${original.label}”。${outcome.detail}`;
   return outcome;
 }
+
+// AUTOTEST category usable for category-scoped checks, or the reason it is not
+// (fixture prep failed, or the site could not host the category).
+export function fixtureCategoryState(profile, report) {
+  const name = profile?.fixture?.category?.name;
+  if (!name) return { name: null, reason: '画像未提供 AUTOTEST 分类。' };
+  const record = report?.fixture?.records?.category;
+  if (record?.unavailable) return { name: null, reason: `AUTOTEST 分类不可用：${record.unavailable}` };
+  return { name, reason: null };
+}

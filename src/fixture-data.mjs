@@ -56,11 +56,23 @@ export async function ensureFixtureData({ page, profile, cms, previous = null })
     if (field.options.some(o => !options.includes(o))) throw new Error(`字段 ${field.name} 选项回读失败。`);
     records.fields[field.name] = verified.id;
   }
+  // A site may be unable to host a new category (Leadong category limit).
+  // Then category-scoped checks are skipped with this reason; fields and
+  // products are still ensured. Never borrow an existing site category.
+  let verifiedCategory = null;
   let category = await cms.findCategory(page, plan.category.name);
-  if (!category) { category = await cms.createCategory(page, plan.category.name); writes.push(`create-category:${plan.category.name}`); }
-  const verifiedCategory = await cms.findCategory(page, plan.category.name);
-  if (!verifiedCategory?.id || verifiedCategory.id !== category.id) throw new Error('夹具分类身份回读失败。');
-  records.category = { name: plan.category.name, id: verifiedCategory.id };
+  if (!category) {
+    try { category = await cms.createCategory(page, plan.category.name); writes.push(`create-category:${plan.category.name}`); }
+    catch (error) {
+      if (!(cms.CategoryLimitError && error instanceof cms.CategoryLimitError) && error?.code !== 'CATEGORY_LIMIT') throw error;
+      records.category = { name: plan.category.name, id: null, unavailable: error.message };
+    }
+  }
+  if (category) {
+    verifiedCategory = await cms.findCategory(page, plan.category.name);
+    if (!verifiedCategory?.id || verifiedCategory.id !== category.id) throw new Error('夹具分类身份回读失败。');
+    records.category = { name: plan.category.name, id: verifiedCategory.id };
+  }
   for (const product of plan.products) {
     let id = await cms.findProduct(page, product.name);
     if (!id) { id = await cms.createProduct(page, product); writes.push(`create-product:${product.name}`); }
@@ -68,9 +80,11 @@ export async function ensureFixtureData({ page, profile, cms, previous = null })
     const actual = await cms.readProductFieldValues(page, id, Object.keys(product.values));
     const changed = Object.fromEntries(Object.entries(product.values).filter(([name, value]) => !sameValue(actual[name], value)));
     if (Object.keys(changed).length) { const updated = await cms.setProductFieldValues(page, id, changed); if (Object.entries(changed).some(([n,v]) => !sameValue(updated[n],v))) throw new Error(`产品 ${product.name} 字段回读失败。`); writes.push(`update-product:${product.name}`); }
+    if (verifiedCategory) {
     const categories = await cms.readProductCategories(page, id);
     if (!categories.includes(verifiedCategory.id)) { await cms.addProductCategory(page, id, verifiedCategory.id, plan.category.name); writes.push(`category-product:${product.name}`); }
     if (!(await cms.readProductCategories(page, id)).includes(verifiedCategory.id)) throw new Error(`产品 ${product.name} 分类回读失败。`);
+    }
     records.products[product.name] = id;
   }
   return { plan, records, writes, previousMatches: previous ? JSON.stringify(previous) === JSON.stringify(records) : null };

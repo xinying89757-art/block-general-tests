@@ -3,7 +3,7 @@ import { blockSelector } from './shared.mjs';
 import { normalizeColor } from './rail.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { fixedRequirementValues } from './signatures.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText, readBackWithRetry, isFieldCheckbox } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText, readBackWithRetry, isFieldCheckbox, fixtureCategoryState } from './shared.mjs';
 
 // Editor/dialog selectors: docs/SETTINGS_INVENTORY_样本区块.md,
 // scripts/probes/probe-settings8.mjs and probe-settings10/12.mjs (control label context).
@@ -690,6 +690,7 @@ async function filterInteractionEffect(args, kind) {
         await tx.observe(async (frame) => {
           const root = frame.locator(blockSelector(args.config.blockId)).first();
           if (fixture.category) {
+            { const cat = fixtureCategoryState(args.profile, args.report); if (cat.reason) unavailable(cat.reason); }
             const nav = root.locator('.pf-cate-wrap a').getByText(fixture.category, { exact: true });
             if (await nav.count() !== 1) unavailable('夹具指定的当前分类无法唯一确定。');
             await nav.click({ timeout: TIMEOUT });
@@ -899,6 +900,7 @@ async function fixtureOracleChecks(args, unavailableReason) {
         }, { group: SELECTORS.group });
         if (!interactive) unavailable('预览筛选组 pointer-events:none 或无可交互筛选值，未强制点击；发布流程待定，本次不发布。');
         if (policy.scope === '当前分类产品') {
+          { const cat = fixtureCategoryState(args.profile, args.report); if (cat.reason) unavailable(cat.reason); }
           const nav = root.locator('.pf-cate-wrap a').getByText(args.profile.fixture.category.name, { exact: true });
           if (await nav.count() !== 1) unavailable('无法唯一定位 AUTOTEST 当前分类。');
           await nav.click({ timeout: TIMEOUT });

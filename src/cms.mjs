@@ -512,10 +512,11 @@ function requireAuto(name) { if (!autoName(name)) throw new Error('拒绝操作�
 export async function getCustomFieldIdentity(page, name) {
   requireAuto(name);
   await openField(page, name);
+  // Live probe 2026-10-30: the edit form carries the field id in the single
+  // hidden input field.encodePkId (other hidden inputs are page-level).
   const id = await page.evaluate(() => {
-    const inputs = [...document.querySelectorAll('input[type="hidden"]')].filter(x => /^(field\.)?(fieldId|id)$/i.test(x.name || x.id));
-    const ids = [...new Set(inputs.map(x => x.value).filter(Boolean))];
-    if (ids.length !== 1) throw new Error('字段 ID 隐藏控件不唯一，需核实 CMS 表单。');
+    const ids = [...new Set([...document.querySelectorAll('input[type="hidden"][name="field.encodePkId"]')].map(x => x.value).filter(Boolean))];
+    if (ids.length !== 1) throw new Error('字段 ID 隐藏控件 field.encodePkId 不唯一，需核实 CMS 表单。');
     return ids[0];
   });
   const record = (await listCustomFields(page)).filter(f => f.name === name);
@@ -539,63 +540,61 @@ export async function updateCustomField(page, name, { missing = [], type, enable
   }
   await saveCms(page, () => clickAction(page, 'saveFieldContent'));
 }
-async function categoryList(page) {
+// Live probe 2026-10-30: invokeAction=prod_group_list lists every category
+// row with a dataId checkbox (= group id) and a viewProductListByGoup link
+// carrying the name; invokeAction=prod_group_add may answer with a
+// "分类数量已经达到最大限制" system alert instead of a form.
+export class CategoryLimitError extends Error { code = 'CATEGORY_LIMIT'; }
+async function gotoAction(page, action, params = {}) {
+  const url = new URL(PROD_URL); url.searchParams.set('invokeAction', action);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  await page.goto(url.href, { waitUntil: 'load', timeout: 60_000 });
   await assertProd(page);
-  const menu = page.locator('[action], [data-action]').filter({ visible: true }).filter({ hasText: /^\s*(管理产品分类|产品分类管理)\s*$/ });
-  await settleCmsNavigation(page, async () => (await unique(menu, '产品分类管理入口')).evaluate(el => el.click()));
+  await page.waitForTimeout(3000);
 }
 export async function findCategory(page, name) {
-  requireAuto(name); await categoryList(page);
+  requireAuto(name);
+  await gotoAction(page, 'prod_group_list');
+  await page.locator('[action="viewProductListByGoup"]').first().waitFor({ state: 'attached', timeout: TIMEOUT }).catch(() => {});
   return page.evaluate(wanted => {
     const norm = s => (s || '').replace(/\s+/g, ' ').trim();
-    const rows = [...document.querySelectorAll('tr')].filter(row => row.getClientRects().length && [...row.querySelectorAll('td')].some(td => norm(td.textContent) === wanted));
-    if (rows.length > 1) throw new Error('夹具分类重名。');
-    {
-      const paging = [...document.querySelectorAll('[class*=pagination], [class*=pager], [aria-label*=分页]')].filter(node => node.getClientRects().length);
-      if (paging.some(node => [...node.querySelectorAll('a,button')].some(link => /^(?:[2-9]\d*|下一页|下页|next)$/i.test(norm(link.textContent)) && !link.disabled && link.getAttribute('aria-disabled') !== 'true'))) throw new Error('分类列表有其他页，不能确认分类不存在；需实现全页查找。');
-    }
-    if (!rows.length) return null;
-    const row = rows[0], ids = new Set();
-    for (const node of [row, ...row.querySelectorAll('[href], [data-id], input')]) {
-      const id = node.dataset?.id || (node.tagName === 'INPUT' && /id/i.test(node.name) ? node.value : null);
-      if (id) ids.add(id);
-      if (node.getAttribute('href')) { const u = new URL(node.getAttribute('href'), location.href); for (const key of ['groupId','prodGroupId']) if (u.searchParams.has(key)) ids.add(u.searchParams.get(key)); }
-    }
-    if (ids.size !== 1) throw new Error('夹具分类 ID 不唯一，需核实分类列表。');
-    return { name: wanted, id: [...ids][0] };
+    const links = [...document.querySelectorAll('[action="viewProductListByGoup"]')].filter(a => norm(a.textContent) === wanted);
+    if (links.length > 1) throw new Error('夹具分类重名。');
+    if (!links.length) return null;
+    const ids = [...new Set([...links[0].closest('tr').querySelectorAll('input[type="checkbox"][name="dataId"]')].map(n => n.value).filter(Boolean))];
+    if (ids.length !== 1) throw new Error('夹具分类 ID 不唯一，需核实分类列表。');
+    return { name: wanted, id: ids[0] };
   }, name);
 }
 export async function createCategory(page, name) {
-  requireAuto(name); await categoryList(page);
-  const add = page.getByText(/^(添加|新增)产品分类$/).filter({ visible: true });
-  await (await unique(add, '新增分类入口')).click();
-  const input = page.getByLabel(/^(产品分类名称|分类名称)$/).filter({ visible: true });
-  await (await unique(input, '分类名称输入框')).fill(name);
-  const save = page.getByRole('button', { name: /^(保存|提交)$/ }).filter({ visible: true });
-  await saveCms(page, async () => (await unique(save, '分类保存')).click());
-  const found = await findCategory(page, name);
-  if (!found) throw new Error('新增分类保存后未找到。');
-  return found;
+  requireAuto(name);
+  await gotoAction(page, 'prod_group_add');
+  const limit = await page.evaluate(() => /分类数量已经达到最大限制/.test(document.body.innerText || ''));
+  if (limit) throw new CategoryLimitError('站点产品分类数量已达上限，无法新建 AUTOTEST 分类。');
+  // The add-category form has not been observed live yet (the test site is at
+  // its limit); refuse rather than guess its controls.
+  throw new Error('新增产品分类表单尚未实站探查，需先确认表单结构。');
 }
-async function categoryControls(page, prodId) {
+async function openAutoProduct(page, prodId) {
   await openProduct(page, prodId);
   const input = await unique(page.locator('input[name="product.prodName"]'), '产品名称');
   requireAuto(await input.inputValue());
-  return page.locator('input[type="checkbox"][name*="group" i], input[type="checkbox"][name*="category" i]').filter({ visible: true });
 }
+// Live probe 2026-10-30: the product form stores categories in the hidden
+// input groupIds (comma separated ids); productGroupSelect() opens a picker
+// with checkboxGroupIds checkboxes and confirm #popWinProdGroupConfirm.
+const groupIds = page => page.locator('input[type="hidden"][name="groupIds"]').inputValue().then(v => v.split(',').map(s => s.trim()).filter(Boolean));
 export async function readProductCategories(page, prodId) {
-  const controls = await categoryControls(page, prodId);
-  if (!await controls.count()) throw new Error('产品分类复选控件未找到，需核实产品编辑表单。');
-  return controls.evaluateAll(nodes => nodes.filter(n => n.checked).map(n => n.value));
+  await openAutoProduct(page, prodId);
+  return groupIds(page);
 }
 export async function addProductCategory(page, prodId, categoryId, categoryName) {
   requireAuto(categoryName);
-  const controls = await categoryControls(page, prodId);
-  // Attribute matching plus exact label avoids assigning an unrelated category.
-  const found = await controls.evaluateAll((nodes, { id, name }) => nodes.flatMap((n, i) => {
-    const label = (n.closest('label')?.innerText || [...(n.labels || [])].map(l => l.innerText).join('')).trim();
-    return n.value === id && label === name ? [i] : [];
-  }), { id: categoryId, name: categoryName });
-  if (found.length !== 1) throw new Error('产品分类控件或名称不唯一。');
-  await controls.nth(found[0]).check(); await saveProduct(page);
+  await openAutoProduct(page, prodId);
+  await page.evaluate(() => window.productGroupSelect());
+  const box = page.locator(`#popWin input[type="checkbox"][name="checkboxGroupIds"][value="${categoryId}"]`);
+  await (await unique(box, '分类选择框')).check();
+  await (await unique(page.locator('#popWinProdGroupConfirm'), '分类确认')).click();
+  if (!(await groupIds(page)).includes(categoryId)) throw new Error('分类选择后 groupIds 未包含目标分类。');
+  await saveProduct(page);
 }

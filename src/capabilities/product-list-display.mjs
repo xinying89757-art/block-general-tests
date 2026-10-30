@@ -1,6 +1,6 @@
 import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, productSnapshot, rememberCategoryState } from './effect-checks.mjs';
 import { savePage, openPreview } from '../editor.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText, fixtureCategoryState } from './shared.mjs';
 
 const SUITE = 'capability:product-list-display';
 const NAMES = {
@@ -228,6 +228,7 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
   const id = 'pld-data-source-category-front';
   const oracle = profile?.fixture?.category ? { category: profile.fixture.category.name, onShelf: profile.fixture.products.map(p => p.name) } : null;
   if (report?.fixture?.applied === false) return result(id, 'skip', '夹具准备失败，不能断言分类产品。');
+  { const cat = fixtureCategoryState(profile, report); if (oracle && cat.reason) return result(id, 'skip', cat.reason); }
   if (!oracle?.category || !Array.isArray(oracle.onShelf)) {
     return result(id, 'skip', '未提供后台分类和上架产品清单，无法比对。');
   }
@@ -628,6 +629,7 @@ async function sourceEffect(args, layer, kind) {
       && item.label === labels[kind], `本区块没有“${labels[kind]}”数据来源设置项。`);
     const oracle = args.profile?.fixture?.category ? { category: args.profile.fixture.category.name, onShelf: args.profile.fixture.products.map(p => p.name) } : null;
     if (args.report?.fixture?.applied === false) unavailable('夹具准备失败。');
+    if (kind === 'category') { const cat = fixtureCategoryState(args.profile, args.report); if (cat.reason) unavailable(cat.reason); }
     // Selecting a source alone cannot set up a new condition or product list.
     // These require their own configured fixtures; never reuse the category
     // oracle as the all-products/explicit-products universe.
