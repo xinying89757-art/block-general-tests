@@ -555,15 +555,12 @@ async function gotoAction(page, action, params = {}) {
 export async function findCategory(page, name) {
   requireAuto(name);
   await gotoAction(page, 'prod_group_list');
-  await page.locator('[action="viewProductListByGoup"]').first().waitFor({ state: 'attached', timeout: TIMEOUT }).catch(() => {});
+  await page.locator('input[type="checkbox"][name="dataId"]').first().waitFor({ state: 'attached', timeout: TIMEOUT }).catch(() => {});
+  // Every row (leaf or not) carries its name in the dataId checkbox groupname.
   return page.evaluate(wanted => {
-    const norm = s => (s || '').replace(/\s+/g, ' ').trim();
-    const links = [...document.querySelectorAll('[action="viewProductListByGoup"]')].filter(a => norm(a.textContent) === wanted);
-    if (links.length > 1) throw new Error('夹具分类重名。');
-    if (!links.length) return null;
-    const ids = [...new Set([...links[0].closest('tr').querySelectorAll('input[type="checkbox"][name="dataId"]')].map(n => n.value).filter(Boolean))];
-    if (ids.length !== 1) throw new Error('夹具分类 ID 不唯一，需核实分类列表。');
-    return { name: wanted, id: ids[0] };
+    const rows = [...document.querySelectorAll('input[type="checkbox"][name="dataId"]')].filter(n => (n.getAttribute('groupname') || '').trim() === wanted);
+    if (rows.length > 1) throw new Error('夹具分类重名。');
+    return rows.length ? { name: wanted, id: rows[0].value } : null;
   }, name);
 }
 export async function createCategory(page, name) {
