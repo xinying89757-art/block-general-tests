@@ -19,4 +19,12 @@ try {
         .filter(n => n.getClientRects().length && /保存|提交|确定/.test(n.innerText || n.value || ''))
         .map(n => n.outerHTML.slice(0, 500)) };
   }), null, 2));
+  // Editing the unsaved form only: observe activation events; do not submit.
+  const name = prod.locator('#groupName');
+  const save = prod.locator('a[action="prod_group_save_verify"][flag="list"]:visible');
+  await name.fill('AUTOTEST-筛选分类'); await name.blur(); await prod.waitForTimeout(2000);
+  console.log('after-fill', await save.evaluate(n => n.outerHTML));
+  await name.focus(); await name.press('End'); await name.press('Space'); await name.press('Backspace'); await name.blur();
+  await prod.waitForTimeout(2000);
+  console.log('after-keyboard', await save.evaluate(n => n.outerHTML));
 } finally { await browser.close(); }

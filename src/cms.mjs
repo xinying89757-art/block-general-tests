@@ -578,6 +578,9 @@ export async function createCategory(page, name) {
   await input.fill(name);
   await input.blur();
   const save = await unique(page.locator('a[action="prod_group_save_verify"][flag="list"]').filter({ visible: true }), '保存分类');
+  // The form enables this anchor asynchronously after the input event.
+  await page.locator('a[action="prod_group_save_verify"][flag="list"]:visible:not([disabled])')
+    .waitFor({ state: 'visible', timeout: TIMEOUT });
   await saveCms(page, async () => {
     if (await save.getAttribute('disabled') !== null) throw new Error('保存分类按钮不可用。');
     await save.evaluate(node => node.click());
