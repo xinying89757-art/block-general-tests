@@ -68,7 +68,7 @@ try {
   stage = 'library-open';
   panel = await waitForUniqueVisibleModuleLibraryPanel(session.page, config.actionTimeoutMs);
   stage = 'library-inventory';
-  const modes = await probeModuleLibraryModes({ page: session.page, panel, targetBlockId: blockId, config });
+  const modes = await probeModuleLibraryModes({ page: session.page, panel, frame: canvas, targetBlockId: blockId, config });
   result = summarizeTargetSearch({ modes, targetBlockId: blockId });
   result.moduleLibraryOpenerMatchCount = addCount;
   result.siteHost = siteHost;
@@ -101,9 +101,11 @@ const summaryPath = reportPath.replace(/\.json$/, '-zh.md');
 const modeSummary = (result.modes || []).map(({ mode, found, query, screenshot, error }) => `### ${mode}\n\n- 查询编号：${query}\n- 结果：${found ? '找到目标' : '未找到目标'}${error ? `\n- 错误：${error}` : ''}${screenshot ? `\n- 截图：\`${screenshot}\`` : ''}`).join('\n\n');
 const summaryBody = result.status === 'error'
   ? `- 结果：盘点未完成，停在阶段「${result.stage}」。\n- 错误：${result.error.code || ''} ${result.error.message}\n`
-  : `- 目标区块 ${result.targetBlockId}：${result.targetFound ? '找到' : '未找到'}\n\n${modeSummary}\n`;
+  : `${result.searchComplete ? `- 目标区块 ${result.targetBlockId}：${result.targetFound ? '找到' : '所有模式已查完，未找到'}`
+    : `- 目标区块 ${result.targetBlockId}：搜索未完成，不能判定是否存在`}\n\n${modeSummary}\n`;
 await fs.writeFile(summaryPath, `# 模块库只读盘点\n\n- 站点：${result.siteHost}\n- 页面：${result.page.name || result.page.id} (${result.page.url})\n- 前台：${result.links.front}\n- 编辑器：${result.links.editor}\n${summaryBody}\n本脚本只打开并关闭模块库；没有点击添加、保存或发布。在线目录是搜索式，本次仅对目标区块号做查询，并非完整在线目录。\n`);
 console.log(`[module-library] report: ${reportPath}`);
 console.log(`[module-library] summary: ${summaryPath}`);
 if (result.status === 'error') console.error(`[module-library] stopped at ${stage}: ${result.error.code || result.error.message}`);
-else console.log(`[module-library] target ${blockId}: ${result.targetFound ? 'found' : 'not found'}; modes=${result.modes.length}`);
+else console.log(`[module-library] target ${blockId}: ${result.searchComplete
+  ? (result.targetFound ? 'found' : 'absent in searched modes') : 'search incomplete'}; modes=${result.modes.length}`);

@@ -23,6 +23,16 @@ export async function waitForUniqueVisibleModuleLibraryPanel(page, timeoutMs = 3
   return waitForUniqueVisibleControl(page, '.backstage-addmodules-chooseWrapper', 'Module-library panel', timeoutMs);
 }
 
+export async function closeModuleLibraryPanel(page, panel, timeoutMs = 5_000) {
+  const closeSelector = '.addmodules_searchContainer > .block-iconbaseline-close';
+  const visibleClose = panel.locator(`${closeSelector}:visible`);
+  const count = await visibleClose.count();
+  if (count > 1) throw new Error(`Module-library close control has ${count} visible matches.`);
+  if (count === 1) await visibleClose.first().click({ timeout: timeoutMs });
+  else await page.keyboard.press('Escape');
+  await panel.waitFor({ state: 'hidden', timeout: timeoutMs });
+}
+
 /** Uses the same first canvas wrapper/add control as the proven add path. */
 export async function inspectActiveModuleLibraryOpener(frame) {
   const wrapper = frame.locator('#backstage-bodyArea .backstage-creatmodules-wrapper').first();
@@ -31,21 +41,31 @@ export async function inspectActiveModuleLibraryOpener(frame) {
 }
 
 /** Target-only UI adapter shared by onboarding, read-only inventory, and add. */
-export async function probeModuleLibraryModes({ page, panel, targetBlockId, config, modes = ['online', 'develop', 'review'] }) {
+export async function probeModuleLibraryModes({ page, panel, frame, targetBlockId, config, modes = ['online', 'develop', 'review'] }) {
   const target = String(targetBlockId);
   return probeTargetAcrossModes({ targetBlockId: target, modes,
-    probeMode: async ({ mode }) => {
-      const candidate = panel.locator(`.btn.add[appid=${JSON.stringify(target)}]`);
+    openModeSurface: async ({ index }) => {
+      if (index === 0) return panel;
+      const { locator: opener, matchCount } = await inspectActiveModuleLibraryOpener(frame);
+      if (matchCount !== 1) throw Object.assign(new Error(`Module-library opener matched ${matchCount} controls while reopening a mode.`),
+        { code: 'ENV_MODULE_LIBRARY_OPENER_UNAVAILABLE', searched: false });
+      await opener.click({ timeout: config.actionTimeoutMs });
+      return waitForUniqueVisibleModuleLibraryPanel(page, config.actionTimeoutMs);
+    },
+    closeModeSurface: async ({ surface }) => closeModuleLibraryPanel(page, surface),
+    probeMode: async ({ mode, surface }) => {
+      const activePanel = surface;
+      const candidate = activePanel.locator(`.btn.add[appid=${JSON.stringify(target)}]`);
       return searchTargetInMode({ mode, targetBlockId: target,
         selectMode: async () => {
           if (mode === 'online') return;
           const value = mode === 'develop' ? '-1' : '-2';
-          const tab = await waitForUniqueVisibleControl(panel, `.user-handle-module[value="${value}"]`, `Mode ${mode} tab`,
+          const tab = await waitForUniqueVisibleControl(activePanel, `.user-handle-module[value="${value}"]`, `Mode ${mode} tab`,
             Number(config.libraryControlTimeoutMs) || 8_000);
           await tab.click({ timeout: config.actionTimeoutMs });
         },
         submitTarget: async (id) => {
-          const search = await waitForUniqueVisibleControl(panel, '.addmodules_searchWrap input', `Target search input (${mode})`,
+          const search = await waitForUniqueVisibleControl(activePanel, '.addmodules_searchWrap input', `Target search input (${mode})`,
             Number(config.libraryControlTimeoutMs) || 8_000);
           await search.fill(id);
           await search.press('Enter');
@@ -55,7 +75,7 @@ export async function probeModuleLibraryModes({ page, panel, targetBlockId, conf
         }), { stage: 'library-load' }).catch((error) => { if (error.name !== 'TimeoutError') throw error; }),
         scrollResultsToEnd: async () => {
           for (let pass = 0; pass < 8; pass += 1) {
-            await panel.evaluate((root) => {
+            await activePanel.evaluate((root) => {
               for (const node of [root, ...root.querySelectorAll('*')]) {
                 if (node.scrollHeight > node.clientHeight + 2
                   && ['auto', 'scroll'].includes(getComputedStyle(node).overflowY)) node.scrollTop = node.scrollHeight;
