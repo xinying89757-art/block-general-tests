@@ -116,7 +116,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       await addButton.first().click({ timeout: config.actionTimeoutMs });
       const panel = await waitForUniqueVisibleModuleLibraryPanel(page, config.actionTimeoutMs);
       let lookup;
-      try { lookup = await probeModuleLibraryModes({ page, panel, targetBlockId: blockId, config }); }
+      try { lookup = await probeModuleLibraryModes({ page, panel, frame, targetBlockId: blockId, config }); }
       finally {
         const close = panel.locator('.addmodules_searchContainer > .block-iconbaseline-close');
         if (await close.count() === 1 && await close.first().isVisible()) await close.first().click({ timeout: 5_000 });
