@@ -2,7 +2,19 @@
   "version": 1,
   "siteHost": "en-site79106751.ldwebsite.com",
   "blockId": "47748",
-  "migratedAt": "2026-10-31T00:31:15.864Z",
+  "capturedAt": "2026-10-31T00:44:50.416Z",
+  "instance": {
+    "selection": "first-in-dom-order",
+    "index": 1,
+    "position": {
+      "x": 0,
+      "y": 165,
+      "width": 1525,
+      "height": 2763
+    },
+    "settingId": "BNpGKBfIoHed",
+    "instanceCount": 1
+  },
   "fixtureRefs": {
     "note": "筛选真值表使用单选按钮、下拉列表两个字段和三件产品；产品卡展示字段覆盖见 displayFields（本区块展示字段支持单选、多选、下拉，各类型一个 AUTOTEST- CMS 字段）。",
     "supportedTypes": [
@@ -106,11 +118,27 @@
   },
   "steps": [
     {
-      "title": null,
       "type": "phoenix_blocks_button",
       "wrapIndex": 0,
-      "want": [],
-      "skipped": "打开后 10 秒内未出现 widget dialog（可能打开的是画布内浮层而非设置弹窗）"
+      "title": null,
+      "kind": "button-popover",
+      "want": [
+        {
+          "label": "按钮文本",
+          "type": "text",
+          "to": "New Machine"
+        },
+        {
+          "label": "链接网址",
+          "type": "text",
+          "to": "javascript:void(0);"
+        },
+        {
+          "label": "新窗口打开",
+          "type": "checkbox",
+          "to": false
+        }
+      ]
     },
     {
       "title": "设置产品分类",
@@ -118,81 +146,37 @@
       "wrapIndex": 0,
       "want": [
         {
-          "label": "选择所有产品分类",
+          "index": 0,
+          "tag": "INPUT",
           "type": "radio",
+          "name": "selectGroupWay",
+          "label": "选择所有产品分类",
+          "context": "选择所有产品分类",
+          "value": "0",
+          "checked": true,
+          "disabled": false,
+          "readOnly": false,
           "to": true
         }
       ],
-      "skippedDisabled": 45,
       "fixtureSelection": {
         "kind": "fixture-selection",
-        "items": [],
+        "items": [
+          {
+            "label": "AUTOTEST-筛选分类",
+            "type": "checkbox",
+            "selected": true
+          }
+        ],
         "otherItemsPolicy": "ignored"
-      }
+      },
+      "skippedDisabled": 101
     },
     {
       "title": "设置自定义字段筛选",
       "type": "phoenix_blocks_filterStyle",
       "wrapIndex": 0,
       "want": [],
-      "fixtureSelection": {
-        "kind": "fixture-selection",
-        "items": [
-          {
-            "label": "AUTOTEST-单选按钮A",
-            "type": "checkbox",
-            "selected": false
-          },
-          {
-            "label": "AUTOTEST-下拉列表",
-            "type": "checkbox",
-            "selected": false
-          }
-        ],
-        "otherItemsPolicy": "ignored"
-      }
-    },
-    {
-      "title": "设置与选取数据",
-      "type": "phoenix_blocks_gallery",
-      "wrapIndex": 1,
-      "want": [
-        {
-          "label": "所有产品",
-          "type": "radio",
-          "to": true
-        },
-        {
-          "label": "搜索",
-          "type": "text",
-          "to": ""
-        },
-        {
-          "label": "共4,117页 到第页",
-          "type": "text",
-          "to": ""
-        },
-        {
-          "label": "全选",
-          "type": "checkbox",
-          "to": false,
-          "identity": "select-all",
-          "occurrence": 0
-        },
-        {
-          "label": "全选",
-          "type": "checkbox",
-          "to": false,
-          "identity": "select-all",
-          "occurrence": 1
-        },
-        {
-          "label": "是",
-          "type": "radio",
-          "to": true
-        }
-      ],
-      "skippedNoLabel": 1,
       "fixtureSelection": {
         "kind": "fixture-selection",
         "items": [
@@ -214,6 +198,76 @@
         ],
         "otherItemsPolicy": "ignored"
       }
+    },
+    {
+      "title": "设置与选取数据",
+      "type": "phoenix_blocks_gallery",
+      "wrapIndex": 1,
+      "want": [
+        {
+          "index": 1,
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "selectProdType",
+          "label": "所有产品",
+          "context": "所有产品",
+          "value": "0",
+          "checked": true,
+          "disabled": false,
+          "readOnly": false,
+          "to": true
+        },
+        {
+          "label": "搜索",
+          "type": "text",
+          "to": ""
+        },
+        {
+          "label": "共163页 到第页",
+          "type": "text",
+          "to": ""
+        },
+        {
+          "index": 137,
+          "tag": "INPUT",
+          "type": "radio",
+          "name": "pagination",
+          "label": "是",
+          "context": "是",
+          "value": "1",
+          "checked": true,
+          "disabled": false,
+          "readOnly": false,
+          "to": true
+        }
+      ],
+      "fixtureSelection": {
+        "kind": "fixture-selection",
+        "items": [
+          {
+            "label": "AUTOTEST-筛选分类",
+            "type": "checkbox",
+            "selected": false
+          },
+          {
+            "label": "AUTOTEST-单选按钮A",
+            "type": "checkbox",
+            "selected": false
+          },
+          {
+            "label": "AUTOTEST-下拉列表",
+            "type": "checkbox",
+            "selected": false
+          },
+          {
+            "label": "AUTOTEST-多选",
+            "type": "checkbox",
+            "selected": false
+          }
+        ],
+        "otherItemsPolicy": "ignored"
+      },
+      "skippedNoLabel": 1
     }
   ]
 }
