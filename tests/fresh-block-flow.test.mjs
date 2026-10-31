@@ -10,14 +10,15 @@ import { matchingPageSaveControls, waitForUniquePageSaveControl } from '../src/p
 import { bindFreshBatchSettingSession, freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
 import { freshSettings as customFilterFreshSettings } from '../src/capabilities/custom-filter-fields.mjs';
 import { freshSettings as buttonFreshSettings } from '../src/capabilities/button-link.mjs';
-import { freshSettings as colorFreshSettings } from '../src/capabilities/block-color-scheme.mjs';
+import { freshSettings as colorFreshSettings, createFreshDefinitions as createColorFreshDefinitions } from '../src/capabilities/block-color-scheme.mjs';
 import { freshSettings as widthFreshSettings, moduleWidthPersistedControls } from '../src/capabilities/module-width.mjs';
 import { freshSettings as categoryFreshSettings, categoryPersistedControls } from '../src/capabilities/product-category-select.mjs';
 import { freshSettings as styleFreshSettings } from '../src/capabilities/block-style-spec.mjs';
 import { freshRailInventoryRegions, resolveFreshPageTarget } from '../src/fresh-block-browser-adapter.mjs';
 import { inspectActiveModuleLibraryOpener, waitForUniqueVisibleControl,
   waitForUniqueVisibleModuleLibraryPanel } from '../src/module-library-browser.mjs';
-import { selectBlock as selectRailBlock } from '../src/capabilities/rail.mjs';
+import { selectBlock as selectRailBlock, identifyColorPanelInputs, planColorPanelWrites,
+  colorPanelReadResult } from '../src/capabilities/rail.mjs';
 import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
 import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
 
@@ -79,6 +80,62 @@ test('stable block inventory requires consecutive identical reads after readines
   assert.deepEqual(result, [{ blockId: 'a' }, { blockId: 'b' }]);
   assert.deepEqual(events, ['ready', 'read-1', 'ready', 'read-2', 'ready', 'read-3']);
   assert.deepEqual(countPageBlocksByNumber([{ blockId: 'a' }, { blockId: 'b' }, { blockId: 'a' }]), { a: 2, b: 1 });
+});
+
+test('single color input preserves the scalar reader contract and existing rail inventory shape', () => {
+  const inputs = [{ name: 'scheme', label: '配色方案', role: 'color', value: '#1C4587', position: 0 }];
+  const read = colorPanelReadResult(inputs);
+  assert.equal(read, '#1C4587');
+  assert.deepEqual(freshRailInventoryRegions(read, null)[0].controls, [{ index: 0, tag: 'INPUT', type: 'text',
+    name: 'scheme-color', label: '配色方案', value: '#1C4587', checked: false, disabled: false }]);
+  assert.deepEqual(planColorPanelWrites(identifyColorPanelInputs(inputs).controls, '#FF0000').map(({ control, value }) =>
+    ({ identity: control.identity, value })), [{ identity: 'label:配色方案', value: '#FF0000' }]);
+});
+
+test('three color inputs are inventoried independently and composite writes require explicit identities', () => {
+  const inputs = [
+    { name: 'colorVal0', label: '文字色', role: 'color', value: '#112233', position: 0 },
+    { name: 'colorVal1', label: '背景色', role: 'color', value: '#445566', position: 1 },
+    { name: 'colorVal2', label: '边框色', role: 'color', value: '#778899', position: 2 },
+  ];
+  const read = colorPanelReadResult(inputs);
+  assert.equal(read.status, 'multiple-controls');
+  assert.deepEqual(read.controls.map(({ identity, label, role, position, value }) =>
+    ({ identity, label, role, position, value })), [
+    { identity: 'label:文字色', label: '文字色', role: 'color', position: 0, value: '#112233' },
+    { identity: 'label:背景色', label: '背景色', role: 'color', position: 1, value: '#445566' },
+    { identity: 'label:边框色', label: '边框色', role: 'color', position: 2, value: '#778899' },
+  ]);
+  assert.throws(() => planColorPanelWrites(read.controls, '#FF0000'), /specify each target/);
+  assert.deepEqual(planColorPanelWrites(read.controls, read.controls.map((control, index) =>
+    ({ controlIdentity: control.identity, value: ['#AA0000', '#00BB00', '#0000CC'][index] })))
+    .map(({ control, value }) => ({ identity: control.identity, value })), [
+    { identity: 'label:文字色', value: '#AA0000' },
+    { identity: 'label:背景色', value: '#00BB00' },
+    { identity: 'label:边框色', value: '#0000CC' },
+  ]);
+  const regions = freshRailInventoryRegions(read, null)[0];
+  assert.equal(regions.controls.length, 3);
+  assert.deepEqual(regions.controls.map(({ name, label, value }) => ({ name, label, value })), [
+    { name: 'colorVal0', label: '文字色', value: '#112233' },
+    { name: 'colorVal1', label: '背景色', value: '#445566' },
+    { name: 'colorVal2', label: '边框色', value: '#778899' },
+  ]);
+});
+
+test('ambiguous color controls retain inventory notes and cannot be mapped or written', () => {
+  const inputs = [
+    { name: 'same', label: '颜色', role: 'color', value: '#111111', position: 0 },
+    { name: 'same', label: '颜色', role: 'color', value: '#222222', position: 0 },
+  ];
+  const read = colorPanelReadResult(inputs);
+  assert.equal(read.status, 'multiple-controls');
+  assert.ok(read.controls.every((control) => !control.identifiable && control.inventoryNote));
+  assert.equal(read.notes.length, 2);
+  assert.throws(() => planColorPanelWrites(read.controls, [
+    { controlIdentity: 'name:same', value: '#FF0000' },
+  ]), /resolved 0 inputs/);
+  assert.equal(colorPanelReadResult(inputs, { panelCount: 2 }).status, 'ambiguous-panel');
 });
 
 test('unstable page inventory fails closed at its configured bound', async () => {
@@ -304,6 +361,30 @@ test('fresh color and width definitions use right-rail lifecycles and declare co
   const widthRun = await executeSettingBatches({ settings: width.settings, metadata: width.metadata,
     adapter: width.batchAdapter, finalState: 'retain-tested-values' });
   assert.equal(widthRun.results[0].status, 'pass');
+});
+
+test('color capability retains its single-input oracle and records multi-input inventory without guessing', async () => {
+  let cancelled = 0;
+  const lifecycle = { open: async () => {}, read: async () => '#336699', apply: async () => {},
+    commit: async () => {}, cancel: async () => { cancelled++; } };
+  const single = await createColorFreshDefinitions({ canvas: {}, config: { blockId: 'generic' }, lifecycle });
+  assert.equal(single.settings.length, 1);
+  assert.equal(single.settings[0].value, '#FF0000');
+  assert.deepEqual(single.persistedControls, [{ region: 'right-rail-color', controlIndex: 0, type: 'text' }]);
+
+  const multi = await createColorFreshDefinitions({ canvas: {}, config: { blockId: 'generic' }, initialValue: {
+    status: 'multiple-controls', controls: [
+      { identity: 'name:colorVal0', label: 'colorVal0', role: 'color', position: 0, value: '#112233', identifiable: true },
+      { identity: 'name:colorVal1', label: 'colorVal1', role: 'color', position: 1, value: '#445566', identifiable: true },
+      { identity: 'name:colorVal2', label: 'colorVal2', role: 'color', position: 2, value: '#778899', identifiable: true },
+    ], notes: [] }, lifecycle });
+  assert.equal(multi.settings.length, 0);
+  assert.match(multi.notAdaptedReason, /3 independently inventoried control/);
+  assert.deepEqual(multi.staticResults.map(({ id, status }) => [id, status]), [
+    ['bcs-state', 'record'], ['bcs-color-persist', 'skip'], ['bcs-front-effect', 'skip'],
+  ]);
+  assert.equal(multi.staticResults[0].evidence.controls.length, 3);
+  assert.equal(cancelled, 1, 'an ambiguous visible rail surface is closed without saving');
 });
 
 test('fresh category definition persists the whole fixture selection set as one setting', async () => {

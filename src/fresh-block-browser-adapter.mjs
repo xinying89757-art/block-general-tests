@@ -58,9 +58,16 @@ export function freshRailInventoryRegions(color, width) {
     value: width?.customVal ?? '', checked: false, disabled: false });
   widthControls.push({ index: customIndex + 1, tag: 'INPUT', type: 'checkbox', name: 'globalApply', label: '全局应用',
     value: 'on', checked: Boolean(width?.globalApply), disabled: false });
+  const colorControls = typeof color === 'string' ? [{ index: 0, tag: 'INPUT', type: 'text', name: 'scheme-color',
+    label: '配色方案', value: color, checked: false, disabled: false }] : (color?.controls || []).map((control, index) => ({
+    index, tag: 'INPUT', type: 'color', name: control.name || control.identity || '',
+    label: control.label || `Color input at position ${index + 1}`, value: control.value ?? null, checked: false,
+    disabled: false, role: control.role || 'textbox', position: control.position, identity: control.identity,
+    inventoryNote: control.inventoryNote || (!control.identifiable ? 'Color input identity is ambiguous; skipped for setting mapping.' : undefined),
+  }));
   return [
     { title: 'right-rail-color', type: 'rail:color-scheme', wrapIndex: 0, kind: 'right-rail-flyout',
-      controls: [{ index: 0, tag: 'INPUT', type: 'text', name: 'scheme-color', label: '配色方案', value: color ?? '', checked: false, disabled: false }] },
+      controls: colorControls, ...(color?.notes?.length ? { notes: color.notes } : {}) },
     { title: 'right-rail-width', type: 'rail:module-width', wrapIndex: 0, kind: 'right-rail-flyout', controls: widthControls },
   ];
 }
@@ -71,9 +78,19 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
   let pageItem;
   let resolvedTarget;
   const readFreshInventory = async () => {
-    await openRailPanel(frame, config.blockId, RAIL.colorIcon, RAIL.colorPanel);
     let color;
-    try { color = await readSchemeColor(frame); } finally { await cancelColorPanel(frame); }
+    try {
+      await openRailPanel(frame, config.blockId, RAIL.colorIcon, RAIL.colorPanel);
+      color = await readSchemeColor(frame);
+    } catch (error) {
+      color = { status: 'panel-unavailable', controls: [], notes: [error.message] };
+    } finally {
+      try { await cancelColorPanel(frame); } catch (error) {
+        color = { ...(typeof color === 'object' ? color : {}), status: color?.status || 'panel-close-unavailable',
+          controls: typeof color === 'object' ? color.controls || [] : [],
+          notes: [...(typeof color === 'object' ? color.notes || [] : []), error.message] };
+      }
+    }
     await openRailPanel(frame, config.blockId, RAIL.widthIcon, RAIL.widthPanel);
     let width;
     try { width = await readModuleWidth(frame); } finally { await cancelWidthPanel(frame); }

@@ -203,7 +203,11 @@ export function currentValuesFromInventory(inventory) {
       const identityValue = sensitive ? '[redacted]' : (control.value || '');
       values.push({ controlIdentity: `${region.type}:${region.wrapIndex}:${region.title || region.kind || ''}:${control.type}:${control.label || ''}:${identityValue}:${index}`,
         controlIndex: control.index ?? index,
-        region: region.title || region.kind || region.type, label: control.label || '', type: control.type, value });
+        region: region.title || region.kind || region.type, label: control.label || '', type: control.type, value,
+        ...(control.inventoryNote ? { inventoryNote: control.inventoryNote } : {}),
+        ...(control.role ? { role: control.role } : {}),
+        ...(control.position !== undefined ? { position: control.position } : {}),
+        ...(control.identity ? { sourceIdentity: control.identity } : {}) });
     }
   }
   return values;

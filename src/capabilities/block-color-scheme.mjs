@@ -47,6 +47,18 @@ export async function createFreshDefinitions(args) {
     await lifecycle.open();
     try { return await lifecycle.read(); } finally { await lifecycle.cancel(); }
   })();
+  if (typeof initial !== 'string') {
+    const controls = initial?.controls || [];
+    const notes = initial?.notes || [];
+    const reason = `Color panel returned ${controls.length} independently inventoried control(s); no profile mapping uniquely identifies the existing scheme-color oracle.`;
+    const evidence = { status: initial?.status || 'unresolved', controls: controls.map(({ identity, label, role, position, value, identifiable, inventoryNote }) =>
+      ({ identity, label, role, position, value, identifiable, inventoryNote })), notes };
+    return { settings: [], notAdaptedReason: reason, persistedControls: [], staticResults: [
+      result('bcs-state', 'record', `${reason} Controls are retained in inventory evidence; no color setting was changed.`, evidence),
+      result('bcs-color-persist', 'skip', reason, evidence),
+      result('bcs-front-effect', 'skip', 'The existing scheme-color setting could not be identified uniquely; its front assertion was not run.', evidence),
+    ] };
+  }
   const setting = {
     id: 'bcs-color-persist', key: 'scheme-color', name: NAMES['bcs-color-persist'], lifecycle,
     initialValue: initial, originalValue: initial, value: ALT_COLOR, expected: ALT_COLOR,
@@ -158,6 +170,16 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
   }
   const count = await canvas.locator(`${RAIL.colorPanel}:visible ${RAIL.colorInput}`).count()
     .catch(() => 0);
+  if (typeof initial !== 'string') {
+    const reason = `配色浮层中有 ${initial?.controls?.length || 0} 个颜色控件，未能唯一确认既有配色方案设置；已逐项记录，跳过需要映射到单一方案的检查。`;
+    const notes = [...(initial?.notes || [])];
+    try { await cancelColorPanel(canvas); } catch (error) { notes.push(`无法关闭配色浮层：${error.message}`); }
+    const evidence = { controls: initial?.controls || [], notes };
+    checks.push(result('bcs-state', 'record', reason, evidence),
+      result('bcs-color-persist', 'skip', reason, evidence),
+      result('bcs-front-effect', 'skip', '配色设置未能唯一识别，未运行其前台断言。', evidence));
+    return checks;
+  }
   checks.push(result('bcs-state',
     normalizeColor(initial) === normalizeColor(SCHEME) ? 'record' : 'fail',
     `配色方案 ${count} 个（设计稿只有配色 1），当前值 ${initial}。`,
