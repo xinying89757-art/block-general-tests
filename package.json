@@ -7,6 +7,7 @@
     "test": "node scripts/run-tests.mjs",
     "test:block": "node src/run.mjs",
     "onboard:block": "node scripts/onboard-block.mjs",
+    "list:modules": "node scripts/list-module-library.mjs",
     "check:syntax": "node scripts/check-syntax.mjs",
     "check:imports": "node scripts/check-relative-imports.mjs",
     "check:profiles": "node scripts/validate-profiles.mjs",
