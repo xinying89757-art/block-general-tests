@@ -76,9 +76,10 @@ export async function openRailPanel(canvas, blockId, iconSelector, panelSelector
       return { index: currentIndex, rail: canvas.locator(RAIL.rail).nth(currentIndex),
         icon: canvas.locator(RAIL.rail).nth(currentIndex).locator(iconSelector).first() };
     },
-    act: async ({ icon }) => {
+    act: async ({ icon, index, rail }) => {
       await icon.scrollIntoViewIfNeeded();
       await icon.click({ timeout: TIMEOUT });
+      return { index, rail };
     },
   });
   // Several panel copies exist (one per block); only the selected block's
