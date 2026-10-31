@@ -18,6 +18,13 @@ test('current page identity fails closed when the active page differs from the r
   assert.throws(() => assertCurrentPageLabel(snapshot, 'Products'), /当前活动页为「Product Detail」/);
 });
 
+test('toolbar page identity stops at the first editor action instead of absorbing toolbar history text', () => {
+  const snapshot = { activeItems: [], toolbarText: '页面: Products 智能优化当前页面 操作记录 暂无历史记录 显示更多 没有更多了' };
+  assert.equal(resolveCurrentPageLabel(snapshot), 'Products');
+  assert.equal(assertCurrentPageLabel(snapshot, 'Products'), 'Products');
+  assert.throws(() => assertCurrentPageLabel(snapshot, 'Catalog'), /当前活动页为「Products」/);
+});
+
 test('editor host identity is read from the canvas frame and ignores platform frames', () => {
   assert.deepEqual(resolveEditorSiteHosts({
     pageUrl: 'https://www.leadong.com/phoenix/pagebuilder/index',

@@ -10,8 +10,9 @@ export function resolveCurrentPageLabel({ activeItems = [], toolbarText = '' } =
   const active = activeItems.filter((item) => item.active && String(item.label || '').trim());
   if (active.length === 1) return String(active[0].label).replace(/\s+/g, ' ').trim();
   const normalized = String(toolbarText || '').replace(/\s+/g, ' ').trim();
-  const match = normalized.match(/页面:\s*(.*?)\s+(?:智能优化当前页面\s+)?保存(?:\s|$)/);
-  return match?.[1]?.trim() || '';
+  const afterPagePrefix = normalized.match(/(?:^|\s)页面:\s*(.*)$/)?.[1] || '';
+  const action = afterPagePrefix.match(/\s+(?:智能优化当前页面|操作记录|保存|发布|预览)(?:\s|$)/);
+  return (action ? afterPagePrefix.slice(0, action.index) : afterPagePrefix).trim();
 }
 
 export function assertCurrentPageLabel(snapshot, expected) {
