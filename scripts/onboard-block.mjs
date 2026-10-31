@@ -104,7 +104,10 @@ try {
     const reportPath = path.join(reportDir, `fresh-block-${blockId}-${Date.now()}.json`);
     await fs.writeFile(reportPath, `${JSON.stringify(environmentReport, null, 2)}\n`);
     const summaryPath = reportPath.replace(/\.json$/, '-summary-zh.md');
-    await fs.writeFile(summaryPath, `# 区块 ${blockId} onboarding 环境结果\n\n- 状态：${outcome.status}\n- 阶段：${environmentReport.stage}\n- 原因：${outcome.message}\n- 前台：${environmentReport.links.front || '未生成'}\n- 编辑器：${environmentReport.links.editor || '未生成'}\n- 设置盘点：未开始；未执行设置批次或发布。\n- JSON：\`${path.relative(root, reportPath)}\`\n`);
+    const attempts = environmentReport.libraryLookup.length ? environmentReport.libraryLookup.map((item) =>
+      `- ${item.mode}: 查询 ${item.query}；searched=${item.searched}；等待加载=${item.waitedForLazyResults}；滚动到底=${item.scrolledToEnd}；found=${item.found}${item.screenshot ? `；截图=${item.screenshot}` : ''}${item.error ? `；错误=${item.error}` : ''}`).join('\n')
+      : '- 无模块库查询（停止在编辑器入口或更早阶段）';
+    await fs.writeFile(summaryPath, `# 区块 ${blockId} onboarding 环境结果\n\n- 状态：${outcome.status}\n- 阶段：${environmentReport.stage}\n- 原因：${outcome.message}\n- 前台：${environmentReport.links.front || '未生成'}\n- 编辑器：${environmentReport.links.editor || '未生成'}\n- 模块库按目标编号的尝试：\n${attempts}\n- 设置盘点：未开始；未执行设置批次或发布。\n- JSON：\`${path.relative(root, reportPath)}\`\n`);
     console.error(`[onboard] environment outcome: ${outcome.code}; report: ${reportPath}`);
     console.error(`[onboard] Chinese summary: ${summaryPath}`);
     process.exitCode = 2;

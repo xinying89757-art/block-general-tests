@@ -98,9 +98,11 @@ export function buildOnboardingEnvironmentReport({ runId, blockId, siteHost, pag
   return { schemaVersion: 1, flow: 'fresh-block-onboarding', runId, status: outcome.status,
     environmentOutcome: outcome.code, siteHost, blockId: String(blockId), page,
     links: { editor: links?.editor || null, front: links?.front || null },
-    stage: outcome.code === 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY' ? 'add-default-block' : (lastProgress?.stage || 'start'),
+    stage: outcome.code === 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY' ? 'module-library-preflight' : (lastProgress?.stage || 'start'),
     lifecycle: { deletedSettingIds: lastProgress?.deletedSettingIds || [], addedSettingId: null },
-    inventory: { status: 'not-reached', autoMappedCount: null, unmappedCount: null },
+    inventory: { status: outcome.code === 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY' ? 'target-only-search-complete' : 'not-reached',
+      autoMappedCount: null, unmappedCount: null },
+    libraryLookup: Array.isArray(error?.libraryLookup) ? error.libraryLookup : [],
     checks: [], failures: [], publishedAt: null,
     error: { code: outcome.code, message: outcome.message, originalMessage: String(error?.message || error || '') },
   };

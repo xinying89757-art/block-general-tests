@@ -48,7 +48,8 @@ function fakeAdapter(initialInstances = []) {
     readCurrentValues: async () => Object.entries(state.values).map(([key, value]) => ({ key, value })),
     readPublishedValues: async () => Object.entries(state.values).map(([key, value]) => ({ key, value })),
     captureFailureScreenshot: async ({ stage }) => `reports/screenshots/${stage}.png`,
-    publishPage: async () => { events.push(['publish']); return { frontLink: '/public', publishedAt: 'now' }; },
+    publishPage: async () => { events.push(['publish']); return { frontLink: '/public', publishedAt: 'now', confirmed: true,
+      publishSignal: { status: 'confirmed' }, frontVerification: { status: 'present' } }; },
     writeReport: async (report) => { state.report = report; },
   };
 }
@@ -503,6 +504,24 @@ test('fresh batch execution error stops before publish and records the unpublish
   assert.equal(report.publishedAt, null);
   assert.ok(report.flowErrors.some(({ stage, message }) => stage === 'publish' && /Skipped/.test(message)));
   assert.equal(report.failures[0].screenshot, 'reports/screenshots/batch-settings.png');
+});
+
+test('module availability preflight stops before deleting any existing target instance', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'existing', ordinal: 0 }]);
+  adapter.verifyModuleAvailability = async () => { throw new Error('not found'); };
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /not found/);
+  assert.equal(adapter.events.some(([kind]) => kind === 'delete' || kind === 'add'), false);
+});
+
+test('fresh flow never reports publication when publish and front confirmation are incomplete', async () => {
+  const adapter = fakeAdapter();
+  adapter.publishPage = async () => ({ frontLink: '/public', publishedAt: 'attempted-at', confirmed: false,
+    publishSignal: { status: 'confirmed' }, frontVerification: { status: 'absent' } });
+  const report = await runFreshBlockFlow({ config, adapter, settings: [{ id: 'check', key: 'x', value: 'y' }] });
+  assert.equal(report.publishedAt, null);
+  assert.equal(report.publishedReadback, null);
+  assert.ok(report.checks.some(({ id, status }) => id === 'fresh-publish-confirmed' && status === 'fail'));
+  assert.ok(report.flowErrors.some(({ stage }) => stage === 'publish-confirmation'));
 });
 
 test('post-publish readback mismatch is a failure with screenshot evidence and separate values', async () => {

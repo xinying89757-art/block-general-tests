@@ -5,6 +5,7 @@ import { inventorySettings } from './baseline.mjs';
 import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
 import { matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from './fresh-editor-actions.mjs';
 import { waitForPublishSignal, verifyFrontInstance } from './publish-confirm.mjs';
+import { probeModuleLibraryModes } from './module-library-browser.mjs';
 import { RAIL, openRailPanel, readSchemeColor, readModuleWidth, cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
@@ -95,6 +96,29 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       resolvedTarget = resolveFreshPageTarget(target, pageItem);
       config.resolvedTarget = resolvedTarget;
       return { editorLink: target.editorHref || page.url(), frontLink: target.url || pageItem.pageurl || null };
+    },
+    async verifyModuleAvailability(blockId) {
+      const addButton = frame.locator('#backstage-bodyArea .backstage-creatmodules-wrapper .backstage-creatmodules-addbtn');
+      if (await addButton.count() !== 1) throw new Error('Cannot uniquely open module library for target-only preflight.');
+      await addButton.first().click({ timeout: config.actionTimeoutMs });
+      const panel = page.locator('.backstage-addmodules-chooseWrapper');
+      await panel.waitFor({ state: 'visible', timeout: config.actionTimeoutMs });
+      let lookup;
+      try { lookup = await probeModuleLibraryModes({ page, panel, targetBlockId: blockId, config }); }
+      finally {
+        const close = panel.locator('.addmodules_searchContainer > .block-iconbaseline-close');
+        if (await close.count() === 1 && await close.first().isVisible()) await close.first().click({ timeout: 5_000 });
+        else await page.keyboard.press('Escape').catch(() => {});
+        await panel.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+      }
+      if (lookup.some((mode) => mode.found)) return lookup;
+      const completeSearch = lookup.every((mode) => mode.searched);
+      const error = new Error(completeSearch
+        ? `区块 ${blockId} 在模块列表中未找到；已按目标编号查询全部可用模式。`
+        : `无法完成区块 ${blockId} 的模块库编号搜索。`);
+      error.libraryLookup = lookup;
+      if (!completeSearch) { error.environment = true; error.code = 'ENV_LIBRARY_SEARCH_UNAVAILABLE'; }
+      throw error;
     },
     async listAllBlockInstances() { return listInstances(frame); },
     async prepareSettings() {

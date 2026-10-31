@@ -1,33 +1,45 @@
-const normalized = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
-
-export function normalizeLibraryEntries(entries = []) {
-  const result = [];
-  const seen = new Set();
-  for (const item of entries) {
-    const blockId = normalized(item.blockId ?? item.appid);
-    if (!blockId) continue;
-    const name = normalized(item.name ?? item.displayText);
-    const key = `${blockId}\u0000${name}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push({ blockId, name: name || null, ...(item.visible !== undefined ? { visible: Boolean(item.visible) } : {}) });
-  }
-  return result;
+/** Probe only one requested module number. No other library IDs are returned or stored. */
+export async function searchTargetInMode({ mode, targetBlockId, selectMode, submitTarget,
+  waitForLazyResults, scrollResultsToEnd, targetPresent, captureMissing }) {
+  const target = String(targetBlockId ?? '').trim();
+  if (!target) throw new Error('A target block number is required for module-library search.');
+  await selectMode(mode);
+  await submitTarget(target);
+  await waitForLazyResults();
+  await scrollResultsToEnd();
+  await waitForLazyResults();
+  const found = Boolean(await targetPresent(target));
+  const screenshot = found ? null : await captureMissing?.(mode, target);
+  return { mode: String(mode), query: target, found, searched: true, waitedForLazyResults: true, scrolledToEnd: true,
+    ...(screenshot ? { screenshot } : {}) };
 }
 
-export function summarizeLibraryInventory({ modes, targetBlockId }) {
-  if (!Array.isArray(modes) || targetBlockId == null || String(targetBlockId).trim() === '') {
-    throw new Error('Library inventory requires mode rows and a target block number.');
+/** Visit each declared library mode without collecting any non-target identity. */
+export async function probeTargetAcrossModes({ targetBlockId, modes = ['review', 'develop', 'online'],
+  probeMode, captureMissing }) {
+  const target = String(targetBlockId ?? '').trim();
+  if (!target || typeof probeMode !== 'function') throw new Error('Target-only library probe requires a target number and mode probe.');
+  const results = [];
+  for (const mode of modes) {
+    let result;
+    try { result = await probeMode({ mode, targetBlockId: target }); }
+    catch (error) { result = { found: false, searched: error?.searched !== false, status: 'error', error: String(error?.message || error) }; }
+    const found = Boolean(result?.found);
+    const screenshot = found ? null : await captureMissing?.(String(mode), target);
+    results.push({ mode: String(mode), query: target, found, searched: result?.searched !== false,
+      status: result?.status || 'checked', error: result?.error || null, screenshot: screenshot || null,
+      waitedForLazyResults: Boolean(result?.waitedForLazyResults), scrolledToEnd: Boolean(result?.scrolledToEnd) });
   }
-  const target = String(targetBlockId);
-  const normalizedModes = modes.map((mode) => ({
-    mode: String(mode.mode), source: mode.source || 'visible-list', query: mode.query ?? null,
-    entries: normalizeLibraryEntries(mode.entries), complete: mode.complete !== false,
-    ...(mode.note ? { note: mode.note } : {}),
-  }));
-  const matches = normalizedModes.flatMap(({ mode, entries }) => entries
-    .filter((entry) => entry.blockId === target).map((entry) => ({ mode, ...entry })));
-  return { targetBlockId: target, targetFound: matches.length > 0, targetMatches: matches,
-    allBlockNumbers: [...new Set(normalizedModes.flatMap((mode) => mode.entries.map((entry) => entry.blockId)))].sort(),
-    modes: normalizedModes };
+  return results;
+}
+
+export function summarizeTargetSearch({ targetBlockId, modes }) {
+  const target = String(targetBlockId ?? '').trim();
+  if (!target || !Array.isArray(modes)) throw new Error('Target search requires a block number and mode results.');
+  if (modes.some((item) => String(item.query) !== target)) throw new Error('Every library mode must query only the requested block number.');
+  return { targetBlockId: target, targetFound: modes.some((item) => item.found === true),
+    modes: modes.map(({ mode, query, found, screenshot = null, status = 'checked', error = null, searched = true,
+      waitedForLazyResults = false, scrolledToEnd = false }) =>
+      ({ mode: String(mode), query: target, found: Boolean(found), searched: Boolean(searched), status, screenshot, error,
+        waitedForLazyResults, scrolledToEnd })) };
 }

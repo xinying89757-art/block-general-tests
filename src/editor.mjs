@@ -1,6 +1,10 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { retryEnvironmentTimeout, saveAndWait } from './ui-waits.mjs';
 import { selectedBlockInstance, waitForCanvasRender } from './block-render.mjs';
 import { waitForUniquePageSaveControl } from './page-save-control.mjs';
+import { searchTargetInMode } from './module-library-inventory.mjs';
+import { probeModuleLibraryModes } from './module-library-browser.mjs';
 
 const CANVAS = 'iframe.backstage-pc-proview';
 const PANEL = '.backstage-addmodules-chooseWrapper';
@@ -267,7 +271,7 @@ async function waitForEditorReady(page) {
       .waitFor({ state: 'visible', timeout: Number(process.env.EDITOR_READY_TIMEOUT_MS) || 60_000 }),
     { stage: 'editor-load' });
   } catch (error) {
-    throw new Error(`编辑器未显示“页面:”，登录态可能已过期或编辑器未完成加载：${error.message}`);
+    throw entryError('ENV_EDITOR_LOAD_TIMEOUT', `编辑器未显示“页面:”，登录态可能已过期或编辑器未完成加载：${error.message}`);
   }
 }
 
@@ -503,45 +507,59 @@ export async function addBlockIfNeeded(page, frame, config) {
     await addButton.click({ force: true });
   }
   const panel = page.locator(PANEL);
-  await panel.waitFor({ state: 'visible' });
+  await retryEnvironmentTimeout(() => panel.waitFor({ state: 'visible', timeout: Number(config.actionTimeoutMs) || 30_000 }),
+    { stage: 'library-load' });
 
   const order = [...new Set([config.moduleType, 'develop', 'review', 'online'])];
   const attempts = [];
   for (const moduleType of order) {
-    if (moduleType === 'online') {
-      const search = panel.locator('.addmodules_searchWrap input');
-      await search.fill(String(config.blockId));
-      await search.press('Enter');
-    } else {
-      // The panel may not have this tab at all (另一样本区块: only the review tab
-      // exists, no develop tab). Skip a missing tab instead of timing out.
-      const value = moduleType === 'develop' ? '-1' : '-2';
-      const tab = panel.locator(`.user-handle-module[value="${value}"]`).first();
-      if (!await tab.count()) { attempts.push({ moduleType, found: false, reason: '页签不存在' }); continue; }
-      await tab.click();
-    }
-
     const candidate = panel.locator(`.btn.add[appid=${JSON.stringify(String(config.blockId))}]`).first();
-    try {
-      // The add button is hidden until hover; attachment is the useful signal.
-      await candidate.waitFor({ state: 'attached', timeout: 15_000 });
-    } catch (error) {
-      if (error.name !== 'TimeoutError') throw error;
-      attempts.push({ moduleType, found: false });
-      continue;
-    }
-
-    const clicked = await page.evaluate(({ panelSelector, blockId }) => {
-      const buttons = document.querySelector(panelSelector)?.querySelectorAll('.btn.add[appid]') || [];
-      const button = [...buttons].find((el) => el.getAttribute('appid') === blockId);
-      if (!button) return false;
-      button.style.display = 'block';
-      button.scrollIntoView({ block: 'center' });
-      button.click();
-      return true;
-    }, { panelSelector: PANEL, blockId: String(config.blockId) });
-    attempts.push({ moduleType, found: clicked });
-    if (!clicked) continue;
+    const value = moduleType === 'develop' ? '-1' : '-2';
+    const modeResult = await searchTargetInMode({ mode: moduleType, targetBlockId: config.blockId,
+      selectMode: async () => {
+        if (moduleType === 'online') return;
+        const tab = panel.locator(`.user-handle-module[value="${value}"]`);
+        if (await tab.count() !== 1) throw new Error(`Target-only module search cannot uniquely select the ${moduleType} mode.`);
+        await tab.first().click({ timeout: config.actionTimeoutMs });
+      },
+      submitTarget: async (target) => {
+        const search = panel.locator('.addmodules_searchWrap input');
+        if (await search.count() !== 1) throw new Error(`Target-only module search control is unavailable in ${moduleType} mode.`);
+        await search.first().fill(target);
+        await search.first().press('Enter');
+      },
+      waitForLazyResults: async () => {
+        await retryEnvironmentTimeout(() => candidate.waitFor({ state: 'attached', timeout: Number(config.libraryResultTimeoutMs) || 8_000 }),
+          { stage: 'library-load' }).catch((error) => {
+            if (error.name !== 'TimeoutError') throw error;
+          });
+      },
+      scrollResultsToEnd: async () => {
+        for (let pass = 0; pass < 8; pass += 1) {
+          await panel.evaluate((root) => {
+            const nodes = [root, ...root.querySelectorAll('*')];
+            const scrollable = nodes.filter((node) => node.scrollHeight > node.clientHeight + 2
+              && ['auto', 'scroll'].includes(getComputedStyle(node).overflowY));
+            for (const node of scrollable) node.scrollTop = node.scrollHeight;
+          });
+          if (pass < 7) await page.waitForTimeout(250);
+        }
+      },
+      targetPresent: async () => {
+        const count = await candidate.count();
+        if (count > 1) throw new Error(`Target ${config.blockId} matched ${count} add controls in ${moduleType}; refusing ambiguous library result.`);
+        return count === 1;
+      },
+      captureMissing: async (mode) => {
+        const directory = path.resolve(config.projectRoot || process.cwd(), 'logs');
+        await fs.mkdir(directory, { recursive: true });
+        const file = path.join(directory, `module-library-${String(config.blockId)}-${mode}-not-found.png`);
+        await page.screenshot({ path: file, fullPage: true, timeout: 30_000 });
+        return file;
+      } });
+    attempts.push(modeResult);
+    if (!modeResult.found) continue;
+    await candidate.evaluate((button) => { button.style.display = 'block'; button.scrollIntoView({ block: 'center' }); button.click(); });
 
     // Once clicked, do not try another list: a slow render could duplicate the block.
     await containers.first().waitFor({ state: 'attached', timeout: 60_000 });
@@ -559,7 +577,9 @@ export async function addBlockIfNeeded(page, frame, config) {
         ? { ...afterRender.targets.at(-1), order: afterRender.targets.length, total: afterRender.targets.length }
         : selectedBlockInstance(afterRender.targets) };
   }
-  throw new Error(`区块 ${config.blockId} 在模块列表中未找到（已尝试 ${order.join(' → ')}）。`);
+  const error = new Error(`区块 ${config.blockId} 在模块列表中未找到（已按目标编号搜索模式：${attempts.map(({ mode, found }) => `${mode}=${found ? 'found' : 'not-found'}`).join(', ')}）。`);
+  error.libraryLookup = attempts;
+  throw error;
 }
 
 export async function savePage(page) {

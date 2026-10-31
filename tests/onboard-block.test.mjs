@@ -61,6 +61,8 @@ test('reviewed profiles cannot be overwritten without an explicit flag', () => {
 
 test('missing module-library target becomes a first-class environment report with stage and links', () => {
   const error = new Error('在 review/develop/online 模块列表中未找到区块 47498');
+  error.libraryLookup = [{ mode: 'review', query: '47498', searched: true, found: false,
+    waitedForLazyResults: true, scrolledToEnd: true, screenshot: 'logs/47498-review.png' }];
   const outcome = classifyOnboardingEnvironmentOutcome(error);
   assert.equal(outcome.status, 'environment-unavailable');
   const report = buildOnboardingEnvironmentReport({ runId: 'r1', blockId: 'generic-1', siteHost: 'example.test',
@@ -68,10 +70,12 @@ test('missing module-library target becomes a first-class environment report wit
     links: { editor: 'https://editor.test/page/p1', front: 'https://example.test/items.html' }, outcome, error,
     lastProgress: { stage: 'instances-inventoried', deletedSettingIds: [] } });
   assert.equal(report.status, 'environment-unavailable');
-  assert.equal(report.stage, 'add-default-block');
+  assert.equal(report.stage, 'module-library-preflight');
   assert.equal(report.environmentOutcome, 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY');
   assert.deepEqual(report.links, { editor: 'https://editor.test/page/p1', front: 'https://example.test/items.html' });
-  assert.equal(report.inventory.status, 'not-reached');
+  assert.equal(report.inventory.status, 'target-only-search-complete');
+  assert.equal(report.libraryLookup[0].query, '47498');
+  assert.equal(report.libraryLookup[0].screenshot, 'logs/47498-review.png');
   assert.equal(report.checks.length, 0);
   assert.equal(report.publishedAt, null);
   assert.equal(classifyOnboardingEnvironmentOutcome(new Error('assertion expected x got y')), null);
