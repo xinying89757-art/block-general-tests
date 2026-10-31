@@ -8,6 +8,7 @@ import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDelet
   matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from '../src/fresh-editor-actions.mjs';
 import { matchingPageSaveControls, waitForUniquePageSaveControl } from '../src/page-save-control.mjs';
 import { bindFreshBatchSettingSession, freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
+import { resolveFreshPageTarget } from '../src/fresh-block-browser-adapter.mjs';
 import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
 import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
 
@@ -299,6 +300,75 @@ test('product-list fresh setting writes stay bound to the capability dialog sess
   await setting.apply({ session: { id: 'outer-browser-session' } });
   await setting.restore({ session: { id: 'outer-browser-session' } });
   assert.deepEqual(calls, [['apply', 'settings-dialog'], ['restore', 'settings-dialog']]);
+});
+
+test('full fresh flow runs PLD definitions on a scoped session, restores dependencies, retains a failure, and reads back a resolved page', async () => {
+  const events = [];
+  const controls = [
+    ...['所有产品', '使用筛选条件', '选择指定产品', '选择部分产品分类'].map((label, index) => ({
+      index, tag: 'INPUT', type: 'radio', name: 'data-source', label, value: label,
+      checked: index === 0, disabled: false,
+    })),
+    { index: 4, tag: 'INPUT', type: 'radio', name: 'pagination', label: '是', value: 'yes', checked: true, disabled: false },
+    { index: 5, tag: 'INPUT', type: 'radio', name: 'pagination', label: '否', value: 'no', checked: false, disabled: false },
+  ];
+  const state = { controls: structuredClone(controls) };
+  const scopedSession = {
+    open: async () => events.push('dialog-open'),
+    read: async () => structuredClone(state.controls),
+    set: async (target, value) => {
+      events.push(['dialog-set', target.name, target.label, value]);
+      if (target.type === 'radio' && value === true) {
+        state.controls = state.controls.map((item) => item.name === target.name
+          ? { ...item, checked: item.index === target.index } : item);
+      } else {
+        state.controls[target.index] = { ...state.controls[target.index], value };
+      }
+    },
+    save: async () => events.push('dialog-save'),
+    cancel: async () => events.push('dialog-cancel'),
+  };
+  const frame = { locator: () => ({ first: () => ({
+    waitFor: async () => {},
+    evaluate: async (read) => read({ querySelectorAll: () => [], querySelector: () => ({}) }),
+  }) }) };
+  const pageTarget = { kind: 'system', id: 'page-1', url: '/catalog.html' };
+  const targetConfig = { ...config, page: pageTarget, resolvedTarget: null };
+  const resolvedTarget = resolveFreshPageTarget(pageTarget, { name: 'Catalog' });
+  targetConfig.resolvedTarget = resolvedTarget;
+  const profile = { fixture: { filteredProducts: ['AUTOTEST-Product'] }, requirements: {} };
+  const freshAdapter = await createFreshSettingsAdapter({ capabilities: ['product-list-display'],
+    context: { config: targetConfig, session: { id: 'outer-browser-session' }, page: {}, canvas: frame,
+      profile, report: { fixture: { applied: true } }, scopedSession, initialControls: controls,
+      save: async () => events.push('page-save') },
+    loadCapability: async () => ({ freshSettings: productListFreshSettings }) });
+  const adapter = fakeAdapter();
+  adapter.openPage = async (target) => {
+    events.push(['open-page', target.kind]);
+    targetConfig.resolvedTarget = resolveFreshPageTarget(target, { name: 'Catalog' });
+    return { editorLink: '/editor/catalog', frontLink: '/catalog.html' };
+  };
+  adapter.prepareSettings = () => freshAdapter.prepare({ page: {}, canvas: frame, config: targetConfig, profile,
+    report: { fixture: { applied: true } }, scopedSession, initialControls: controls });
+  const visibleValues = async () => state.controls.filter((item) => item.type === 'radio' && item.checked)
+    .map((item) => ({ region: 'settings', label: item.name, type: 'radio', value: item.label }));
+  adapter.readCurrentValues = visibleValues;
+  adapter.readPublishedValues = async () => {
+    assert.equal(targetConfig.resolvedTarget.page, 'Catalog');
+    assert.equal(targetConfig.resolvedTarget.id, 'page-1');
+    return visibleValues();
+  };
+
+  const report = await runFreshBlockFlow({ config: targetConfig, adapter });
+  assert.equal(report.publishedReadback.status, 'pass');
+  assert.deepEqual(report.batches.map((batch) => batch.restoreBefore), [[], ['data-source']]);
+  assert.ok(report.checks.some((item) => item.id === 'pld-data-source-persist' && item.status === 'fail'));
+  assert.ok(report.retainedFailures.selectedIds.includes('pld-data-source-persist'));
+  assert.ok(events.some((event) => Array.isArray(event) && event[0] === 'dialog-set'
+    && event[1] === 'data-source' && event[2] === '所有产品'));
+  assert.equal(state.controls.find((item) => item.name === 'data-source' && item.checked)?.label, '使用筛选条件');
+  assert.ok(events.includes('dialog-save'));
+  assert.ok(events.includes('page-save'));
 });
 
 test('fresh setting definitions are prepared only after the fresh instance reloads', async () => {

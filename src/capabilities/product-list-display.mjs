@@ -611,9 +611,15 @@ function attachBatchEffect(setting, { canvas, config, profile, report }) {
   };
 }
 
-export async function createProductListBatchDefinitions({ page, canvas, context, config, capability, profile, report }) {
-  const session = listSession({ page, canvas, config, capability });
-  const initial = await probeControls(session);
+export async function createProductListBatchDefinitions(args) {
+  const { page, canvas, context, config, capability, profile, report } = args;
+  // Optional dependencies let the same definitions run against an offline
+  // editor-session fixture. Production callers continue to use the real
+  // capability-scoped dialog session and probe its live controls.
+  const session = args.scopedSession || listSession({ page, canvas, config, capability });
+  const initial = Array.isArray(args.initialControls)
+    ? { controls: args.initialControls }
+    : await probeControls(session);
   if (initial.reason) return { settings: [], staticResults: [result('pld-settings', 'skip', `无法读取产品列表设置：${initial.reason}`)] };
 
   const controls = initial.controls;
@@ -678,7 +684,7 @@ export async function createProductListBatchDefinitions({ page, canvas, context,
   const saveBatch = async () => {
     await session.save();
     await session.open(); await session.read(); await session.cancel(); await session.open();
-    await savePage(page);
+    await (args.savePageOperation || (() => savePage(page)))();
     await session.open();
   };
   const freshCandidates = candidates.map((setting) => {

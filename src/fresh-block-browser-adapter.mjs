@@ -7,6 +7,12 @@ import { matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from './fresh
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 
+export function resolveFreshPageTarget(target, pageItem) {
+  const page = target.name || pageItem?.name || pageItem?.title;
+  if (!page) throw new Error('Selected page has no resolved display name for editor reload/readback.');
+  return { ...target, page, kind: target.kind };
+}
+
 async function listInstances(frame) {
   return frame.locator('body').evaluate((body, id) => {
     const all = [...body.querySelectorAll('.siteblocks-setting-wrap[data-appid]')];
@@ -57,9 +63,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       const selected = await gotoFreshTargetPage(page, { ...target, blockId: config.blockId });
       frame = selected.frame;
       pageItem = selected.pageItem || { pageurl: target.url || '' };
-      const pageName = target.name || pageItem.name || pageItem.title;
-      if (!pageName) throw new Error('Selected page has no resolved display name for editor reload/readback.');
-      resolvedTarget = { ...target, page: pageName, kind: target.kind };
+      resolvedTarget = resolveFreshPageTarget(target, pageItem);
       config.resolvedTarget = resolvedTarget;
       return { editorLink: target.editorHref || page.url(), frontLink: target.url || pageItem.pageurl || null };
     },
