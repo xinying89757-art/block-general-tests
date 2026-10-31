@@ -38,6 +38,16 @@ export function planSettingBatches(settings, metadata = {}) {
   return batches;
 }
 
+export async function verifyBaselineWithRecovery({ verify, recover }) {
+  try { return { check: await verify(), recovered: false }; }
+  catch (error) {
+    if (typeof recover !== 'function') throw error;
+    const recovery = await recover(error);
+    if (recovery?.baselineVerification) return { check: recovery.baselineVerification, recovered: true };
+    return { check: await verify(), recovered: true };
+  }
+}
+
 const outcomeStatus = (outcome) => outcome?.status || 'pass';
 
 export async function executeSettingBatches({ settings, metadata = {}, adapter }) {

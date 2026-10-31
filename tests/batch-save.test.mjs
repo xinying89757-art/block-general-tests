@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { executeSettingBatches, planSettingBatches } from '../src/batch-save.mjs';
+import { executeSettingBatches, planSettingBatches, verifyBaselineWithRecovery } from '../src/batch-save.mjs';
 import { runCapabilityLayer } from '../src/run.mjs';
 
 test('batch planner groups unrelated settings and separates declared dependencies', () => {
@@ -18,6 +18,30 @@ test('batch planner groups unrelated settings and separates declared dependencie
     ['source-check', 'size-check', 'compare-check'], ['pagination-check'],
   ]);
   assert.deepEqual(batches.map((batch) => batch.restoreBefore), [[], ['size']]);
+});
+
+test('final baseline verification relaunches through recovery after a stale-page read error', async () => {
+  const events = [];
+  const outcome = await verifyBaselineWithRecovery({
+    verify: async () => { events.push('verify-stale-page'); throw new Error('settings dialog did not open'); },
+    recover: async () => { events.push('relaunch-and-guard'); return { baselineVerification: { residue: false } }; },
+  });
+  assert.deepEqual(events, ['verify-stale-page', 'relaunch-and-guard']);
+  assert.deepEqual(outcome, { check: { residue: false }, recovered: true });
+});
+
+test('final baseline verification retries the check if recovery has no guard result', async () => {
+  let calls = 0;
+  const outcome = await verifyBaselineWithRecovery({
+    verify: async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('transient UI read');
+      return { residue: false };
+    },
+    recover: async () => ({}),
+  });
+  assert.equal(calls, 2);
+  assert.deepEqual(outcome, { check: { residue: false }, recovered: true });
 });
 
 test('batch executor saves once per batch, restores the final changed set once, and checks baseline', async () => {

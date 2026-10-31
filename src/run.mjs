@@ -21,6 +21,7 @@ import { acquireRunLock } from './run-lock.mjs';
 import { createPauseDetector, createProgressWatchdog, retryWithEnvironmentRecovery, RunTimeoutError, withTimeout, writeCheckpoint } from './run-safety.mjs';
 import { spawnSync } from 'node:child_process';
 import { readSiteBaseline, writeSiteBaseline } from './site-baseline.mjs';
+import { verifyBaselineWithRecovery } from './batch-save.mjs';
 export { frontRunPhases, shouldRunLayer } from './front-results.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -343,13 +344,14 @@ async function main() {
         if (login.error || login.status !== 0) throw new Error('环境恢复时重新登录失败');
         await openFresh();
       }
+      let baselineVerification = null;
       if (!recoveryOptions.skipBaselineGuard) {
-        const verification = await guardBaseline({ page: session.page, canvas, config, baseline });
-        if (verification.residue && !verification.verifiedFresh) throw new Error('环境恢复后基线复原未通过');
+        baselineVerification = await guardBaseline({ page: session.page, canvas, config, baseline });
+        if (baselineVerification.residue && !baselineVerification.verifiedFresh) throw new Error('环境恢复后基线复原未通过');
       }
       config.environmentStatus = null;
       watchdog.progress();
-      return { session, page: session.page, canvas, context: session.context };
+      return { session, page: session.page, canvas, context: session.context, baselineVerification };
     };
     const phases = frontRunPhases(config, profile || {}, report.added?.added === true);
     if (baseline.length) {
@@ -523,13 +525,17 @@ async function main() {
           expected: '全部字段勾选状态应恢复运行前快照、保存，并经新会话回读一致。' });
       }
     }
-    if (config.batchSaveUsed && typeof config.verifyBatchBaseline === 'function' && session?.page && !session.page.isClosed()) {
+    if (config.batchSaveUsed && typeof config.verifyBatchBaseline === 'function') {
       const started = performance.now();
       try {
-        const check = await config.verifyBatchBaseline();
+        const verification = await verifyBaselineWithRecovery({
+          verify: () => config.verifyBatchBaseline(),
+          recover: () => config.recoverEnvironment?.('env-timeout'),
+        });
+        const check = verification.check;
         report.batchSave ||= { enabled: true, capabilities: [] };
         report.batchSave.finalBaselineCheck = { status: check.residue ? 'restored-and-verified' : 'clean', ...check,
-          durationMs: performance.now() - started };
+          ...(verification.recovered ? { recovery: 'browser-relaunched' } : {}), durationMs: performance.now() - started };
       } catch (error) {
         report.batchSave ||= { enabled: true, capabilities: [] };
         report.batchSave.finalBaselineCheck = { status: 'fail', error: error.message,
