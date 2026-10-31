@@ -93,7 +93,8 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
  * the selected page is deleted and independently verified before one fresh
  * instance is added. Other block numbers are snapshotted and must remain.
  */
-export async function runFreshBlockFlow({ config, adapter, settings, metadata = {}, capabilities = [], runId = new Date().toISOString() }) {
+export async function runFreshBlockFlow({ config, adapter, settings, metadata = {}, capabilities = [],
+  runId = new Date().toISOString(), onProgress = async () => {} }) {
   if (!config?.page || !['custom', 'system'].includes(config.page.kind)) {
     throw new Error('Fresh block flow requires an explicit page config; set FRESH_PAGE_KIND and its page fields.');
   }
@@ -109,7 +110,9 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
   }
 
   const opened = await adapter.openPage(config.page);
+  await onProgress({ stage: 'page-opened' });
   let instances = await adapter.listAllBlockInstances();
+  await onProgress({ stage: 'instances-inventoried', targetCount: targetBlockInstances(instances, config.blockId).length });
   const otherBlockCounts = countOtherBlocks(instances, config.blockId);
   let targets = targetBlockInstances(instances, config.blockId);
   assertUniqueTargetIdentities(targets);
@@ -118,6 +121,7 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
     if (!target.settingId || !Number.isInteger(target.ordinal)) {
       throw new Error('Target block instance lacks a unique settingId/ordinal; no further delete or add will be attempted.');
     }
+    await onProgress({ stage: 'delete-started', targetCount: targets.length });
     await adapter.deleteBlockInstance(target);
     const afterDelete = await adapter.listAllBlockInstances();
     assertOtherBlocksUnchanged(otherBlockCounts, afterDelete, config.blockId);
@@ -127,12 +131,16 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
     }
     instances = afterDelete;
     targets = remaining;
+    await onProgress({ stage: 'instance-deleted', targetCount: targets.length });
   }
 
   const created = await adapter.addDefaultBlock(config.blockId);
+  await onProgress({ stage: 'instance-added' });
   if (!created || created.blockId !== String(config.blockId)) throw new Error('Adapter did not identify the newly added block instance.');
   await adapter.savePage();
+  await onProgress({ stage: 'fresh-instance-saved' });
   await adapter.reloadPage();
+  await onProgress({ stage: 'fresh-instance-reloaded' });
   instances = await adapter.listAllBlockInstances();
   assertOtherBlocksUnchanged(otherBlockCounts, instances, config.blockId);
   const freshInstances = targetBlockInstances(instances, config.blockId);
@@ -153,11 +161,13 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
   }) ?? writeFreshDefaultsSnapshot(defaultsPath, {
     version: 1, siteHost: config.siteHost, blockId: String(config.blockId), capturedAt: new Date().toISOString(), values: defaultsValues,
   }));
+  await onProgress({ stage: 'defaults-captured', firstCapture: !priorDefaults });
 
   let batch;
   const flowErrors = [];
   try {
     batch = await executeSettingBatches({ settings, metadata, adapter: adapter.batchAdapter, finalState: 'retain-tested-values' });
+    await onProgress({ stage: 'batches-finished', checkCount: batch.results.length });
   } catch (error) {
     flowErrors.push({ stage: 'batch-settings', message: error.message });
     batch = { batches: plan.map(({ settings: items, restoreBefore }) => ({ settingIds: items.map((item) => item.id), restoreBefore })),
@@ -165,6 +175,7 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
       timing: { startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), durationMs: 0 } };
   }
   const values = await adapter.readCurrentValues(fresh);
+  await onProgress({ stage: 'current-values-read' });
   const finalInstances = await adapter.listAllBlockInstances();
   assertOtherBlocksUnchanged(otherBlockCounts, finalInstances, config.blockId);
   const remaining = targetBlockInstances(finalInstances, config.blockId);
@@ -172,13 +183,15 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
     throw new Error('The page no longer contains exactly one test instance of the target block number; refusing to publish.');
   }
   let published = null;
-  try { published = await adapter.publishPage(); }
+  try { await onProgress({ stage: 'publish-started' }); published = await adapter.publishPage();
+    await onProgress({ stage: 'published' }); }
   catch (error) { flowErrors.push({ stage: 'publish', message: error.message }); }
   const report = buildFreshReport({ runId, siteHost: config.siteHost, blockId: config.blockId,
     page: config.page, instance: fresh, capabilities, defaults, batch,
     currentValues: values, editorLink: opened.editorLink || adapter.editorLink?.(),
     frontLink: published?.frontLink || opened.frontLink, publishedAt: published?.publishedAt || null, flowErrors });
   await adapter.writeReport?.(report);
+  await onProgress({ stage: 'report-written' });
   return report;
 }
 

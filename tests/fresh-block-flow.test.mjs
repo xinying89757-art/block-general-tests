@@ -199,8 +199,10 @@ test('current setting inventory records values with region and control identity'
   assert.deepEqual(currentValuesFromInventory([{ type: 'gallery', title: 'Settings', wrapIndex: 1, controls: [
     { type: 'checkbox', label: 'Show name', value: 'name', checked: true },
     { type: 'text', label: 'Quantity', value: '12' },
+    { type: 'password', label: 'API key', value: 'never-report-this' },
   ] }]), [
     { controlIdentity: 'gallery:1:Settings:checkbox:Show name:name:0', region: 'Settings', label: 'Show name', type: 'checkbox', value: true },
     { controlIdentity: 'gallery:1:Settings:text:Quantity:12:1', region: 'Settings', label: 'Quantity', type: 'text', value: '12' },
+    { controlIdentity: 'gallery:1:Settings:password:API key:[redacted]:2', region: 'Settings', label: 'API key', type: 'password', value: '[redacted]' },
   ]);
 });

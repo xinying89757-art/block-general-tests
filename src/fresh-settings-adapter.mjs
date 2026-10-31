@@ -51,9 +51,11 @@ export function currentValuesFromInventory(inventory) {
   const values = [];
   for (const region of inventory || []) {
     for (const [index, control] of (region.controls || []).entries()) {
-      const value = control.type === 'checkbox' || control.type === 'radio'
+      const sensitive = control.type === 'password' || /password|token|secret|credential|密钥|密码/i.test(control.label || '');
+      const value = sensitive ? '[redacted]' : control.type === 'checkbox' || control.type === 'radio'
         ? Boolean(control.checked) : (control.value ?? null);
-      values.push({ controlIdentity: `${region.type}:${region.wrapIndex}:${region.title || region.kind || ''}:${control.type}:${control.label || ''}:${control.value || ''}:${index}`,
+      const identityValue = sensitive ? '[redacted]' : (control.value || '');
+      values.push({ controlIdentity: `${region.type}:${region.wrapIndex}:${region.title || region.kind || ''}:${control.type}:${control.label || ''}:${identityValue}:${index}`,
         region: region.title || region.kind || region.type, label: control.label || '', type: control.type, value });
     }
   }
