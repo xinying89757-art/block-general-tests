@@ -1,15 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertAllowedLinkUrl, isAllowedLinkUrl } from '../src/url-safety.mjs';
+import { assertAllowedLinkUrl, isAllowedLinkUrl, normalizeLinkUrl } from '../src/url-safety.mjs';
 import { diffAgainstBaseline, isGarbledUrl } from '../src/baseline-guard.mjs';
 import { redact } from '../src/run.mjs';
 import { buttonMatchesTargetExpectation } from '../src/capabilities/button-link.mjs';
 
 test('link writes allow complete URLs and supported special targets only', () => {
-  for (const value of ['https://www.baidu.com/', 'http://example.test/path?q=1', 'javascript:void(0)', 'mailto:test@example.com']) {
+  for (const value of ['https://www.baidu.com/', 'http://example.test/path?q=1', 'javascript:void(0)', 'javascript:void(0);', 'mailto:test@example.com']) {
     assert.equal(isAllowedLinkUrl(value), true);
     assert.doesNotThrow(() => assertAllowedLinkUrl(value));
   }
+  assert.equal(normalizeLinkUrl('javascript:void(0);'), 'javascript:void(0)');
+  assert.equal(assertAllowedLinkUrl('javascript:void(0);'), 'javascript:void(0);');
   for (const value of ['https://example.com 中文', 'https://example.com，更多说明', 'not a url', 'javascript:alert(1)', 'mailto:bad']) {
     assert.equal(isAllowedLinkUrl(value), false);
     assert.throws(() => assertAllowedLinkUrl(value), /拒绝写入/);
