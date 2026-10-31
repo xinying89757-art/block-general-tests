@@ -1,4 +1,6 @@
 import { addBlockIfNeeded, gotoFreshTargetPage, openEditor, savePage } from './editor.mjs';
+import { inventorySettings } from './baseline.mjs';
+import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 
@@ -75,8 +77,12 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       const selected = await gotoFreshTargetPage(page, resolvedTarget);
       frame = selected.frame;
     },
-    async readDefaults(instance) { return settingsAdapter.readDefaults(instance); },
-    async readCurrentValues(instance) { return settingsAdapter.readCurrentValues(instance); },
+    async readDefaults() {
+      return currentValuesFromInventory(await inventorySettings({ page, canvas: frame, config, blockId: config.blockId }));
+    },
+    async readCurrentValues() {
+      return currentValuesFromInventory(await inventorySettings({ page, canvas: frame, config, blockId: config.blockId }));
+    },
     async publishPage() {
       const toolbar = page.locator('.backstage-topToolbar');
       const publish = toolbar.locator('button,a,[role="button"]');

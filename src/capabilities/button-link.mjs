@@ -6,6 +6,8 @@ import { dismissReadOnlyPopover, reloadDiscardAndVerify } from '../read-only-dis
 import { reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
 
 const SUITE = 'capability:button-link';
+export const freshSettings = Object.freeze({ status: 'not-adapted',
+  reason: 'Button-link setting checks still use their legacy restore transaction; fresh-value definitions are not extracted yet.' });
 const DEFAULT_TEXT = 'Please set up the required pop-up form here.';
 const MARKER = 'data-autotest-button-link-root';
 const NAMES = {

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPageConfig,
   runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
 import { selectRetainedFailures } from '../src/batch-save.mjs';
+import { createFreshSettingsAdapter, currentValuesFromInventory } from '../src/fresh-settings-adapter.mjs';
 
 function fakeAdapter(initialInstances = []) {
   const events = [];
@@ -156,7 +157,8 @@ test('changed defaults are reported as informational differences', () => {
 
 test('fresh report carries links, current values, failure evidence, and default warnings', () => {
   const report = buildFreshReport({ runId: 'r1', siteHost: 'h', blockId: 'b', page: config.page,
-    instance: { settingId: 'sid', position: { y: 3 } }, defaults: { firstCapture: false, changes: [{ kind: 'changed' }] },
+    instance: { settingId: 'sid', position: { y: 3 } }, capabilities: [{ capability: 'unsupported', status: 'not-adapted' }],
+    defaults: { firstCapture: false, changes: [{ kind: 'changed' }] },
     batch: { batches: [], results: [{ id: 'check', status: 'fail', batchResult: { expected: 'yes', actual: 'no', screenshot: 'shot.png' } }],
       timing: { retainedFailures: { selectedIds: ['check'], suppressed: [] } } },
     currentValues: [{ key: 'x', value: 'v' }], editorLink: '/e', frontLink: '/f', publishedAt: 'time' });
@@ -166,4 +168,39 @@ test('fresh report carries links, current values, failure evidence, and default 
   assert.equal(report.failures[0].screenshot, 'shot.png');
   assert.deepEqual(report.links, { editor: '/e', front: '/f' });
   assert.deepEqual(report.defaults.changes, [{ kind: 'changed' }]);
+  assert.deepEqual(report.capabilities, [{ capability: 'unsupported', status: 'not-adapted' }]);
+  assert.equal(report.settingsMode, 'BATCH_SAVE / retain-tested-values');
+});
+
+test('shared fresh adapter reports unsupported capabilities explicitly and never counts them as checks', async () => {
+  const adapter = await createFreshSettingsAdapter({ capabilities: ['legacy'],
+    loadCapability: async () => ({ freshSettings: { status: 'not-adapted', reason: 'needs extraction' } }) });
+  assert.deepEqual(adapter.settings, []);
+  assert.deepEqual(adapter.capabilityResults, [{ capability: 'legacy', status: 'not-adapted', reason: 'needs extraction' }]);
+});
+
+test('shared fresh adapter batches adapted definitions through generic apply/save/check callbacks', async () => {
+  const events = [];
+  const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'generic-cap' }],
+    context: { save: async () => events.push('save') },
+    loadCapability: async () => ({ freshSettings: { status: 'adapted', createDefinitions: async () => ({ settings: [
+      { id: 'check-a', key: 'setting-a', initialValue: 'old', value: 'new', apply: async ({ phase }) => events.push(`apply:${phase}`),
+        check: async () => ({ status: 'fail', expected: 'wanted', actual: 'observed', screenshot: 'evidence.png' }) },
+    ] }) } }) });
+  const execution = await (await import('../src/batch-save.mjs')).executeSettingBatches({
+    settings: adapter.settings, metadata: adapter.metadata, adapter: adapter.batchAdapter, finalState: 'retain-tested-values' });
+  assert.deepEqual(events, ['apply:batch', 'save', 'apply:rerun-alone', 'save', 'apply:retain-failure', 'save']);
+  assert.equal(execution.results[0].batchResult.screenshot, 'evidence.png');
+  assert.equal(execution.results[0].rerunAloneResult.status, 'fail');
+  assert.deepEqual(execution.timing.retainedFailures.selectedIds, ['check-a']);
+});
+
+test('current setting inventory records values with region and control identity', () => {
+  assert.deepEqual(currentValuesFromInventory([{ type: 'gallery', title: 'Settings', wrapIndex: 1, controls: [
+    { type: 'checkbox', label: 'Show name', value: 'name', checked: true },
+    { type: 'text', label: 'Quantity', value: '12' },
+  ] }]), [
+    { controlIdentity: 'gallery:1:Settings:checkbox:Show name:name:0', region: 'Settings', label: 'Show name', type: 'checkbox', value: true },
+    { controlIdentity: 'gallery:1:Settings:text:Quantity:12:1', region: 'Settings', label: 'Quantity', type: 'text', value: '12' },
+  ]);
 });

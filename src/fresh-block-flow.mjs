@@ -63,7 +63,7 @@ export async function writeFreshDefaultsSnapshot(file, snapshot) {
   await fs.rename(temporary, file);
 }
 
-export function buildFreshReport({ runId, siteHost, blockId, page, instance,
+export function buildFreshReport({ runId, siteHost, blockId, page, instance, capabilities = [],
   defaults, batch, currentValues, editorLink, frontLink, publishedAt, flowErrors = [] }) {
   const failures = batch.results.filter((item) => item.status === 'fail').map((item) => ({
     checkId: item.id,
@@ -80,9 +80,10 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance,
     page,
     block: { settingId: instance.settingId || null, position: instance.position || null,
       currentValues: currentValues || [] },
-    defaults, batches: batch.batches, checks: batch.results, failures,
+    defaults, capabilities, batches: batch.batches, checks: batch.results, failures,
     retainedFailures: batch.timing.retainedFailures || { selectedIds: [], suppressed: [] },
-    timing: batch.timing, flowErrors, links: { editor: editorLink || null, front: frontLink || null },
+    timing: batch.timing, settingsMode: 'BATCH_SAVE / retain-tested-values', flowErrors,
+    links: { editor: editorLink || null, front: frontLink || null },
     publishedAt,
   };
 }
@@ -92,7 +93,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance,
  * the selected page is deleted and independently verified before one fresh
  * instance is added. Other block numbers are snapshotted and must remain.
  */
-export async function runFreshBlockFlow({ config, adapter, settings, metadata = {}, runId = new Date().toISOString() }) {
+export async function runFreshBlockFlow({ config, adapter, settings, metadata = {}, capabilities = [], runId = new Date().toISOString() }) {
   if (!config?.page || !['custom', 'system'].includes(config.page.kind)) {
     throw new Error('Fresh block flow requires an explicit page config; set FRESH_PAGE_KIND and its page fields.');
   }
@@ -174,7 +175,7 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
   try { published = await adapter.publishPage(); }
   catch (error) { flowErrors.push({ stage: 'publish', message: error.message }); }
   const report = buildFreshReport({ runId, siteHost: config.siteHost, blockId: config.blockId,
-    page: config.page, instance: fresh, defaults, batch,
+    page: config.page, instance: fresh, capabilities, defaults, batch,
     currentValues: values, editorLink: opened.editorLink || adapter.editorLink?.(),
     frontLink: published?.frontLink || opened.frontLink, publishedAt: published?.publishedAt || null, flowErrors });
   await adapter.writeReport?.(report);

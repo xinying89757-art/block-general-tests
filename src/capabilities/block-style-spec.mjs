@@ -16,6 +16,8 @@
 import { previewSelector, checkReportText } from './shared.mjs';
 
 const SUITE = 'capability:block-style-spec';
+export const freshSettings = Object.freeze({ status: 'not-adapted',
+  reason: 'Style assertions read rendered output and do not currently export setting definitions.' });
 let styleExpectations = {};
 
 function result(id, status, detail, evidence, textFields = {}) {

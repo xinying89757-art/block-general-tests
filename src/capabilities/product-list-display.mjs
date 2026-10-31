@@ -5,6 +5,8 @@ import { widgetSession, probeControls, persistControl, radioPersist, radioGroupP
 import { executeSettingBatches } from '../batch-save.mjs';
 
 const SUITE = 'capability:product-list-display';
+export const freshSettings = Object.freeze({ status: 'not-adapted',
+  reason: 'The existing list batch candidates are local to the legacy settings runner and are not yet shared fresh definitions.' });
 const NAMES = {
   'pld-fields': '产品列表展示字段与勾选状态',
   'pld-page-size-persist': '每页产品数量保存回读与恢复',

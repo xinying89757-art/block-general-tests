@@ -21,6 +21,8 @@ import { TIMEOUT, previewSelector, checkReportText, readBackWithRetry } from './
 import { RAIL, openRailPanel, readSchemeColor, setSchemeColor, saveColorPanel, normalizeColor } from './rail.mjs';
 
 const SUITE = 'capability:block-color-scheme';
+export const freshSettings = Object.freeze({ status: 'not-adapted',
+  reason: 'Color-scheme checks still use their legacy restore transaction; fresh-value definitions are not extracted yet.' });
 const NAMES = {
   'bcs-state': '配色方案个数与当前值',
   'bcs-color-persist': '配色保存回读与恢复',
