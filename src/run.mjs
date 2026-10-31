@@ -61,6 +61,10 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
   for (const capability of capabilities) {
     const id = capability.id;
     const module = registry[id];
+    if (args.config?.checkGroup) {
+      const layers = module?.checkGroups?.[args.config.checkGroup];
+      if (!layers?.includes(layer)) continue;
+    }
     let selectedMethod = method;
     if (layer === 'settings' && args.config?.frontOnly) {
       if (typeof module?.runFrontEffectsLayer === 'function') selectedMethod = 'runFrontEffectsLayer';
@@ -189,6 +193,12 @@ async function main() {
     capabilities = capabilities.filter(({ id }) => config.capabilityFilter.includes(id));
     if (!capabilities.length) {
       throw new Error(`CAPABILITY_FILTER 未匹配到任何能力：${config.capabilityFilter.join(',')}`);
+    }
+  }
+  if (config.checkGroup) {
+    const matching = capabilities.filter(({ id }) => capabilityRegistry[id]?.checkGroups?.[config.checkGroup]);
+    if (matching.length !== 1) {
+      throw new Error(`CHECK_GROUP 必须唯一匹配能力，当前组=${config.checkGroup}，匹配数=${matching.length}`);
     }
   }
   const capabilityIds = capabilities.map(({ id }) => id);

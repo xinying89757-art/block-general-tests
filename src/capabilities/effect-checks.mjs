@@ -93,6 +93,22 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
       pending.set(key, { target: current, value });
       await session.set(current, value);
     },
+    setMany: async (changes) => {
+      const items = await controls();
+      const planned = [];
+      for (const { target, value } of changes) {
+        const current = findControl(items, target);
+        if (!current || current.type !== 'checkbox' || current.disabled || current.readOnly) {
+          unavailable('批量分类设置项身份已变化或不可编辑，未写入。');
+        }
+        if (controlValue(current) === value) continue;
+        const key = `control:${current.index}`;
+        if (!journal.has(key)) journal.set(key, { target: current, value: controlValue(current) });
+        pending.set(key, { target: current, value });
+        planned.push({ target: current, value });
+      }
+      if (planned.length) await session.setMany(planned);
+    },
     // For controls with a dedicated UI (Spectrum and button link type tabs).
     remember: (key, restore) => { if (!journal.has(key)) journal.set(key, { restore }); },
     save: async () => {
@@ -203,10 +219,9 @@ export function rememberCategoryState(tx, session, items, modeName) {
       return current;
     };
     await session.set(await fresh(partial), true); await session.save(); await session.open();
-    for (const box of boxes) {
-      const current = await fresh(box);
-      if (current.checked !== box.checked) await session.set(current, box.checked);
-    }
+    const current = await session.read();
+    const restores = categoryRestoreChanges(current, boxes);
+    await session.setMany(restores);
     await session.save(); await session.open();
     const restoredBoxes = await session.read();
     if (!boxes.every((box) => findControl(restoredBoxes, box)?.checked === box.checked)) throw new Error('分类勾选清单未完整恢复');
@@ -214,5 +229,13 @@ export function rememberCategoryState(tx, session, items, modeName) {
     const after = await session.read();
     if (!findControl(after, original[0])?.checked || !boxes.every((box) => findControl(after, box)?.checked === box.checked)) throw new Error('恢复原分类方式后勾选清单变化');
     tx.evidence.restoredCategoryState = { mode: original[0].label, checked: boxes.filter((box) => box.checked).map((box) => box.label) };
+  });
+}
+
+export function categoryRestoreChanges(currentControls, originalBoxes) {
+  return originalBoxes.map((box) => {
+    const item = findControl(currentControls, box);
+    if (!item) throw new Error('恢复分类时有勾选框身份变化');
+    return { target: item, value: box.checked };
   });
 }

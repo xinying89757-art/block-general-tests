@@ -237,7 +237,35 @@ export function controlSession(root, lifecycle) {
     });
     if (!settled.matched) throw new Error('切换后控件值未达到预期');
   };
-  return { root, read, set, ...lifecycle,
+  const setMany = async (changes) => {
+    if (!Array.isArray(changes) || !changes.length) return;
+    await retryTransient(() => waitForControlsReady(root));
+    await root.evaluate((node, updates) => {
+      const norm = (text) => (text || '').replace(/\\s+/g, ' ').trim();
+      const inputs = node.querySelectorAll('input, select, textarea');
+      for (const { target, value } of updates) {
+        const input = inputs[target.index];
+        const label = input && norm([...(input.labels || [])].map((item) => item.innerText).join(' ')
+          || input.closest('li, label, .el-form-item, div')?.innerText);
+        if (!input || input.tagName !== target.tag || input.type !== target.type
+          || (input.name || '') !== target.name || label !== target.label || input.disabled
+          || input.type !== 'checkbox' || input.value !== target.value) {
+          throw new Error('批量目标控件身份变化、缺失或不可切换');
+        }
+      }
+      for (const { target, value } of updates) {
+        const input = inputs[target.index];
+        if (input.checked !== value) input.click();
+      }
+    }, changes, { timeout: TIMEOUT });
+    const targets = changes;
+    const settled = await poll(read, (items) => targets.every(({ target, value }) => {
+      const actual = findControl(items, target);
+      return actual && controlValue(actual) === value;
+    }));
+    if (!settled.matched) throw new Error('批量切换后控件值未全部达到预期');
+  };
+  return { root, read, set, setMany, ...lifecycle,
     open: () => retryTransient(async () => {
       await lifecycle.open();
       await waitForControlsReady(root);

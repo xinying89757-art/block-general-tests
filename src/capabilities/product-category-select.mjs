@@ -3,6 +3,10 @@ import { savePage, openPreview } from '../editor.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText, readBackWithRetry, fixtureCategoryState } from './shared.mjs';
 
 const SUITE = 'capability:product-category-select';
+export const checkGroups = Object.freeze({
+  'pcs-persistence': ['settings'],
+  'pcs-categories-backend': ['backend'],
+});
 const NAMES = {
   'pcs-state': '产品分类选择方式与分类清单',
   'pcs-mode-persist': '分类选择方式保存回读与恢复',
@@ -291,15 +295,17 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       }
     })();
     checks.push(categoryCheck);
-    checks.push(config.deferFront ? result('pcs-category-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
-      : await categoryFrontCheck({ session, page, canvas, context, config, capability, profile, report }));
+    if (!config.checkGroup) {
+      checks.push(config.deferFront ? result('pcs-category-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
+        : await categoryFrontCheck({ session, page, canvas, context, config, capability, profile, report }));
+    }
   } finally {
     try { await session.cancel(); } catch (error) {
       const last = checks.at(-1);
       if (last) { last.status = 'fail'; last.detail += `；最终取消失败：${error.message}`; }
     }
   }
-  checks.push(...await categoryEffects({ page, canvas, context, config, capability, profile, report }, 'front'));
+  if (!config.checkGroup) checks.push(...await categoryEffects({ page, canvas, context, config, capability, profile, report }, 'front'));
   return checks;
 }
 
@@ -359,9 +365,15 @@ function categoryControl(controls, name) {
   if (own.length !== 1) unavailable(`分类“${name}”没有唯一对应的勾选框，需核实分类树结构。`);
   return own[0];
 }
-async function categoryEffects(args, layer) {
+export function categorySelectionChanges(controls, targetName) {
+  const boxes = categoriesOf(controls);
+  const target = categoryControl(controls, targetName);
+  return boxes.map((item) => ({ target: item, value: item.index === target.index }));
+}
+export function selectedCheckGroupLayer(group) { return checkGroups[group] || null; }
+async function categoryEffects(args, layer, onlyKinds = null) {
   const checks = [];
-  for (const kind of ['mode', 'categories']) {
+  for (const kind of ['mode', 'categories'].filter((item) => !onlyKinds || onlyKinds.includes(item))) {
     const session = widgetSession({ ...args, type: 'phoenix_blocks_gallery',
       title: args.capability?.dialogTitle || '设置产品分类', wrapIndex: args.capability?.wrapIndex ?? 0 });
     checks.push(await effectCheck({ ...args, session, result, id: `pcs-${kind}-${layer}`, layer, run: async (tx) => {
@@ -392,8 +404,8 @@ async function categoryEffects(args, layer) {
         tx.assert(snapshot.names.some(name => products.includes(name)), '所有分类模式未显示 AUTOTEST 夹具产品。');
       }
       await tx.set(partial, true); await tx.save();
-      const current = await tx.controls(), selected = categoryControl(current, target);
-      for (const item of categoriesOf(current)) await tx.set(item, item.index === selected.index);
+      const current = await tx.controls();
+      await tx.setMany(categorySelectionChanges(current, target));
       await tx.save();
       const nav = await readNavigation(); tx.evidence.navigation = nav;
       tx.expected(`选择夹具分类后导航应仅显示 ${target}。`);
@@ -402,4 +414,7 @@ async function categoryEffects(args, layer) {
   }
   return checks;
 }
-export async function runBackendLayer(args) { return categoryEffects(args, 'backend'); }
+export async function runBackendLayer(args) {
+  const onlyKinds = args.config.checkGroup === 'pcs-categories-backend' ? ['categories'] : null;
+  return categoryEffects(args, 'backend', onlyKinds);
+}
