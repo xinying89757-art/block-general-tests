@@ -4,7 +4,7 @@ import { addBlockIfNeeded, gotoFreshTargetPage, openEditor, savePage } from './e
 import { inventorySettings } from './baseline.mjs';
 import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
 import { matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from './fresh-editor-actions.mjs';
-import { waitForPublishSignal, verifyFrontInstance } from './publish-confirm.mjs';
+import { waitForPublishSignal, verifyFrontInstance, choosePublishMenuItem } from './publish-confirm.mjs';
 import { RAIL, openRailPanel, readSchemeColor, readModuleWidth, cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
@@ -155,6 +155,13 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       const publishIndexes = await exactActionIndexes(publish, /^(发布|发布网站)$/);
       if (publishIndexes.length !== 1) throw new Error(`页面发布控件匹配 ${publishIndexes.length} 个；拒绝把保存按钮当作发布操作。`);
       await publish.nth(publishIndexes[0]).click();
+      // 发布 opens a scope submenu; choose the configured scope (default: current page).
+      const menu = toolbar.locator('.backstage-publish-type > div');
+      await menu.first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
+      if (await menu.count()) {
+        const labels = await menu.evaluateAll((nodes) => nodes.map((n) => (n.getClientRects().length ? n.textContent : '')));
+        await menu.nth(choosePublishMenuItem(labels, config.publishScope || process.env.PUBLISH_SCOPE || 'current')).click();
+      }
       // The confirm dialog can render after the click; wait for it instead of
       // checking once immediately (a missed dialog means nothing was published).
       const dialog = page.locator('.backstage-dialog:visible');

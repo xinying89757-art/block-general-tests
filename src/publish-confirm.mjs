@@ -47,3 +47,14 @@ export async function verifyFrontInstance({ fetchText, url, blockId, settingId, 
 }
 
 function defaultSleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+// The toolbar 发布 is a dropdown toggle (整站发布 / 当前页面发布). Clicking it alone
+// publishes nothing. Pick exactly one submenu entry for the requested scope.
+export const PUBLISH_SCOPES = { current: /^当前页面发布$/, all: /^整站发布$/ };
+export function choosePublishMenuItem(labels, scope = 'current') {
+  const pattern = PUBLISH_SCOPES[scope];
+  if (!pattern) throw new Error(`未知发布范围 ${scope}；可选 current 或 all。`);
+  const hits = labels.flatMap((l, i) => (pattern.test(String(l || '').replace(/\s+/g, ' ').trim()) ? [i] : []));
+  if (hits.length !== 1) throw new Error(`发布菜单「${scope}」匹配 ${hits.length} 个；拒绝发布。`);
+  return hits[0];
+}
