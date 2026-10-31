@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dismissReadOnlyPopover, reloadDiscardAndVerify } from '../src/read-only-dismiss.mjs';
+import { dismissReadOnlyPopover, readStableSnapshot, reloadDiscardAndVerify } from '../src/read-only-dismiss.mjs';
 
 test('read-only popover dismissal uses Escape and neutral click without a save action', async () => {
   const events = [];
@@ -50,7 +50,7 @@ test('read-only popover reload discards UI state and verifies values before fina
     finishReload: async () => { events.push('final-reload-discard'); },
   });
   assert.deepEqual(actual, expected);
-  assert.deepEqual(events, ['reload-discard', 'read-back', 'final-reload-discard']);
+  assert.deepEqual(events, ['reload-discard', 'read-back', 'read-back', 'final-reload-discard']);
   assert.equal(events.some((event) => /save/i.test(event)), false);
 });
 
@@ -61,9 +61,25 @@ test('read-only popover reload mismatch fails without any save action', async ()
     readBack: async () => [{ label: '按钮文本', type: 'text', to: 'changed' }],
     expected: [{ label: '按钮文本', type: 'text', to: 'original' }],
     finishReload: async () => { events.push('final-reload-discard'); },
-  }), /重载后发生变化.*未保存/);
+  }), /重载后发生变化.*未保存.*expected=.*original.*actual=.*changed/);
   assert.deepEqual(events, ['reload-discard']);
   assert.equal(events.some((event) => /save/i.test(event)), false);
+});
+
+test('read-only button values wait for two consecutive stable post-reload reads', async () => {
+  let now = 0;
+  const observed = [{ value: 'loading' }, { value: 'saved' }, { value: 'saved' }];
+  const value = await readStableSnapshot(async () => observed.shift(), {
+    timeoutMs: 10, intervalMs: 1, now: () => now, wait: async (ms) => { now += ms; },
+  });
+  assert.deepEqual(value, { value: 'saved' });
+});
+
+test('read-only stable value timeout retains the last observation and does not weaken comparison', async () => {
+  let now = 0, index = 0;
+  await assert.rejects(readStableSnapshot(async () => ({ value: String(index++) }), {
+    timeoutMs: 3, intervalMs: 1, now: () => now, wait: async (ms) => { now += ms; },
+  }), (error) => error.code === 'READBACK_UNSTABLE' && error.lastValue.value === '3');
 });
 
 test('read-only dismissal invokes reload discard only after ordinary no-save methods fail', async () => {

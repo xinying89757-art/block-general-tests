@@ -329,13 +329,28 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     batchExecutionFailed = true;
     const screenshot = await captureFailure('batch-settings');
     flowErrors.push({ stage: 'batch-settings', message: error.message, screenshot });
-    batch = { batches: plan.map(({ settings: items, restoreBefore }) => ({ settingIds: items.map((item) => item.id), restoreBefore })),
-      results: [...staticResults, { id: 'fresh-batch-execution', status: 'fail', detail: error.message,
+    const partial = error.partialBatch || {};
+    batch = { batches: partial.batches || plan.map(({ settings: items, restoreBefore }) => ({
+      settingIds: items.map((item) => item.id), restoreBefore,
+    })), results: [...staticResults, ...(partial.results || []),
+      { id: 'fresh-batch-execution', status: 'fail', detail: error.message,
         batchResult: { detail: error.message, screenshot } }],
-      timing: { startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), durationMs: 0 } };
+      timing: partial.timing || { startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), durationMs: 0 } };
   }
-  const values = await adapter.readCurrentValues(fresh);
-  await onProgress({ stage: 'current-values-read' });
+  let values = [];
+  try {
+    values = await adapter.readCurrentValues(fresh);
+    await onProgress({ stage: 'current-values-read' });
+  } catch (error) {
+    const screenshot = await captureFailure('current-values');
+    flowErrors.push({ stage: 'current-values', message: error.message, screenshot });
+    batch.results.push({ id: 'fresh-current-values', status: 'fail',
+      expected: 'Current settings inventory is readable after the settings batch.', actual: error.message,
+      detail: `Current-value inventory failed: ${error.message}`,
+      batchResult: { expected: 'A complete current value inventory.', actual: error.message,
+        detail: error.message, screenshot } });
+    await onProgress({ stage: 'current-values-read-failed' });
+  }
   const finalInstances = await adapter.listAllBlockInstances();
   assertOtherBlocksUnchanged(otherBlockCounts, finalInstances, config.blockId);
   const remaining = targetBlockInstances(finalInstances, config.blockId);

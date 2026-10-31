@@ -1,6 +1,6 @@
 import { effectCheck, unavailable, readEffectRoot } from './effect-checks.mjs';
 import { baselineRestoreTarget, clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
-import { retryTransient, uiWaitConfig } from '../ui-waits.mjs';
+import { retryTransient, uiWaitConfig, waitForControlsReady, waitForEditorLoadingToClear } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
 import { dismissReadOnlyPopover, reloadDiscardAndVerify } from '../read-only-dismiss.mjs';
 import { reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
@@ -190,7 +190,10 @@ export async function createFreshDefinitions(args) {
 // Small public surface shared by baseline capture/guard/apply. The labels are
 // deliberately the ones used by this module's DOM recognizer.
 async function readButtonPopoverValue({ page, canvas, config, session = popoverSession({ page, canvas, config }) }) {
+  await waitForEditorLoadingToClear(page);
+  await waitForEditorLoadingToClear(canvas);
   await session.open();
+  await waitForControlsReady(session.root);
   const controls = await buttonControls(session);
   const link = await readLinkType(session, controls);
   return { root: session.root, value: {

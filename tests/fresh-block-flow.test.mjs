@@ -662,6 +662,32 @@ test('fresh batch execution error stops before publish and records the unpublish
   assert.equal(report.failures[0].screenshot, 'reports/screenshots/batch-settings.png');
 });
 
+test('fresh flow writes partial setting verdicts and harness errors when batch and current inventory both fail', async () => {
+  const adapter = fakeAdapter();
+  let saves = 0;
+  adapter.batchAdapter.save = async () => {
+    saves++;
+    if (saves === 2) throw new Error('second batch save transport failed');
+    adapter.events.push(['save', 'batch']);
+  };
+  adapter.readCurrentValues = async () => { throw new Error('button readback did not stabilize'); };
+  const report = await runFreshBlockFlow({ config, adapter, settings: [
+    { id: 'first', key: 'first', value: 'one', expected: 'one' },
+    { id: 'second', key: 'second', value: 'two', expected: 'two' },
+  ], metadata: { first: { interferesWith: ['second'] } } });
+  assert.equal(adapter.events.some(([kind]) => kind === 'publish'), false);
+  assert.equal(report.publishedAt, null);
+  assert.deepEqual(report.checks.map(({ id, status }) => [id, status]), [
+    ['first', 'pass'], ['fresh-batch-execution', 'fail'], ['fresh-current-values', 'fail'],
+  ]);
+  assert.ok(report.flowErrors.some(({ stage, message }) => stage === 'batch-settings'
+    && /second batch save transport failed/.test(message)));
+  assert.ok(report.flowErrors.some(({ stage, message }) => stage === 'current-values'
+    && /did not stabilize/.test(message)));
+  assert.deepEqual(report.block.currentValues, []);
+  assert.equal(adapter.state.report, report);
+});
+
 test('does not invoke a divergent module-availability preflight before the proven add path', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'existing', ordinal: 0 }]);
   adapter.verifyModuleAvailability = async () => { throw new Error('divergent preflight must not run'); };

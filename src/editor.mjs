@@ -1,4 +1,4 @@
-import { retryEnvironmentTimeout, saveAndWait } from './ui-waits.mjs';
+import { retryEnvironmentTimeout, saveAndWait, waitForEditorLoadingToClear } from './ui-waits.mjs';
 import { selectedBlockInstance, waitForCanvasRender } from './block-render.mjs';
 import { waitForUniquePageSaveControl } from './page-save-control.mjs';
 
@@ -11,7 +11,7 @@ export function resolveCurrentPageLabel({ activeItems = [], toolbarText = '' } =
   if (active.length === 1) return String(active[0].label).replace(/\s+/g, ' ').trim();
   const normalized = String(toolbarText || '').replace(/\s+/g, ' ').trim();
   const afterPagePrefix = normalized.match(/(?:^|\s)页面:\s*(.*)$/)?.[1] || '';
-  const action = afterPagePrefix.match(/\s+(?:智能优化当前页面|操作记录|保存|发布|预览)(?:\s|$)/);
+  const action = afterPagePrefix.match(/(?:^|\s)(?:智能优化当前页面|操作记录|保存|发布|预览)(?:\s|$)/);
   return (action ? afterPagePrefix.slice(0, action.index) : afterPagePrefix).trim();
 }
 
@@ -22,24 +22,44 @@ export function assertCurrentPageLabel(snapshot, expected) {
   return actual;
 }
 
-async function readCurrentPageLabel(page) {
+export function hasActivePageMarker(ancestors = []) {
+  return ancestors.some((node) => {
+    const attrs = ['aria-current', 'aria-selected', 'data-active'].map((key) => node?.[key] || '');
+    const classes = String(node?.className || '');
+    return attrs.some((value) => value && value !== 'false')
+      || /(?:^|\s)(?:active|current|selected|on)(?:\s|$)/i.test(classes);
+  });
+}
+
+async function readCurrentPageSnapshot(page) {
+  await waitForEditorLoadingToClear(page);
   const snapshot = await page.evaluate(() => {
     const toolbar = document.querySelector('.backstage-topToolbar');
     const pageBox = toolbar?.querySelector('.backstage-topToolbar-pageBox');
     const activeItems = pageBox ? [...pageBox.querySelectorAll('a[data-href]')].map((anchor) => {
-      const chain = [anchor, anchor.closest('li, dt, dd'), anchor.parentElement].filter(Boolean);
-      const active = chain.some((node) => {
-        const attrs = ['aria-current', 'aria-selected', 'data-active'].map((key) => node.getAttribute?.(key) || '');
-        const classes = typeof node.className === 'string' ? node.className : node.className?.baseVal || '';
-        return attrs.some((value) => value && value !== 'false') || /(?:^|\s)(?:active|current|selected)(?:\s|$)/i.test(classes);
-      });
-      return { label: (anchor.textContent || '').replace(/\s+/g, ' ').trim(), active };
+      const ancestors = [];
+      for (let node = anchor; node && node !== pageBox; node = node.parentElement) {
+        ancestors.push({ className: typeof node.className === 'string' ? node.className : node.className?.baseVal || '',
+          'aria-current': node.getAttribute?.('aria-current'), 'aria-selected': node.getAttribute?.('aria-selected'),
+          'data-active': node.getAttribute?.('data-active') });
+      }
+      return { label: (anchor.textContent || '').replace(/\s+/g, ' ').trim(), ancestors };
     }) : [];
     const clone = toolbar?.cloneNode(true);
     clone?.querySelector('.backstage-topToolbar-pageBox')?.remove();
     return { activeItems, toolbarText: (clone?.innerText || '').replace(/\s+/g, ' ').trim() };
   });
-  return resolveCurrentPageLabel(snapshot);
+  return { ...snapshot, activeItems: snapshot.activeItems.map(({ label, ancestors }) => ({
+    label, active: hasActivePageMarker(ancestors),
+  })) };
+}
+
+/** Read and optionally verify the selected page through one shared, mask-aware path. */
+export async function verifyCurrentPageIdentity(page, expected) {
+  const snapshot = await readCurrentPageSnapshot(page);
+  const actual = resolveCurrentPageLabel(snapshot);
+  if (!actual) throw new Error('刷新编辑器后无法读取当前页面自己的活动标签。');
+  return expected === undefined ? actual : assertCurrentPageLabel(actual, expected);
 }
 
 function blockSelector(blockId) {
@@ -310,14 +330,13 @@ async function waitForEditorReady(page) {
 // CMS field changes become visible after an editor reload; no publishing.
 // Without config preserve the current page; fixture preparation supplies config.
 export async function reloadEditor(page, config) {
-  const currentPageName = () => readCurrentPageLabel(page);
-  const before = await currentPageName();
+  const before = await verifyCurrentPageIdentity(page);
   const target = config?.resolvedTarget;
   const wanted = target ? target.page : before;
   if (!wanted) throw new Error('刷新编辑器前无法确定目标页。');
   await page.reload({ waitUntil: 'domcontentloaded', timeout: Number(config?.navigationTimeoutMs) || 60_000 });
   await waitForEditorReady(page);
-  assertCurrentPageLabel(await currentPageName(), wanted);
+  await verifyCurrentPageIdentity(page, wanted);
   return { frame: page.frameLocator(CANVAS) };
 }
 

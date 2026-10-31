@@ -196,6 +196,18 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
       }
       batchInfo.totalMs = performance.now() - batchStart;
     }
+  } catch (error) {
+    // Preserve work completed before a transport/UI failure. The fresh-flow
+    // caller writes these outcomes alongside the harness error so a partial
+    // batch never disappears when later inventory also fails.
+    error.partialBatch = {
+      batches: plan.map(({ settings: items, restoreBefore }) => ({
+        settingIds: items.map((item) => item.id), restoreBefore,
+      })),
+      results: [...results],
+      timing,
+    };
+    throw error;
   } finally {
     const restoreStart = performance.now();
     const restoreIdsInOrder = settings.filter((item) => changed.has(item.id)).map((item) => item.id).reverse();

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertCurrentPageLabel, resolveCurrentPageLabel, resolveEditorSiteHosts } from '../src/editor.mjs';
+import { assertCurrentPageLabel, hasActivePageMarker, resolveCurrentPageLabel, resolveEditorSiteHosts,
+  verifyCurrentPageIdentity } from '../src/editor.mjs';
 
 test('current page identity uses the one active page label instead of page-menu contents', () => {
   const snapshot = { toolbarText: '页面: 保存  Products Product Detail Product Category News', activeItems: [
@@ -23,6 +24,24 @@ test('toolbar page identity stops at the first editor action instead of absorbin
   assert.equal(resolveCurrentPageLabel(snapshot), 'Products');
   assert.equal(assertCurrentPageLabel(snapshot, 'Products'), 'Products');
   assert.throws(() => assertCurrentPageLabel(snapshot, 'Catalog'), /当前活动页为「Products」/);
+  assert.equal(resolveCurrentPageLabel({ activeItems: [], toolbarText: '页面: 智能优化当前页面 操作记录 暂无历史记录' }), '');
+  assert.throws(() => assertCurrentPageLabel({ activeItems: [], toolbarText: '页面: 智能优化当前页面' }, 'Products'),
+    /无法读取当前页面自己的活动标签/);
+});
+
+test('page identity reads active markers from any page-row ancestor and waits for editor masks', async () => {
+  assert.equal(hasActivePageMarker([{ className: 'row-container selected' }]), true);
+  assert.equal(hasActivePageMarker([{ className: 'row-container on' }]), true);
+  assert.equal(hasActivePageMarker([{ className: 'page-row' }]), false);
+  let maskReads = 0;
+  const page = {
+    locator: () => ({ evaluate: async () => { maskReads++; return []; } }),
+    evaluate: async () => ({ activeItems: [{ label: 'Products', ancestors: [{ className: 'page-row selected' }] },
+      { label: 'News', ancestors: [{ className: 'page-row' }] }],
+      toolbarText: '智能优化当前页面 操作记录' }),
+  };
+  assert.equal(await verifyCurrentPageIdentity(page, 'Products'), 'Products');
+  assert.equal(maskReads, 1);
 });
 
 test('editor host identity is read from the canvas frame and ignores platform frames', () => {
