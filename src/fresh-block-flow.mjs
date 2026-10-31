@@ -133,6 +133,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
     value: item.value,
     expected: item.batchResult?.expected ?? item.expected,
     actual: item.batchResult?.actual ?? item.actual,
+    ...(item.classification ? { classification: item.classification } : {}),
     detail: item.batchResult?.detail || item.detail,
     screenshot: item.batchResult?.screenshot || item.rerunAloneResult?.screenshot || null,
     rerunAloneResult: item.rerunAloneResult || null,
@@ -309,13 +310,16 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     if (priorDefaults && (priorDefaults.siteHost !== config.siteHost || String(priorDefaults.blockId) !== String(config.blockId))) {
       throw new Error('Fresh defaults snapshot identity mismatch; refusing to compare defaults across site/block identities.');
     }
-    defaults = diffFreshDefaults(priorDefaults, defaultsValues);
-    if (!priorDefaults) await (adapter.writeDefaultsSnapshot?.(defaultsPath, {
+    const inventoryErrors = defaultsValues.inventoryErrors || [];
+    defaults = inventoryErrors.length
+      ? { firstCapture: !priorDefaults, changes: [], inventoryErrors }
+      : diffFreshDefaults(priorDefaults, defaultsValues);
+    if (!priorDefaults && !inventoryErrors.length) await (adapter.writeDefaultsSnapshot?.(defaultsPath, {
       version: 1, siteHost: config.siteHost, blockId: String(config.blockId), capturedAt: new Date().toISOString(), values: defaultsValues,
     }) ?? writeFreshDefaultsSnapshot(defaultsPath, {
       version: 1, siteHost: config.siteHost, blockId: String(config.blockId), capturedAt: new Date().toISOString(), values: defaultsValues,
     }));
-    await onProgress({ stage: 'defaults-captured', firstCapture: !priorDefaults });
+    await onProgress({ stage: 'defaults-captured', firstCapture: !priorDefaults, inventoryErrorCount: inventoryErrors.length });
   } catch (error) {
     defaultsError = error;
     defaults = { status: 'unavailable', error: error.message };

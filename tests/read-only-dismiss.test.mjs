@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dismissReadOnlyPopover, readStableSnapshot, reloadDiscardAndVerify } from '../src/read-only-dismiss.mjs';
+import { createStableSnapshotDiagnostics, dismissReadOnlyPopover, readStableSnapshot, reloadDiscardAndVerify } from '../src/read-only-dismiss.mjs';
 
 test('read-only popover dismissal uses Escape and neutral click without a save action', async () => {
   const events = [];
@@ -80,6 +80,17 @@ test('read-only stable value timeout retains the last observation and does not w
   await assert.rejects(readStableSnapshot(async () => ({ value: String(index++) }), {
     timeoutMs: 3, intervalMs: 1, now: () => now, wait: async (ms) => { now += ms; },
   }), (error) => error.code === 'READBACK_UNSTABLE' && error.lastValue.value === '3');
+});
+
+test('stable snapshot diagnostics report changed and unreadable field names without values', () => {
+  const diagnostics = createStableSnapshotDiagnostics(['text', 'url', 'linkType']);
+  diagnostics.observe({ text: 'private label', url: 'https://private.example', linkType: '域名' });
+  diagnostics.observe({ text: 'private label', url: 'https://other.example', linkType: '域名' });
+  diagnostics.observe({ text: undefined, url: 'https://other.example', linkType: '域名' });
+  const summary = diagnostics.summary({ elapsedMs: 15000, loadingMaskVisible: true });
+  assert.deepEqual(summary, { snapshotCount: 3, elapsedMs: 15000, changingFields: ['url'],
+    unreadableFields: ['text'], loadingMaskVisible: true });
+  assert.doesNotMatch(JSON.stringify(summary), /private|example|域名/);
 });
 
 test('read-only dismissal invokes reload discard only after ordinary no-save methods fail', async () => {

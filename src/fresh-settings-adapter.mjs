@@ -69,6 +69,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
     const persistedControls = [];
     const preparedModules = new Map();
     const postPublishDefinitions = [];
+    const inventoryErrors = (mergedContext.inventory || []).filter((region) => region?.inventoryError);
     const profileUnits = await discoverProfileFrontUnits(mergedContext.profile, {
       frontAvailable: Boolean(mergedContext.frontAvailable),
       readFrontValue: mergedContext.readFrontValue,
@@ -82,6 +83,19 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         settingIds: profileUnits.editorSettings.map((unit) => unit.id) });
     }
     for (const { id, item, definition } of modules) {
+      const affectedInventoryError = inventoryErrors.find((region) =>
+        (definition?.metadata?.inventoryRegions || []).includes(region.inventoryError.regionType));
+      if (affectedInventoryError) {
+        const failure = affectedInventoryError.inventoryError;
+        const diagnostics = failure.diagnostics || {};
+        const reason = `Settings inventory for ${failure.regionType} failed (${failure.code}); snapshots=${diagnostics.snapshotCount ?? 'unknown'}, elapsedMs=${diagnostics.elapsedMs ?? 'unknown'}, changingFields=${(diagnostics.changingFields || []).join(',') || 'none'}, unreadableFields=${(diagnostics.unreadableFields || []).join(',') || 'none'}, loadingMaskVisible=${diagnostics.loadingMaskVisible ?? 'unknown'}.`;
+        capabilityResults.push({ capability: id, status: 'not-adapted', reason,
+          inventoryError: { regionType: failure.regionType, code: failure.code, diagnostics, screenshot: failure.screenshot || null } });
+        staticResults.push({ id: `${id}-inventory`, name: `${id} settings inventory`, suite: `capability:${id}`,
+          status: 'fail', classification: 'harness-error', expected: `The ${failure.regionType} settings surface is readable.`,
+          actual: failure.message, detail: reason, evidence: { ...diagnostics, screenshot: failure.screenshot || null } });
+        continue;
+      }
       if (definition?.status === 'check-only' && typeof definition.runPostPublish === 'function') {
         postPublishDefinitions.push({ id, item, definition });
         capabilityResults.push({ capability: id, status: 'check-only',

@@ -36,6 +36,17 @@ test('onboarding reuses generic rail signatures for rail inventory regions', () 
   assert.deepEqual(result.capabilities.map((item) => item.id).sort(), ['block-color-scheme', 'module-width']);
 });
 
+test('onboarding preserves inventory failures as explicit capability candidates and diagnostics', () => {
+  const mapping = mapDiscoveredInventory([{ kind: 'button-popover', type: 'phoenix_blocks_button', title: null,
+    wrapIndex: 0, controls: [], skipped: 'unstable', inventoryError: { regionType: 'phoenix_blocks_button',
+      code: 'BUTTON_POPOVER_INVENTORY_UNSTABLE', message: 'safe diagnostic',
+      diagnostics: { snapshotCount: 10, changingFields: ['url'] }, screenshot: 'reports/screenshots/popover.png' } }]);
+  assert.deepEqual(mapping.capabilities, [{ id: 'button-link', status: 'candidate' }]);
+  assert.deepEqual(mapping.inventoryErrors[0].capabilityCandidates, ['button-link']);
+  const profile = buildDraftProfile(template, { blockId: 'generic-123', page: { kind: 'system', id: 'page-id' }, mapping });
+  assert.deepEqual(profile.onboarding.inventoryErrors[0].diagnostics.changingFields, ['url']);
+});
+
 test('generated profile is a draft with only detected capabilities and no guessed fixture or baseline', () => {
   const mapping = mapDiscoveredInventory([{ kind: 'button-popover', type: 'phoenix_blocks_button', title: null,
     wrapIndex: 0, controls: [{ index: 0, type: 'text', label: '按钮文本', value: 'Continue' }] }]);

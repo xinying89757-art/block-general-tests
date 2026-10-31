@@ -1,5 +1,8 @@
 import { signatures, matchCapabilities } from './capabilities/signatures.mjs';
 
+const matchesRule = (pattern, value) => pattern == null
+  || (pattern instanceof RegExp ? pattern.test(String(value ?? '')) : pattern === value);
+
 const serializableControl = (control) => ({
   index: control.index ?? null,
   type: control.type || '',
@@ -30,11 +33,21 @@ export function mapDiscoveredInventory(inventory, { rules = signatures } = {}) {
   }));
   const capabilityMap = new Map();
   for (const match of detected.matched) capabilityMap.set(match.parentModule, { id: match.parentModule, status: 'candidate' });
+  const inventoryErrors = (inventory || []).filter((region) => region.inventoryError).map((region) => {
+    const owners = [...new Set(rules.filter((rule) => matchesRule(rule.region?.type, region.type)
+      && matchesRule(rule.region?.title, region.title) && matchesRule(rule.region?.wrapIndex, region.wrapIndex))
+      .map((rule) => rule.parentModule))];
+    for (const id of owners) if (!capabilityMap.has(id)) capabilityMap.set(id, { id, status: 'candidate' });
+    return { regionType: region.inventoryError.regionType || region.type,
+      capabilityCandidates: owners, code: region.inventoryError.code || 'SETTINGS_INVENTORY_ERROR',
+      message: region.inventoryError.message || '', diagnostics: region.inventoryError.diagnostics || null,
+      screenshot: region.inventoryError.screenshot || null };
+  });
   const unmapped = detected.unrecognized.flatMap((region) => (region.controls || []).map((control) => ({
     kind: region.kind || 'settings-dialog', regionType: region.type || '', title: region.title ?? null,
     wrapIndex: region.wrapIndex ?? null, control: serializableControl(control), status: 'unmapped',
   })));
-  return { requirements, capabilities: [...capabilityMap.values()], unmapped,
+  return { requirements, capabilities: [...capabilityMap.values()], unmapped, inventoryErrors,
     matched: detected.matched.map(({ id, parentModule, kind, type, title, wrapIndex, evidence }) => ({
       id, capability: parentModule, kind, type, title: title ?? null, wrapIndex: wrapIndex ?? null, evidence,
     })) };
@@ -65,6 +78,7 @@ export function buildDraftProfile(template, { blockId, page, mapping, observedAt
   profile.specificChecks = [];
   profile.onboarding = { status: 'draft-unreviewed', discoveredAt: observedAt,
     matched: structuredClone(mapping.matched), unmapped: structuredClone(mapping.unmapped),
+    ...(mapping.inventoryErrors?.length ? { inventoryErrors: structuredClone(mapping.inventoryErrors) } : {}),
     note: '自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。' };
   return profile;
 }

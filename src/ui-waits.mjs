@@ -92,14 +92,21 @@ export async function waitForEditorLoadingToClear(scope, options = {}) {
   const body = scope?.locator?.('body');
   // Lightweight offline mocks may model only the control being exercised.
   if (typeof body?.evaluate !== 'function') return [];
-  return waitForNoLoadingOverlay(() => body.evaluate((root, selectors) => {
+  return waitForNoLoadingOverlay(() => visibleEditorLoadingOverlays(scope), options);
+}
+
+/** Return visible editor loading overlays without exposing field values. */
+export async function visibleEditorLoadingOverlays(scope) {
+  const body = scope?.locator?.('body');
+  if (typeof body?.evaluate !== 'function') return [];
+  return body.evaluate((root, selectors) => {
     const visible = (element) => element.getClientRects().length > 0
       && getComputedStyle(element).visibility !== 'hidden'
       && getComputedStyle(element).display !== 'none'
       && !/(?:^|\s)(?:hide|hidden)(?:\s|$)/i.test(String(element.className || ''));
     return [...root.querySelectorAll(selectors)].filter(visible)
       .map((element) => element.className?.baseVal || element.className || element.getAttribute('data-loading') || 'loading-overlay');
-  }, LOADING_OVERLAY_SELECTOR), options);
+  }, LOADING_OVERLAY_SELECTOR);
 }
 
 export async function waitForStable(read, ready = () => true, options = {}) {

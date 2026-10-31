@@ -23,9 +23,17 @@ import { matchControl, matchingControls, normalizeControlIdentity } from './base
 import { uiWaitConfig, waitForStable, waitForEditorLoadingToClear } from './ui-waits.mjs';
 import { makeFixtureSelectionRule, fixtureSelectionDiff } from './site-baseline.mjs';
 import { retryClosedRestoreStep } from './baseline-recovery.mjs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 const TITLE = '.backstage-dialog-title, .layui-layer-title';
+
+export function degradeInventoryRegion(region, error, screenshot = null) {
+  return { ...region, skipped: `${region.kind || 'Settings'} inventory failed; only its owning capability is unavailable for this run.`,
+    inventoryError: { regionType: region.type, code: error.code || 'SETTINGS_INVENTORY_ERROR',
+      message: error.message, diagnostics: error.inventoryDiagnostics || null, screenshot } };
+}
 
 // Radio groups cannot be set false directly: clicking a checked radio is a
 // no-op, so a want entry { type: 'radio', to: false } can never be applied.
@@ -86,7 +94,7 @@ async function readDialogTitle(dialog) {
   return text.split('\n').map((line) => line.trim()).find(Boolean) || '';
 }
 
-export async function inventorySettings({ page, canvas, config, blockId, onProgress }) {
+export async function inventorySettings({ page, canvas, config, blockId, onProgress, degradeInventoryErrors = false }) {
   await waitForEditorLoadingToClear(canvas);
   const wrapLocator = canvas.locator(
     `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(blockId))}] .backstage-blocksEditor-wrap`);
@@ -112,7 +120,18 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
         region.controls = popover.want.map(({ to, ...item }) => ({ ...item,
           ...(item.type === 'checkbox' ? { checked: to } : { value: to }) }));
       } catch (error) {
-        throw new Error(`读取按钮浮层失败，拒绝捕获不完整基线：${error.message}`);
+        if (!degradeInventoryErrors) throw new Error(`读取按钮浮层失败，拒绝捕获不完整基线：${error.message}`);
+        let screenshot = null;
+        try {
+          const root = config.projectRoot || process.cwd();
+          const directory = path.resolve(root, config.reportDir || 'reports', 'screenshots');
+          await fs.mkdir(directory, { recursive: true });
+          const name = `inventory-button-popover-${String(blockId).replace(/[^a-z0-9_-]/gi, '-')}-${Date.now()}.png`;
+          const file = path.join(directory, name);
+          await page.screenshot({ path: file, fullPage: true, timeout: 30_000 });
+          screenshot = path.relative(root, file);
+        } catch { /* diagnostic capture is best effort; the inventory error remains authoritative */ }
+        Object.assign(region, degradeInventoryRegion(region, error, screenshot));
       }
       inventory.push(region);
       continue;

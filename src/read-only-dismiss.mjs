@@ -23,6 +23,35 @@ export async function readStableSnapshot(read, { timeoutMs = 10_000, intervalMs 
   throw error;
 }
 
+/** Track stability by field identity without retaining or returning the field values. */
+export function createStableSnapshotDiagnostics(fields) {
+  const names = [...new Set(fields)];
+  const previous = new Map();
+  const changingFields = new Set();
+  const unreadableFields = new Set();
+  let snapshotCount = 0;
+  return Object.freeze({
+    observe(snapshot) {
+      snapshotCount++;
+      for (const name of names) {
+        if (!snapshot || !Object.hasOwn(snapshot, name) || snapshot[name] === undefined) {
+          unreadableFields.add(name);
+          continue;
+        }
+        const signature = JSON.stringify(snapshot[name]);
+        if (previous.has(name) && previous.get(name) !== signature) changingFields.add(name);
+        previous.set(name, signature);
+      }
+    },
+    unreadable(name) { unreadableFields.add(String(name)); },
+    failedRead() { snapshotCount++; },
+    summary({ elapsedMs = 0, loadingMaskVisible = false } = {}) {
+      return { snapshotCount, elapsedMs, changingFields: [...changingFields].sort(),
+        unreadableFields: [...unreadableFields].sort(), loadingMaskVisible: Boolean(loadingMaskVisible) };
+    },
+  });
+}
+
 function changedPaths(expected, actual, prefix = '') {
   if (Object.is(expected, actual)) return [];
   if (Array.isArray(expected) || Array.isArray(actual)) {

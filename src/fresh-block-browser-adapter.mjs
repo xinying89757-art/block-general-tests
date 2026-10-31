@@ -97,7 +97,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     // Keep the button popover last: its verified close operation confirms
     // unchanged values when no non-saving dismissal is available.
     return [...freshRailInventoryRegions(color, width),
-      ...await inventorySettings({ page, canvas: frame, config, blockId: config.blockId })];
+      ...await inventorySettings({ page, canvas: frame, config, blockId: config.blockId, degradeInventoryErrors: true })];
   };
   const selectedCreated = (instance) => ({ blockId: String(config.blockId), settingId: instance.settingId,
     ordinal: instance.ordinal, position: instance.position });
@@ -160,10 +160,11 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     },
     async prepareSettings() {
       const args = { page, canvas: frame, frame, config };
+      const inventory = await readFreshInventory();
       if (discoverAndPrepareSettings) {
-        return discoverAndPrepareSettings({ ...args, inventory: await readFreshInventory() });
+        return discoverAndPrepareSettings({ ...args, inventory });
       }
-      return settingsAdapter.prepare(args);
+      return settingsAdapter.prepare({ ...args, inventory });
     },
     async deleteBlockInstance(instance) {
       if (String(instance.blockId) !== String(config.blockId)) {
@@ -212,7 +213,10 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       return file;
     },
     async readDefaults() {
-      return currentValuesFromInventory(await readFreshInventory());
+      const inventory = await readFreshInventory();
+      const values = currentValuesFromInventory(inventory);
+      values.inventoryErrors = inventory.filter((region) => region.inventoryError).map((region) => region.inventoryError);
+      return values;
     },
     async readCurrentValues() {
       return currentValuesFromInventory(await readFreshInventory());

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPageConfig,
   runFreshBlockFlow, readStableBlockInventory, countPageBlocksByNumber } from '../src/fresh-block-flow.mjs';
+import { degradeInventoryRegion } from '../src/baseline.mjs';
 import { executeSettingBatches, selectRetainedFailures } from '../src/batch-save.mjs';
 import { createFreshLifecycle, createFreshSettingsAdapter, currentValuesFromInventory, projectPersistedFreshValues } from '../src/fresh-settings-adapter.mjs';
 import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDeleteConfirmIndexes,
@@ -550,6 +551,20 @@ test('defaults inventory harness errors still write a partial report and block p
   assert.deepEqual(countPageBlocksByNumber(adapter.state.instances), { '55': 1, '56': 1 });
 });
 
+test('one failed capability inventory is reported and skipped while clean peers can publish', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
+  adapter.prepareSettings = async () => ({ settings: [{ id: 'peer-setting', key: 'peer', value: 'new', expectedStatus: 'pass' }],
+    metadata: {}, capabilityResults: [{ capability: 'button-link', status: 'not-adapted', reason: 'popover inventory unstable' }],
+    staticResults: [{ id: 'button-link-inventory', status: 'fail', classification: 'harness-error', detail: 'popover inventory unstable' }],
+    batchAdapter: adapter.batchAdapter, persistedControls: [] });
+  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  assert.equal(report.capabilities[0].status, 'not-adapted');
+  assert.equal(report.checks.find((item) => item.id === 'button-link-inventory')?.status, 'fail');
+  assert.equal(report.checks.find((item) => item.id === 'peer-setting')?.status, 'pass');
+  assert.ok(report.publishedAt);
+  assert.equal(adapter.events.some(([kind]) => kind === 'publish'), true);
+});
+
 test('a failed fresh add stops before deleting any existing target instance', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
   adapter.addDefaultBlock = async () => { adapter.events.push(['add-failed']); throw new Error('target unavailable'); };
@@ -819,6 +834,40 @@ test('shared fresh adapter reports unsupported capabilities explicitly and never
   const prepared = await adapter.prepare();
   assert.deepEqual(prepared.settings, []);
   assert.deepEqual(prepared.capabilityResults, [{ capability: 'legacy', status: 'not-adapted', reason: 'needs extraction' }]);
+});
+
+test('fresh inventory failure degrades only its declared capability and preserves other settings', async () => {
+  let buttonDefinitionCalls = 0;
+  const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'button-link' }, { id: 'other-capability' }],
+    loadCapability: async (id) => ({ freshSettings: id === 'button-link'
+      ? { status: 'adapted', metadata: { inventoryRegions: ['button-surface'] },
+        createDefinitions: async () => { buttonDefinitionCalls++; return { settings: [] }; } }
+      : { status: 'adapted', createDefinitions: async () => ({ settings: [
+        { id: 'other-setting', apply: async () => {}, check: async () => ({ status: 'pass' }) },
+      ] }) } }),
+  });
+  const prepared = await adapter.prepare({ inventory: [{ type: 'button-surface', inventoryError: {
+    regionType: 'button-surface', code: 'UNSTABLE', message: 'diagnostic without values', screenshot: 'reports/a.png',
+    diagnostics: { snapshotCount: 42, elapsedMs: 15000, changingFields: ['url'], unreadableFields: [], loadingMaskVisible: false },
+  } }] });
+  assert.equal(buttonDefinitionCalls, 0);
+  assert.deepEqual(prepared.settings.map(({ id }) => id), ['other-setting']);
+  assert.equal(prepared.capabilityResults[0].status, 'not-adapted');
+  assert.match(prepared.capabilityResults[0].reason, /snapshots=42.*changingFields=url/);
+  const inventoryResult = prepared.staticResults.find(({ id }) => id === 'button-link-inventory');
+  assert.equal(inventoryResult.classification, 'harness-error');
+  assert.equal(inventoryResult.evidence.screenshot, 'reports/a.png');
+});
+
+test('degraded inventory region retains safe diagnostics and screenshot reference without control values', () => {
+  const region = degradeInventoryRegion({ type: 'button-surface', kind: 'canvas-popover', controls: [] },
+    Object.assign(new Error('unstable'), { code: 'UNSTABLE', inventoryDiagnostics: {
+      snapshotCount: 4, elapsedMs: 15000, changingFields: ['url'], unreadableFields: [], loadingMaskVisible: false,
+    } }), 'reports/screenshots/inventory.png');
+  assert.equal(region.inventoryError.regionType, 'button-surface');
+  assert.deepEqual(region.inventoryError.diagnostics.changingFields, ['url']);
+  assert.equal(region.inventoryError.screenshot, 'reports/screenshots/inventory.png');
+  assert.equal(JSON.stringify(region).includes('https://'), false);
 });
 
 test('shared fresh adapter batches adapted definitions through generic apply/save/check callbacks', async () => {

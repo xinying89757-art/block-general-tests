@@ -81,7 +81,7 @@ try {
         save: () => savePage(editorPage) };
       settingsAdapter = await createFreshSettingsAdapter({ capabilities: generatedProfile.capabilities,
         context, loadCapability: async (id) => import(pathToFileURL(path.join(root, 'src', 'capabilities', `${id}.mjs`)).href) });
-      return settingsAdapter.prepare({ page: editorPage, canvas: frame, frame, config });
+      return settingsAdapter.prepare({ page: editorPage, canvas: frame, frame, config, inventory });
     } });
   let report;
   try { report = await runFreshBlockFlow({ config: { ...config, siteHost, blockId, page }, adapter, runId,

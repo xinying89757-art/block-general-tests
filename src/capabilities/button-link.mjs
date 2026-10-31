@@ -1,14 +1,15 @@
 import { effectCheck, unavailable, readEffectRoot } from './effect-checks.mjs';
 import { baselineRestoreTarget, clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
-import { retryTransient, uiWaitConfig, waitForEditorLoadingToClear } from '../ui-waits.mjs';
+import { retryTransient, uiWaitConfig, visibleEditorLoadingOverlays, waitForEditorLoadingToClear } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
-import { dismissReadOnlyPopover, readStableSnapshot, reloadDiscardAndVerify } from '../read-only-dismiss.mjs';
+import { createStableSnapshotDiagnostics, dismissReadOnlyPopover, readStableSnapshot, reloadDiscardAndVerify } from '../read-only-dismiss.mjs';
 import { closePageMenuIfOpen, reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
 
 const SUITE = 'capability:button-link';
-export const freshSettings = registerFreshSettingsCapability('button-link', createFreshDefinitions);
+export const freshSettings = registerFreshSettingsCapability('button-link', createFreshDefinitions,
+  { metadata: { inventoryRegions: ['phoenix_blocks_button'] } });
 const DEFAULT_TEXT = 'Please set up the required pop-up form here.';
 const MARKER = 'data-autotest-button-link-root';
 const NAMES = {
@@ -196,22 +197,47 @@ async function readButtonPopoverValue({ page, canvas, config, session = popoverS
   await waitForEditorLoadingToClear(page);
   await waitForEditorLoadingToClear(canvas);
   await session.open();
-  const value = await readStableSnapshot(async () => {
-    await waitForEditorLoadingToClear(canvas);
-    const controls = await buttonControls(session);
-    const link = await readLinkType(session, controls);
-    return {
-      text: controls.text.value,
-      url: controls.url.value,
-      linkType: link.selected,
-      newWindow: controls.target.checked,
-      want: [
-        { label: '按钮文本', type: 'text', to: controls.text.value },
-        { label: '链接网址', type: 'text', to: controls.url.value },
-        { label: '新窗口打开', type: 'checkbox', to: controls.target.checked },
-      ],
-    };
-  }, { timeoutMs: uiWaitConfig().timeout, intervalMs: 100, stableReads: 2 });
+  const diagnostics = createStableSnapshotDiagnostics(['text', 'url', 'linkType', 'newWindow']);
+  const startedAt = Date.now();
+  let value;
+  try {
+    value = await readStableSnapshot(async () => {
+      try {
+        await waitForEditorLoadingToClear(canvas);
+        const controls = await buttonControls(session);
+        const link = await readLinkType(session, controls);
+        const snapshot = {
+          text: controls.text.value,
+          url: controls.url.value,
+          linkType: link.selected,
+          newWindow: controls.target.checked,
+          want: [
+            { label: '按钮文本', type: 'text', to: controls.text.value },
+            { label: '链接网址', type: 'text', to: controls.url.value },
+            { label: '新窗口打开', type: 'checkbox', to: controls.target.checked },
+          ],
+        };
+        diagnostics.observe(snapshot);
+        return snapshot;
+      } catch (error) {
+        diagnostics.failedRead();
+        for (const field of error.unreadableFields || ['button-controls']) diagnostics.unreadable(field);
+        throw error;
+      }
+    }, { timeoutMs: uiWaitConfig().timeout, intervalMs: 100, stableReads: 2 });
+  } catch (error) {
+    const [pageMasks, canvasMasks] = await Promise.all([
+      visibleEditorLoadingOverlays(page).catch(() => []), visibleEditorLoadingOverlays(canvas).catch(() => []),
+    ]);
+    const summary = diagnostics.summary({ elapsedMs: Date.now() - startedAt,
+      loadingMaskVisible: pageMasks.length > 0 || canvasMasks.length > 0 });
+    const details = `snapshots=${summary.snapshotCount}, elapsedMs=${summary.elapsedMs}, changingFields=${summary.changingFields.join(',') || 'none'}, unreadableFields=${summary.unreadableFields.join(',') || 'none'}, loadingMaskVisible=${summary.loadingMaskVisible}`;
+    const diagnosed = new Error(`Button popover inventory did not stabilize (${details}); cause=${error.code || error.name || 'read-error'}`);
+    diagnosed.name = error.name || 'Error';
+    diagnosed.code = 'BUTTON_POPOVER_INVENTORY_UNSTABLE';
+    diagnosed.inventoryDiagnostics = summary;
+    throw diagnosed;
+  }
   return { root: session.root, value };
 }
 
@@ -397,12 +423,17 @@ Object.assign(NAMES, {
 
 async function buttonControls(session) {
   const probe = await probeControls(session);
-  if (probe.reason) unavailable('按钮设置浮层暂时读不到。');
+  if (probe.reason) throw Object.assign(new Error(`按钮设置浮层暂时读不到：${probe.reason}`), {
+    code: 'BUTTON_CONTROLS_UNREADABLE', unreadableFields: ['button-controls'],
+  });
   const indices = await session.root.evaluate((root) => [...root.querySelectorAll('input, textarea')]
     .map((input, index) => ({ input, index })).filter(({ input }) => input.getClientRects().length
       && getComputedStyle(input).visibility !== 'hidden').map(({ index }) => index));
   const current = identify(probe.controls.filter((item) => indices.includes(item.index)));
-  if (!current.text || !current.url || !current.target) unavailable('不能唯一确定按钮的文字、链接和新窗口设置。');
+  const unreadableFields = [!current.text && 'text', !current.url && 'url', !current.target && 'newWindow'].filter(Boolean);
+  if (unreadableFields.length) throw Object.assign(new Error('不能唯一确定按钮的文字、链接和新窗口设置。'), {
+    code: 'BUTTON_CONTROLS_AMBIGUOUS', unreadableFields,
+  });
   return current;
 }
 
