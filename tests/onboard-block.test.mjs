@@ -80,8 +80,11 @@ test('missing module-library target becomes a first-class environment report wit
   assert.equal(report.publishedAt, null);
   assert.equal(classifyOnboardingEnvironmentOutcome(new Error('assertion expected x got y')), null);
   const openerError = Object.assign(new Error('Module-library opener matched 0 controls'), {
-    environment: true, code: 'ENV_MODULE_LIBRARY_OPENER_UNAVAILABLE' });
+    environment: true, code: 'ENV_MODULE_LIBRARY_OPENER_UNAVAILABLE', openerMatchCount: 0 });
   assert.deepEqual(classifyOnboardingEnvironmentOutcome(openerError), {
     status: 'environment-error', code: 'ENV_MODULE_LIBRARY_OPENER_UNAVAILABLE',
     message: 'Module-library opener matched 0 controls' });
+  const openerReport = buildOnboardingEnvironmentReport({ runId: 'r2', blockId: 'b', siteHost: 'h', page: {},
+    links: {}, outcome: classifyOnboardingEnvironmentOutcome(openerError), error: openerError, lastProgress: {} });
+  assert.equal(openerReport.moduleLibraryOpenerMatchCount, 0);
 });

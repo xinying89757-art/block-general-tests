@@ -4,8 +4,8 @@ import { addBlockIfNeeded, gotoFreshTargetPage, openEditor, savePage } from './e
 import { inventorySettings } from './baseline.mjs';
 import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
 import { matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from './fresh-editor-actions.mjs';
-import { waitForPublishSignal, verifyFrontInstance } from './publish-confirm.mjs';
-import { probeModuleLibraryModes } from './module-library-browser.mjs';
+import { waitForPublishSignal, verifyFrontInstance, choosePublishMenuItem } from './publish-confirm.mjs';
+import { inspectActiveModuleLibraryOpener, probeModuleLibraryModes } from './module-library-browser.mjs';
 import { RAIL, openRailPanel, readSchemeColor, readModuleWidth, cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
@@ -98,8 +98,10 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       return { editorLink: target.editorHref || page.url(), frontLink: target.url || pageItem.pageurl || null };
     },
     async verifyModuleAvailability(blockId) {
-      const addButton = frame.locator('#backstage-bodyArea .backstage-creatmodules-wrapper .backstage-creatmodules-addbtn');
-      const openerCount = await addButton.count();
+      // Match the same canvas-scoped, first active opener used by addBlockIfNeeded.
+      // The editor can keep hidden duplicate openers mounted for other layouts.
+      const { locator: addButton, matchCount: openerCount } = await inspectActiveModuleLibraryOpener(frame);
+      config.moduleLibraryOpenerMatchCount = openerCount;
       if (openerCount !== 1) {
         const error = new Error(`Module-library opener matched ${openerCount} controls; stopped before opening any mode.`);
         error.environment = true;
@@ -121,12 +123,13 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
         else await page.keyboard.press('Escape').catch(() => {});
         await panel.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
       }
-      if (lookup.some((mode) => mode.found)) return lookup;
+      if (lookup.some((mode) => mode.found)) return { openerMatchCount: openerCount, lookup };
       const completeSearch = lookup.every((mode) => mode.searched && mode.status === 'checked' && !mode.error);
       const error = new Error(completeSearch
         ? `区块 ${blockId} 在模块列表中未找到；已按目标编号查询全部可用模式。`
         : `无法完成区块 ${blockId} 的模块库编号搜索。`);
       error.libraryLookup = lookup;
+      error.openerMatchCount = openerCount;
       if (!completeSearch) { error.environment = true; error.code = 'ENV_LIBRARY_SEARCH_UNAVAILABLE'; }
       throw error;
     },
@@ -193,6 +196,12 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       const publishIndexes = await exactActionIndexes(publish, /^(发布|发布网站)$/);
       if (publishIndexes.length !== 1) throw new Error(`页面发布控件匹配 ${publishIndexes.length} 个；拒绝把保存按钮当作发布操作。`);
       await publish.nth(publishIndexes[0]).click();
+      // This flow is approved to publish only the selected page. Never offer
+      // or accept the whole-site action here.
+      const menu = toolbar.locator('.backstage-publish-type > div');
+      await menu.first().waitFor({ state: 'visible', timeout: Number(config.publishMenuTimeoutMs) || 5_000 });
+      const labels = await menu.evaluateAll((nodes) => nodes.map((n) => (n.getClientRects().length ? n.textContent : '')));
+      await menu.nth(choosePublishMenuItem(labels, 'current')).click();
       // The confirm dialog can render after the click; wait for it instead of
       // checking once immediately (a missed dialog means nothing was published).
       const dialog = page.locator('.backstage-dialog:visible');

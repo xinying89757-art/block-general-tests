@@ -15,6 +15,7 @@ import { freshSettings as widthFreshSettings, moduleWidthPersistedControls } fro
 import { freshSettings as categoryFreshSettings, categoryPersistedControls } from '../src/capabilities/product-category-select.mjs';
 import { freshSettings as styleFreshSettings } from '../src/capabilities/block-style-spec.mjs';
 import { freshRailInventoryRegions, resolveFreshPageTarget } from '../src/fresh-block-browser-adapter.mjs';
+import { inspectActiveModuleLibraryOpener } from '../src/module-library-browser.mjs';
 import { selectBlock as selectRailBlock } from '../src/capabilities/rail.mjs';
 import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
 import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
@@ -560,7 +561,22 @@ test('fresh report carries links, current values, failure evidence, and default 
   assert.deepEqual(report.defaults.changes, [{ kind: 'changed' }]);
   assert.deepEqual(report.capabilities, [{ capability: 'unsupported', status: 'not-adapted' }]);
   assert.deepEqual(report.lifecycle, { deletedSettingIds: [], addedSettingId: 'sid' });
+  assert.equal(report.moduleLibraryPreflight, null);
   assert.equal(report.settingsMode, 'BATCH_SAVE / retain-tested-values');
+});
+
+test('module-library preflight uses the add path active-wrapper locator and records its match count', async () => {
+  const calls = [];
+  const opener = { count: async () => 1 };
+  const wrapperLocator = { first() { calls.push(['wrapper-first']); return this; },
+    locator(selector) { calls.push(['child', selector]); return { first() { calls.push(['opener-first']); return opener; } }; } };
+  const frame = { locator(selector) { calls.push(['frame', selector]); return wrapperLocator; } };
+  const inspected = await inspectActiveModuleLibraryOpener(frame);
+  assert.equal(inspected.matchCount, 1);
+  assert.deepEqual(calls, [
+    ['frame', '#backstage-bodyArea .backstage-creatmodules-wrapper'],
+    ['wrapper-first'], ['child', '.backstage-creatmodules-addbtn'], ['opener-first'],
+  ]);
 });
 
 test('declared fresh batch dry run prints dependency restore steps without reading a site', () => {

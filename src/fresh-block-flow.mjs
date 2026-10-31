@@ -92,7 +92,8 @@ export async function writeFreshDefaultsSnapshot(file, snapshot) {
 }
 
 export function buildFreshReport({ runId, siteHost, blockId, page, instance, capabilities = [],
-  defaults, batch, currentValues, publishedReadback = null, editorLink, frontLink, publishedAt, deletedSettingIds = [], flowErrors = [] }) {
+  defaults, batch, currentValues, publishedReadback = null, editorLink, frontLink, publishedAt,
+  deletedSettingIds = [], moduleLibraryPreflight = null, flowErrors = [] }) {
   const failures = batch.results.filter((item) => item.status === 'fail').map((item) => ({
     checkId: item.id,
     setting: item.setting || item.id,
@@ -109,6 +110,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
     block: { settingId: instance.settingId || null, position: instance.position || null,
       currentValues: currentValues || [], publishedReadbackValues: publishedReadback?.currentValues || null },
     lifecycle: { deletedSettingIds: [...deletedSettingIds], addedSettingId: instance.settingId || null },
+    moduleLibraryPreflight,
     defaults, capabilities, batches: batch.batches, checks: batch.results, failures,
     retainedFailures: batch.timing.retainedFailures || { selectedIds: [], suppressed: [] },
     timing: batch.timing, settingsMode: 'BATCH_SAVE / retain-tested-values', flowErrors,
@@ -137,8 +139,9 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   await onProgress({ stage: 'page-opened' });
   if (typeof adapter.verifyModuleAvailability === 'function') {
     await onProgress({ stage: 'module-availability-check-started' });
-    await adapter.verifyModuleAvailability(config.blockId);
-    await onProgress({ stage: 'module-availability-confirmed' });
+    const preflight = await adapter.verifyModuleAvailability(config.blockId);
+    await onProgress({ stage: 'module-availability-confirmed', openerMatchCount: preflight?.openerMatchCount ?? null });
+    config.moduleLibraryPreflight = preflight || null;
   }
   const deletedSettingIds = [];
   let instances = await adapter.listAllBlockInstances();
@@ -339,7 +342,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     page: config.page, instance: fresh, capabilities: capabilitiesToReport, defaults, batch,
     currentValues: values, editorLink: opened.editorLink || adapter.editorLink?.(),
     publishedReadback, frontLink: published?.frontLink || opened.frontLink, publishedAt: published?.publishedAt || null,
-    deletedSettingIds, flowErrors });
+    deletedSettingIds, moduleLibraryPreflight: config.moduleLibraryPreflight || null, flowErrors });
   await adapter.writeReport?.(report);
   await onProgress({ stage: 'report-written' });
   return report;

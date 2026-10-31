@@ -3,6 +3,13 @@ import path from 'node:path';
 import { probeTargetAcrossModes, searchTargetInMode } from './module-library-inventory.mjs';
 import { retryEnvironmentTimeout } from './ui-waits.mjs';
 
+/** Uses the same first canvas wrapper/add control as the proven add path. */
+export async function inspectActiveModuleLibraryOpener(frame) {
+  const wrapper = frame.locator('#backstage-bodyArea .backstage-creatmodules-wrapper').first();
+  const locator = wrapper.locator('.backstage-creatmodules-addbtn').first();
+  return { locator, matchCount: await locator.count() };
+}
+
 /** Target-only UI adapter shared by onboarding, read-only inventory, and add. */
 export async function probeModuleLibraryModes({ page, panel, targetBlockId, config, modes = ['review', 'develop', 'online'] }) {
   const target = String(targetBlockId);

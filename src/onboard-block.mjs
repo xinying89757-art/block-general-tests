@@ -102,6 +102,7 @@ export function buildOnboardingEnvironmentReport({ runId, blockId, siteHost, pag
     lifecycle: { deletedSettingIds: lastProgress?.deletedSettingIds || [], addedSettingId: null },
     inventory: { status: outcome.code === 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY' ? 'target-only-search-complete' : 'not-reached',
       autoMappedCount: null, unmappedCount: null },
+    moduleLibraryOpenerMatchCount: Number.isInteger(error?.openerMatchCount) ? error.openerMatchCount : null,
     libraryLookup: Array.isArray(error?.libraryLookup) ? error.libraryLookup : [],
     checks: [], failures: [], publishedAt: null,
     error: { code: outcome.code, message: outcome.message, originalMessage: String(error?.message || error || '') },

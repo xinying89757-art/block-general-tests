@@ -39,3 +39,18 @@ test('fresh flow fails the run when the adapter cannot confirm the publish', asy
   assert.match(src, /publishPage\(\{ settingId: fresh\.settingId \}\)/);
   assert.match(src, /fresh-publish-confirmed/);
 });
+
+test('publish menu: picks exactly the scoped entry, refuses unknown or ambiguous', async () => {
+  const { choosePublishMenuItem } = await import('../src/publish-confirm.mjs');
+  assert.equal(choosePublishMenuItem(['\n整站发布 ', ' 当前页面发布\n']), 1);
+  assert.equal(choosePublishMenuItem(['整站发布', '当前页面发布'], 'all'), 0);
+  assert.throws(() => choosePublishMenuItem(['整站发布'], 'current'));
+  assert.throws(() => choosePublishMenuItem(['当前页面发布', '当前页面发布']));
+  assert.throws(() => choosePublishMenuItem(['当前页面发布'], 'x'));
+});
+test('adapter opens the publish scope submenu instead of treating the toggle click as a publish', async () => {
+  const src = (await import('node:fs')).readFileSync(new URL('../src/fresh-block-browser-adapter.mjs', import.meta.url), 'utf8');
+  assert.match(src, /\.backstage-publish-type > div/);
+  assert.match(src, /choosePublishMenuItem\(labels, 'current'\)/);
+  assert.doesNotMatch(src, /publishScope \|\| process\.env\.PUBLISH_SCOPE/);
+});
