@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { profileWithSiteData } from './helpers/profile.mjs';
 import { buildFixtureTruthTable, customGroupTitles, fixtureScenarioPolicy, runSettingsLayer } from '../src/capabilities/custom-filter-fields.mjs';
 import { prepareFixture, validateFixture } from '../src/fixture.mjs';
 import { FIELD_TYPE_CODES } from '../src/cms.mjs';
 import { isFieldCheckbox } from '../src/capabilities/shared.mjs';
 import { runCapabilityLayer } from '../src/run.mjs';
 
-const profile = JSON.parse(readFileSync(new URL('../profiles/40838.json', import.meta.url)));
+const profile = profileWithSiteData('40838');
 const fresh = () => structuredClone(profile.fixture);
 
 test('40838 built-in Category is excluded without dropping the same-named custom field', () => {
@@ -132,7 +133,7 @@ test('unavailable settings produce explicit legacy and six oracle skips with tex
 });
 
  test('fixed-front fixture scenarios never request unsupported logic changes', () => {
-  const p = JSON.parse(readFileSync(new URL('../profiles/47748.json', import.meta.url)));
+  const p = profileWithSiteData('47748');
   assert.match(fixtureScenarioPolicy(p, true).na, /固定为交集/);
   assert.deepEqual(fixtureScenarioPolicy(p, false), { logic: '交集', trigger: '更改筛选项后自动筛选', scope: '当前分类产品' });
   delete p.fixture.category;

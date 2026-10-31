@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig } from './config.mjs';
 import { launchSession } from './browser.mjs';
 import { openEditor, ensureTargetPage, addBlockIfNeeded, savePage, openPreview, resolveTargetPage, getPreviewShareLink } from './editor.mjs';
-import { applyBaseline } from './baseline.mjs';
+import { applyBaseline, captureBaseline } from './baseline.mjs';
 import { baselineValueFor, guardBaseline } from './baseline-guard.mjs';
 import { prepareFixture, restoreFixture } from './fixture.mjs';
 import { runFrontChecks } from './checks.mjs';
@@ -20,6 +20,7 @@ import { checkReportText } from './capabilities/shared.mjs';
 import { acquireRunLock } from './run-lock.mjs';
 import { createPauseDetector, createProgressWatchdog, retryWithEnvironmentRecovery, RunTimeoutError, withTimeout, writeCheckpoint } from './run-safety.mjs';
 import { spawnSync } from 'node:child_process';
+import { readSiteBaseline, writeSiteBaseline } from './site-baseline.mjs';
 export { frontRunPhases, shouldRunLayer } from './front-results.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -284,7 +285,29 @@ async function main() {
     report.page = { ...config.resolvedTarget, created: pageCreated };
     stage = 'add-block';
     report.added = await addBlockIfNeeded(session.page, canvas, config);
-    const baseline = Array.isArray(profile?.baseline) ? profile.baseline : [];
+    const loadedSiteBaseline = await readSiteBaseline(projectRoot, config.siteDomain, config.blockId);
+    let baselineDocument = loadedSiteBaseline.baseline;
+    let baseline;
+    if (!baselineDocument) {
+      baseline = await captureBaseline({ page: session.page, canvas, config, blockId: config.blockId });
+      const selected = report.added?.selectedInstance || null;
+      const fixtureRefs = profile?.fixture || {};
+      baselineDocument = (await writeSiteBaseline(projectRoot, config.siteDomain, config.blockId, baseline, {
+        capturedAt: new Date().toISOString(), onboarding: true, fixtureRefs,
+        instance: { selection: 'first-in-dom-order', ...selected, instanceCount: report.added?.countAfter || 1 },
+      })).baseline;
+      report.siteBaseline = { file: loadedSiteBaseline.file, onboardingCaptured: true,
+        instance: baselineDocument.instance };
+      console.log(`[block] 站点首次接入：已只读捕获并记录站点基线 ${loadedSiteBaseline.file}`);
+    } else {
+      report.siteBaseline = { file: loadedSiteBaseline.file, onboardingCaptured: false,
+        instance: baselineDocument.instance };
+      baseline = baselineDocument.steps;
+      profile.baseline = baseline; // Runtime-only bridge for existing capability APIs.
+    }
+    baseline = baselineDocument.steps;
+    if (baselineDocument.fixtureRefs) profile.fixture = baselineDocument.fixtureRefs;
+    if (profile) profile.baseline = baseline; // Runtime-only bridge; profiles remain site-independent.
     config.recoverEnvironment = async (reason) => {
       const existingEvent = [...environmentEvents].reverse().find((event) => event.status === reason && !event.recoveryStartedAt);
       if (existingEvent) existingEvent.recoveryStartedAt = new Date().toISOString();

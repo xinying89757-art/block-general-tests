@@ -332,7 +332,9 @@ export async function addBlockIfNeeded(page, frame, config) {
       if (element.getAttribute('data-appid') !== String(blockId)) return [];
       const rect = element.getBoundingClientRect();
       return [{ index, position: { x: Math.round(rect.x), y: Math.round(rect.y),
-        width: Math.round(rect.width), height: Math.round(rect.height) } }];
+        width: Math.round(rect.width), height: Math.round(rect.height) },
+        settingId: element.getAttribute('data-settingid') || element.dataset.settingId
+          || element.querySelector('[data-settingid]')?.getAttribute('data-settingid') || null }];
     });
     const loading = [...document.querySelectorAll('[aria-busy="true"], .backstage-loading, .loading-mask, .layui-layer-loading')]
       .some((element) => element.getClientRects().length > 0);

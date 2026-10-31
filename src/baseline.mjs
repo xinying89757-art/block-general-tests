@@ -20,6 +20,7 @@ import { clickSettings, controlValue, probeControls, widgetSession, TIMEOUT } fr
 import { readButtonPopover, writeButtonPopover } from './capabilities/button-link.mjs';
 import { matchControl, normalizeControlIdentity } from './baseline-identity.mjs';
 import { uiWaitConfig, waitForStable } from './ui-waits.mjs';
+import { makeFixtureSelectionRule } from './site-baseline.mjs';
 
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 const TITLE = '.backstage-dialog-title, .layui-layer-title';
@@ -147,7 +148,10 @@ export async function captureBaseline(args) {
         want: controls.map((c) => ({ label: c.label, type: c.type, to: c.type === 'checkbox' ? c.checked : c.value })),
         ...(region.skipped ? { skipped: region.skipped } : {}) };
     }
-    const step = { title, type, wrapIndex, want: [] };
+    const dynamicSelection = type === 'phoenix_blocks_filterStyle'
+      || (type === 'phoenix_blocks_gallery' && /分类|产品列表|选取数据/.test(title || ''));
+    const step = { title, type, wrapIndex, want: [],
+      ...(dynamicSelection ? { fixtureSelection: makeFixtureSelectionRule(controls) } : {}) };
     if (title && controls.length) {
       const keyCounts = new Map();
       for (const control of controls) {
@@ -156,7 +160,8 @@ export async function captureBaseline(args) {
       }
       const duplicateKeys = new Set([...keyCounts.entries()]
         .filter(([, count]) => count > 1).map(([key]) => key));
-      const serializedControls = controls.map((control) => serializeControl(control, duplicateKeys));
+      const serializedControls = controls.map((control) => dynamicSelection && control.type === 'checkbox'
+        && control.identity !== 'select-all' ? null : serializeControl(control, duplicateKeys));
       const itemCounts = new Map();
       for (const item of serializedControls) {
         if (!item) continue;
@@ -205,7 +210,7 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
       steps.push(step);
       continue;
     }
-    if (stepDef.skipped || !Array.isArray(stepDef.want) || stepDef.want.length === 0) {
+    if (stepDef.skipped || (!Array.isArray(stepDef.want) || stepDef.want.length === 0) && !stepDef.fixtureSelection) {
       steps.push({ title: title ?? null, type, wrapIndex, set: [], verified: [],
         allVerified: true, skipped: stepDef.skipped || '无可应用的设置项' });
       continue;
@@ -219,7 +224,8 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
       let controls;
       try {
         controls = await waitForStable((remaining) => session.read(remaining),
-          (items) => stepDef.want.every((wanted) => Boolean(matchControl(items, wanted))),
+          (items) => stepDef.want.every((wanted) => Boolean(matchControl(items, wanted)))
+            && (stepDef.fixtureSelection?.items || []).every((wanted) => Boolean(matchControl(items, { label: wanted.label, type: 'checkbox', ...(wanted.value ? { value: wanted.value } : {}) }))),
           { timeout: readyTimeout, stableMs: uiWaitConfig().stableMs });
       } catch (error) {
         const observed = await session.read().catch(() => []);
@@ -231,7 +237,10 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
       // Do not partially save a dialog when its recorded controls cannot all
       // be resolved. A changing or incompletely loaded list needs investigation.
       const missing = [];
-      for (const w of stepDef.want) {
+      const allWanted = [...stepDef.want, ...(stepDef.fixtureSelection?.items || []).map((item) => ({
+        label: item.label, type: 'checkbox', ...(item.value ? { value: item.value } : {}), to: item.selected,
+      }))];
+      for (const w of allWanted) {
         try { if (!matchControl(controls, w)) missing.push(w.label); }
         catch (error) { step.errors.push(error.message); }
       }
@@ -241,7 +250,7 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
         steps.push(step);
         continue;
       }
-      for (const w of stepDef.want) {
+      for (const w of allWanted) {
         let target;
         try { target = matchControl(controls, w); }
         catch (error) { step.errors.push(error.message); step.set.push(`${w.label}：身份不唯一`); continue; }

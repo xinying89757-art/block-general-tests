@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { profileWithSiteData } from './helpers/profile.mjs';
 import { ensureFixtureData, fixturePlan, fixtureTypes, fixtureRecordPath } from '../src/fixture-data.mjs';
-const profile = JSON.parse(readFileSync(new URL('../profiles/47748.json', import.meta.url)));
+const profile = profileWithSiteData('47748');
 function mock() {
   const fields = new Map(), products = new Map(), categories = new Map(); let writes = 0;
   const api = {

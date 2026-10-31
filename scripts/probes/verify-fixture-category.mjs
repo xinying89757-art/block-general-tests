@@ -3,11 +3,13 @@ import { loadConfig } from '../../src/config.mjs';
 import { launchSession } from '../../src/browser.mjs';
 import { openEditor } from '../../src/editor.mjs';
 import { findCategory, findProduct, openProdPage, readProductCategories } from '../../src/cms.mjs';
+import { readSiteBaseline } from '../../src/site-baseline.mjs';
 
 const config = loadConfig();
 if (!config.blockId) throw new Error('BLOCK_ID is required.');
 const profile = JSON.parse(await fs.readFile(`profiles/${config.blockId}.json`, 'utf8'));
-const fixture = profile.fixture;
+const { baseline } = await readSiteBaseline(process.cwd(), config.siteDomain, config.blockId);
+const fixture = baseline?.fixtureRefs;
 if (!fixture?.category?.name || !Array.isArray(fixture.products)) throw new Error('Profile has no fixture category/products.');
 const session = await launchSession(config);
 const output = { at: new Date().toISOString(), category: null, products: [] };

@@ -2,13 +2,14 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFixture } from '../src/fixture.mjs';
-import { fixturePlan, fixtureTypes } from '../src/fixture-data.mjs';
+import { fixturePlan } from '../src/fixture-data.mjs';
 import { signatures } from '../src/capabilities/signatures.mjs';
+import { validateSiteBaseline } from '../src/site-baseline.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const profilesDir = path.join(root, 'profiles');
 const capabilitiesDir = path.join(root, 'src/capabilities');
-const OPTIONAL_TEMPLATE_KEYS = new Set(['baseline', 'baselineNote', 'fixture', 'requirements']);
+const OPTIONAL_TEMPLATE_KEYS = new Set(['baselineNote', 'fixture', 'requirements']);
 
 function matchesTemplateType(value, example) {
   if (Array.isArray(example)) return Array.isArray(value);
@@ -100,7 +101,8 @@ export function validateProfile(profile, template, { capabilities } = {}) {
 
   if (profile.requirements && Object.hasOwn(profile.requirements, 'displayFieldTypes') && (!Array.isArray(profile.requirements.displayFieldTypes) || !profile.requirements.displayFieldTypes.every(v => typeof v === 'string'))) errors.push('requirements.displayFieldTypes 必须是字符串数组');
 
-  if (Object.hasOwn(profile, 'baseline')) validateBaseline(profile.baseline, errors);
+  if (Object.hasOwn(profile, 'baseline')) errors.push('baseline 必须位于 sites/<site-host>/<block-id>.baseline.json');
+  if (Object.hasOwn(profile, 'fixture')) errors.push('fixture 是站点数据引用，必须放在 sites/<site-host>/<block-id>.baseline.json.fixtureRefs');
 
   if (Array.isArray(profile.capabilities)) {
     const ids = new Set();
@@ -163,7 +165,24 @@ async function main() {
       continue;
     }
     const errors = validateProfile(profile, template, { capabilities: capabilityIds });
-    if (profile.fixture && fixtureTypes(profile).fallback) console.warn(`${relativePath}: displayFieldTypes 未提供，回退到 fixture.supportedTypes。`);
+    const blockId = String(profile.blockId);
+    const siteDirs = (await readdir(path.join(root, 'sites'), { withFileTypes: true }).catch(() => []))
+      .filter((entry) => entry.isDirectory());
+    const siteBaselines = [];
+    for (const siteDir of siteDirs) {
+      const baselinePath = path.join(root, 'sites', siteDir.name, `${blockId}.baseline.json`);
+      try {
+        const baseline = JSON.parse(await readFile(baselinePath, 'utf8'));
+        validateSiteBaseline(baseline, { siteHost: siteDir.name, blockId });
+        if (baseline.fixtureRefs) {
+          validateFixture(baseline.fixtureRefs, profile.requirements);
+          fixturePlan({ ...profile, fixture: baseline.fixtureRefs });
+        }
+        siteBaselines.push(baselinePath);
+      } catch (error) {
+        if (error.code !== 'ENOENT') errors.push(`${path.relative(root, baselinePath)}: ${error.message}`);
+      }
+    }
     for (const error of errors) console.error(`${relativePath}: ${error}`);
     if (errors.length) failed = true;
   }

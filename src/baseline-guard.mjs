@@ -5,6 +5,7 @@ import { baselineRestoreTarget, widgetSession } from './capabilities/shared.mjs'
 import { readButtonPopover } from './capabilities/button-link.mjs';
 import { assertOccurrencesUnambiguous, matchControl, withOccurrences, normalizeControlIdentity } from './baseline-identity.mjs';
 import { uiWaitConfig, waitForStable } from './ui-waits.mjs';
+import { makeFixtureSelectionRule, fixtureSelectionDiff } from './site-baseline.mjs';
 
 const isAutotest = (value) => typeof value === 'string' && /^AUTOTEST-/i.test(value);
 const sameControl = (a, b) => {
@@ -26,6 +27,13 @@ export function baselineValueFor(baseline, type, label) {
 
 export function baselineControlsReady(controls, wants) {
   return (wants || []).every((wanted) => Boolean(matchControl(controls, wanted)));
+}
+
+function baselineDefinitionReady(controls, definition) {
+  if (!baselineControlsReady(controls, definition.want)) return false;
+  return (definition.fixtureSelection?.items || []).every((wanted) => Boolean(matchControl(controls, {
+    label: wanted.label, type: 'checkbox', ...(wanted.value ? { value: wanted.value } : {}),
+  })));
 }
 
 function assertBaselineClean(baseline) {
@@ -55,6 +63,20 @@ export function diffAgainstBaseline(baseline, current) {
   }
   const seen = new Set();
   const diffs = [];
+  for (const expectedStep of baseline || []) {
+    if (!expectedStep.fixtureSelection) continue;
+    const actualStep = (current || []).find((step) => step.type === expectedStep.type
+      && (step.wrapIndex ?? 0) === (expectedStep.wrapIndex ?? 0));
+    if (!actualStep) {
+      diffs.push({ stepTitle: expectedStep.title ?? null, type: expectedStep.type,
+        label: 'AUTOTEST fixture selections', expected: expectedStep.fixtureSelection.items,
+        actual: null, reason: 'missing-selection-step' });
+      continue;
+    }
+    for (const item of fixtureSelectionDiff(expectedStep.fixtureSelection, actualStep._fixtureControls || [])) {
+      diffs.push({ stepTitle: expectedStep.title ?? null, type: expectedStep.type, ...item });
+    }
+  }
   for (const { step, want } of currentEntries) {
     const index = expectedEntries.findIndex(({ step: expectedStep, want: expectedWant }, candidateIndex) =>
       expectedStep.type === step.type && (expectedStep.wrapIndex ?? 0) === (step.wrapIndex ?? 0)
@@ -122,7 +144,7 @@ export async function readCurrentState({ page, canvas, config, baseline }) {
       let controls;
       try {
         controls = await waitForStable((remaining) => session.read(remaining),
-          (items) => baselineControlsReady(items, definition.want),
+          (items) => baselineDefinitionReady(items, definition),
           { timeout: Math.max(30_000, Number(process.env.UI_READY_TIMEOUT_MS) || 0), stableMs: uiWaitConfig().stableMs });
       } catch (error) {
         const observed = await session.read().catch(() => []);
@@ -132,7 +154,14 @@ export async function readCurrentState({ page, canvas, config, baseline }) {
         throw new Error(`基线“${definition.title}”控件集未稳定：读到 ${observed.length} 个控件，缺少 ${missing.length}/${definition.want?.length || 0}${missing.length ? `（${missing.slice(0, 12).join('、')}）` : ''}；${error.message}`);
       }
       const want = withOccurrences(controls, serialize);
-      current.push({ ...structuredClone(definition), want });
+      if (definition.fixtureSelection) {
+        const fixtureSelection = makeFixtureSelectionRule(controls);
+        current.push({ ...structuredClone(definition),
+          want: want.filter((item) => item.type !== 'checkbox' || item.identity === 'select-all'),
+          _fixtureControls: controls,
+          fixtureSelection,
+        });
+      } else current.push({ ...structuredClone(definition), want });
     } finally { await session.cancel(); }
   }
   return current;
