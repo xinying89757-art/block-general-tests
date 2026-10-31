@@ -257,7 +257,7 @@ async function clickPageTab(page, kind) {
 // [{ name, pageurl, href }]. System pages live in a <dl>, custom pages in a <ul>.
 // Both tabs' lists stay in the DOM, so only visible links count.
 async function listMenuPages(page) {
-  return page.evaluate(() => {
+  const rawEntries = await page.evaluate(() => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const panel = document.querySelector('.backstage-topToolbar-pageBox');
     if (!panel) return [];
@@ -265,9 +265,22 @@ async function listMenuPages(page) {
       if (a.offsetParent === null) return false;
       const li = a.closest('li, dt, dd');
       return li && a.getAttribute('data-href');
-    }).map((a) => ({ name: norm(a.textContent), title: a.getAttribute('title'), pageurl: a.getAttribute('pageurl'),
-      id: a.getAttribute('data-id') || a.getAttribute('pageid') || a.id || '', href: a.getAttribute('data-href') }));
+    }).map((a) => {
+      const row = a.closest('.backstage-topToolbar-list') || a.parentElement;
+      const linkView = row?.querySelector('.page_linkview');
+      const identity = row?.querySelector('.page_edit_btn[pk], .page_setting[pk]');
+      return { name: norm(a.textContent), title: a.getAttribute('title'), pageurl: a.getAttribute('pageurl'),
+        frontUrl: linkView?.getAttribute('url') || '', id: a.getAttribute('data-id') || a.getAttribute('pageid') ||
+          a.id || identity?.getAttribute('pk') || '', href: a.getAttribute('data-href') };
+    });
   });
+  return rawEntries.map(normalizeFreshPageEntry);
+}
+
+export function normalizeFreshPageEntry(entry) {
+  return { ...entry, name: String(entry.name || '').replace(/\s+/g, ' ').trim(),
+    title: String(entry.title || '').trim(), id: String(entry.id || ''),
+    pageurl: String(entry.pageurl || entry.frontUrl || '').trim(), href: String(entry.href || '').trim() };
 }
 
 export async function listFreshEditorPages(page, kind = 'system') {

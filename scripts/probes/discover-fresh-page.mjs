@@ -47,8 +47,9 @@ try {
   session.page = (await openEditor(session.page, config)).page;
   const editorUrl = session.page.url();
   const items = await listFreshEditorPages(session.page, pageKind);
-  const matches = items.filter((item) => item.name === targetName || item.title === targetName
-    || (item.pageurl || '').replace(/\/$/, '').split('/').at(-1) === targetName);
+  const wantedName = targetName.toLocaleLowerCase();
+  const matches = items.filter((item) => item.name.toLocaleLowerCase() === wantedName || item.title.toLocaleLowerCase() === wantedName
+    || (item.pageurl || '').replace(/\/$/, '').split('/').at(-1)?.replace(/\.[^.]+$/, '').toLocaleLowerCase() === wantedName);
   if (matches.length !== 1) throw new Error(`Page discovery matched ${matches.length} menu entries for ${targetName}; no page data was written.`);
   const item = matches[0];
   if (!item.pageurl) throw new Error(`Page ${targetName} has no pageurl in the editor menu; front URL cannot be established safely.`);
@@ -58,12 +59,13 @@ try {
     if (error.code !== 'ENOENT') throw error;
     return { version: 1, siteHost, pages: {} };
   });
-  data.pages[targetName] = { kind: pageKind, id: item.id || null, url: item.pageurl,
-    editorHref: item.href, frontUrl, discoveredAt: new Date().toISOString() };
+  data.pages[targetName] = { kind: pageKind, id: item.id, url: item.pageurl,
+    editorHref: new URL(item.href, editorUrl).href, frontUrl, discoveredAt: new Date().toISOString() };
   await fs.mkdir(path.dirname(pageDataPath), { recursive: true });
   await fs.writeFile(pageDataPath, `${JSON.stringify(data, null, 2)}\n`);
   console.log(JSON.stringify({ siteHost, page: targetName, kind: pageKind, id: item.id || null,
-    pageUrl: item.pageurl, frontUrl, editorUrl, editorHref: item.href, dataFile: path.relative(root, pageDataPath) }, null, 2));
+    pageUrl: item.pageurl, frontUrl, editorUrl, editorHref: data.pages[targetName].editorHref,
+    dataFile: path.relative(root, pageDataPath) }, null, 2));
 } finally {
   await session.browser.close();
 }

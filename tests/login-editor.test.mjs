@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { login, attemptStorageStateReuse, matchSiteLanguage, matchSiteListCards, readAuthCredentials } from '../scripts/explore-login.mjs';
-import { SITE_LIST_URL, hostOf, matchAttachedCardIndexes, publicBaseUrlFromCardValues } from '../src/editor.mjs';
+import { SITE_LIST_URL, hostOf, matchAttachedCardIndexes, normalizeFreshPageEntry, publicBaseUrlFromCardValues } from '../src/editor.mjs';
 
 function loginPage({ rejected = false } = {}) {
   const actions = [];
@@ -104,6 +104,14 @@ test('site-card host discovery handles relative references and prefers the exact
     'https://other.example/',
   ], { targetHost: 'target.example' }), 'https://target.example');
   assert.equal(publicBaseUrlFromCardValues(['javascript:openEditor()', null]), '');
+});
+
+test('system page menu entries use sibling page id and public link metadata', () => {
+  assert.deepEqual(normalizeFreshPageEntry({ name: ' Products ', title: null, id: 'page-id', pageurl: '',
+    frontUrl: '/products.html', href: '/phoenix/pagebuilder/page-id' }), {
+    name: 'Products', title: '', id: 'page-id', pageurl: '/products.html', frontUrl: '/products.html',
+    href: '/phoenix/pagebuilder/page-id',
+  });
 });
 
 test('auth-file loader accepts the private account/password shape without exposing values', () => {
