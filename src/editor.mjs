@@ -1,4 +1,5 @@
 import { saveAndWait } from './ui-waits.mjs';
+import { selectedBlockInstance, waitForCanvasRender } from './block-render.mjs';
 
 const CANVAS = 'iframe.backstage-pc-proview';
 const PANEL = '.backstage-addmodules-chooseWrapper';
@@ -324,8 +325,33 @@ export async function ensureTargetPage(page, config) {
 
 export async function addBlockIfNeeded(page, frame, config) {
   const containers = frame.locator(blockSelector(config.blockId));
-  const countBefore = await containers.count();
-  if (countBefore > 0) return { added: false, countBefore, countAfter: countBefore };
+  const inspectCanvas = () => frame.locator('body').evaluate((body, blockId) => {
+    const canvas = body.querySelector('#backstage-bodyArea');
+    const blocks = canvas ? [...canvas.querySelectorAll('.siteblocks-setting-wrap[data-appid]')] : [];
+    const targets = blocks.flatMap((element, index) => {
+      if (element.getAttribute('data-appid') !== String(blockId)) return [];
+      const rect = element.getBoundingClientRect();
+      return [{ index, position: { x: Math.round(rect.x), y: Math.round(rect.y),
+        width: Math.round(rect.width), height: Math.round(rect.height) } }];
+    });
+    const loading = [...document.querySelectorAll('[aria-busy="true"], .backstage-loading, .loading-mask, .layui-layer-loading')]
+      .some((element) => element.getClientRects().length > 0);
+    const signature = blocks.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return [element.getAttribute('data-appid'), element.childElementCount,
+        (element.innerText || '').length, Math.round(rect.width), Math.round(rect.height)];
+    });
+    return { ready: document.readyState === 'complete', canvasReady: Boolean(canvas?.getClientRects().length),
+      loading, blockCount: blocks.length, targets, signature };
+  }, String(config.blockId));
+  const rendered = await waitForCanvasRender(inspectCanvas, {
+    timeoutMs: Number(process.env.CANVAS_RENDER_TIMEOUT_MS) || 45_000,
+    stableMs: Number(process.env.CANVAS_RENDER_STABLE_MS) || 8_000,
+  });
+  const countBefore = rendered.targets.length;
+  const chosenBefore = selectedBlockInstance(rendered.targets);
+  if (countBefore > 0) return { added: false, countBefore, countAfter: countBefore,
+    instances: rendered.targets, selectedInstance: chosenBefore };
 
   const addButton = frame
     .locator('#backstage-bodyArea .backstage-creatmodules-wrapper').first()
@@ -380,10 +406,17 @@ export async function addBlockIfNeeded(page, frame, config) {
 
     // Once clicked, do not try another list: a slow render could duplicate the block.
     await containers.first().waitFor({ state: 'attached', timeout: 60_000 });
+    const afterRender = await waitForCanvasRender(inspectCanvas, {
+      timeoutMs: Number(process.env.CANVAS_RENDER_TIMEOUT_MS) || 45_000,
+      stableMs: Number(process.env.CANVAS_RENDER_STABLE_MS) || 8_000,
+    });
+    const countAfter = afterRender.targets.length;
+    if (countAfter === 0) throw new Error(`区块 ${config.blockId} 添加后未在稳定画布中出现。`);
     const close = panel.locator('.addmodules_searchContainer > .block-iconbaseline-close').first();
     if (await close.isVisible()) await close.click();
     await panel.waitFor({ state: 'hidden' });
-    return { added: true, addedVia: moduleType, countBefore, countAfter: await containers.count(), attempts };
+    return { added: true, addedVia: moduleType, countBefore, countAfter, attempts,
+      instances: afterRender.targets, selectedInstance: selectedBlockInstance(afterRender.targets) };
   }
   throw new Error(`区块 ${config.blockId} 在模块列表中未找到（已尝试 ${order.join(' → ')}）。`);
 }
