@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { addBlockIfNeeded, gotoFreshTargetPage, openEditor, savePage } from './editor.mjs';
+import { addBlockIfNeeded, closeToolbarMenusBeforeAction, gotoFreshTargetPage, openEditor, savePage } from './editor.mjs';
 import { inventorySettings } from './baseline.mjs';
 import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
 import { matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from './fresh-editor-actions.mjs';
@@ -240,6 +240,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     },
     async publishPage({ settingId } = {}) {
       const toolbar = page.locator('.backstage-topToolbar');
+      await closeToolbarMenusBeforeAction(page);
       const publish = toolbar.locator('button,a,[role="button"]');
       const publishIndexes = await exactActionIndexes(publish, /^(发布|发布网站)$/);
       if (publishIndexes.length !== 1) throw new Error(`页面发布控件匹配 ${publishIndexes.length} 个；拒绝把保存按钮当作发布操作。`);
@@ -304,9 +305,11 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
 
   async function deleteInstance(instance) {
     if (String(instance.blockId) !== String(config.blockId)) throw new Error('Refusing to delete a non-target block number.');
+    await closeToolbarMenusBeforeAction(page);
     const wrap = await locateInstance(frame, instance);
     await wrap.scrollIntoViewIfNeeded();
     await wrap.click();
+    await closeToolbarMenusBeforeAction(page);
     // The editor action is keyed to the selected wrap by data-id. Avoid a
     // version-specific toolbar-container class; require both exact delete
     // wording and a trash/delete icon on the identity-bound action.

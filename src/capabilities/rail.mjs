@@ -7,6 +7,7 @@
 import { TIMEOUT, poll } from './shared.mjs';
 import { waitForControlsReady, retryTransient, retryWithFreshControl,
   waitForEditorLoadingToClear, saveAndWait } from '../ui-waits.mjs';
+import { closeToolbarMenusBeforeAction } from '../editor.mjs';
 
 export const RAIL = {
   wrap: (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`,
@@ -124,6 +125,7 @@ async function readColorPanelInputs(panel) {
 // in the same run, while the width module's first open worked). Poll
 // instead of reading once.
 export async function selectBlock(canvas, blockId, { clickTarget, waitForRail } = {}) {
+  await closeToolbarMenusBeforeAction(canvas);
   const wrap = canvas.locator(RAIL.wrap(blockId)).first();
   await wrap.scrollIntoViewIfNeeded();
   const activate = clickTarget || ((element) => element.evaluate((node) => node.click()));
@@ -149,6 +151,7 @@ export async function visibleRailIndex(canvas) {
 }
 
 export async function openRailPanel(canvas, blockId, iconSelector, panelSelector) {
+  await closeToolbarMenusBeforeAction(canvas);
   await waitForEditorLoadingToClear(canvas);
   // If the panel is already open, do not click its icon again: the icon
   // toggles, and a second click closes the panel (2026-10-26: the color
@@ -294,6 +297,7 @@ export async function saveColorPanel(canvas) {
   const panel = await uniqueVisiblePanel(canvas, RAIL.colorPanel, 'Color scheme');
   const save = panel.locator(RAIL.colorSave);
   if (await save.count() !== 1) throw new Error('Color panel save control is not unique; refusing to save.');
+  await closeToolbarMenusBeforeAction(canvas);
   await saveAndWait(panel.page(), () => save.click({ timeout: TIMEOUT }));
 }
 
@@ -307,6 +311,7 @@ export async function cancelColorPanel(canvas) {
   if (await rail.count() !== 1) throw new Error('配色浮层关闭时无法唯一定位当前区块右侧图标栏。');
   const icon = rail.locator(RAIL.colorIcon);
   if (await icon.count() !== 1) throw new Error('配色浮层关闭图标不唯一。');
+  await closeToolbarMenusBeforeAction(canvas);
   await icon.click({ timeout: TIMEOUT });
   await panel.waitFor({ state: 'hidden', timeout: TIMEOUT });
 }
@@ -355,6 +360,7 @@ export async function saveWidthPanel(canvas) {
   const panel = await uniqueVisiblePanel(canvas, RAIL.widthPanel, 'Module-width');
   const save = panel.getByText('保存', { exact: true });
   if (await save.count() !== 1) throw new Error('Module-width save control is not unique; refusing to save.');
+  await closeToolbarMenusBeforeAction(canvas);
   await saveAndWait(panel.page(), () => save.click({ timeout: TIMEOUT }));
 }
 
@@ -362,5 +368,6 @@ export async function cancelWidthPanel(canvas) {
   const panel = await uniqueVisiblePanel(canvas, RAIL.widthPanel, 'Module-width');
   const cancel = panel.getByText('取消', { exact: true });
   if (await cancel.count() !== 1) throw new Error('Module-width cancel control is not unique; refusing to close.');
+  await closeToolbarMenusBeforeAction(canvas);
   await cancel.click({ timeout: TIMEOUT });
 }

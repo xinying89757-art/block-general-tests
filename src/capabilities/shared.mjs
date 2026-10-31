@@ -1,4 +1,4 @@
-import { savePage } from '../editor.mjs';
+import { closeToolbarMenusBeforeAction, savePage } from '../editor.mjs';
 import { waitForControlsReady, retryTransient, retryWithFreshControl, waitForEditorLoadingToClear,
   saveAndWait, readBackWithRetry, uiWaitConfig, waitForDialogState } from '../ui-waits.mjs';
 export { readBackWithRetry } from '../ui-waits.mjs';
@@ -169,6 +169,7 @@ export async function poll(read, accepts) {
 export async function clickSettings(canvas, config, type, wrapIndex = 0) {
   // Several sub-regions can share one type (另一样本区块 has two gallery wraps:
   // category at 0, list at 1). wrapIndex picks the nth wrap of that type.
+  await closeToolbarMenusBeforeAction(canvas);
   await retryWithFreshControl({
     attempts: 3,
     ready: () => waitForEditorLoadingToClear(canvas),

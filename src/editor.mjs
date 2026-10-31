@@ -81,6 +81,13 @@ export async function closePageMenuIfOpen(page) {
   return true;
 }
 
+/** Resolve a Playwright Frame/Page to its owning Page and close a visible page chooser before a generic canvas action. */
+export async function closeToolbarMenusBeforeAction(scope) {
+  const page = typeof scope?.page === 'function' ? scope.page() : scope;
+  if (!page || typeof page.locator !== 'function' || typeof page.evaluate !== 'function') return false;
+  return closePageMenuIfOpen(page);
+}
+
 function blockSelector(blockId) {
   // Quote an attribute value rather than assuming BLOCK_ID is numeric.
   return `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(blockId))}]`;
@@ -563,6 +570,7 @@ export async function addBlockIfNeeded(page, frame, config) {
     .locator('#backstage-bodyArea .backstage-creatmodules-wrapper').first()
     .locator('.backstage-creatmodules-addbtn').first();
   await addButton.scrollIntoViewIfNeeded();
+  await closeToolbarMenusBeforeAction(page);
   try {
     await addButton.click({ timeout: 5_000 });
   } catch (error) {
@@ -633,6 +641,7 @@ export async function addBlockIfNeeded(page, frame, config) {
 }
 
 export async function savePage(page) {
+  await closeToolbarMenusBeforeAction(page);
   const selected = await waitForUniquePageSaveControl({ readScopes: async () => {
     const frames = [page.mainFrame(), ...page.frames().filter((frame) => frame !== page.mainFrame())];
     return Promise.all(frames.map(async (frame, index) => {

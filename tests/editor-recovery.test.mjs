@@ -64,6 +64,22 @@ test('page chooser close refuses ambiguous toolbar triggers', async () => {
   await assert.rejects(closePageMenuIfOpen(page), /关闭触发器匹配 2 个/);
 });
 
+test('shared toolbar-menu guard resolves a canvas frame to its page before action paths run', async () => {
+  const { closeToolbarMenusBeforeAction } = await import('../src/editor.mjs');
+  let pageEvaluations = 0, frameEvaluations = 0, triggerClicks = 0;
+  const page = {
+    locator: () => ({ evaluate: async () => [] }),
+    evaluate: async () => { pageEvaluations++; return pageEvaluations === 1 ? 1 : 0; },
+    getByText: () => ({ filter() { return this; }, count: async () => 1,
+      click: async () => { triggerClicks++; } }),
+  };
+  const frame = { page: () => page, evaluate: async () => { frameEvaluations++; } };
+  assert.equal(await closeToolbarMenusBeforeAction(frame), true);
+  assert.ok(pageEvaluations >= 2);
+  assert.equal(frameEvaluations, 0);
+  assert.equal(triggerClicks, 1);
+});
+
 test('editor host identity is read from the canvas frame and ignores platform frames', () => {
   assert.deepEqual(resolveEditorSiteHosts({
     pageUrl: 'https://www.leadong.com/phoenix/pagebuilder/index',
