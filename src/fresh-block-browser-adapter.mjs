@@ -1,6 +1,7 @@
 import { addBlockIfNeeded, gotoFreshTargetPage, openEditor, savePage } from './editor.mjs';
 import { inventorySettings } from './baseline.mjs';
 import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
+import { matchingDeleteActionIndexes, matchingDeleteConfirmIndexes } from './fresh-editor-actions.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 
@@ -112,21 +113,41 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     }), pattern.source);
   }
 
+  async function actionDescriptors(locator) {
+    return locator.evaluateAll((nodes) => nodes.map((element) => ({
+      dataId: element.getAttribute('data-id'),
+      text: (element.innerText || '').replace(/\s+/g, ' ').trim(),
+      title: element.getAttribute('title'), ariaLabel: element.getAttribute('aria-label'),
+      iconClasses: [...element.querySelectorAll('[class]')].map((node) => String(node.className?.baseVal || node.className || '')),
+      visible: Boolean(element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden'
+        && getComputedStyle(element).display !== 'none',
+    })));
+  }
+
   async function deleteInstance(instance) {
     if (String(instance.blockId) !== String(config.blockId)) throw new Error('Refusing to delete a non-target block number.');
     const wrap = await locateInstance(frame, instance);
     await wrap.scrollIntoViewIfNeeded();
     await wrap.click();
-    const candidates = frame.locator('.siteblocks-setting-operateTools:visible a, .siteblocks-setting-operateTools:visible button, .siteblocks-setting-operateTools:visible [role="button"], .siteblocks-setting-operateTools:visible [title], .siteblocks-setting-operateTools:visible [aria-label]');
-    const indexes = await exactActionIndexes(candidates, /^删除$/);
+    // The editor action is keyed to the selected wrap by data-id. Avoid a
+    // version-specific toolbar-container class; require both exact delete
+    // wording and a trash/delete icon on the identity-bound action.
+    const targetDataId = `siteblocks-setting-wrap-${instance.settingId}`;
+    const candidates = frame.locator(`[data-id=${JSON.stringify(targetDataId)}]`);
+    const indexes = matchingDeleteActionIndexes(await actionDescriptors(candidates), instance.settingId);
     if (indexes.length !== 1) throw new Error(`Selected block delete control is ambiguous (${indexes.length}); nothing was deleted.`);
     await candidates.nth(indexes[0]).click();
-    const dialog = page.locator('.backstage-dialog:visible').filter({ hasText: /删除/ });
-    if (await dialog.count()) {
+    const dialogs = page.locator('[role="dialog"]:visible,[role="alertdialog"]:visible,.backstage-dialog:visible,.layui-layer:visible,.el-message-box:visible');
+    const dialogCount = await dialogs.count();
+    if (dialogCount > 1) throw new Error(`Delete opened ${dialogCount} possible confirmation dialogs; refusing to guess.`);
+    if (dialogCount === 1) {
+      const dialog = dialogs.first();
+      const message = (await dialog.innerText()).replace(/\s+/g, ' ').trim();
+      if (!/(删除|delete|remove)/i.test(message)) throw new Error('Delete confirmation content is unrecognized; refusing to confirm.');
       const confirmations = dialog.locator('button,a,[role="button"]');
-      const confirmationIndexes = await exactActionIndexes(confirmations, /^(删除|确定)$/);
-      if (confirmationIndexes.length !== 1) throw new Error('Delete confirmation is ambiguous; block removal was not confirmed.');
-      await confirmations.nth(confirmationIndexes[0]).click();
+      const indexes = matchingDeleteConfirmIndexes(await actionDescriptors(confirmations));
+      if (indexes.length !== 1) throw new Error(`Delete confirmation action matched ${indexes.length}; refusing to guess.`);
+      await confirmations.nth(indexes[0]).click();
     }
     await wrap.waitFor({ state: 'detached', timeout: 15_000 });
     await savePage(page);

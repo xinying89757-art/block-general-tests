@@ -4,6 +4,7 @@ import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPa
   runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
 import { selectRetainedFailures } from '../src/batch-save.mjs';
 import { createFreshSettingsAdapter, currentValuesFromInventory } from '../src/fresh-settings-adapter.mjs';
+import { matchingDeleteActionIndexes, matchingDeleteConfirmIndexes } from '../src/fresh-editor-actions.mjs';
 
 function fakeAdapter(initialInstances = []) {
   const events = [];
@@ -205,4 +206,19 @@ test('current setting inventory records values with region and control identity'
     { controlIdentity: 'gallery:1:Settings:text:Quantity:12:1', region: 'Settings', label: 'Quantity', type: 'text', value: '12' },
     { controlIdentity: 'gallery:1:Settings:password:API key:[redacted]:2', region: 'Settings', label: 'API key', type: 'password', value: '[redacted]' },
   ]);
+});
+
+test('delete locator requires target-instance identity plus exact delete label and icon', () => {
+  const action = { dataId: 'siteblocks-setting-wrap-sid', text: '删除', iconClasses: ['icon-trash'], visible: true };
+  assert.deepEqual(matchingDeleteActionIndexes([action], 'sid'), [0]);
+  assert.deepEqual(matchingDeleteActionIndexes([{ ...action, dataId: 'siteblocks-setting-wrap-other' }], 'sid'), []);
+  assert.deepEqual(matchingDeleteActionIndexes([{ ...action, text: '复制', iconClasses: ['icon-copy'] }], 'sid'), []);
+  assert.deepEqual(matchingDeleteActionIndexes([{ ...action, visible: false }], 'sid'), []);
+  assert.deepEqual(matchingDeleteActionIndexes([action, action], 'sid'), [0, 1]);
+});
+
+test('delete confirmation locator accepts only exact visible action labels', () => {
+  assert.deepEqual(matchingDeleteConfirmIndexes([{ text: '确定', visible: true }]), [0]);
+  assert.deepEqual(matchingDeleteConfirmIndexes([{ text: '确定删除页面', visible: true }]), []);
+  assert.deepEqual(matchingDeleteConfirmIndexes([{ text: '删除', visible: false }]), []);
 });
