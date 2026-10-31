@@ -34,19 +34,25 @@ export function matchAttachedCardIndexes(hosts, targetHost) {
   return hosts.flatMap((host, index) => host === targetHost ? [index] : []);
 }
 
-export async function discoverPublicBaseUrl(card) {
+export function publicBaseUrlFromCardValues(values, { targetHost = '', baseUrl = SITE_LIST_URL } = {}) {
+  const candidates = [];
+  for (const value of values) {
+    try {
+      const url = new URL(value, baseUrl);
+      if (!/^https?:$/i.test(url.protocol)) continue;
+      if (PLATFORM_HOSTS.has(url.hostname.toLowerCase()) || /\/phoenix\//i.test(url.pathname)) continue;
+      candidates.push(url);
+    } catch { /* Ignore relative links and javascript handlers. */ }
+  }
+  const exact = candidates.find((url) => url.host.toLowerCase() === String(targetHost).toLowerCase());
+  return (exact || candidates[0])?.origin || '';
+}
+
+export async function discoverPublicBaseUrl(card, targetHost = '') {
   const urls = await card.locator('a[href], [data-url], [data-href]').evaluateAll((nodes) =>
     nodes.flatMap((node) => ['href', 'data-url', 'data-href'].map((attr) => node.getAttribute(attr)).filter(Boolean)),
   );
-  for (const value of urls) {
-    try {
-      const url = new URL(value);
-      if (!/^https?:$/i.test(url.protocol)) continue;
-      if (['website.leadong.com', 'jianzhan.leadong.com'].includes(url.hostname.toLowerCase()) || /\/phoenix\//i.test(url.pathname)) continue;
-      return url.origin;
-    } catch { /* Ignore relative links and javascript handlers. */ }
-  }
-  return '';
+  return publicBaseUrlFromCardValues(urls, { targetHost });
 }
 
 export async function enterSiteFromList(page, config) {
@@ -66,7 +72,7 @@ export async function enterSiteFromList(page, config) {
   const targetHost = hostOf(config.siteDomain);
   for (let index = 0; index < await cards.count(); index += 1) {
     const card = cards.nth(index);
-    const publicUrl = await discoverPublicBaseUrl(card);
+    const publicUrl = await discoverPublicBaseUrl(card, targetHost);
     hosts.push(hostOf(publicUrl));
     availableCards.push(card);
   }

@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { login, attemptStorageStateReuse, matchSiteLanguage, matchSiteListCards, readAuthCredentials } from '../scripts/explore-login.mjs';
-import { SITE_LIST_URL, matchAttachedCardIndexes } from '../src/editor.mjs';
+import { SITE_LIST_URL, matchAttachedCardIndexes, publicBaseUrlFromCardValues } from '../src/editor.mjs';
 
 function loginPage({ rejected = false } = {}) {
   const actions = [];
@@ -92,6 +92,16 @@ test('navigation4 miss falls back to host matching in site-list cards', () => {
 test('editor enters through the www site-list; attached offscreen cards remain eligible', () => {
   assert.equal(SITE_LIST_URL, 'https://www.leadong.com/website.html');
   assert.deepEqual(matchAttachedCardIndexes(['elsewhere.test', 'target.test'], 'target.test'), [1]);
+});
+
+test('site-card host discovery handles relative references and prefers the exact target host', () => {
+  assert.equal(publicBaseUrlFromCardValues([
+    '/phoenix/pagebuilder/editor',
+    'https://www.leadong.com/website.html',
+    '//target.example/products',
+    'https://other.example/',
+  ], { targetHost: 'target.example' }), 'https://target.example');
+  assert.equal(publicBaseUrlFromCardValues(['javascript:openEditor()', null]), '');
 });
 
 test('auth-file loader accepts the private account/password shape without exposing values', () => {
