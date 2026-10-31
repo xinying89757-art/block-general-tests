@@ -5,8 +5,6 @@ import { widgetSession, probeControls, persistControl, radioPersist, radioGroupP
 import { executeSettingBatches } from '../batch-save.mjs';
 
 const SUITE = 'capability:product-list-display';
-export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'The existing list batch candidates are local to the legacy settings runner and are not yet shared fresh definitions.' });
 const NAMES = {
   'pld-fields': '产品列表展示字段与勾选状态',
   'pld-page-size-persist': '每页产品数量保存回读与恢复',
@@ -37,6 +35,8 @@ export const batchSaveMetadata = Object.freeze({
   comparison: Object.freeze({}),
   'display-field': Object.freeze({}),
 });
+export const freshSettings = Object.freeze({ status: 'adapted', metadata: batchSaveMetadata,
+  createDefinitions: createProductListBatchDefinitions });
 
 export async function runListEffectPlan(tasks, { checkGroup } = {}) {
   const selected = checkGroup ? tasks.filter((task) => task.id === checkGroup) : tasks;
@@ -604,10 +604,10 @@ function attachBatchEffect(setting, { canvas, config, profile, report }) {
   };
 }
 
-export async function runBatchSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
+export async function createProductListBatchDefinitions({ page, canvas, context, config, capability, profile, report }) {
   const session = listSession({ page, canvas, config, capability });
   const initial = await probeControls(session);
-  if (initial.reason) return runSettingsLayer({ page, canvas, context, config, capability, profile, report });
+  if (initial.reason) return { settings: [], staticResults: [result('pld-settings', 'skip', `无法读取产品列表设置：${initial.reason}`)] };
 
   const controls = initial.controls;
   const checksById = new Map();
@@ -657,30 +657,59 @@ export async function runBatchSettingsLayer({ page, canvas, context, config, cap
   else checksById.set('pld-display-field-persist', result('pld-display-field-persist', fields.length === 0 ? 'na' : 'skip',
     fields.length === 0 ? '本区块没有展示字段设置项。' : '没有可切换的展示字段。'));
 
+  candidates.forEach((setting) => attachBatchEffect(setting, { canvas, config, profile, report }));
+  const checkBatch = async (setting, { phase }) => {
+    const state = setting.inspect(await session.read());
+    const effectCheck = await setting.checkEffect();
+    const format = (value) => typeof value === 'boolean' ? (value ? '勾选' : '未勾选') : String(value ?? '缺失');
+    const detail = `${setting.name}原值“${format(setting.originalValue)}”，批量保存后应为“${format(setting.alternateValue)}”；实际为“${format(state.value)}”。${effectCheck.detail}`;
+    return { status: state.valid && effectCheck.status !== 'fail' ? 'pass' : 'fail', detail,
+      expected: setting.alternateValue, actual: state.value,
+      evidence: { control: setting.control.label || setting.control.context, original: setting.originalValue,
+        alternate: setting.alternateValue, afterSave: state.value, phase, effectCheck } };
+  };
+  const saveBatch = async () => {
+    await session.save();
+    await session.open(); await session.read(); await session.cancel(); await session.open();
+    await savePage(page);
+    await session.open();
+  };
+  const freshCandidates = candidates.map((setting) => {
+    const legacyApply = setting.apply;
+    const captureEffect = setting.captureEffect;
+    const fresh = { ...setting };
+    fresh.apply = (ctx) => legacyApply(ctx?.session || session);
+    fresh.captureEffect = () => captureEffect?.();
+    fresh.check = (ctx) => checkBatch(setting, { phase: ctx?.phase || 'fresh-batch' });
+    return fresh;
+  });
+  return { settings: freshCandidates, metadata: batchSaveMetadata, checkBatch, saveBatch,
+    prepareSave: async () => {
+      await session.save();
+      await session.open(); await session.read(); await session.cancel(); await session.open();
+    },
+    afterSave: async () => { await session.open(); },
+    staticResults: [...checksById.values()] };
+}
+
+export async function runBatchSettingsLayer(args) {
+  const { page, canvas, context, config, capability, profile, report } = args;
+  const definitions = await createProductListBatchDefinitions(args);
+  const session = listSession({ page, canvas, config, capability });
+  const checksById = new Map(definitions.staticResults.map((check) => [check.id, check]));
+  const candidates = definitions.settings;
+  if (candidates.length === 0 && definitions.staticResults.some((item) => item.id === 'pld-settings')) {
+    return runSettingsLayer(args);
+  }
+
   if (candidates.length) {
-    candidates.forEach((setting) => attachBatchEffect(setting, { canvas, config, profile, report }));
     config.batchSaveUsed = true;
     const execution = await executeSettingBatches({ settings: candidates, metadata: batchSaveMetadata, adapter: {
       capture: async (settings) => new Map(settings.map((setting) => [setting.id, setting.originalValue])),
-      apply: async (setting) => { await setting.captureEffect?.(); await setting.apply(session); },
+      apply: async (setting) => { await setting.captureEffect?.({ canvas, config, profile, report }); await setting.apply({ session }); },
       restore: async (setting) => setting.restore(session),
-      save: async () => {
-        await session.save();
-        await session.open();
-        await session.read();
-        await session.cancel();
-        await savePage(page);
-        await session.open();
-      },
-      check: async (setting, { phase }) => {
-        const state = setting.inspect(await session.read());
-        const effectCheck = await setting.checkEffect();
-        const format = (value) => typeof value === 'boolean' ? (value ? '勾选' : '未勾选') : String(value ?? '缺失');
-        const detail = `${setting.name}原值“${format(setting.originalValue)}”，批量保存后应为“${format(setting.alternateValue)}”；实际为“${format(state.value)}”。${effectCheck.detail}`;
-        return { status: state.valid && effectCheck.status !== 'fail' ? 'pass' : 'fail', detail,
-          evidence: { control: setting.control.label || setting.control.context, original: setting.originalValue,
-            alternate: setting.alternateValue, afterSave: state.value, phase, effectCheck } };
-      },
+      save: definitions.saveBatch,
+      check: definitions.checkBatch,
     } });
     for (const item of execution.results) {
       const details = [item.batchResult?.detail].filter(Boolean);

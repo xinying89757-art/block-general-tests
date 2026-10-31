@@ -60,8 +60,7 @@ try {
   const adapter = createFreshBlockBrowserAdapter({ config, session,
     targetPage: page, settingsAdapter });
   const report = await runFreshBlockFlow({ config: { ...config, projectRoot: root, siteHost, blockId: config.blockId, page },
-    adapter, settings: settingsAdapter.settings, metadata: settingsAdapter.metadata || {},
-    capabilities: settingsAdapter.capabilityResults, runId,
+    adapter, runId,
     onProgress: async (event) => {
       const entry = { at: new Date().toISOString(), ...event };
       console.log(`[fresh-progress] ${JSON.stringify(entry)}`);

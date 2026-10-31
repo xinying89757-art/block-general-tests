@@ -4,7 +4,7 @@ import { widgetSession, probeControls, persistControl, radioPersist, radioGroupP
 
 const SUITE = 'capability:product-category-select';
 export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'Category selection checks still use their legacy restore transaction; fresh-value definitions are not extracted yet.' });
+  reason: 'Category mode and the full category checkbox set are currently one snapshot-backed transaction; they need a fresh-instance definition that preserves whole-list selection semantics before batch execution.' });
 export const checkGroups = Object.freeze({
   'pcs-persistence': ['settings'],
   'pcs-categories-backend': ['backend'],

@@ -22,7 +22,7 @@ import { RAIL, openRailPanel, readSchemeColor, setSchemeColor, saveColorPanel, n
 
 const SUITE = 'capability:block-color-scheme';
 export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'Color-scheme checks still use their legacy restore transaction; fresh-value definitions are not extracted yet.' });
+  reason: 'The color control is a right-rail flyout with its own save/cancel lifecycle; it has not yet been extracted into a per-setting apply and existing front-effect assertion pair.' });
 const NAMES = {
   'bcs-state': '配色方案个数与当前值',
   'bcs-color-persist': '配色保存回读与恢复',

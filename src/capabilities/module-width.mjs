@@ -12,7 +12,7 @@ import { RAIL, openRailPanel, readModuleWidth, setModuleWidth, saveWidthPanel, c
 
 const SUITE = 'capability:module-width';
 export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'Module-width checks still use their legacy restore transaction; fresh-value definitions are not extracted yet.' });
+  reason: 'The width control is a right-rail flyout with a custom-width composite value and a guarded global-apply checkbox; its existing persistence/effect checks are not yet exported as one safe per-setting definition.' });
 const NAMES = {
   'mw-state': '模块宽度当前值',
   'mw-width-persist': '模块宽度保存回读与恢复',

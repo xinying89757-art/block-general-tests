@@ -7,7 +7,7 @@ import { reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
 
 const SUITE = 'capability:button-link';
 export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'Button-link setting checks still use their legacy restore transaction; fresh-value definitions are not extracted yet.' });
+  reason: 'Button text, URL, and target checks share a canvas popover whose verified read-only close path reloads the editor; fresh mode needs a non-saving, per-instance popover lifecycle before these controls can be safely exposed.' });
 const DEFAULT_TEXT = 'Please set up the required pop-up form here.';
 const MARKER = 'data-autotest-button-link-root';
 const NAMES = {

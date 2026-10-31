@@ -5,6 +5,7 @@ import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPa
 import { selectRetainedFailures } from '../src/batch-save.mjs';
 import { createFreshSettingsAdapter, currentValuesFromInventory } from '../src/fresh-settings-adapter.mjs';
 import { matchingDeleteActionIndexes, matchingDeleteConfirmIndexes } from '../src/fresh-editor-actions.mjs';
+import { freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
 
 function fakeAdapter(initialInstances = []) {
   const events = [];
@@ -176,24 +177,45 @@ test('fresh report carries links, current values, failure evidence, and default 
 test('shared fresh adapter reports unsupported capabilities explicitly and never counts them as checks', async () => {
   const adapter = await createFreshSettingsAdapter({ capabilities: ['legacy'],
     loadCapability: async () => ({ freshSettings: { status: 'not-adapted', reason: 'needs extraction' } }) });
-  assert.deepEqual(adapter.settings, []);
-  assert.deepEqual(adapter.capabilityResults, [{ capability: 'legacy', status: 'not-adapted', reason: 'needs extraction' }]);
+  const prepared = await adapter.prepare();
+  assert.deepEqual(prepared.settings, []);
+  assert.deepEqual(prepared.capabilityResults, [{ capability: 'legacy', status: 'not-adapted', reason: 'needs extraction' }]);
 });
 
 test('shared fresh adapter batches adapted definitions through generic apply/save/check callbacks', async () => {
   const events = [];
   const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'generic-cap' }],
     context: { save: async () => events.push('save') },
-    loadCapability: async () => ({ freshSettings: { status: 'adapted', createDefinitions: async () => ({ settings: [
+    loadCapability: async () => ({ freshSettings: { status: 'adapted', createDefinitions: async () => ({
+      prepareSave: async () => events.push('prepare-save'), afterSave: async () => events.push('after-save'), settings: [
       { id: 'check-a', key: 'setting-a', initialValue: 'old', value: 'new', apply: async ({ phase }) => events.push(`apply:${phase}`),
         check: async () => ({ status: 'fail', expected: 'wanted', actual: 'observed', screenshot: 'evidence.png' }) },
     ] }) } }) });
+  const prepared = await adapter.prepare();
   const execution = await (await import('../src/batch-save.mjs')).executeSettingBatches({
-    settings: adapter.settings, metadata: adapter.metadata, adapter: adapter.batchAdapter, finalState: 'retain-tested-values' });
-  assert.deepEqual(events, ['apply:batch', 'save', 'apply:rerun-alone', 'save', 'apply:retain-failure', 'save']);
+    settings: prepared.settings, metadata: prepared.metadata, adapter: prepared.batchAdapter, finalState: 'retain-tested-values' });
+  assert.deepEqual(events, ['apply:batch', 'prepare-save', 'save', 'after-save', 'apply:rerun-alone',
+    'prepare-save', 'save', 'after-save', 'apply:retain-failure', 'prepare-save', 'save', 'after-save']);
   assert.equal(execution.results[0].batchResult.screenshot, 'evidence.png');
   assert.equal(execution.results[0].rerunAloneResult.status, 'fail');
   assert.deepEqual(execution.timing.retainedFailures.selectedIds, ['check-a']);
+});
+
+test('product list fresh definitions expose existing batch metadata and dialog save lifecycle', async () => {
+  assert.equal(productListFreshSettings.status, 'adapted');
+  assert.equal(typeof productListFreshSettings.createDefinitions, 'function');
+  assert.ok(productListFreshSettings.metadata['data-source']);
+});
+
+test('fresh setting definitions are prepared only after the fresh instance reloads', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old-one', ordinal: 0 }]);
+  adapter.prepareSettings = async () => {
+    assert.ok(adapter.events.some(([kind]) => kind === 'reloadPage'));
+    return { settings: [], staticResults: [], capabilityResults: [],
+      batchAdapter: { capture: async () => new Map(), apply: async () => {}, save: async () => {}, check: async () => ({ status: 'pass' }) } };
+  };
+  const report = await runFreshBlockFlow({ config, adapter });
+  assert.equal(report.block.settingId, 'new-instance');
 });
 
 test('current setting inventory records values with region and control identity', () => {

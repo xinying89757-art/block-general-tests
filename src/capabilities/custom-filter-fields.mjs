@@ -40,7 +40,7 @@ const TEXT = {
 };
 const SUITE = 'capability:custom-filter-fields';
 export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'Custom-field checks still use their legacy restore transaction; fresh-value definitions are not extracted yet.' });
+  reason: 'Field checkbox tests and the hidden profile-declared radio values share a legacy restore transaction; the fresh adapter must expose only visible controls while retaining the existing profile oracle and restore grouping.' });
 const NAMES = {
   'cff-settings-fields': '可选自定义筛选字段与勾选状态',
   'cff-settings-state': '筛选逻辑、触发与产品范围当前值',

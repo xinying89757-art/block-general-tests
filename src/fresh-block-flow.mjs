@@ -93,7 +93,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
  * the selected page is deleted and independently verified before one fresh
  * instance is added. Other block numbers are snapshotted and must remain.
  */
-export async function runFreshBlockFlow({ config, adapter, settings, metadata = {}, capabilities = [],
+export async function runFreshBlockFlow({ config, adapter, settings = [], metadata = {}, capabilities = [],
   runId = new Date().toISOString(), onProgress = async () => {} }) {
   if (!config?.page || !['custom', 'system'].includes(config.page.kind)) {
     throw new Error('Fresh block flow requires an explicit page config; set FRESH_PAGE_KIND and its page fields.');
@@ -103,12 +103,6 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
     'savePage', 'reloadPage', 'readDefaults', 'publishPage', 'readCurrentValues']) {
     if (typeof adapter?.[method] !== 'function') throw new Error(`Fresh block adapter is missing ${method}().`);
   }
-  if (!adapter.batchAdapter) throw new Error('Fresh block adapter must provide batchAdapter; settings cannot be tested without batch saves.');
-  const plan = planSettingBatches(settings, metadata);
-  if (plan.some((batch) => batch.restoreBefore.length)) {
-    throw new Error('Fresh-block flow cannot run settings whose batch plan requires baseline restoration; split or redesign the generic setting metadata first.');
-  }
-
   const opened = await adapter.openPage(config.page);
   await onProgress({ stage: 'page-opened' });
   let instances = await adapter.listAllBlockInstances();
@@ -149,6 +143,20 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
   }
   const fresh = freshInstances[0];
 
+  // Definitions must be bound to the newly added instance. Preparing these
+  // before deletion would capture controls from the old block being replaced.
+  const prepared = await adapter.prepareSettings?.();
+  const settingsToRun = prepared?.settings || settings;
+  const metadataToUse = prepared?.metadata || metadata;
+  const capabilitiesToReport = prepared?.capabilityResults || capabilities;
+  const staticResults = prepared?.staticResults || [];
+  const batchAdapter = prepared?.batchAdapter || adapter.batchAdapter;
+  if (!batchAdapter) throw new Error('Fresh block adapter must provide batchAdapter; settings cannot be tested without batch saves.');
+  const plan = planSettingBatches(settingsToRun, metadataToUse);
+  if (plan.some((batch) => batch.restoreBefore.length)) {
+    throw new Error('Fresh-block flow cannot run settings whose batch plan requires baseline restoration; split or redesign the generic setting metadata first.');
+  }
+
   const defaultsValues = await adapter.readDefaults(fresh);
   const defaultsPath = freshDefaultsPath(config.projectRoot || process.cwd(), config.siteHost, config.blockId);
   const priorDefaults = await (adapter.readDefaultsSnapshot?.(defaultsPath) ?? readFreshDefaultsSnapshot(defaultsPath)) || null;
@@ -166,12 +174,13 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
   let batch;
   const flowErrors = [];
   try {
-    batch = await executeSettingBatches({ settings, metadata, adapter: adapter.batchAdapter, finalState: 'retain-tested-values' });
+    batch = await executeSettingBatches({ settings: settingsToRun, metadata: metadataToUse, adapter: batchAdapter, finalState: 'retain-tested-values' });
+    batch.results = [...staticResults, ...batch.results];
     await onProgress({ stage: 'batches-finished', checkCount: batch.results.length });
   } catch (error) {
     flowErrors.push({ stage: 'batch-settings', message: error.message });
     batch = { batches: plan.map(({ settings: items, restoreBefore }) => ({ settingIds: items.map((item) => item.id), restoreBefore })),
-      results: [{ id: 'fresh-batch-execution', status: 'fail', detail: error.message }],
+      results: [...staticResults, { id: 'fresh-batch-execution', status: 'fail', detail: error.message }],
       timing: { startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), durationMs: 0 } };
   }
   const values = await adapter.readCurrentValues(fresh);
@@ -187,7 +196,7 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
     await onProgress({ stage: 'published' }); }
   catch (error) { flowErrors.push({ stage: 'publish', message: error.message }); }
   const report = buildFreshReport({ runId, siteHost: config.siteHost, blockId: config.blockId,
-    page: config.page, instance: fresh, capabilities, defaults, batch,
+    page: config.page, instance: fresh, capabilities: capabilitiesToReport, defaults, batch,
     currentValues: values, editorLink: opened.editorLink || adapter.editorLink?.(),
     frontLink: published?.frontLink || opened.frontLink, publishedAt: published?.publishedAt || null, flowErrors });
   await adapter.writeReport?.(report);

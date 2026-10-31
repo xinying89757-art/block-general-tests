@@ -46,7 +46,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     ordinal: instance.ordinal, position: instance.position });
 
   const adapter = {
-    batchAdapter: settingsAdapter.batchAdapter,
+    get batchAdapter() { return settingsAdapter.prepared?.batchAdapter || settingsAdapter.batchAdapter; },
     async openPage(target) {
       page = (await openEditor(page, config)).page;
       resolvedTarget = target;
@@ -56,6 +56,9 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       return { editorLink: page.url(), frontLink: target.url || pageItem.pageurl || null };
     },
     async listAllBlockInstances() { return listInstances(frame); },
+    async prepareSettings() {
+      return settingsAdapter.prepare({ page, canvas: frame, frame, config });
+    },
     async deleteBlockInstance(instance) {
       if (String(instance.blockId) !== String(config.blockId)) {
         throw new Error('Deletion is restricted to the configured target block number.');
