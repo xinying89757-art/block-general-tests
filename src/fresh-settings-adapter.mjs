@@ -35,6 +35,11 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
       }
       const created = await definition.createDefinitions({ ...mergedContext, capability: item });
       if (!Array.isArray(created?.settings)) throw new Error(`Capability ${id} did not return a settings array.`);
+      if (created.notAdaptedReason) {
+        staticResults.push(...(created.staticResults || []));
+        capabilityResults.push({ capability: id, status: 'not-adapted', reason: created.notAdaptedReason });
+        continue;
+      }
       preparedModules.set(id, { definition, created });
       settings.push(...created.settings.map((setting) => ({ ...setting, capability: id })));
       staticResults.push(...(created.staticResults || []));

@@ -229,9 +229,12 @@ export async function createFreshDefinitions(args) {
     checkedLabels: options.filter((item) => item.checked).map((item) => item.label), options })) }));
   if (!field) {
     const noFields = fields.length === 0;
+    const notAdaptedReason = !fixtureNames.size
+      ? 'The profile does not declare fixture.fields, so this run has no profile-identified field whose existing persistence assertion can be reused safely.'
+      : 'No profile-declared fixture field is switchable in the current dialog snapshot, so no fresh setting definition can reuse the existing persistence assertion.';
     staticResults.push(result('cff-settings-persist', noFields ? 'na' : 'skip',
       noFields ? '本区块没有可选自定义筛选字段设置项。' : '没有可切换的自定义字段。'));
-    return { settings: [], staticResults };
+    return { settings: [], staticResults, notAdaptedReason };
   }
   const originalValue = Boolean(field.checked);
   const alternateValue = !originalValue;

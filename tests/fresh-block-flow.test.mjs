@@ -334,6 +334,20 @@ test('custom-filter fresh definition uses its scoped dialog session and exports 
   assert.equal(state.controls[0].checked, false);
 });
 
+test('fresh adapter reports a capability not-adapted when no profile fixture identifies a safe setting', async () => {
+  const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'custom-filter-fields' }],
+    context: { config: {}, page: {}, canvas: {}, profile: {},
+      scopedSession: { open: async () => {}, read: async () => [], set: async () => {}, save: async () => {}, cancel: async () => {} },
+      initialControls: [{ index: 0, tag: 'INPUT', type: 'checkbox', name: 'field', label: 'Site field',
+        value: 'site-field-id', checked: false, disabled: false }], save: async () => {} },
+    loadCapability: async () => ({ freshSettings: customFilterFreshSettings }) });
+  const prepared = await adapter.prepare();
+  assert.deepEqual(prepared.capabilityResults, [{ capability: 'custom-filter-fields', status: 'not-adapted',
+    reason: 'The profile does not declare fixture.fields, so this run has no profile-identified field whose existing persistence assertion can be reused safely.' }]);
+  assert.equal(prepared.settings.length, 0);
+  assert.equal(prepared.staticResults.find((item) => item.id === 'cff-settings-persist').status, 'na');
+});
+
 test('full fresh flow runs PLD definitions on a scoped session, restores dependencies, retains a failure, and reads back a resolved page', async () => {
   const events = [];
   const controls = [
