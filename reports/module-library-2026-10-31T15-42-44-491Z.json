@@ -1,0 +1,20 @@
+{
+  "status": "error",
+  "stage": "editor-entry",
+  "siteHost": "en-site79106751.ldwebsite.com",
+  "targetBlockId": "47498",
+  "page": {
+    "kind": "system",
+    "id": "BIAUYnyOREPZ",
+    "name": "products",
+    "url": "/products.html"
+  },
+  "links": {
+    "editor": "https://website.leadong.com/phoenix/pagebuilder/BIAUYnyOREPZ",
+    "front": "https://en-site79106751.ldwebsite.com/products.html"
+  },
+  "error": {
+    "code": null,
+    "message": "编辑器未显示“页面:”，登录态可能已过期或编辑器未完成加载：locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n  - waiting for getByText('页面:', { exact: true }).first() to be visible\n"
+  }
+}
