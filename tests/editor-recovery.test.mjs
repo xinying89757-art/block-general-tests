@@ -9,6 +9,14 @@ test('editor host identity is read from the canvas frame and ignores platform fr
   }, 'en-site79106751.ldwebsite.com'), ['en-site79106751.ldwebsite.com']);
 });
 
+test('editor host identity can be read from the builder pageurl attributes', () => {
+  assert.deepEqual(resolveEditorSiteHosts({
+    pageUrl: 'https://website.leadong.com/phoenix/pagebuilder/layout',
+    frameUrls: ['https://website.leadong.com/phoenix/pagebuilder?_=abc'],
+    domHosts: ['http://en-site79106751.ldwebsite.com/products.html'],
+  }, 'en-site79106751.ldwebsite.com'), ['en-site79106751.ldwebsite.com']);
+});
+
 test('editor host identity rejects a different readable host and fails closed when absent', () => {
   assert.throws(() => resolveEditorSiteHosts({
     pageUrl: 'https://www.leadong.com/phoenix/pagebuilder/index',

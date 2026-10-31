@@ -179,8 +179,8 @@ export async function verifyEditorSiteIdentity(page, config) {
   let domHosts = [];
   try {
     domHosts = await page.evaluate(() => {
-      const values = [...document.querySelectorAll('[data-site-domain], [data-domain]')]
-        .flatMap((node) => ['data-site-domain', 'data-domain'].map((key) => node.getAttribute(key)).filter(Boolean));
+      const values = [...document.querySelectorAll('[data-site-domain], [data-domain], [pageurl]')]
+        .flatMap((node) => ['data-site-domain', 'data-domain', 'pageurl'].map((key) => node.getAttribute(key)).filter(Boolean));
       return values;
     });
   } catch { /* The frame URL remains a separate identity source. */ }
