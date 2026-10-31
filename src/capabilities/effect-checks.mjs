@@ -1,7 +1,7 @@
 // Independent effect transactions. Only the caller's block and throwaway
 // previews are inspected. The journal is populated BEFORE each attempted write.
 import { savePage, openPreview } from '../editor.mjs';
-import { baselineRestoreTarget, blockSelector, probeControls, findControl, controlValue, TIMEOUT } from './shared.mjs';
+import { baselineRestoreTarget, blockSelector, probeControls, findControl, controlValue, planCheckboxBatch, TIMEOUT } from './shared.mjs';
 import { waitForStable, readBackWithRetry } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
 import { withTimeout } from '../run-safety.mjs';
@@ -93,20 +93,15 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
       pending.set(key, { target: current, value });
       await session.set(current, value);
     },
-    setMany: async (changes) => {
-      const items = await controls();
-      const planned = [];
-      for (const { target, value } of changes) {
-        const current = findControl(items, target);
-        if (!current || current.type !== 'checkbox' || current.disabled || current.readOnly) {
-          unavailable('批量分类设置项身份已变化或不可编辑，未写入。');
-        }
-        if (controlValue(current) === value) continue;
-        const key = `control:${current.index}`;
-        if (!journal.has(key)) journal.set(key, { target: current, value: controlValue(current) });
-        pending.set(key, { target: current, value });
-        planned.push({ target: current, value });
+    setMany: async (changes, { restoreKey } = {}) => {
+      if (!restoreKey || !journal.has(restoreKey)) {
+        unavailable('批量复选框写入缺少完整快照恢复记录，未写入。');
       }
+      const items = await controls();
+      let planned;
+      try { planned = planCheckboxBatch(items, changes); }
+      catch (error) { unavailable(error.message); }
+      for (const { target, value } of planned) pending.set(`control:${target.index}`, { target, value });
       if (planned.length) await session.setMany(planned);
     },
     // For controls with a dedicated UI (Spectrum and button link type tabs).

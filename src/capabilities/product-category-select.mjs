@@ -405,7 +405,7 @@ async function categoryEffects(args, layer, onlyKinds = null) {
       }
       await tx.set(partial, true); await tx.save();
       const current = await tx.controls();
-      await tx.setMany(categorySelectionChanges(current, target));
+      await tx.setMany(categorySelectionChanges(current, target), { restoreKey: 'category-state:selectGroupWay' });
       await tx.save();
       const nav = await readNavigation(); tx.evidence.navigation = nav;
       tx.expected(`选择夹具分类后导航应仅显示 ${target}。`);

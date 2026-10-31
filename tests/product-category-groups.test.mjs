@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { categoryRestoreChanges } from '../src/capabilities/effect-checks.mjs';
 import { categorySelectionChanges, selectedCheckGroupLayer } from '../src/capabilities/product-category-select.mjs';
+import { planCheckboxBatch } from '../src/capabilities/shared.mjs';
 
 const box = (index, label, checked) => ({ index, tag: 'INPUT', type: 'checkbox', name: 'leafProdGroup',
   label, context: label, value: 'on', checked, disabled: false, readOnly: false });
@@ -24,6 +25,13 @@ test('category group restore plan replays each original checkbox value by contro
     ['分类甲', true], ['分类乙', false], ['分类丙', true],
   ]);
   assert.throws(() => categoryRestoreChanges(current.slice(0, 2), original), /身份变化/);
+});
+
+test('batch rejects an uneditable change but permits an already-correct disabled checkbox', () => {
+  const locked = { ...box(0, '锁定分类', true), disabled: true };
+  assert.deepEqual(planCheckboxBatch([locked], [{ target: locked, value: true }]), []);
+  assert.throws(() => planCheckboxBatch([locked], [{ target: locked, value: false }]), /锁定分类.*不可编辑/);
+  assert.throws(() => planCheckboxBatch([], [{ target: locked, value: false }]), /身份变化或缺失/);
 });
 
 test('product category groups isolate persistence from category backend effects', () => {

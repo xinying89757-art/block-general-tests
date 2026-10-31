@@ -202,6 +202,22 @@ export function findControl(controls, target) {
     && (!['checkbox', 'radio'].includes(item.type) || item.value === target.value));
 }
 
+export function planCheckboxBatch(controls, changes) {
+  const planned = [];
+  for (const { target, value } of changes) {
+    const current = findControl(controls, target);
+    if (!current || current.type !== 'checkbox') {
+      throw new Error(`复选框控件身份变化或缺失：${target?.label || '未命名'}（index=${target?.index}）。`);
+    }
+    if (current.checked === value) continue;
+    if (current.disabled || current.readOnly) {
+      throw new Error(`复选框“${current.label}”当前不可编辑，不能从 ${current.checked} 改为 ${value}。`);
+    }
+    planned.push({ target: current, value });
+  }
+  return planned;
+}
+
 export function controlSession(root, lifecycle) {
   const read = (timeout = uiWaitConfig().timeout) => retryTransient(async () => {
     await waitForControlsReady(root, timeout);
@@ -247,10 +263,13 @@ export function controlSession(root, lifecycle) {
         const input = inputs[target.index];
         const label = input && norm([...(input.labels || [])].map((item) => item.innerText).join(' ')
           || input.closest('li, label, .el-form-item, div')?.innerText);
-        if (!input || input.tagName !== target.tag || input.type !== target.type
-          || (input.name || '') !== target.name || label !== target.label || input.disabled
-          || input.type !== 'checkbox' || input.value !== target.value) {
-          throw new Error('批量目标控件身份变化、缺失或不可切换');
+        if (!input) throw new Error(`批量复选框控件缺失：${target.label}（index=${target.index}）。`);
+        if (input.tagName !== target.tag || input.type !== target.type
+          || (input.name || '') !== target.name || label !== target.label || input.value !== target.value) {
+          throw new Error(`批量复选框控件身份变化：${target.label}（index=${target.index}，当前标签=${label || '空'}）。`);
+        }
+        if (input.checked !== value && input.disabled) {
+          throw new Error(`批量复选框“${target.label}”当前不可编辑，不能从 ${input.checked} 改为 ${value}。`);
         }
       }
       for (const { target, value } of updates) {
