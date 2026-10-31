@@ -331,10 +331,12 @@ export async function addBlockIfNeeded(page, frame, config) {
     const targets = blocks.flatMap((element, index) => {
       if (element.getAttribute('data-appid') !== String(blockId)) return [];
       const rect = element.getBoundingClientRect();
+      const settingAttr = [...element.attributes].find((attr) => /setting.?id/i.test(attr.name));
+      const nested = [...element.querySelectorAll('*')].flatMap((node) => [...node.attributes]
+        .filter((attr) => /setting.?id/i.test(attr.name)).map((attr) => attr.value))[0];
       return [{ index, position: { x: Math.round(rect.x), y: Math.round(rect.y),
         width: Math.round(rect.width), height: Math.round(rect.height) },
-        settingId: element.getAttribute('data-settingid') || element.dataset.settingId
-          || element.querySelector('[data-settingid]')?.getAttribute('data-settingid') || null }];
+        settingId: settingAttr?.value || nested || null }];
     });
     const loading = [...document.querySelectorAll('[aria-busy="true"], .backstage-loading, .loading-mask, .layui-layer-loading')]
       .some((element) => element.getClientRects().length > 0);

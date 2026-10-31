@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fixtureSelectionDiff, normalizeSiteHost, siteBaselinePath, validateSiteBaseline } from '../src/site-baseline.mjs';
+import { fixtureSelectionDiff, makeFixtureSelectionRule, normalizeSiteHost, siteBaselinePath, validateSiteBaseline } from '../src/site-baseline.mjs';
 
 test('site baseline host identity is normalized and retains a port', () => {
   assert.equal(normalizeSiteHost('HTTPS://Example.COM:8443/path'), 'example.com:8443');
@@ -30,4 +30,16 @@ test('dynamic CMS list rules compare AUTOTEST selections and ignore unrelated si
   controls[0].checked = true;
   controls.push({ label: 'AUTOTEST-新字段', type: 'checkbox', checked: false });
   assert.equal(fixtureSelectionDiff(rule, controls).at(-1).reason, 'unexpected-fixture-item');
+});
+
+test('duplicate editor clones of a fixture control collapse only when their states agree', () => {
+  const controls = [
+    { label: 'AUTOTEST-字段A', type: 'checkbox', checked: true },
+    { label: 'AUTOTEST-字段A', type: 'checkbox', checked: true },
+  ];
+  assert.deepEqual(makeFixtureSelectionRule(controls).items, [
+    { label: 'AUTOTEST-字段A', type: 'checkbox', selected: true },
+  ]);
+  controls[1].checked = false;
+  assert.throws(() => makeFixtureSelectionRule(controls), /副本状态不一致/);
 });

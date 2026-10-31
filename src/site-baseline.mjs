@@ -59,27 +59,34 @@ export async function writeSiteBaseline(root, siteHost, blockId, steps, metadata
 // Collection lists are CMS data, not stable setting identities. Capture only
 // AUTOTEST entries; any other CMS item is deliberately ignored by policy.
 export function makeFixtureSelectionRule(controls) {
-  const items = (controls || []).filter((control) => control.type === 'checkbox'
-    && /^AUTOTEST-/i.test(String(control.label || '')))
-    .map((control) => ({ label: control.label, type: 'checkbox', selected: Boolean(control.checked) }));
+  const groups = new Map();
+  for (const control of (controls || []).filter((item) => item.type === 'checkbox'
+    && /^AUTOTEST-/i.test(String(item.label || '')))) {
+    groups.set(control.label, [...(groups.get(control.label) || []), Boolean(control.checked)]);
+  }
+  const items = [...groups].map(([label, states]) => {
+    if (states.some((state) => state !== states[0])) throw new Error(`AUTOTEST 列表副本状态不一致：${label}`);
+    return { label, type: 'checkbox', selected: states[0] };
+  });
   return { kind: 'fixture-selection', items, otherItemsPolicy: 'ignored' };
 }
 
 export function fixtureSelectionDiff(rule, controls) {
-  const actual = (controls || []).filter((control) => control.type === 'checkbox'
-    && /^AUTOTEST-/i.test(String(control.label || '')))
-    .map((control) => ({ label: control.label, type: 'checkbox', selected: Boolean(control.checked) }));
+  const groups = new Map();
+  for (const control of (controls || []).filter((item) => item.type === 'checkbox'
+    && /^AUTOTEST-/i.test(String(item.label || '')))) {
+    groups.set(control.label, [...(groups.get(control.label) || []), Boolean(control.checked)]);
+  }
   const key = (item) => JSON.stringify([item.label, item.type]);
   const expectedByKey = new Map((rule.items || []).map((item) => [key(item), item]));
-  const actualByKey = new Map(actual.map((item) => [key(item), item]));
   const diffs = [];
   for (const [itemKey, expected] of expectedByKey) {
-    const found = actualByKey.get(itemKey);
-    if (!found) diffs.push({ label: expected.label, expected: expected.selected, actual: null, reason: 'missing-fixture-item' });
-    else if (found.selected !== expected.selected) diffs.push({ label: expected.label, expected: expected.selected, actual: found.selected, reason: 'fixture-selection-mismatch' });
+    const states = groups.get(expected.label);
+    if (!states?.length) diffs.push({ label: expected.label, expected: expected.selected, actual: null, reason: 'missing-fixture-item' });
+    else if (states.some((selected) => selected !== expected.selected)) diffs.push({ label: expected.label, expected: expected.selected, actual: states, reason: 'fixture-selection-mismatch' });
   }
-  for (const [itemKey, found] of actualByKey) if (!expectedByKey.has(itemKey)) {
-    diffs.push({ label: found.label, expected: null, actual: found.selected, reason: 'unexpected-fixture-item' });
+  for (const [label, states] of groups) if (!expectedByKey.has(key({ label, type: 'checkbox' }))) {
+    diffs.push({ label, expected: null, actual: states, reason: 'unexpected-fixture-item' });
   }
   return diffs;
 }

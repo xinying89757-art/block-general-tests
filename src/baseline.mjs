@@ -18,9 +18,9 @@
 // the button zone is handled through its in-canvas editor-box popover.
 import { clickSettings, controlValue, probeControls, widgetSession, TIMEOUT } from './capabilities/shared.mjs';
 import { readButtonPopover, writeButtonPopover } from './capabilities/button-link.mjs';
-import { matchControl, normalizeControlIdentity } from './baseline-identity.mjs';
+import { matchControl, matchingControls, normalizeControlIdentity } from './baseline-identity.mjs';
 import { uiWaitConfig, waitForStable } from './ui-waits.mjs';
-import { makeFixtureSelectionRule } from './site-baseline.mjs';
+import { makeFixtureSelectionRule, fixtureSelectionDiff } from './site-baseline.mjs';
 
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 const TITLE = '.backstage-dialog-title, .layui-layer-title';
@@ -225,7 +225,7 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
       try {
         controls = await waitForStable((remaining) => session.read(remaining),
           (items) => stepDef.want.every((wanted) => Boolean(matchControl(items, wanted)))
-            && (stepDef.fixtureSelection?.items || []).every((wanted) => Boolean(matchControl(items, { label: wanted.label, type: 'checkbox', ...(wanted.value ? { value: wanted.value } : {}) }))),
+            && (stepDef.fixtureSelection?.items || []).every((wanted) => matchingControls(items, { label: wanted.label, type: 'checkbox' }).length > 0),
           { timeout: readyTimeout, stableMs: uiWaitConfig().stableMs });
       } catch (error) {
         const observed = await session.read().catch(() => []);
@@ -237,12 +237,12 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
       // Do not partially save a dialog when its recorded controls cannot all
       // be resolved. A changing or incompletely loaded list needs investigation.
       const missing = [];
-      const allWanted = [...stepDef.want, ...(stepDef.fixtureSelection?.items || []).map((item) => ({
-        label: item.label, type: 'checkbox', ...(item.value ? { value: item.value } : {}), to: item.selected,
-      }))];
-      for (const w of allWanted) {
+      for (const w of stepDef.want) {
         try { if (!matchControl(controls, w)) missing.push(w.label); }
         catch (error) { step.errors.push(error.message); }
+      }
+      for (const item of stepDef.fixtureSelection?.items || []) {
+        if (!matchingControls(controls, { label: item.label, type: 'checkbox' }).length) missing.push(item.label);
       }
       if (missing.length || step.errors.length) {
         if (missing.length) step.errors.push(`恢复前找不到控件：${missing.join('、')}`);
@@ -250,7 +250,7 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
         steps.push(step);
         continue;
       }
-      for (const w of allWanted) {
+      for (const w of stepDef.want) {
         let target;
         try { target = matchControl(controls, w); }
         catch (error) { step.errors.push(error.message); step.set.push(`${w.label}：身份不唯一`); continue; }
@@ -265,6 +265,19 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
         await session.set(target, w.to);
         step.set.push(`${w.label}：${String(current)} → ${String(w.to)}`);
       }
+      for (const item of stepDef.fixtureSelection?.items || []) {
+        const targets = matchingControls(controls, { label: item.label, type: 'checkbox' });
+        for (const target of targets) {
+          const current = controlValue(target);
+          if (current === item.selected) continue;
+          if (target.disabled) {
+            step.errors.push(`${item.label}：不可切换（disabled），当前 ${String(current)}，目标 ${String(item.selected)}`);
+            continue;
+          }
+          await session.set(target, item.selected);
+          step.set.push(`${item.label}：${String(current)} → ${String(item.selected)}`);
+        }
+      }
       await session.save();
       await session.open();
       const after = await session.read();
@@ -275,6 +288,13 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
         const value = item ? controlValue(item) : null;
         return { label: w.label, ...(w.occurrence === undefined ? {} : { occurrence: w.occurrence }), value, ok: value === w.to };
       });
+      if (stepDef.fixtureSelection) {
+        const selectionDiffs = fixtureSelectionDiff(stepDef.fixtureSelection, after);
+        step.verified.push(...selectionDiffs.map((item) => ({ ...item, ok: false })));
+        for (const item of stepDef.fixtureSelection.items) {
+          if (!selectionDiffs.some((diff) => diff.label === item.label)) step.verified.push({ label: item.label, value: item.selected, ok: true });
+        }
+      }
       step.allVerified = step.verified.every((v) => v.ok) && step.errors.length === 0;
       if (!step.allVerified) allVerified = false;
     } catch (error) {

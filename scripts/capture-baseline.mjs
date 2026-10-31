@@ -28,12 +28,17 @@ try {
   session.page = (await openEditor(session.page, config)).page;
   const { frame: canvas } = await ensureTargetPage(session.page, config);
   const steps = await captureBaseline({ page: session.page, canvas, config, blockId: config.blockId });
-  const readInstances = () => canvas.locator(`.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(config.blockId))}]`).evaluateAll((nodes) => nodes.map((node, index) => {
-    const rect = node.getBoundingClientRect();
-    const settingId = node.getAttribute('data-settingid') || node.dataset.settingId
-      || node.querySelector('[data-settingid]')?.getAttribute('data-settingid') || null;
-    return { index, position: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) }, settingId };
-  }));
+  const readInstances = () => canvas.locator('body').evaluate((body, blockId) => {
+    const blocks = [...body.querySelectorAll('.siteblocks-setting-wrap[data-appid]')];
+    return blocks.flatMap((node, index) => {
+      if (node.getAttribute('data-appid') !== blockId) return [];
+      const rect = node.getBoundingClientRect();
+      const settingAttr = [...node.attributes].find((attr) => /setting.?id/i.test(attr.name));
+      const nested = [...node.querySelectorAll('*')].flatMap((child) => [...child.attributes]
+        .filter((attr) => /setting.?id/i.test(attr.name)).map((attr) => attr.value))[0];
+      return [{ index, position: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) }, settingId: settingAttr?.value || nested || null }];
+    });
+  }, String(config.blockId));
   const instances = await waitForStable(readInstances, (items) => items.length > 0, {
     timeout: Number(process.env.CANVAS_RENDER_TIMEOUT_MS) || 45_000,
     stableMs: Number(process.env.CANVAS_RENDER_STABLE_MS) || 8_000,
