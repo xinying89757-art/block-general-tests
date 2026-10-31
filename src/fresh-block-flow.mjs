@@ -121,9 +121,10 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
 }
 
 /**
- * The block number is the sole deletion key. Every target-number instance on
- * the selected page is deleted and independently verified before one fresh
- * instance is added. Other block numbers are snapshotted and must remain.
+ * The block number is the sole deletion key. Add and uniquely identify one
+ * fresh instance first; only then delete the prior instances of that number.
+ * This makes an unavailable library a safe stop before any deletion. Other
+ * block numbers are snapshotted and must remain.
  */
 export async function runFreshBlockFlow({ config, adapter, settings = [], metadata = {}, capabilities = [],
   runId = new Date().toISOString(), onProgress = async () => {} }) {
@@ -137,41 +138,60 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   }
   const opened = await adapter.openPage(config.page);
   await onProgress({ stage: 'page-opened' });
-  if (typeof adapter.verifyModuleAvailability === 'function') {
-    await onProgress({ stage: 'module-availability-check-started' });
-    const preflight = await adapter.verifyModuleAvailability(config.blockId);
-    await onProgress({ stage: 'module-availability-confirmed', openerMatchCount: preflight?.openerMatchCount ?? null });
-    config.moduleLibraryPreflight = preflight || null;
-  }
   const deletedSettingIds = [];
   let instances = await adapter.listAllBlockInstances();
   await onProgress({ stage: 'instances-inventoried', targetCount: targetBlockInstances(instances, config.blockId).length });
   const otherBlockCounts = countOtherBlocks(instances, config.blockId);
+  const priorTargets = targetBlockInstances(instances, config.blockId);
+  assertUniqueTargetIdentities(priorTargets);
+  if (priorTargets.some((item) => !Number.isInteger(item.ordinal))) {
+    throw new Error('Target block instance lacks a unique position; refusing to continue.');
+  }
+
+  // Adding first reuses the proven G27 lookup/add path. A failed lookup leaves
+  // every existing target instance untouched.
+  const created = await adapter.addDefaultBlock(config.blockId);
+  if (!created || String(created.blockId) !== String(config.blockId) || !created.settingId) {
+    throw new Error('Adapter did not identify the newly added target block instance; existing instances were not deleted.');
+  }
+  instances = await adapter.listAllBlockInstances();
+  assertOtherBlocksUnchanged(otherBlockCounts, instances, config.blockId);
   let targets = targetBlockInstances(instances, config.blockId);
   assertUniqueTargetIdentities(targets);
-  while (targets.length) {
-    const target = targets[0];
+  const priorIds = new Set(priorTargets.map((item) => String(item.settingId)));
+  const createdMatches = targets.filter((item) => String(item.settingId) === String(created.settingId));
+  if (createdMatches.length !== 1 || priorIds.has(String(created.settingId))
+    || targets.length !== priorTargets.length + 1) {
+    throw new Error('Fresh add did not produce exactly one uniquely identified new target; no existing target was deleted.');
+  }
+  const freshIdentity = String(created.settingId);
+  await onProgress({ stage: 'instance-added', settingId: String(created.settingId || '') });
+
+  while (targets.some((item) => String(item.settingId) !== freshIdentity)) {
+    const target = targets.find((item) => String(item.settingId) !== freshIdentity);
     if (!target.settingId || !Number.isInteger(target.ordinal)) {
-      throw new Error('Target block instance lacks a unique settingId/ordinal; no further delete or add will be attempted.');
+      throw new Error('Existing target instance lacks a unique settingId/position; stopped without deleting another block.');
     }
-    await onProgress({ stage: 'delete-started', targetCount: targets.length });
+    await onProgress({ stage: 'delete-started', targetCount: targets.length,
+      preservingSettingId: freshIdentity });
     await adapter.deleteBlockInstance(target);
     const afterDelete = await adapter.listAllBlockInstances();
     assertOtherBlocksUnchanged(otherBlockCounts, afterDelete, config.blockId);
     const remaining = targetBlockInstances(afterDelete, config.blockId);
-    if (remaining.length !== targets.length - 1 || remaining.some((item) => item.settingId === target.settingId)) {
-      throw new Error('Delete did not remove exactly the selected target instance; stopped before adding.');
+    if (remaining.length !== targets.length - 1
+      || remaining.some((item) => String(item.settingId) === String(target.settingId))
+      || remaining.filter((item) => String(item.settingId) === freshIdentity).length !== 1) {
+      throw new Error('Delete did not remove exactly one old target while preserving the fresh instance.');
     }
-    instances = afterDelete;
     targets = remaining;
     deletedSettingIds.push(String(target.settingId));
     await onProgress({ stage: 'instance-deleted', targetCount: targets.length,
-      deletedSettingId: String(target.settingId), deletedSettingIds: [...deletedSettingIds] });
+      deletedSettingId: String(target.settingId), addedSettingId: freshIdentity,
+      deletedSettingIds: [...deletedSettingIds] });
   }
-
-  const created = await adapter.addDefaultBlock(config.blockId);
-  if (!created || created.blockId !== String(config.blockId)) throw new Error('Adapter did not identify the newly added block instance.');
-  await onProgress({ stage: 'instance-added', settingId: String(created.settingId || '') });
+  if (targets.length !== 1 || !targets.some((item) => String(item.settingId) === freshIdentity)) {
+    throw new Error('After replacement, expected exactly the fresh target instance.');
+  }
   await adapter.savePage();
   await onProgress({ stage: 'fresh-instance-saved' });
   await adapter.reloadPage();

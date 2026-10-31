@@ -40,7 +40,10 @@ function fakeAdapter(initialInstances = []) {
       state.instances = state.instances.filter((item) => item.settingId !== instance.settingId);
     },
     addDefaultBlock: async (blockId) => {
-      const instance = { blockId: String(blockId), settingId: 'new-instance', position: { x: 0, y: 100 } };
+      const targetOrdinals = state.instances.filter((item) => String(item.blockId) === String(blockId))
+        .map((item) => item.ordinal).filter(Number.isInteger);
+      const instance = { blockId: String(blockId), settingId: 'new-instance', ordinal: Math.max(-1, ...targetOrdinals) + 1,
+        position: { x: 0, y: 100 } };
       state.instances.push(instance); events.push(['add', blockId]); return instance;
     },
     savePage: async () => events.push(['savePage']), reloadPage: async () => events.push(['reloadPage']),
@@ -406,11 +409,12 @@ test('published value comparison reports changed, missing, and added controls wi
   assert.deepEqual(diff.mismatches.map(({ kind }) => kind), ['changed', 'missing', 'added']);
 });
 
-test('deletes every instance of the target number and preserves all other block numbers', async () => {
+test('adds and identifies the fresh target before deleting every old target; preserves other block numbers', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'old-one', ordinal: 0 },
     { blockId: '56', settingId: 'unrelated', ordinal: 0 }, { blockId: '55', settingId: 'old-two', ordinal: 1 }]);
   const progress = [];
   const report = await runFreshBlockFlow({ config, adapter, settings: [], onProgress: async (event) => progress.push(event) });
+  assert.ok(adapter.events.findIndex(([kind]) => kind === 'add') < adapter.events.findIndex(([kind]) => kind === 'delete'));
   assert.deepEqual(adapter.events.filter(([kind]) => kind === 'delete'), [['delete', '55', 'old-one'], ['delete', '55', 'old-two']]);
   assert.ok(adapter.state.instances.some((item) => item.settingId === 'unrelated'));
   assert.equal(adapter.state.instances.filter((item) => item.blockId === '55').length, 1);
@@ -421,11 +425,20 @@ test('deletes every instance of the target number and preserves all other block 
   assert.ok(progress.some((event) => event.stage === 'instance-added' && event.settingId === 'new-instance'));
 });
 
-test('stops before adding if a target instance delete did not remove exactly one', async () => {
+test('a failed fresh add stops before deleting any existing target instance', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
+  adapter.addDefaultBlock = async () => { adapter.events.push(['add-failed']); throw new Error('target unavailable'); };
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /target unavailable/);
+  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'delete'), []);
+  assert.deepEqual(adapter.state.instances.map(({ settingId }) => settingId), ['old']);
+});
+
+test('stops after an old-target delete fails to remove exactly one, preserving the fresh instance', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
   adapter.deleteBlockInstance = async (instance) => adapter.events.push(['unexpected-delete-noop', instance.settingId]);
-  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /did not remove exactly/);
-  assert.equal(adapter.events.some(([kind]) => kind === 'add'), false);
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /preserving the fresh instance/);
+  assert.equal(adapter.events.some(([kind]) => kind === 'add'), true);
+  assert.deepEqual(adapter.state.instances.map(({ settingId }) => settingId), ['old', 'new-instance']);
 });
 
 test('duplicate target instance identity refuses all deletion', async () => {
@@ -444,7 +457,8 @@ test('stops if a delete changes an unmarked different block number', async () =>
     adapter.state.instances = adapter.state.instances.filter((item) => item.settingId !== 'keep');
   };
   await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /non-target block number changed/);
-  assert.equal(adapter.events.some(([kind]) => kind === 'add'), false);
+  assert.equal(adapter.events.some(([kind]) => kind === 'add'), true);
+  assert.equal(adapter.events.some(([kind]) => kind === 'savePage' || kind === 'publish'), false);
 });
 
 test('interfering failed settings retain one failure and report the suppressed value/evidence', () => {
@@ -508,11 +522,12 @@ test('fresh batch execution error stops before publish and records the unpublish
   assert.equal(report.failures[0].screenshot, 'reports/screenshots/batch-settings.png');
 });
 
-test('module availability preflight stops before deleting any existing target instance', async () => {
+test('does not invoke a divergent module-availability preflight before the proven add path', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'existing', ordinal: 0 }]);
-  adapter.verifyModuleAvailability = async () => { throw new Error('not found'); };
-  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /not found/);
-  assert.equal(adapter.events.some(([kind]) => kind === 'delete' || kind === 'add'), false);
+  adapter.verifyModuleAvailability = async () => { throw new Error('divergent preflight must not run'); };
+  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  assert.equal(report.block.settingId, 'new-instance');
+  assert.ok(adapter.events.some(([kind]) => kind === 'add'));
 });
 
 test('fresh flow never reports publication when publish and front confirmation are incomplete', async () => {
