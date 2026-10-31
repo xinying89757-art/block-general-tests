@@ -2,9 +2,10 @@ import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sente
 import { savePage, openPreview } from '../editor.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText, readBackWithRetry, fixtureCategoryState } from './shared.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
+import { registerFreshSettingsCapability } from '../setting-units.mjs';
 
 const SUITE = 'capability:product-category-select';
-export const freshSettings = Object.freeze({ status: 'adapted', createDefinitions: createFreshDefinitions });
+export const freshSettings = registerFreshSettingsCapability('product-category-select', createFreshDefinitions);
 export const checkGroups = Object.freeze({
   'pcs-persistence': ['settings'],
   'pcs-categories-backend': ['backend'],

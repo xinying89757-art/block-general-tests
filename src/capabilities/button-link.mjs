@@ -5,9 +5,10 @@ import { assertAllowedLinkUrl } from '../url-safety.mjs';
 import { dismissReadOnlyPopover, reloadDiscardAndVerify } from '../read-only-dismiss.mjs';
 import { reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
+import { registerFreshSettingsCapability } from '../setting-units.mjs';
 
 const SUITE = 'capability:button-link';
-export const freshSettings = Object.freeze({ status: 'adapted', createDefinitions: createFreshDefinitions });
+export const freshSettings = registerFreshSettingsCapability('button-link', createFreshDefinitions);
 const DEFAULT_TEXT = 'Please set up the required pop-up form here.';
 const MARKER = 'data-autotest-button-link-root';
 const NAMES = {

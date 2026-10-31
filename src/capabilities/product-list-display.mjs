@@ -4,6 +4,7 @@ import { savePage, openPreview } from '../editor.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText, fixtureCategoryState, findControl, controlValue } from './shared.mjs';
 import { executeSettingBatches } from '../batch-save.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
+import { registerFreshSettingsCapability } from '../setting-units.mjs';
 
 const SUITE = 'capability:product-list-display';
 const NAMES = {
@@ -36,9 +37,8 @@ export const batchSaveMetadata = Object.freeze({
   comparison: Object.freeze({}),
   'display-field': Object.freeze({}),
 });
-export const freshSettings = Object.freeze({ status: 'adapted', metadata: batchSaveMetadata,
-  settingKeys: Object.freeze(Object.keys(batchSaveMetadata)),
-  createDefinitions: createProductListBatchDefinitions });
+export const freshSettings = registerFreshSettingsCapability('product-list-display', createProductListBatchDefinitions,
+  { metadata: batchSaveMetadata, settingKeys: Object.freeze(Object.keys(batchSaveMetadata)) });
 
 export async function runListEffectPlan(tasks, { checkGroup } = {}) {
   const selected = checkGroup ? tasks.filter((task) => task.id === checkGroup) : tasks;

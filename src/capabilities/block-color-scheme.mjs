@@ -20,9 +20,10 @@ import { savePage, openPreview } from '../editor.mjs';
 import { TIMEOUT, previewSelector, checkReportText, readBackWithRetry } from './shared.mjs';
 import { RAIL, openRailPanel, readSchemeColor, setSchemeColor, saveColorPanel, cancelColorPanel, normalizeColor } from './rail.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
+import { registerFreshSettingsCapability } from '../setting-units.mjs';
 
 const SUITE = 'capability:block-color-scheme';
-export const freshSettings = Object.freeze({ status: 'adapted', createDefinitions: createFreshDefinitions });
+export const freshSettings = registerFreshSettingsCapability('block-color-scheme', createFreshDefinitions);
 const NAMES = {
   'bcs-state': '配色方案个数与当前值',
   'bcs-color-persist': '配色保存回读与恢复',
