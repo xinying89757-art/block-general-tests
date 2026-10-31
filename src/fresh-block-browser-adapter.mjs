@@ -55,13 +55,13 @@ export function freshRailInventoryRegions(color, width) {
   widthControls.push({ index: customIndex + 1, tag: 'INPUT', type: 'checkbox', name: 'globalApply', label: '全局应用',
     value: 'on', checked: Boolean(width?.globalApply), disabled: false });
   return [
-    { title: 'right-rail-color', type: 'right-rail-color', wrapIndex: 0, kind: 'right-rail-flyout',
+    { title: 'right-rail-color', type: 'rail:color-scheme', wrapIndex: 0, kind: 'right-rail-flyout',
       controls: [{ index: 0, tag: 'INPUT', type: 'text', name: 'scheme-color', label: '配色方案', value: color ?? '', checked: false, disabled: false }] },
-    { title: 'right-rail-width', type: 'right-rail-width', wrapIndex: 0, kind: 'right-rail-flyout', controls: widthControls },
+    { title: 'right-rail-width', type: 'rail:module-width', wrapIndex: 0, kind: 'right-rail-flyout', controls: widthControls },
   ];
 }
 
-export function createFreshBlockBrowserAdapter({ config, session, targetPage, settingsAdapter }) {
+export function createFreshBlockBrowserAdapter({ config, session, targetPage, settingsAdapter, discoverAndPrepareSettings }) {
   let page = session.page;
   let frame;
   let pageItem;
@@ -97,7 +97,11 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     },
     async listAllBlockInstances() { return listInstances(frame); },
     async prepareSettings() {
-      return settingsAdapter.prepare({ page, canvas: frame, frame, config });
+      const args = { page, canvas: frame, frame, config };
+      if (discoverAndPrepareSettings) {
+        return discoverAndPrepareSettings({ ...args, inventory: await readFreshInventory() });
+      }
+      return settingsAdapter.prepare(args);
     },
     async deleteBlockInstance(instance) {
       if (String(instance.blockId) !== String(config.blockId)) {
