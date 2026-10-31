@@ -150,10 +150,15 @@
           {
             "label": "AUTOTEST-单选按钮A",
             "type": "checkbox",
-            "selected": false
+            "selected": true
           },
           {
             "label": "AUTOTEST-下拉列表",
+            "type": "checkbox",
+            "selected": true
+          },
+          {
+            "label": "AUTOTEST-多选",
             "type": "checkbox",
             "selected": false
           }
