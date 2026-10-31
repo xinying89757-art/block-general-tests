@@ -261,6 +261,13 @@ async function listMenuPages(page) {
   });
 }
 
+export async function listFreshEditorPages(page, kind = 'system') {
+  if (!['system', 'custom'].includes(kind)) throw new Error('Page-list kind must be system or custom.');
+  await openPageMenu(page);
+  await clickPageTab(page, kind);
+  return listMenuPages(page);
+}
+
 export async function gotoTargetPage(page, config) {
   const { page: targetPage, kind } = config.resolvedTarget || { page: config.targetPage, kind: 'system' };
   const label = PAGE_LABELS[targetPage.toLowerCase()] || targetPage;
