@@ -5,7 +5,7 @@
 // page URL and block come from arguments; expectations come from the profile.
 //
 // Usage: node scripts/front-style-only.mjs --block <id> --url <frontUrl>
-//          [--profile profiles/<id>.json] [--out reports/x.json] [--setting-id <id>]
+//          [--profile profiles/<id>.json] [--out reports/x.json] [--setting-id <id>] [--channel chrome]
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
@@ -33,7 +33,7 @@ fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.mkdirSync('screenshots', { recursive: true });
 const config = { blockId, actionTimeoutMs: 30000, navigationTimeoutMs: 60000 };
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, ...(args.channel ? { channel: args.channel } : {}) });
 const report = { flow: 'front-style-only', blockId, url: args.url, settingId: args['setting-id'] || null,
   startedAt: new Date().toISOString(), host: process.platform, checks: [], error: null };
 let exitCode = 0;
