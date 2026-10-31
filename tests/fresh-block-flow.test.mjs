@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPageConfig,
-  runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
+  runFreshBlockFlow, readStableBlockInventory, countPageBlocksByNumber } from '../src/fresh-block-flow.mjs';
 import { executeSettingBatches, selectRetainedFailures } from '../src/batch-save.mjs';
 import { createFreshLifecycle, createFreshSettingsAdapter, currentValuesFromInventory, projectPersistedFreshValues } from '../src/fresh-settings-adapter.mjs';
 import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDeleteConfirmIndexes,
@@ -23,7 +23,7 @@ import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
 
 function fakeAdapter(initialInstances = []) {
   const events = [];
-  const state = { instances: structuredClone(initialInstances), values: {}, snapshots: null, report: null };
+  const state = { instances: structuredClone(initialInstances), persistedInstances: structuredClone(initialInstances), values: {}, snapshots: null, report: null };
   const batchAdapter = {
     capture: async (settings) => { state.snapshots = new Map(settings.map((item) => [item.id, null])); return state.snapshots; },
     apply: async (setting, { phase }) => { events.push(['apply', setting.id, phase]); state.values[setting.key] = setting.value; },
@@ -34,7 +34,7 @@ function fakeAdapter(initialInstances = []) {
   };
   return { events, state, batchAdapter,
     openPage: async (page) => { events.push(['openPage', page.kind]); return { editorLink: '/editor' }; },
-    listAllBlockInstances: async () => structuredClone(state.instances),
+    listAllBlockInstances: async () => { events.push(['inventory-read']); return structuredClone(state.instances); },
     deleteBlockInstance: async (instance) => {
       events.push(['delete', instance.blockId, instance.settingId]);
       state.instances = state.instances.filter((item) => item.settingId !== instance.settingId);
@@ -47,6 +47,11 @@ function fakeAdapter(initialInstances = []) {
       state.instances.push(instance); events.push(['add', blockId]); return instance;
     },
     savePage: async () => events.push(['savePage']), reloadPage: async () => events.push(['reloadPage']),
+    waitForInventoryReady: async () => events.push(['inventory-ready']),
+    discardUnsavedChanges: async () => {
+      events.push(['discardUnsavedChanges']); state.instances = structuredClone(state.persistedInstances);
+    },
+    writeStopReport: async (report) => { state.stopReport = report; events.push(['writeStopReport']); },
     readDefaults: async () => [{ controlIdentity: 'dialog:text:heading', label: 'Heading', value: 'Default' }],
     readDefaultsSnapshot: async () => null,
     writeDefaultsSnapshot: async (_path, snapshot) => { state.defaults = snapshot; },
@@ -61,6 +66,27 @@ function fakeAdapter(initialInstances = []) {
 
 const config = { page: { kind: 'custom', name: 'Catalog test' }, siteHost: 'example.test', blockId: '55',
   projectRoot: '/tmp/fresh-flow-test' };
+
+test('stable block inventory requires consecutive identical reads after readiness waits', async () => {
+  const events = [];
+  let tick = 0;
+  let now = 0;
+  const result = await readStableBlockInventory(async () => {
+    events.push(`read-${++tick}`);
+    return tick === 1 ? [{ blockId: 'a' }] : [{ blockId: 'a' }, { blockId: 'b' }];
+  }, { waitForReady: async () => events.push('ready'), timeoutMs: 100, intervalMs: 1,
+    now: () => now, wait: async () => { now += 1; } });
+  assert.deepEqual(result, [{ blockId: 'a' }, { blockId: 'b' }]);
+  assert.deepEqual(events, ['ready', 'read-1', 'ready', 'read-2', 'ready', 'read-3']);
+  assert.deepEqual(countPageBlocksByNumber([{ blockId: 'a' }, { blockId: 'b' }, { blockId: 'a' }]), { a: 2, b: 1 });
+});
+
+test('unstable page inventory fails closed at its configured bound', async () => {
+  let now = 0;
+  await assert.rejects(readStableBlockInventory(async () => [{ blockId: String(++now) }], {
+    timeoutMs: 3, intervalMs: 1, now: () => now, wait: async () => { now += 1; },
+  }), (error) => error.code === 'PAGE_INVENTORY_UNSTABLE' && Array.isArray(error.lastInventory));
+});
 
 test('shared fresh lifecycles support canvas popovers and right-rail flyouts with fail-closed methods', async () => {
   const events = [];
@@ -415,6 +441,10 @@ test('adds and identifies the fresh target before deleting every old target; pre
   const progress = [];
   const report = await runFreshBlockFlow({ config, adapter, settings: [], onProgress: async (event) => progress.push(event) });
   assert.ok(adapter.events.findIndex(([kind]) => kind === 'add') < adapter.events.findIndex(([kind]) => kind === 'delete'));
+  for (const index of adapter.events.flatMap(([kind], position) => kind === 'add' || kind === 'delete' ? [position] : [])) {
+    assert.deepEqual(adapter.events.slice(index + 1, index + 5).map(([event]) => event),
+      ['inventory-ready', 'inventory-read', 'inventory-ready', 'inventory-read']);
+  }
   assert.deepEqual(adapter.events.filter(([kind]) => kind === 'delete'), [['delete', '55', 'old-one'], ['delete', '55', 'old-two']]);
   assert.ok(adapter.state.instances.some((item) => item.settingId === 'unrelated'));
   assert.equal(adapter.state.instances.filter((item) => item.blockId === '55').length, 1);
@@ -433,12 +463,14 @@ test('a failed fresh add stops before deleting any existing target instance', as
   assert.deepEqual(adapter.state.instances.map(({ settingId }) => settingId), ['old']);
 });
 
-test('stops after an old-target delete fails to remove exactly one, preserving the fresh instance', async () => {
+test('stops after an old-target delete fails and discards the unsaved replacement', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
   adapter.deleteBlockInstance = async (instance) => adapter.events.push(['unexpected-delete-noop', instance.settingId]);
   await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /preserving the fresh instance/);
   assert.equal(adapter.events.some(([kind]) => kind === 'add'), true);
-  assert.deepEqual(adapter.state.instances.map(({ settingId }) => settingId), ['old', 'new-instance']);
+  assert.deepEqual(adapter.state.instances.map(({ settingId }) => settingId), ['old']);
+  assert.ok(adapter.events.some(([kind]) => kind === 'discardUnsavedChanges'));
+  assert.equal(adapter.state.stopReport.unsavedEditorStateDiscarded, true);
 });
 
 test('duplicate target instance identity refuses all deletion', async () => {
@@ -459,6 +491,33 @@ test('stops if a delete changes an unmarked different block number', async () =>
   await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /non-target block number changed/);
   assert.equal(adapter.events.some(([kind]) => kind === 'add'), true);
   assert.equal(adapter.events.some(([kind]) => kind === 'savePage' || kind === 'publish'), false);
+});
+
+test('post-add non-target guard reports counts and created id, then discards unsaved editor changes', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
+  const add = adapter.addDefaultBlock;
+  adapter.addDefaultBlock = async (...args) => {
+    const created = await add(...args);
+    adapter.state.instances.push({ blockId: '56', settingId: 'unexpected', ordinal: 0 });
+    return created;
+  };
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), (error) => {
+    assert.match(error.message, /non-target block number changed/);
+    assert.match(error.message, /expected.*actual.*created settingId=new-instance/);
+    assert.equal(error.unsavedEditorStateDiscarded, true);
+    return true;
+  });
+  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'savePage' || kind === 'publish'), []);
+  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'discardUnsavedChanges'), [['discardUnsavedChanges']]);
+  assert.deepEqual(adapter.state.instances, [{ blockId: '55', settingId: 'old', ordinal: 0 }]);
+  assert.equal(adapter.state.stopReport.createdSettingId, 'new-instance');
+  assert.deepEqual(adapter.state.stopReport.expectedNonTargetCounts, {});
+  assert.deepEqual(adapter.state.stopReport.actualNonTargetCounts, { '56': 1 });
+  assert.deepEqual(adapter.state.stopReport.expectedPageCounts, { '55': 2 });
+  assert.deepEqual(adapter.state.stopReport.actualPageCounts, { '55': 2, '56': 1 });
+  assert.deepEqual(adapter.state.stopReport.countDifferences, [{ blockId: '56', expected: 0, actual: 1 }]);
+  assert.equal(adapter.state.stopReport.unsavedEditorStateDiscarded, true);
+  assert.equal(adapter.state.stopReport.publishedAt, null);
 });
 
 test('interfering failed settings retain one failure and report the suppressed value/evidence', () => {

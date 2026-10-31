@@ -25,6 +25,39 @@ export function targetBlockInstances(instances, blockId) {
   return (instances || []).filter((item) => String(item.blockId) === String(blockId));
 }
 
+/** Read a page inventory only after consecutive identical, ready snapshots. */
+export async function readStableBlockInventory(read, { waitForReady = async () => {}, timeoutMs = 15_000,
+  intervalMs = 100, now = () => Date.now(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+  if (typeof read !== 'function') throw new Error('Stable inventory requires a read() function.');
+  const deadline = now() + timeoutMs;
+  let previous;
+  let previousSignature;
+  while (now() < deadline) {
+    await waitForReady({ timeoutMs: Math.max(1, deadline - now()) });
+    const current = await read();
+    const signature = JSON.stringify(current);
+    if (previousSignature !== undefined && signature === previousSignature) return current;
+    previous = current;
+    previousSignature = signature;
+    if (now() >= deadline) break;
+    await wait(Math.min(intervalMs, Math.max(1, deadline - now())));
+  }
+  const error = new Error(`Page block inventory did not stabilize within ${timeoutMs}ms; last snapshot=${JSON.stringify(previous ?? null)}`);
+  error.name = 'TimeoutError';
+  error.code = 'PAGE_INVENTORY_UNSTABLE';
+  error.lastInventory = previous;
+  throw error;
+}
+
+export function countPageBlocksByNumber(instances = []) {
+  const counts = {};
+  for (const instance of instances) {
+    const id = String(instance.blockId);
+    counts[id] = (counts[id] || 0) + 1;
+  }
+  return counts;
+}
+
 const identity = (item) => String(item.controlIdentity ?? item.id ?? item.key);
 
 export function diffFreshDefaults(previous, current) {
@@ -133,13 +166,19 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   }
   if (!config.siteHost || !config.blockId) throw new Error('siteHost and blockId are required.');
   for (const method of ['openPage', 'listAllBlockInstances', 'deleteBlockInstance', 'addDefaultBlock',
-    'savePage', 'reloadPage', 'readDefaults', 'publishPage', 'readCurrentValues', 'readPublishedValues', 'captureFailureScreenshot']) {
+    'savePage', 'reloadPage', 'readDefaults', 'publishPage', 'readCurrentValues', 'readPublishedValues',
+    'captureFailureScreenshot', 'discardUnsavedChanges', 'writeStopReport']) {
     if (typeof adapter?.[method] !== 'function') throw new Error(`Fresh block adapter is missing ${method}().`);
   }
   const opened = await adapter.openPage(config.page);
   await onProgress({ stage: 'page-opened' });
   const deletedSettingIds = [];
-  let instances = await adapter.listAllBlockInstances();
+  const stableRead = () => readStableBlockInventory(() => adapter.listAllBlockInstances(), {
+    waitForReady: adapter.waitForInventoryReady?.bind(adapter),
+    timeoutMs: Number(config.inventoryStabilizeTimeoutMs) || 15_000,
+    intervalMs: Number(config.inventoryPollMs) || 100,
+  });
+  let instances = await stableRead();
   await onProgress({ stage: 'instances-inventoried', targetCount: targetBlockInstances(instances, config.blockId).length });
   const otherBlockCounts = countOtherBlocks(instances, config.blockId);
   const priorTargets = targetBlockInstances(instances, config.blockId);
@@ -150,47 +189,80 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
 
   // Adding first reuses the proven G27 lookup/add path. A failed lookup leaves
   // every existing target instance untouched.
-  const created = await adapter.addDefaultBlock(config.blockId);
-  if (!created || String(created.blockId) !== String(config.blockId) || !created.settingId) {
-    throw new Error('Adapter did not identify the newly added target block instance; existing instances were not deleted.');
-  }
-  instances = await adapter.listAllBlockInstances();
-  assertOtherBlocksUnchanged(otherBlockCounts, instances, config.blockId);
-  let targets = targetBlockInstances(instances, config.blockId);
-  assertUniqueTargetIdentities(targets);
-  const priorIds = new Set(priorTargets.map((item) => String(item.settingId)));
-  const createdMatches = targets.filter((item) => String(item.settingId) === String(created.settingId));
-  if (createdMatches.length !== 1 || priorIds.has(String(created.settingId))
-    || targets.length !== priorTargets.length + 1) {
-    throw new Error('Fresh add did not produce exactly one uniquely identified new target; no existing target was deleted.');
-  }
-  const freshIdentity = String(created.settingId);
-  await onProgress({ stage: 'instance-added', settingId: String(created.settingId || '') });
+  let created;
+  let freshIdentity;
+  let targets;
+  let addAttempted = false;
+  try {
+    addAttempted = true;
+    created = await adapter.addDefaultBlock(config.blockId);
+    if (!created || String(created.blockId) !== String(config.blockId) || !created.settingId) {
+      throw new Error('Adapter did not identify the newly added target block instance; existing instances were not deleted.');
+    }
+    instances = await stableRead();
+    assertOtherBlocksUnchanged(otherBlockCounts, instances, config.blockId, { createdSettingId: created.settingId,
+      expectedTargetCount: priorTargets.length + 1 });
+    targets = targetBlockInstances(instances, config.blockId);
+    assertUniqueTargetIdentities(targets);
+    const priorIds = new Set(priorTargets.map((item) => String(item.settingId)));
+    const createdMatches = targets.filter((item) => String(item.settingId) === String(created.settingId));
+    if (createdMatches.length !== 1 || priorIds.has(String(created.settingId))
+      || targets.length !== priorTargets.length + 1) {
+      throw new Error(`Fresh add did not produce exactly one uniquely identified new target; expected target count ${priorTargets.length + 1}, actual ${targets.length}; created settingId=${created.settingId}.`);
+    }
+    freshIdentity = String(created.settingId);
+    await onProgress({ stage: 'instance-added', settingId: freshIdentity });
 
-  while (targets.some((item) => String(item.settingId) !== freshIdentity)) {
-    const target = targets.find((item) => String(item.settingId) !== freshIdentity);
-    if (!target.settingId || !Number.isInteger(target.ordinal)) {
-      throw new Error('Existing target instance lacks a unique settingId/position; stopped without deleting another block.');
+    while (targets.some((item) => String(item.settingId) !== freshIdentity)) {
+      const target = targets.find((item) => String(item.settingId) !== freshIdentity);
+      if (!target.settingId || !Number.isInteger(target.ordinal)) {
+        throw new Error('Existing target instance lacks a unique settingId/position; stopped without deleting another block.');
+      }
+      await onProgress({ stage: 'delete-started', targetCount: targets.length,
+        preservingSettingId: freshIdentity });
+      await adapter.deleteBlockInstance(target);
+      const afterDelete = await stableRead();
+      assertOtherBlocksUnchanged(otherBlockCounts, afterDelete, config.blockId, { createdSettingId: freshIdentity,
+        expectedTargetCount: targets.length - 1 });
+      const remaining = targetBlockInstances(afterDelete, config.blockId);
+      if (remaining.length !== targets.length - 1
+        || remaining.some((item) => String(item.settingId) === String(target.settingId))
+        || remaining.filter((item) => String(item.settingId) === freshIdentity).length !== 1) {
+        throw new Error(`Delete did not remove exactly one old target while preserving the fresh instance; expected target count ${targets.length - 1}, actual ${remaining.length}; created settingId=${freshIdentity}, deleted settingId=${target.settingId}.`);
+      }
+      targets = remaining;
+      deletedSettingIds.push(String(target.settingId));
+      await onProgress({ stage: 'instance-deleted', targetCount: targets.length,
+        deletedSettingId: String(target.settingId), addedSettingId: freshIdentity,
+        deletedSettingIds: [...deletedSettingIds] });
     }
-    await onProgress({ stage: 'delete-started', targetCount: targets.length,
-      preservingSettingId: freshIdentity });
-    await adapter.deleteBlockInstance(target);
-    const afterDelete = await adapter.listAllBlockInstances();
-    assertOtherBlocksUnchanged(otherBlockCounts, afterDelete, config.blockId);
-    const remaining = targetBlockInstances(afterDelete, config.blockId);
-    if (remaining.length !== targets.length - 1
-      || remaining.some((item) => String(item.settingId) === String(target.settingId))
-      || remaining.filter((item) => String(item.settingId) === freshIdentity).length !== 1) {
-      throw new Error('Delete did not remove exactly one old target while preserving the fresh instance.');
+    if (targets.length !== 1 || !targets.some((item) => String(item.settingId) === freshIdentity)) {
+      throw new Error(`After replacement, expected exactly one fresh target; actual ${targets.length}, created settingId=${freshIdentity}.`);
     }
-    targets = remaining;
-    deletedSettingIds.push(String(target.settingId));
-    await onProgress({ stage: 'instance-deleted', targetCount: targets.length,
-      deletedSettingId: String(target.settingId), addedSettingId: freshIdentity,
-      deletedSettingIds: [...deletedSettingIds] });
-  }
-  if (targets.length !== 1 || !targets.some((item) => String(item.settingId) === freshIdentity)) {
-    throw new Error('After replacement, expected exactly the fresh target instance.');
+  } catch (error) {
+    if (addAttempted) {
+      let discarded = false;
+      let discardError = null;
+      try { await adapter.discardUnsavedChanges(); discarded = true; }
+      catch (discardFailure) { discardError = discardFailure.message; }
+      const actualInstances = Array.isArray(error.lastInventory) ? error.lastInventory : instances;
+      const guard = error.guardDiagnostics || blockCountDiagnostics(otherBlockCounts, actualInstances, config.blockId);
+      const stopReport = { schemaVersion: 1, flow: 'fresh-block', status: 'stopped-before-save', runId,
+        siteHost: config.siteHost, blockId: String(config.blockId), page: config.page,
+        stage: error.stage || 'post-add-or-delete-inventory', createdSettingId: created?.settingId ? String(created.settingId) : null,
+        deletedSettingIds: [...deletedSettingIds], expectedNonTargetCounts: guard.expected,
+        actualNonTargetCounts: guard.actual, countDifferences: guard.differences,
+        expectedPageCounts: guard.expectedPageCounts, actualPageCounts: guard.actualPageCounts,
+        unsavedEditorStateDiscarded: discarded, discardError, saved: false, publishedAt: null,
+        error: error.message };
+      error.stopReport = stopReport;
+      error.unsavedEditorStateDiscarded = discarded;
+      await adapter.writeStopReport?.(stopReport);
+      await onProgress({ stage: 'pre-save-guard-stopped', createdSettingId: created?.settingId ? String(created.settingId) : null,
+        expectedNonTargetCounts: guard.expected, actualNonTargetCounts: guard.actual,
+        unsavedEditorStateDiscarded: discarded, discardError });
+    }
+    throw error;
   }
   await adapter.savePage();
   await onProgress({ stage: 'fresh-instance-saved' });
@@ -369,19 +441,34 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
 }
 
 function countOtherBlocks(instances, blockId) {
-  const counts = new Map();
-  for (const item of instances || []) {
-    if (String(item.blockId) === String(blockId)) continue;
-    const key = String(item.blockId);
-    counts.set(key, (counts.get(key) || 0) + 1);
-  }
-  return counts;
+  return Object.fromEntries(Object.entries(countPageBlocksByNumber(instances))
+    .filter(([id]) => id !== String(blockId)).sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })));
 }
 
-function assertOtherBlocksUnchanged(expected, instances, blockId) {
+function blockCountDiagnostics(expected, instances, blockId, expectedTargetCount) {
+  const expectedObject = expected instanceof Map
+    ? Object.fromEntries([...expected].sort(([a], [b]) => String(a).localeCompare(String(b), undefined, { numeric: true })))
+    : { ...expected };
   const actual = countOtherBlocks(instances, blockId);
-  if (expected.size !== actual.size || [...expected].some(([id, count]) => actual.get(id) !== count)) {
-    throw new Error('A non-target block number changed on the selected page; stopping immediately.');
+  const ids = [...new Set([...Object.keys(expectedObject), ...Object.keys(actual)])]
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const differences = ids.flatMap((id) => (expectedObject[id] || 0) === (actual[id] || 0) ? [] : [
+    { blockId: id, expected: expectedObject[id] || 0, actual: actual[id] || 0 },
+  ]);
+  const actualPageCounts = countPageBlocksByNumber(instances);
+  const expectedPageCounts = { ...expectedObject,
+    ...(Number.isInteger(expectedTargetCount) ? { [String(blockId)]: expectedTargetCount } : {}) };
+  return { expected: expectedObject, actual, differences, expectedPageCounts, actualPageCounts };
+}
+
+function assertOtherBlocksUnchanged(expected, instances, blockId, { createdSettingId, expectedTargetCount } = {}) {
+  const diagnostics = blockCountDiagnostics(expected, instances, blockId, expectedTargetCount);
+  if (diagnostics.differences.length) {
+    const error = new Error(`A non-target block number changed on the selected page; stopping immediately. Expected non-target counts=${JSON.stringify(diagnostics.expected)}; actual=${JSON.stringify(diagnostics.actual)}; differences=${JSON.stringify(diagnostics.differences)}; created settingId=${createdSettingId || 'not-yet-known'}.`);
+    error.code = 'NON_TARGET_BLOCK_COUNT_CHANGED';
+    error.guardDiagnostics = diagnostics;
+    error.lastInventory = instances;
+    throw error;
   }
 }
 

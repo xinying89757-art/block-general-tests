@@ -8,6 +8,7 @@ import { waitForPublishSignal, verifyFrontInstance, choosePublishMenuItem } from
 import { inspectActiveModuleLibraryOpener, probeModuleLibraryModes,
   waitForUniqueVisibleModuleLibraryPanel } from './module-library-browser.mjs';
 import { RAIL, openRailPanel, readSchemeColor, readModuleWidth, cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
+import { waitForEditorLoadingToClear } from './ui-waits.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 
@@ -134,6 +135,12 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       throw error;
     },
     async listAllBlockInstances() { return listInstances(frame); },
+    async waitForInventoryReady({ timeoutMs } = {}) {
+      const options = { timeoutMs: Math.min(Number(timeoutMs) || 15_000, Number(config.inventoryOverlayTimeoutMs) || 15_000), intervalMs: 100 };
+      await waitForEditorLoadingToClear(page, options);
+      await waitForEditorLoadingToClear(frame, options);
+      await frame.locator('body').waitFor({ state: 'visible', timeout: options.timeoutMs });
+    },
     async prepareSettings() {
       const args = { page, canvas: frame, frame, config };
       if (discoverAndPrepareSettings) {
@@ -162,6 +169,30 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       // The reload is scoped to the editor URL and returns to the same explicit page.
       const selected = await gotoFreshTargetPage(page, resolvedTarget);
       frame = selected.frame;
+    },
+    async discardUnsavedChanges() {
+      const onDialog = (dialog) => {
+        if (dialog.type() === 'beforeunload') return dialog.accept();
+        return dialog.dismiss();
+      };
+      page.on('dialog', onDialog);
+      try {
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });
+      } finally {
+        page.off('dialog', onDialog);
+      }
+      const selected = await gotoFreshTargetPage(page, resolvedTarget);
+      frame = selected.frame;
+      pageItem = selected.pageItem || pageItem;
+    },
+    async writeStopReport(report) {
+      const projectRoot = config.projectRoot || process.cwd();
+      const directory = path.resolve(projectRoot, config.reportDir || 'reports');
+      await fs.mkdir(directory, { recursive: true });
+      const file = path.join(directory, `fresh-block-${config.blockId}-${Date.now()}-pre-save-stop.json`);
+      await fs.writeFile(file, `${JSON.stringify(report, null, 2)}\n`);
+      console.error(`[fresh-block] pre-save guard report: ${file}`);
+      return file;
     },
     async readDefaults() {
       return currentValuesFromInventory(await readFreshInventory());
