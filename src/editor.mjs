@@ -209,7 +209,7 @@ export async function reloadEditor(page, config) {
   const target = config?.resolvedTarget;
   const wanted = target ? (PAGE_LABELS[target.page.toLowerCase()] || target.page) : before;
   if (!wanted) throw new Error('刷新编辑器前无法确定目标页。');
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: Number(config?.navigationTimeoutMs) || 60_000 });
   await waitForEditorReady(page);
   if (await currentPageName() !== wanted) {
     if (!config) throw new Error(`刷新编辑器后未停留在目标页「${wanted}」，请提供目标页配置。`);

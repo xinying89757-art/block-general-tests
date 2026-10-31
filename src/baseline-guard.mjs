@@ -127,7 +127,9 @@ function serialize(control) {
 
 export async function readCurrentState({ page, canvas, config, baseline }) {
   const current = [];
-  for (const definition of baseline || []) {
+  const orderedDefinitions = [...(baseline || [])].sort((left, right) =>
+    Number(left.kind === 'button-popover') - Number(right.kind === 'button-popover'));
+  for (const definition of orderedDefinitions) {
     if (definition.skipped) { current.push(structuredClone(definition)); continue; }
     if (definition.kind === 'button-popover') {
       const button = await readButtonPopover({ page, canvas, config });

@@ -99,7 +99,9 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
     return { type, wrapIndex };
   });
   const inventory = [];
-  for (const [index, { type, wrapIndex }] of regions.entries()) {
+  const readOrder = [...regions].sort((left, right) =>
+    Number(left.type === 'phoenix_blocks_button') - Number(right.type === 'phoenix_blocks_button'));
+  for (const [index, { type, wrapIndex }] of readOrder.entries()) {
     onProgress?.({ index: index + 1, total: regions.length, type, wrapIndex });
     if (type === 'phoenix_blocks_button') {
       const region = { type, wrapIndex, title: null, kind: 'button-popover', controls: [] };
@@ -107,7 +109,9 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
         const popover = await readButtonPopover({ page, canvas, config });
         region.controls = popover.want.map(({ to, ...item }) => ({ ...item,
           ...(item.type === 'checkbox' ? { checked: to } : { value: to }) }));
-      } catch (error) { region.skipped = error.message; }
+      } catch (error) {
+        throw new Error(`读取按钮浮层失败，拒绝捕获不完整基线：${error.message}`);
+      }
       inventory.push(region);
       continue;
     }

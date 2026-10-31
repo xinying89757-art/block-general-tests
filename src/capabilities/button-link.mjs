@@ -2,7 +2,8 @@ import { effectCheck, unavailable, readEffectRoot } from './effect-checks.mjs';
 import { baselineRestoreTarget, clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
 import { retryTransient, uiWaitConfig } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
-import { dismissReadOnlyPopover } from '../read-only-dismiss.mjs';
+import { dismissReadOnlyPopover, reloadDiscardAndVerify } from '../read-only-dismiss.mjs';
+import { reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
 
 const SUITE = 'capability:button-link';
 const DEFAULT_TEXT = 'Please set up the required pop-up form here.';
@@ -100,13 +101,11 @@ function identify(controls) {
 
 // Small public surface shared by baseline capture/guard/apply. The labels are
 // deliberately the ones used by this module's DOM recognizer.
-export async function readButtonPopover({ page, canvas, config }) {
-  const session = popoverSession({ page, canvas, config });
-  try {
-    await session.open();
-    const controls = await buttonControls(session);
-    const link = await readLinkType(session, controls);
-    return {
+async function readButtonPopoverValue({ page, canvas, config, session = popoverSession({ page, canvas, config }) }) {
+  await session.open();
+  const controls = await buttonControls(session);
+  const link = await readLinkType(session, controls);
+  return { root: session.root, value: {
       text: controls.text.value,
       url: controls.url.value,
       linkType: link.selected,
@@ -116,10 +115,40 @@ export async function readButtonPopover({ page, canvas, config }) {
         { label: '链接网址', type: 'text', to: controls.url.value },
         { label: '新窗口打开', type: 'checkbox', to: controls.target.checked },
       ],
-    };
+  } };
+}
+
+async function reloadEditorDiscardingButtonUi({ page, canvas, config }) {
+  let unexpectedDialog = '';
+  const handleDialog = async (dialog) => {
+    if (dialog.type() === 'beforeunload') await dialog.accept();
+    else {
+      unexpectedDialog = dialog.type();
+      await dialog.dismiss();
+    }
+  };
+  page.on('dialog', handleDialog);
+  try {
+    const reloaded = await reloadEditor(page, config);
+    await verifyEditorSiteIdentity(page, config);
+    await reloaded.frame.locator(blockSelector(config.blockId)).first().waitFor({ state: 'attached', timeout: TIMEOUT });
+    if (unexpectedDialog) throw new Error(`重载时出现非 beforeunload 对话框（${unexpectedDialog}），已停止只读检查。`);
+    return reloaded.frame;
+  } finally { page.off('dialog', handleDialog); }
+}
+
+export async function readButtonPopover({ page, canvas, config }) {
+  let values;
+  const session = popoverSession({ page, canvas, config });
+  let popoverRoot = session.root;
+  let dismissal;
+  try {
+    const read = await readButtonPopoverValue({ page, canvas, config, session });
+    values = read.value;
+    popoverRoot = read.root;
   } finally {
-    await dismissReadOnlyPopover({
-      isVisible: () => session.root.isVisible().catch(() => false),
+    dismissal = await dismissReadOnlyPopover({
+      isVisible: () => popoverRoot?.isVisible().catch(() => false) ?? false,
       pressEscape: async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(300); },
       neutralClick: async () => { await page.mouse.click(1, 1); await page.waitForTimeout(300); },
       toggleTrigger: async () => { await clickSettings(canvas, config, 'phoenix_blocks_button'); await page.waitForTimeout(300); },
@@ -129,8 +158,21 @@ export async function readButtonPopover({ page, canvas, config }) {
         await page.keyboard.press('Escape');
         await page.waitForTimeout(300);
       },
+      reloadDiscard: async () => {
+        const reload = async () => { canvas = await reloadEditorDiscardingButtonUi({ page, canvas, config }); };
+        if (!values) { await reload(); return; }
+        const persistedValues = ({ text, url, linkType, newWindow }) => ({ text, url, linkType, newWindow });
+        const afterReload = await reloadDiscardAndVerify({
+          reload,
+          readBack: async () => persistedValues((await readButtonPopoverValue({ page, canvas, config })).value),
+          expected: persistedValues(values),
+          finishReload: reload,
+        });
+        if (JSON.stringify(afterReload) !== JSON.stringify(persistedValues(values))) throw new Error('按钮弹窗重载回读不一致。');
+      },
     });
   }
+  return { ...values, dismissal };
 }
 
 export async function writeButtonPopover({ page, canvas, config, want }) {
