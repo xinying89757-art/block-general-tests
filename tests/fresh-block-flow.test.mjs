@@ -156,6 +156,17 @@ test('failed fresh setting remains on its failing value and the page is publishe
   assert.equal(report.failures[0].value, 'wrong-value');
 });
 
+test('fresh batch execution error stops before publish and records the unpublished state', async () => {
+  const adapter = fakeAdapter();
+  adapter.batchAdapter.save = async () => { throw new Error('editor save control unavailable'); };
+  const report = await runFreshBlockFlow({ config, adapter, settings: [
+    { id: 'setting', key: 'setting', value: 'changed' },
+  ] });
+  assert.equal(adapter.events.some(([kind]) => kind === 'publish'), false);
+  assert.equal(report.publishedAt, null);
+  assert.ok(report.flowErrors.some(({ stage, message }) => stage === 'publish' && /Skipped/.test(message)));
+});
+
 test('changed defaults are reported as informational differences', () => {
   const diff = diffFreshDefaults({ values: [{ controlIdentity: 'x', label: 'Width', value: '100' }] },
     [{ controlIdentity: 'x', label: 'Width', value: '120' }, { controlIdentity: 'y', label: 'New', value: true }]);

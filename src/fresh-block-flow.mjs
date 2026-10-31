@@ -181,11 +181,13 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
 
   let batch;
   const flowErrors = [];
+  let batchExecutionFailed = false;
   try {
     batch = await executeSettingBatches({ settings: settingsToRun, metadata: metadataToUse, adapter: batchAdapter, finalState: 'retain-tested-values' });
     batch.results = [...staticResults, ...batch.results];
     await onProgress({ stage: 'batches-finished', checkCount: batch.results.length });
   } catch (error) {
+    batchExecutionFailed = true;
     flowErrors.push({ stage: 'batch-settings', message: error.message });
     batch = { batches: plan.map(({ settings: items, restoreBefore }) => ({ settingIds: items.map((item) => item.id), restoreBefore })),
       results: [...staticResults, { id: 'fresh-batch-execution', status: 'fail', detail: error.message }],
@@ -200,9 +202,13 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     throw new Error('The page no longer contains exactly one test instance of the target block number; refusing to publish.');
   }
   let published = null;
-  try { await onProgress({ stage: 'publish-started' }); published = await adapter.publishPage();
-    await onProgress({ stage: 'published' }); }
-  catch (error) { flowErrors.push({ stage: 'publish', message: error.message }); }
+  if (!batchExecutionFailed) {
+    try { await onProgress({ stage: 'publish-started' }); published = await adapter.publishPage();
+      await onProgress({ stage: 'published' }); }
+    catch (error) { flowErrors.push({ stage: 'publish', message: error.message }); }
+  } else {
+    flowErrors.push({ stage: 'publish', message: 'Skipped because batch settings execution failed; page was left unpublished.' });
+  }
   const report = buildFreshReport({ runId, siteHost: config.siteHost, blockId: config.blockId,
     page: config.page, instance: fresh, capabilities: capabilitiesToReport, defaults, batch,
     currentValues: values, editorLink: opened.editorLink || adapter.editorLink?.(),
