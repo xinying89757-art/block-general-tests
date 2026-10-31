@@ -50,6 +50,15 @@ try {
   report.screenshots = shots.map((f) => `screenshots/${f}`);
 } catch (error) {
   report.error = error.message; exitCode = 1;
+  try {
+    const pg = browser.contexts()[0]?.pages()[0];
+    if (pg) {
+      report.finalUrl = pg.url(); report.title = await pg.title();
+      report.appIdsOnPage = await pg.evaluate(() => [...new Set([...document.querySelectorAll('[data-appid]')].map((e) => e.getAttribute('data-appid')))]);
+      const f = `screenshots/front-error-${blockId}-${stamp}.png`;
+      await pg.screenshot({ path: f, fullPage: true }); report.errorScreenshot = f;
+    }
+  } catch {}
 } finally {
   await browser.close();
 }
