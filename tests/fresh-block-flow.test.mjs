@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPageConfig,
   runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
 import { selectRetainedFailures } from '../src/batch-save.mjs';
-import { createFreshSettingsAdapter, currentValuesFromInventory, projectPersistedFreshValues } from '../src/fresh-settings-adapter.mjs';
+import { createFreshLifecycle, createFreshSettingsAdapter, currentValuesFromInventory, projectPersistedFreshValues } from '../src/fresh-settings-adapter.mjs';
 import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDeleteConfirmIndexes,
   matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from '../src/fresh-editor-actions.mjs';
 import { matchingPageSaveControls, waitForUniquePageSaveControl } from '../src/page-save-control.mjs';
@@ -49,6 +49,24 @@ function fakeAdapter(initialInstances = []) {
 
 const config = { page: { kind: 'custom', name: 'Catalog test' }, siteHost: 'example.test', blockId: '55',
   projectRoot: '/tmp/fresh-flow-test' };
+
+test('shared fresh lifecycles support canvas popovers and right-rail flyouts with fail-closed methods', async () => {
+  const events = [];
+  const operations = Object.fromEntries(['open', 'read', 'apply', 'commit', 'cancel'].map((name) => [name,
+    async () => events.push(name)]));
+  const popover = createFreshLifecycle('canvas-popover', operations);
+  await assert.rejects(popover.read(), /requires an open surface/);
+  await popover.open(); await popover.apply('value');
+  assert.equal(popover.hasUncommittedChanges, true);
+  await popover.commit();
+  assert.equal(popover.isOpen, false);
+  const flyout = createFreshLifecycle('right-rail-flyout', operations);
+  await flyout.open(); await flyout.read(); await flyout.cancel();
+  assert.equal(flyout.isOpen, false);
+  assert.deepEqual(events, ['open', 'apply', 'commit', 'open', 'read', 'cancel']);
+  assert.throws(() => createFreshLifecycle('unknown-surface', operations), /Unknown fresh settings lifecycle/);
+  assert.throws(() => createFreshLifecycle('right-rail-flyout', { open: operations.open }), /requires read/);
+});
 
 test('fresh flow requires explicit custom or system page configuration', () => {
   assert.throws(() => parseFreshPageConfig({}), /FRESH_PAGE_KIND/);

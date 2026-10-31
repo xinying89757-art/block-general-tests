@@ -9,6 +9,44 @@
  * outside adapted definitions are reported as unverified instead of silently
  * becoming persistence assertions.
  */
+export const FRESH_LIFECYCLE_KINDS = Object.freeze(['canvas-popover', 'right-rail-flyout']);
+
+/**
+ * Shared lifecycle wrapper for non-dialog capability surfaces. Capability
+ * modules provide verified UI operations; this contract enforces open-state
+ * sequencing and rejects unsupported lifecycle kinds.
+ */
+export function createFreshLifecycle(kind, operations = {}) {
+  if (!FRESH_LIFECYCLE_KINDS.includes(kind)) throw new Error(`Unknown fresh settings lifecycle: ${kind}`);
+  for (const method of ['open', 'read', 'apply', 'commit', 'cancel']) {
+    if (typeof operations[method] !== 'function') throw new Error(`Fresh ${kind} lifecycle requires ${method}().`);
+  }
+  let opened = false;
+  let dirty = false;
+  return Object.freeze({
+    kind,
+    async open() { if (!opened) { await operations.open(); opened = true; } },
+    async read(...args) {
+      if (!opened) throw new Error(`Fresh ${kind} lifecycle read requires an open surface.`);
+      return operations.read(...args);
+    },
+    async apply(...args) {
+      if (!opened) throw new Error(`Fresh ${kind} lifecycle apply requires an open surface.`);
+      await operations.apply(...args); dirty = true;
+    },
+    async commit(...args) {
+      if (!opened) throw new Error(`Fresh ${kind} lifecycle commit requires an open surface.`);
+      await operations.commit(...args); opened = false; dirty = false;
+    },
+    async cancel(...args) {
+      if (!opened) return;
+      await operations.cancel(...args); opened = false; dirty = false;
+    },
+    get isOpen() { return opened; },
+    get hasUncommittedChanges() { return dirty; },
+  });
+}
+
 export async function createFreshSettingsAdapter({ capabilities = [], context = {}, loadCapability }) {
   if (typeof loadCapability !== 'function') throw new Error('Fresh adapter requires a capability module loader.');
   const modules = [];
@@ -40,6 +78,12 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         capabilityResults.push({ capability: id, status: 'not-adapted', reason: created.notAdaptedReason });
         continue;
       }
+      for (const setting of created.settings) {
+        if (setting.lifecycle && (!FRESH_LIFECYCLE_KINDS.includes(setting.lifecycle.kind)
+          || ['open', 'read', 'apply', 'commit', 'cancel'].some((method) => typeof setting.lifecycle[method] !== 'function'))) {
+          throw new Error(`Setting ${setting.id} has an unknown or incomplete fresh lifecycle.`);
+        }
+      }
       preparedModules.set(id, { definition, created });
       settings.push(...created.settings.map((setting) => ({ ...setting, capability: id })));
       staticResults.push(...(created.staticResults || []));
@@ -54,18 +98,29 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
       capture: async (items) => new Map(items.map((setting) => [setting.id, setting.initialValue])),
       apply: async (setting, phase) => {
         if (typeof setting.apply !== 'function') throw new Error(`Setting ${setting.id} has no apply definition.`);
+        await setting.lifecycle?.open();
         await setting.captureEffect?.({ ...mergedContext, ...phase, setting });
         await setting.apply({ ...mergedContext, ...phase, setting });
         pendingCapabilities.add(setting.capability);
       },
       restore: async (setting, phase) => {
         if (typeof setting.restore !== 'function') throw new Error(`Setting ${setting.id} has no initial-value restore definition.`);
+        await setting.lifecycle?.open();
         await setting.restore({ ...mergedContext, ...phase, setting });
         pendingCapabilities.add(setting.capability);
       },
       save: async (info) => {
         if (typeof mergedContext.save !== 'function') throw new Error('Fresh capability adapter has no page-save operation.');
         const active = [...preparedModules.entries()].filter(([id]) => pendingCapabilities.has(id));
+        const committed = new Set();
+        for (const [, { created }] of active) {
+          for (const setting of created.settings) {
+            if (setting.lifecycle && !committed.has(setting.lifecycle)) {
+              committed.add(setting.lifecycle);
+              await setting.lifecycle.commit({ reason: info?.reason, capability: setting.capability });
+            }
+          }
+        }
         for (const [id, { definition, created }] of active) {
           const prepareSave = created.prepareSave || definition.prepareSave;
           await prepareSave?.({ ...mergedContext, reason: info?.reason, capability: id });
