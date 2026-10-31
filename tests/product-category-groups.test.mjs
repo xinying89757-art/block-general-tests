@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { categoryRestoreChanges } from '../src/capabilities/effect-checks.mjs';
 import { categorySelectionChanges, selectedCheckGroupLayer } from '../src/capabilities/product-category-select.mjs';
-import { planCheckboxBatch } from '../src/capabilities/shared.mjs';
+import { normalizeControlLabel, planCheckboxBatch } from '../src/capabilities/shared.mjs';
 
 const box = (index, label, checked) => ({ index, tag: 'INPUT', type: 'checkbox', name: 'leafProdGroup',
   label, context: label, value: 'on', checked, disabled: false, readOnly: false });
@@ -32,6 +32,11 @@ test('batch rejects an uneditable change but permits an already-correct disabled
   assert.deepEqual(planCheckboxBatch([locked], [{ target: locked, value: true }]), []);
   assert.throws(() => planCheckboxBatch([locked], [{ target: locked, value: false }]), /锁定分类.*不可编辑/);
   assert.throws(() => planCheckboxBatch([], [{ target: locked, value: false }]), /身份变化或缺失/);
+});
+
+test('category control label normalization collapses line breaks consistently', () => {
+  assert.equal(normalizeControlLabel('Circular Connector\nM12 Waterproof\n Product Name'),
+    'Circular Connector M12 Waterproof Product Name');
 });
 
 test('product category groups isolate persistence from category backend effects', () => {

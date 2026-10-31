@@ -3,6 +3,10 @@ import { waitForControlsReady, retryTransient, saveAndWait, readBackWithRetry, u
 export { readBackWithRetry } from '../ui-waits.mjs';
 
 export const TIMEOUT = 10_000;
+const CONTROL_LABEL_WHITESPACE_PATTERN = '\\s+';
+export function normalizeControlLabel(text) {
+  return String(text || '').replace(new RegExp(CONTROL_LABEL_WHITESPACE_PATTERN, 'g'), ' ').trim();
+}
 export function baselineRestoreTarget({ snapshot, baselineValue, defaultValue }) {
   if (baselineValue !== undefined && baselineValue !== null) return { value: baselineValue, source: 'baseline' };
   if (typeof snapshot === 'string' && /^AUTOTEST-/i.test(snapshot)) return { value: defaultValue, source: 'default-after-autotest-snapshot' };
@@ -256,8 +260,8 @@ export function controlSession(root, lifecycle) {
   const setMany = async (changes) => {
     if (!Array.isArray(changes) || !changes.length) return;
     await retryTransient(() => waitForControlsReady(root));
-    await root.evaluate((node, updates) => {
-      const norm = (text) => (text || '').replace(/\\s+/g, ' ').trim();
+    await root.evaluate((node, { updates, whitespacePattern }) => {
+      const norm = (text) => (text || '').replace(new RegExp(whitespacePattern, 'g'), ' ').trim();
       const inputs = node.querySelectorAll('input, select, textarea');
       for (const { target, value } of updates) {
         const input = inputs[target.index];
@@ -276,7 +280,7 @@ export function controlSession(root, lifecycle) {
         const input = inputs[target.index];
         if (input.checked !== value) input.click();
       }
-    }, changes, { timeout: TIMEOUT });
+    }, { updates: changes, whitespacePattern: CONTROL_LABEL_WHITESPACE_PATTERN }, { timeout: TIMEOUT });
     const targets = changes;
     const settled = await poll(read, (items) => targets.every(({ target, value }) => {
       const actual = findControl(items, target);
