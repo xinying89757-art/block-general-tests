@@ -245,8 +245,19 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   let published = null;
   let publishedReadback = null;
   if (!batchExecutionFailed) {
-    try { await onProgress({ stage: 'publish-started' }); published = await adapter.publishPage();
-      await onProgress({ stage: 'published' }); }
+    try { await onProgress({ stage: 'publish-started' }); published = await adapter.publishPage({ settingId: fresh.settingId });
+      // A click is not proof: require an editor success signal and the exact
+      // instance on the cache-busted public page when the adapter reports them.
+      const unconfirmed = published && (published.publishSignal || published.frontVerification) && published.confirmed !== true;
+      await onProgress({ stage: unconfirmed ? 'publish-unconfirmed' : 'published',
+        ...(published?.publishSignal ? { signal: published.publishSignal.status } : {}),
+        ...(published?.frontVerification ? { front: published.frontVerification.status } : {}) });
+      if (unconfirmed) {
+        const detail = `发布未确认：编辑器信号=${published.publishSignal?.status || 'n/a'}，前台=${published.frontVerification?.status || 'n/a'}`;
+        flowErrors.push({ stage: 'publish-confirmation', message: detail, frontVerification: published.frontVerification });
+        batch.results.push({ id: 'fresh-publish-confirmed', status: 'fail', detail,
+          batchResult: { expected: '编辑器出现发布成功提示，且带 ?t= 的前台页面包含本次新加的区块实例。', actual: detail, detail } });
+      } }
     catch (error) {
       const screenshot = await captureFailure('publish');
       flowErrors.push({ stage: 'publish', message: error.message, screenshot });
