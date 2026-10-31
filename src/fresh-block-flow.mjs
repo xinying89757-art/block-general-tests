@@ -44,6 +44,33 @@ export function diffFreshDefaults(previous, current) {
   return { firstCapture: false, changes };
 }
 
+export function compareFreshValueSnapshots(before = [], after = []) {
+  const keyed = (items) => {
+    const occurrences = new Map();
+    return (items || []).map((item) => {
+      const base = JSON.stringify([item.region || '', item.label || item.key || item.id || '', item.type || '']);
+      const occurrence = occurrences.get(base) || 0;
+      occurrences.set(base, occurrence + 1);
+      return { key: `${base}:${occurrence}`, item };
+    });
+  };
+  const left = new Map(keyed(before).map(({ key, item }) => [key, item]));
+  const right = new Map(keyed(after).map(({ key, item }) => [key, item]));
+  const mismatches = [];
+  for (const [key, expected] of left) {
+    const actual = right.get(key);
+    if (!actual || JSON.stringify(expected.value) !== JSON.stringify(actual.value)) {
+      mismatches.push({ controlIdentity: expected.controlIdentity || key, label: expected.label || '',
+        expected: expected.value, actual: actual?.value ?? null, kind: actual ? 'changed' : 'missing' });
+    }
+  }
+  for (const [key, actual] of right) if (!left.has(key)) {
+    mismatches.push({ controlIdentity: actual.controlIdentity || key, label: actual.label || '',
+      expected: null, actual: actual.value, kind: 'added' });
+  }
+  return { status: mismatches.length ? 'fail' : 'pass', mismatches };
+}
+
 export function freshDefaultsPath(root, siteHost, blockId) {
   if (!siteHost || !String(blockId).trim()) throw new Error('siteHost and blockId are required for fresh default snapshots.');
   const hostPart = encodeURIComponent(String(siteHost).toLowerCase());
@@ -64,13 +91,13 @@ export async function writeFreshDefaultsSnapshot(file, snapshot) {
 }
 
 export function buildFreshReport({ runId, siteHost, blockId, page, instance, capabilities = [],
-  defaults, batch, currentValues, editorLink, frontLink, publishedAt, deletedSettingIds = [], flowErrors = [] }) {
+  defaults, batch, currentValues, publishedReadback = null, editorLink, frontLink, publishedAt, deletedSettingIds = [], flowErrors = [] }) {
   const failures = batch.results.filter((item) => item.status === 'fail').map((item) => ({
     checkId: item.id,
     setting: item.setting || item.id,
     value: item.value,
-    expected: item.batchResult?.expected,
-    actual: item.batchResult?.actual,
+    expected: item.batchResult?.expected ?? item.expected,
+    actual: item.batchResult?.actual ?? item.actual,
     detail: item.batchResult?.detail || item.detail,
     screenshot: item.batchResult?.screenshot || item.rerunAloneResult?.screenshot || null,
     rerunAloneResult: item.rerunAloneResult || null,
@@ -79,11 +106,12 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
     schemaVersion: 1, flow: 'fresh-block', runId, siteHost, blockId,
     page,
     block: { settingId: instance.settingId || null, position: instance.position || null,
-      currentValues: currentValues || [] },
+      currentValues: currentValues || [], publishedReadbackValues: publishedReadback?.currentValues || null },
     lifecycle: { deletedSettingIds: [...deletedSettingIds], addedSettingId: instance.settingId || null },
     defaults, capabilities, batches: batch.batches, checks: batch.results, failures,
     retainedFailures: batch.timing.retainedFailures || { selectedIds: [], suppressed: [] },
     timing: batch.timing, settingsMode: 'BATCH_SAVE / retain-tested-values', flowErrors,
+    publishedReadback,
     links: { editor: editorLink || null, front: frontLink || null },
     publishedAt,
   };
@@ -101,7 +129,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   }
   if (!config.siteHost || !config.blockId) throw new Error('siteHost and blockId are required.');
   for (const method of ['openPage', 'listAllBlockInstances', 'deleteBlockInstance', 'addDefaultBlock',
-    'savePage', 'reloadPage', 'readDefaults', 'publishPage', 'readCurrentValues']) {
+    'savePage', 'reloadPage', 'readDefaults', 'publishPage', 'readCurrentValues', 'readPublishedValues', 'captureFailureScreenshot']) {
     if (typeof adapter?.[method] !== 'function') throw new Error(`Fresh block adapter is missing ${method}().`);
   }
   const opened = await adapter.openPage(config.page);
@@ -182,15 +210,27 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   let batch;
   const flowErrors = [];
   let batchExecutionFailed = false;
+  const captureFailure = async (stage) => {
+    try { return await adapter.captureFailureScreenshot?.({ runId, stage }) || null; }
+    catch (error) { flowErrors.push({ stage: `${stage}-screenshot`, message: error.message }); return null; }
+  };
   try {
     batch = await executeSettingBatches({ settings: settingsToRun, metadata: metadataToUse, adapter: batchAdapter, finalState: 'retain-tested-values' });
     batch.results = [...staticResults, ...batch.results];
+    for (const item of batch.results.filter((result) => result.status === 'fail')) {
+      if (!item.batchResult?.screenshot && !item.rerunAloneResult?.screenshot) {
+        const screenshot = await captureFailure(`check-${item.id}`);
+        if (screenshot) item.batchResult = { ...(item.batchResult || {}), screenshot };
+      }
+    }
     await onProgress({ stage: 'batches-finished', checkCount: batch.results.length });
   } catch (error) {
     batchExecutionFailed = true;
-    flowErrors.push({ stage: 'batch-settings', message: error.message });
+    const screenshot = await captureFailure('batch-settings');
+    flowErrors.push({ stage: 'batch-settings', message: error.message, screenshot });
     batch = { batches: plan.map(({ settings: items, restoreBefore }) => ({ settingIds: items.map((item) => item.id), restoreBefore })),
-      results: [...staticResults, { id: 'fresh-batch-execution', status: 'fail', detail: error.message }],
+      results: [...staticResults, { id: 'fresh-batch-execution', status: 'fail', detail: error.message,
+        batchResult: { detail: error.message, screenshot } }],
       timing: { startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), durationMs: 0 } };
   }
   const values = await adapter.readCurrentValues(fresh);
@@ -202,17 +242,54 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     throw new Error('The page no longer contains exactly one test instance of the target block number; refusing to publish.');
   }
   let published = null;
+  let publishedReadback = null;
   if (!batchExecutionFailed) {
     try { await onProgress({ stage: 'publish-started' }); published = await adapter.publishPage();
       await onProgress({ stage: 'published' }); }
-    catch (error) { flowErrors.push({ stage: 'publish', message: error.message }); }
+    catch (error) {
+      const screenshot = await captureFailure('publish');
+      flowErrors.push({ stage: 'publish', message: error.message, screenshot });
+      batch.results.push({ id: 'fresh-publish', status: 'fail', detail: error.message,
+        batchResult: { expected: 'The selected page publishes successfully.', actual: error.message,
+          detail: error.message, screenshot } });
+    }
+    if (published) {
+      try {
+        const readbackValues = await adapter.readPublishedValues(fresh);
+        const comparison = compareFreshValueSnapshots(values, readbackValues);
+        const readbackCheck = { id: 'fresh-post-publish-readback', status: comparison.status,
+          expected: 'All setting controls retain their pre-publish values after editor reload.',
+          actual: comparison.status === 'pass' ? 'All observed controls match.' : `${comparison.mismatches.length} control value(s) differ.`,
+          detail: comparison.status === 'pass' ? '发布后重载编辑器，设置值与发布前一致。'
+            : `发布后回读发现 ${comparison.mismatches.length} 项控件值变化。`,
+          evidence: comparison.mismatches };
+        if (comparison.status === 'fail') {
+          const screenshot = await captureFailure('post-publish-readback');
+          readbackCheck.batchResult = { expected: readbackCheck.expected, actual: readbackCheck.actual,
+            detail: readbackCheck.detail, screenshot };
+          flowErrors.push({ stage: 'post-publish-readback', message: readbackCheck.detail, screenshot });
+        }
+        batch.results.push(readbackCheck);
+        publishedReadback = { status: comparison.status, currentValues: readbackValues,
+          mismatches: comparison.mismatches };
+        await onProgress({ stage: 'post-publish-readback', status: comparison.status, mismatchCount: comparison.mismatches.length });
+      } catch (error) {
+        const screenshot = await captureFailure('post-publish-readback');
+        const check = { id: 'fresh-post-publish-readback', status: 'fail',
+          expected: 'A single fresh target instance can be reloaded and read after publication.',
+          actual: error.message, detail: error.message,
+          batchResult: { expected: 'Post-publish editor readback succeeds.', actual: error.message, detail: error.message, screenshot } };
+        batch.results.push(check);
+        flowErrors.push({ stage: 'post-publish-readback', message: error.message, screenshot });
+      }
+    }
   } else {
     flowErrors.push({ stage: 'publish', message: 'Skipped because batch settings execution failed; page was left unpublished.' });
   }
   const report = buildFreshReport({ runId, siteHost: config.siteHost, blockId: config.blockId,
     page: config.page, instance: fresh, capabilities: capabilitiesToReport, defaults, batch,
     currentValues: values, editorLink: opened.editorLink || adapter.editorLink?.(),
-    frontLink: published?.frontLink || opened.frontLink, publishedAt: published?.publishedAt || null,
+    publishedReadback, frontLink: published?.frontLink || opened.frontLink, publishedAt: published?.publishedAt || null,
     deletedSettingIds, flowErrors });
   await adapter.writeReport?.(report);
   await onProgress({ stage: 'report-written' });

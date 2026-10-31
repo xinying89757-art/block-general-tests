@@ -1,5 +1,6 @@
 import { saveAndWait } from './ui-waits.mjs';
 import { selectedBlockInstance, waitForCanvasRender } from './block-render.mjs';
+import { waitForUniquePageSaveControl } from './page-save-control.mjs';
 
 const CANVAS = 'iframe.backstage-pc-proview';
 const PANEL = '.backstage-addmodules-chooseWrapper';
@@ -499,8 +500,20 @@ export async function addBlockIfNeeded(page, frame, config) {
 }
 
 export async function savePage(page) {
-  const save = page.locator('#saveLayout');
-  await save.waitFor({ state: 'visible' });
+  const selected = await waitForUniquePageSaveControl({ readScopes: async () => {
+    const frames = [page.mainFrame(), ...page.frames().filter((frame) => frame !== page.mainFrame())];
+    return Promise.all(frames.map(async (frame, index) => {
+      const locator = frame.locator('#saveLayout');
+      const controls = await locator.evaluateAll((nodes) => nodes.map((element) => ({
+        id: element.id,
+        visible: Boolean(element.getClientRects().length)
+          && getComputedStyle(element).visibility !== 'hidden'
+          && getComputedStyle(element).display !== 'none',
+      }))).catch(() => []);
+      return { name: index === 0 ? 'page' : `frame-${index}`, frameUrl: frame.url(), locator, controls };
+    }));
+  } });
+  const save = selected.locator.nth(selected.index);
   // No stable business-success selector is known yet. Observe save HTTP errors,
   // then require completed writes, an available save control and a stable canvas.
   const failedResponses = [];

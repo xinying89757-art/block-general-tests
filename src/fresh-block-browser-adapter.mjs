@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { addBlockIfNeeded, gotoFreshTargetPage, openEditor, savePage } from './editor.mjs';
 import { inventorySettings } from './baseline.mjs';
 import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
@@ -49,11 +51,14 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     get batchAdapter() { return settingsAdapter.prepared?.batchAdapter || settingsAdapter.batchAdapter; },
     async openPage(target) {
       page = (await openEditor(page, config)).page;
+      // openEditor may return a newly opened pagebuilder tab. Keep the shared
+      // session reference aligned so capability save callbacks use that tab.
+      session.page = page;
       resolvedTarget = target;
       const selected = await gotoFreshTargetPage(page, { ...target, blockId: config.blockId });
       frame = selected.frame;
       pageItem = selected.pageItem || { pageurl: target.url || '' };
-      return { editorLink: page.url(), frontLink: target.url || pageItem.pageurl || null };
+      return { editorLink: target.editorHref || page.url(), frontLink: target.url || pageItem.pageurl || null };
     },
     async listAllBlockInstances() { return listInstances(frame); },
     async prepareSettings() {
@@ -86,6 +91,26 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     },
     async readCurrentValues() {
       return currentValuesFromInventory(await inventorySettings({ page, canvas: frame, config, blockId: config.blockId }));
+    },
+    async readPublishedValues(instance) {
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });
+      const selected = await gotoFreshTargetPage(page, resolvedTarget);
+      frame = selected.frame;
+      const instances = await listInstances(frame);
+      const targets = instances.filter((item) => item.blockId === String(config.blockId));
+      if (targets.length !== 1 || String(targets[0].settingId) !== String(instance.settingId)) {
+        throw new Error(`Post-publish readback expected one fresh instance ${instance.settingId}; found ${targets.length} target instances.`);
+      }
+      return currentValuesFromInventory(await inventorySettings({ page, canvas: frame, config, blockId: config.blockId }));
+    },
+    async captureFailureScreenshot({ runId, stage }) {
+      const projectRoot = config.projectRoot || process.cwd();
+      const directory = path.resolve(projectRoot, config.reportDir || 'reports', 'screenshots');
+      await fs.mkdir(directory, { recursive: true });
+      const safe = (value) => String(value || 'failure').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 100);
+      const file = path.join(directory, `fresh-${safe(runId)}-${safe(stage)}.png`);
+      await page.screenshot({ path: file, fullPage: true, timeout: 30_000 });
+      return file;
     },
     async publishPage() {
       const toolbar = page.locator('.backstage-topToolbar');

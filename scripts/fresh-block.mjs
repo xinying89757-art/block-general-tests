@@ -29,6 +29,7 @@ function cliEnv(argv, env) {
 const env = cliEnv(process.argv.slice(2), process.env);
 const pageChoice = parseFreshPageConfig(env);
 const config = loadConfig();
+config.projectRoot = root;
 if (!config.siteDomain) throw new Error('SITE_DOMAIN is required for host-scoped defaults.');
 config.siteDomain = new URL(/^https?:\/\//i.test(config.siteDomain) ? config.siteDomain : `https://${config.siteDomain}`).host.toLowerCase();
 const page = pageChoice.kind === 'custom'
@@ -43,6 +44,8 @@ if (page.kind === 'system') {
   if (siteData.siteHost !== siteHost || matches.length !== 1) {
     throw new Error('Selected system page does not uniquely match the configured site page data; refusing to open the editor.');
   }
+  if (!matches[0].editorHref) throw new Error('Selected system page record has no page-specific editorHref; refusing to report a generic editor URL.');
+  page.editorHref = matches[0].editorHref;
 }
 const profilePath = path.resolve(root, 'profiles', `${config.blockId}.json`);
 const profile = JSON.parse(await fs.readFile(profilePath, 'utf8'));

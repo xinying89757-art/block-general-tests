@@ -6,8 +6,10 @@ import { selectRetainedFailures } from '../src/batch-save.mjs';
 import { createFreshSettingsAdapter, currentValuesFromInventory } from '../src/fresh-settings-adapter.mjs';
 import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDeleteConfirmIndexes,
   matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from '../src/fresh-editor-actions.mjs';
+import { matchingPageSaveControls, waitForUniquePageSaveControl } from '../src/page-save-control.mjs';
 import { freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
 import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
+import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
 
 function fakeAdapter(initialInstances = []) {
   const events = [];
@@ -36,6 +38,8 @@ function fakeAdapter(initialInstances = []) {
     readDefaultsSnapshot: async () => null,
     writeDefaultsSnapshot: async (_path, snapshot) => { state.defaults = snapshot; },
     readCurrentValues: async () => Object.entries(state.values).map(([key, value]) => ({ key, value })),
+    readPublishedValues: async () => Object.entries(state.values).map(([key, value]) => ({ key, value })),
+    captureFailureScreenshot: async ({ stage }) => `reports/screenshots/${stage}.png`,
     publishPage: async () => { events.push(['publish']); return { frontLink: '/public', publishedAt: 'now' }; },
     writeReport: async (report) => { state.report = report; },
   };
@@ -64,6 +68,39 @@ test('target block matching uses only the block number', () => {
   assert.deepEqual(targetBlockInstances(items, '55'), [items[0]]);
   assert.deepEqual(targetBlockInstances(items, '57'), []);
   assert.throws(() => targetBlockInstances(items, ''), /block number/);
+});
+
+test('page-save action lookup accepts one visible generic action across documents and rejects ambiguity', async () => {
+  const unique = [{ name: 'top-page', locator: 'page', controls: [{ id: 'saveLayout', visible: true }] },
+    { name: 'canvas', locator: 'canvas', controls: [{ id: 'saveLayout', visible: false }] }];
+  assert.deepEqual(matchingPageSaveControls(unique), [{ scope: 'top-page', index: 0, locator: 'page', frameUrl: null }]);
+  const ambiguous = [
+    { name: 'one', controls: [{ id: 'saveLayout', visible: true }] },
+    { name: 'two', controls: [{ id: 'saveLayout', visible: true }] },
+  ];
+  assert.equal(matchingPageSaveControls(ambiguous).length, 2);
+  await assert.rejects(waitForUniquePageSaveControl({ readScopes: async () => ambiguous }), /2 visible #saveLayout actions/);
+  assert.deepEqual(matchingPageSaveControls([{ name: 'page', controls: [{ id: 'other', visible: true }] }]), []);
+});
+
+test('page-save action polling waits for late appearance and fails closed when absent', async () => {
+  let reads = 0;
+  const match = await waitForUniquePageSaveControl({ timeoutMs: 100, intervalMs: 1,
+    readScopes: async () => [{ name: 'page', locator: 'save', controls: ++reads < 2 ? [] : [{ id: 'saveLayout', visible: true }] }] });
+  assert.equal(match.locator, 'save');
+  await assert.rejects(waitForUniquePageSaveControl({ timeoutMs: 5, intervalMs: 1, readScopes: async () => [] }), /did not become visible/);
+});
+
+test('published value comparison reports changed, missing, and added controls without rewriting values', () => {
+  const before = [{ region: 'settings', label: 'Mode', type: 'radio', value: 'all' },
+    { region: 'settings', label: 'Count', type: 'text', value: '20' }];
+  assert.deepEqual(compareFreshValueSnapshots(before, structuredClone(before)), { status: 'pass', mismatches: [] });
+  const diff = compareFreshValueSnapshots(before, [
+    { region: 'settings', label: 'Mode', type: 'radio', value: 'filtered' },
+    { region: 'settings', label: 'Extra', type: 'checkbox', value: true },
+  ]);
+  assert.equal(diff.status, 'fail');
+  assert.deepEqual(diff.mismatches.map(({ kind }) => kind), ['changed', 'missing', 'added']);
 });
 
 test('deletes every instance of the target number and preserves all other block numbers', async () => {
@@ -165,6 +202,20 @@ test('fresh batch execution error stops before publish and records the unpublish
   assert.equal(adapter.events.some(([kind]) => kind === 'publish'), false);
   assert.equal(report.publishedAt, null);
   assert.ok(report.flowErrors.some(({ stage, message }) => stage === 'publish' && /Skipped/.test(message)));
+  assert.equal(report.failures[0].screenshot, 'reports/screenshots/batch-settings.png');
+});
+
+test('post-publish readback mismatch is a failure with screenshot evidence and separate values', async () => {
+  const adapter = fakeAdapter();
+  adapter.readPublishedValues = async () => [{ key: 'setting', value: 'persisted-different' }];
+  const report = await runFreshBlockFlow({ config, adapter, settings: [
+    { id: 'setting-check', key: 'setting', value: 'retained' },
+  ] });
+  assert.equal(report.publishedAt, 'now');
+  assert.equal(report.publishedReadback.status, 'fail');
+  assert.equal(report.block.publishedReadbackValues[0].value, 'persisted-different');
+  assert.equal(report.checks.at(-1).id, 'fresh-post-publish-readback');
+  assert.equal(report.failures.at(-1).screenshot, 'reports/screenshots/post-publish-readback.png');
 });
 
 test('changed defaults are reported as informational differences', () => {
