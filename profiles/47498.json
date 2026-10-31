@@ -1,0 +1,551 @@
+{
+  "blockId": "47498",
+  "capabilities": [
+    {
+      "id": "module-width",
+      "status": "candidate"
+    },
+    {
+      "id": "custom-filter-fields",
+      "status": "candidate"
+    },
+    {
+      "id": "product-list-display",
+      "status": "candidate"
+    },
+    {
+      "id": "button-link",
+      "status": "candidate"
+    }
+  ],
+  "category": "待人工审核",
+  "dataMode": "static",
+  "dataSource": {
+    "entities": [],
+    "scope": "待人工审核",
+    "system": "content-management"
+  },
+  "figma": {
+    "fileKey": "",
+    "framesObserved": [],
+    "url": ""
+  },
+  "knownInteractions": [],
+  "name": "待人工审核：自动盘点草稿",
+  "specificChecks": [],
+  "suites": {
+    "category": true,
+    "common": true,
+    "dynamicData": false,
+    "specific": true
+  },
+  "target": {
+    "createdByTest": false,
+    "language": "en",
+    "page": "BIAUYnyOREPZ",
+    "pageKind": "system",
+    "pageId": "BIAUYnyOREPZ",
+    "pageUrl": "/products.html",
+    "pageKindNote": "由 onboarding 命令显式指定；草稿需人工审核。"
+  },
+  "testData": {
+    "requirements": [],
+    "status": "unreviewed-no-fixture-oracle"
+  },
+  "requirements": {
+    "capabilities": [
+      {
+        "id": "module-width",
+        "params": {
+          "dialogTitle": "right-rail-width",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "cff-fields",
+        "params": {
+          "dialogTitle": "设置自定义字段筛选",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-display-fields",
+        "params": {
+          "dialogTitle": "设置产品列表",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-pagination",
+        "params": {
+          "dialogTitle": "设置产品列表",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-page-size",
+        "params": {
+          "dialogTitle": "设置产品列表",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-product-count",
+        "params": {
+          "dialogTitle": "设置产品列表",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-compare",
+        "params": {
+          "dialogTitle": "设置产品列表",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-data-source",
+        "params": {
+          "dialogTitle": "设置产品列表",
+          "wrapIndex": 0
+        }
+      }
+    ],
+    "displayFieldTypes": []
+  },
+  "onboarding": {
+    "status": "draft-unreviewed",
+    "discoveredAt": "2026-10-31T18:33:16.202Z",
+    "matched": [
+      {
+        "id": "module-width",
+        "capability": "module-width",
+        "kind": "right-rail-flyout",
+        "type": "rail:module-width",
+        "title": "right-rail-width",
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "1200px",
+            "value": "1"
+          },
+          {
+            "label": "1440px",
+            "value": "2"
+          },
+          {
+            "label": "1600px",
+            "value": "3"
+          },
+          {
+            "label": "1920px",
+            "value": "4"
+          },
+          {
+            "label": "全屏",
+            "value": "-2"
+          },
+          {
+            "label": "自定义（需不小于1200px）",
+            "value": "-1"
+          },
+          {
+            "label": "自定义宽度",
+            "value": "1440"
+          },
+          {
+            "label": "全局应用",
+            "value": "on"
+          }
+        ]
+      },
+      {
+        "id": "cff-fields",
+        "capability": "custom-filter-fields",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_filterStyle",
+        "title": "设置自定义字段筛选",
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "全选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
+            "value": "on"
+          },
+          {
+            "label": "AUTOTEST-单选按钮A",
+            "value": "911778"
+          },
+          {
+            "label": "AUTOTEST-下拉列表",
+            "value": "911788"
+          },
+          {
+            "label": "AUTOTEST-多选",
+            "value": "911798"
+          },
+          {
+            "label": "Category",
+            "value": "889928"
+          },
+          {
+            "label": "Rated Current",
+            "value": "889968"
+          },
+          {
+            "label": "Installation Method",
+            "value": "889958"
+          },
+          {
+            "label": "Spacing",
+            "value": "889948"
+          },
+          {
+            "label": "Rated voltage",
+            "value": "889988"
+          }
+        ]
+      },
+      {
+        "id": "pld-display-fields",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "全选 Brand Product Code Model Brief 图纸 测试多选 正式版测试多选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
+            "value": "on"
+          },
+          {
+            "label": "Brand",
+            "value": "-3"
+          },
+          {
+            "label": "Product Code",
+            "value": "-4"
+          },
+          {
+            "label": "Model",
+            "value": "-5"
+          },
+          {
+            "label": "Brief",
+            "value": "-9"
+          },
+          {
+            "label": "图纸",
+            "value": "889998"
+          },
+          {
+            "label": "测试多选",
+            "value": "898508"
+          },
+          {
+            "label": "正式版测试多选",
+            "value": "899828"
+          },
+          {
+            "label": "AUTOTEST-单选按钮A",
+            "value": "911778"
+          },
+          {
+            "label": "AUTOTEST-下拉列表",
+            "value": "911788"
+          },
+          {
+            "label": "AUTOTEST-多选",
+            "value": "911798"
+          },
+          {
+            "label": "Category",
+            "value": "889928"
+          },
+          {
+            "label": "Rated Current",
+            "value": "889968"
+          },
+          {
+            "label": "Installation Method",
+            "value": "889958"
+          },
+          {
+            "label": "Spacing",
+            "value": "889948"
+          },
+          {
+            "label": "Rated voltage",
+            "value": "889988"
+          },
+          {
+            "label": "Brand",
+            "value": "-3"
+          },
+          {
+            "label": "Product Code",
+            "value": "-4"
+          },
+          {
+            "label": "Model",
+            "value": "-5"
+          },
+          {
+            "label": "Brief",
+            "value": "-9"
+          },
+          {
+            "label": "图纸",
+            "value": "889998"
+          },
+          {
+            "label": "测试多选",
+            "value": "898508"
+          },
+          {
+            "label": "正式版测试多选",
+            "value": "899828"
+          },
+          {
+            "label": "AUTOTEST-单选按钮A",
+            "value": "911778"
+          },
+          {
+            "label": "AUTOTEST-下拉列表",
+            "value": "911788"
+          },
+          {
+            "label": "AUTOTEST-多选",
+            "value": "911798"
+          },
+          {
+            "label": "Category",
+            "value": "889928"
+          },
+          {
+            "label": "Rated Current",
+            "value": "889968"
+          },
+          {
+            "label": "Installation Method",
+            "value": "889958"
+          },
+          {
+            "label": "Spacing",
+            "value": "889948"
+          },
+          {
+            "label": "Rated voltage",
+            "value": "889988"
+          }
+        ]
+      },
+      {
+        "id": "pld-pagination",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "是",
+            "value": "1"
+          },
+          {
+            "label": "否",
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "id": "pld-page-size",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "",
+            "value": "20"
+          },
+          {
+            "label": "是",
+            "value": "1"
+          },
+          {
+            "label": "否",
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "id": "pld-product-count",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "",
+            "value": "20"
+          },
+          {
+            "label": "是",
+            "value": "1"
+          },
+          {
+            "label": "否",
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "id": "pld-compare",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "关闭",
+            "value": "0"
+          },
+          {
+            "label": "开启",
+            "value": "1"
+          }
+        ]
+      },
+      {
+        "id": "pld-data-source",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "所有产品",
+            "value": "0"
+          }
+        ]
+      }
+    ],
+    "unmapped": [
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "control": {
+          "index": 1,
+          "type": "radio",
+          "label": "使用筛选条件",
+          "context": "使用筛选条件",
+          "name": "selectProdType",
+          "value": "1",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "control": {
+          "index": 2,
+          "type": "radio",
+          "label": "选择指定产品",
+          "context": "选择指定产品",
+          "name": "selectProdType",
+          "value": "2",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "control": {
+          "index": 4,
+          "type": "checkbox",
+          "label": "热门产品",
+          "context": "热门产品",
+          "value": "",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "control": {
+          "index": 5,
+          "type": "checkbox",
+          "label": "新产品",
+          "context": "新产品",
+          "value": "",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "control": {
+          "index": 6,
+          "type": "checkbox",
+          "label": "推荐产品",
+          "context": "推荐产品",
+          "value": "",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置产品列表",
+        "wrapIndex": 0,
+        "control": {
+          "index": 8,
+          "type": "text",
+          "label": "共163页 到第页",
+          "context": "共163页 到第页",
+          "value": "",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      }
+    ],
+    "inventoryErrors": [
+      {
+        "regionType": "phoenix_blocks_button",
+        "capabilityCandidates": [
+          "button-link"
+        ],
+        "code": "SETTINGS_INVENTORY_ERROR",
+        "message": "等待控件或保存状态稳定超时",
+        "diagnostics": null,
+        "screenshot": "reports/screenshots/inventory-button-popover-47498-1793471596089.png"
+      }
+    ],
+    "note": "自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。"
+  }
+}

@@ -72,12 +72,23 @@ async function visiblePageMenuLinkCount(page) {
 export async function closePageMenuIfOpen(page) {
   await waitForEditorLoadingToClear(page);
   if (await visiblePageMenuLinkCount(page) === 0) return false;
+  // Dropdowns can remain open after the toolbar label is clicked (the page
+  // chooser may own a nested overlay). Escape is a non-mutating dismissal and
+  // is attempted first; only fall back to the unique toolbar trigger if it did
+  // not close the menu.
+  try { await page.keyboard?.press('Escape'); } catch {}
+  if (await visiblePageMenuLinkCount(page) === 0) return true;
   const triggers = page.getByText('页面:', { exact: true }).filter({ visible: true });
   const count = await triggers.count();
   if (count !== 1) throw new Error(`页面选择菜单已打开，但关闭触发器匹配 ${count} 个；拒绝猜测。`);
   await triggers.click({ timeout: 5_000 });
-  await waitForStable(() => visiblePageMenuLinkCount(page), (links) => links === 0,
-    { timeout: 5_000, stableMs: 200 });
+  try {
+    await waitForStable(() => visiblePageMenuLinkCount(page), (links) => links === 0,
+      { timeout: 5_000, stableMs: 200 });
+  } catch (error) {
+    const remaining = await visiblePageMenuLinkCount(page).catch(() => -1);
+    throw new Error(`页面选择菜单关闭失败：点击唯一触发器后仍有 ${remaining} 个可见链接；${error.message}`);
+  }
   return true;
 }
 

@@ -25,6 +25,13 @@ function result(id, status, detail, evidence, textFields = {}) {
 }
 const outcomeResult = (id, outcome) => result(id, outcome.status, outcome.detail, outcome.evidence);
 
+export function buttonPopoverFailureDiagnostics({ diagnostics, stage, elapsedMs, loadingMaskVisible, error }) {
+  if (stage === 'popover-open') diagnostics.unreadable('popover-root');
+  return { ...diagnostics.summary({ elapsedMs, loadingMaskVisible }), stage,
+    ...(Number.isInteger(error?.candidateCount) ? { candidateCount: error.candidateCount } : {}),
+    ...(Number.isInteger(error?.rootCount) ? { rootCount: error.rootCount } : {}) };
+}
+
 // The link editor is rendered inside the canvas document. Its actual settings
 // root is the unique editor-box carrying both requested labels.
 function discoverPopover(body) {
@@ -194,13 +201,17 @@ export async function createFreshDefinitions(args) {
 // Small public surface shared by baseline capture/guard/apply. The labels are
 // deliberately the ones used by this module's DOM recognizer.
 async function readButtonPopoverValue({ page, canvas, config, session = popoverSession({ page, canvas, config }) }) {
-  await waitForEditorLoadingToClear(page);
-  await waitForEditorLoadingToClear(canvas);
-  await session.open();
   const diagnostics = createStableSnapshotDiagnostics(['text', 'url', 'linkType', 'newWindow']);
   const startedAt = Date.now();
+  let stage = 'page-loading-clear';
   let value;
   try {
+    await waitForEditorLoadingToClear(page);
+    stage = 'canvas-loading-clear';
+    await waitForEditorLoadingToClear(canvas);
+    stage = 'popover-open';
+    await session.open();
+    stage = 'control-snapshot';
     value = await readStableSnapshot(async () => {
       try {
         await waitForEditorLoadingToClear(canvas);
@@ -229,9 +240,9 @@ async function readButtonPopoverValue({ page, canvas, config, session = popoverS
     const [pageMasks, canvasMasks] = await Promise.all([
       visibleEditorLoadingOverlays(page).catch(() => []), visibleEditorLoadingOverlays(canvas).catch(() => []),
     ]);
-    const summary = diagnostics.summary({ elapsedMs: Date.now() - startedAt,
-      loadingMaskVisible: pageMasks.length > 0 || canvasMasks.length > 0 });
-    const details = `snapshots=${summary.snapshotCount}, elapsedMs=${summary.elapsedMs}, changingFields=${summary.changingFields.join(',') || 'none'}, unreadableFields=${summary.unreadableFields.join(',') || 'none'}, loadingMaskVisible=${summary.loadingMaskVisible}`;
+    const summary = buttonPopoverFailureDiagnostics({ diagnostics, stage, elapsedMs: Date.now() - startedAt,
+      loadingMaskVisible: pageMasks.length > 0 || canvasMasks.length > 0, error });
+    const details = `stage=${summary.stage}, snapshots=${summary.snapshotCount}, elapsedMs=${summary.elapsedMs}, changingFields=${summary.changingFields.join(',') || 'none'}, unreadableFields=${summary.unreadableFields.join(',') || 'none'}, loadingMaskVisible=${summary.loadingMaskVisible}${summary.candidateCount === undefined ? '' : `, candidateCount=${summary.candidateCount}`}${summary.rootCount === undefined ? '' : `, rootCount=${summary.rootCount}`}`;
     const diagnosed = new Error(`Button popover inventory did not stabilize (${details}); cause=${error.code || error.name || 'read-error'}`);
     diagnosed.name = error.name || 'Error';
     diagnosed.code = 'BUTTON_POPOVER_INVENTORY_UNSTABLE';

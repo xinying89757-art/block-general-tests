@@ -49,17 +49,33 @@ test('page chooser is closed before popover actions without navigating or saving
   const page = {
     locator: () => ({ evaluate: async () => [] }),
     evaluate: async () => visibleLinks,
+    keyboard: { press: async (key) => { if (key === 'Escape') visibleLinks = 0; } },
     getByText: () => ({ filter() { return this; }, count: async () => 1,
       click: async () => { clicks++; visibleLinks = 0; } }),
   };
   assert.equal(await closePageMenuIfOpen(page), true);
-  assert.equal(clicks, 1);
+  assert.equal(clicks, 0);
   assert.equal(visibleLinks, 0);
   assert.equal(await closePageMenuIfOpen(page), false);
 });
 
+test('page chooser falls back to its unique trigger only when Escape did not close it', async () => {
+  let visibleLinks = 3, clicks = 0, escapes = 0;
+  const page = {
+    locator: () => ({ evaluate: async () => [] }),
+    evaluate: async () => visibleLinks,
+    keyboard: { press: async () => { escapes++; } },
+    getByText: () => ({ filter() { return this; }, count: async () => 1,
+      click: async () => { clicks++; visibleLinks = 0; } }),
+  };
+  assert.equal(await closePageMenuIfOpen(page), true);
+  assert.equal(escapes, 1);
+  assert.equal(clicks, 1);
+});
+
 test('page chooser close refuses ambiguous toolbar triggers', async () => {
   const page = { locator: () => ({ evaluate: async () => [] }), evaluate: async () => 2,
+    keyboard: { press: async () => {} },
     getByText: () => ({ filter() { return this; }, count: async () => 2, click: async () => assert.fail('must not click') }) };
   await assert.rejects(closePageMenuIfOpen(page), /关闭触发器匹配 2 个/);
 });
@@ -70,6 +86,7 @@ test('shared toolbar-menu guard resolves a canvas frame to its page before actio
   const page = {
     locator: () => ({ evaluate: async () => [] }),
     evaluate: async () => { pageEvaluations++; return pageEvaluations === 1 ? 1 : 0; },
+    keyboard: { press: async () => {} },
     getByText: () => ({ filter() { return this; }, count: async () => 1,
       click: async () => { triggerClicks++; } }),
   };
@@ -77,7 +94,7 @@ test('shared toolbar-menu guard resolves a canvas frame to its page before actio
   assert.equal(await closeToolbarMenusBeforeAction(frame), true);
   assert.ok(pageEvaluations >= 2);
   assert.equal(frameEvaluations, 0);
-  assert.equal(triggerClicks, 1);
+  assert.equal(triggerClicks, 0);
 });
 
 test('editor host identity is read from the canvas frame and ignores platform frames', () => {

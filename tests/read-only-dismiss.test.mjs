@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createStableSnapshotDiagnostics, dismissReadOnlyPopover, readStableSnapshot, reloadDiscardAndVerify } from '../src/read-only-dismiss.mjs';
+import { buttonPopoverFailureDiagnostics } from '../src/capabilities/button-link.mjs';
 
 test('read-only popover dismissal uses Escape and neutral click without a save action', async () => {
   const events = [];
@@ -91,6 +92,26 @@ test('stable snapshot diagnostics report changed and unreadable field names with
   assert.deepEqual(summary, { snapshotCount: 3, elapsedMs: 15000, changingFields: ['url'],
     unreadableFields: ['text'], loadingMaskVisible: true });
   assert.doesNotMatch(JSON.stringify(summary), /private|example|域名/);
+});
+
+test('button-popover open timeout reports stage, empty snapshot count and unreadable root without values', () => {
+  const diagnostics = createStableSnapshotDiagnostics(['text', 'url', 'linkType', 'newWindow']);
+  const summary = buttonPopoverFailureDiagnostics({ diagnostics, stage: 'popover-open', elapsedMs: 2500,
+    loadingMaskVisible: true, error: Object.assign(new Error('private input text'), { candidateCount: 0, rootCount: 0 }) });
+  assert.deepEqual(summary, { snapshotCount: 0, elapsedMs: 2500, changingFields: [],
+    unreadableFields: ['popover-root'], loadingMaskVisible: true, stage: 'popover-open', candidateCount: 0, rootCount: 0 });
+  assert.doesNotMatch(JSON.stringify(summary), /private|input text/);
+});
+
+test('button-popover unstable snapshot diagnostics report only changed field names', () => {
+  const diagnostics = createStableSnapshotDiagnostics(['text', 'url', 'linkType', 'newWindow']);
+  diagnostics.observe({ text: 'secret text', url: 'https://secret.invalid', linkType: '域名', newWindow: false });
+  diagnostics.observe({ text: 'secret text', url: 'https://other.invalid', linkType: '域名', newWindow: false });
+  const summary = buttonPopoverFailureDiagnostics({ diagnostics, stage: 'control-snapshot', elapsedMs: 10_001,
+    loadingMaskVisible: false, error: new Error('secret text') });
+  assert.deepEqual(summary, { snapshotCount: 2, elapsedMs: 10_001, changingFields: ['url'], unreadableFields: [],
+    loadingMaskVisible: false, stage: 'control-snapshot' });
+  assert.doesNotMatch(JSON.stringify(summary), /secret|invalid|域名/);
 });
 
 test('read-only dismissal invokes reload discard only after ordinary no-save methods fail', async () => {
