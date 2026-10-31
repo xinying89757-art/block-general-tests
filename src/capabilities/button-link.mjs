@@ -2,6 +2,7 @@ import { effectCheck, unavailable, readEffectRoot } from './effect-checks.mjs';
 import { baselineRestoreTarget, clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
 import { retryTransient, uiWaitConfig } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
+import { dismissReadOnlyPopover } from '../read-only-dismiss.mjs';
 
 const SUITE = 'capability:button-link';
 const DEFAULT_TEXT = 'Please set up the required pop-up form here.';
@@ -117,22 +118,11 @@ export async function readButtonPopover({ page, canvas, config }) {
       ],
     };
   } finally {
-    // The editor-box has no cancel button. A read must not use its Save
-    // fallback, so dismiss it with Escape and a neutral canvas click only.
-    if (await session.root.isVisible().catch(() => false)) {
-      await page.keyboard.press('Escape').catch(() => {});
-      await page.waitForTimeout(300);
-      if (await session.root.isVisible().catch(() => false)) {
-        await page.mouse.click(1, 1);
-        await page.waitForTimeout(300);
-      }
-      // Still open: leave it. No edits were made and nothing is saved, so an
-      // open popover carries no change; the next open() reuses it.
-      // The editor-box has no cancel affordance (scripts/probes/probe-final2.mjs).
-      // Nothing was edited, so its Save fallback commits the unchanged values
-      // (a no-op); leaving it open breaks every later open/close of the zone.
-      if (await session.root.isVisible().catch(() => false)) await session.cancel();
-    }
+    await dismissReadOnlyPopover({
+      isVisible: () => session.root.isVisible().catch(() => false),
+      pressEscape: async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(300); },
+      neutralClick: async () => { await page.mouse.click(1, 1); await page.waitForTimeout(300); },
+    });
   }
 }
 
