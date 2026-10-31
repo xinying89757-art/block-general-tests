@@ -294,28 +294,47 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   }));
   await onProgress({ stage: 'batch-plan-prepared', batches: printablePlan });
 
-  const defaultsValues = await adapter.readDefaults(fresh);
-  const defaultsPath = freshDefaultsPath(config.projectRoot || process.cwd(), config.siteHost, config.blockId);
-  const priorDefaults = await (adapter.readDefaultsSnapshot?.(defaultsPath) ?? readFreshDefaultsSnapshot(defaultsPath)) || null;
-  if (priorDefaults && (priorDefaults.siteHost !== config.siteHost || String(priorDefaults.blockId) !== String(config.blockId))) {
-    throw new Error('Fresh defaults snapshot identity mismatch; refusing to compare defaults across site/block identities.');
-  }
-  const defaults = diffFreshDefaults(priorDefaults, defaultsValues);
-  if (!priorDefaults) await (adapter.writeDefaultsSnapshot?.(defaultsPath, {
-    version: 1, siteHost: config.siteHost, blockId: String(config.blockId), capturedAt: new Date().toISOString(), values: defaultsValues,
-  }) ?? writeFreshDefaultsSnapshot(defaultsPath, {
-    version: 1, siteHost: config.siteHost, blockId: String(config.blockId), capturedAt: new Date().toISOString(), values: defaultsValues,
-  }));
-  await onProgress({ stage: 'defaults-captured', firstCapture: !priorDefaults });
-
-  let batch;
   const flowErrors = [];
   let batchExecutionFailed = false;
   const captureFailure = async (stage) => {
     try { return await adapter.captureFailureScreenshot?.({ runId, stage }) || null; }
     catch (error) { flowErrors.push({ stage: `${stage}-screenshot`, message: error.message }); return null; }
   };
+  let defaults = null;
+  let defaultsError = null;
   try {
+    const defaultsValues = await adapter.readDefaults(fresh);
+    const defaultsPath = freshDefaultsPath(config.projectRoot || process.cwd(), config.siteHost, config.blockId);
+    const priorDefaults = await (adapter.readDefaultsSnapshot?.(defaultsPath) ?? readFreshDefaultsSnapshot(defaultsPath)) || null;
+    if (priorDefaults && (priorDefaults.siteHost !== config.siteHost || String(priorDefaults.blockId) !== String(config.blockId))) {
+      throw new Error('Fresh defaults snapshot identity mismatch; refusing to compare defaults across site/block identities.');
+    }
+    defaults = diffFreshDefaults(priorDefaults, defaultsValues);
+    if (!priorDefaults) await (adapter.writeDefaultsSnapshot?.(defaultsPath, {
+      version: 1, siteHost: config.siteHost, blockId: String(config.blockId), capturedAt: new Date().toISOString(), values: defaultsValues,
+    }) ?? writeFreshDefaultsSnapshot(defaultsPath, {
+      version: 1, siteHost: config.siteHost, blockId: String(config.blockId), capturedAt: new Date().toISOString(), values: defaultsValues,
+    }));
+    await onProgress({ stage: 'defaults-captured', firstCapture: !priorDefaults });
+  } catch (error) {
+    defaultsError = error;
+    defaults = { status: 'unavailable', error: error.message };
+    const screenshot = await captureFailure('defaults-inventory');
+    flowErrors.push({ stage: 'defaults-inventory', message: error.message, screenshot });
+    await onProgress({ stage: 'defaults-inventory-failed' });
+  }
+
+  let batch;
+  if (defaultsError) {
+    batchExecutionFailed = true;
+    batch = { batches: printablePlan, results: [...staticResults, {
+      id: 'fresh-defaults-inventory', status: 'fail',
+      expected: 'Fresh block default settings inventory is readable before any setting checks.',
+      actual: defaultsError.message, detail: defaultsError.message,
+      batchResult: { expected: 'A complete default settings inventory.', actual: defaultsError.message,
+        detail: defaultsError.message, screenshot: flowErrors.find((item) => item.stage === 'defaults-inventory')?.screenshot || null },
+    }], timing: { startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), durationMs: 0 } };
+  } else try {
     batch = await executeSettingBatches({ settings: settingsToRun, metadata: metadataToUse, adapter: batchAdapter, finalState: 'retain-tested-values' });
     batch.results = [...staticResults, ...batch.results];
     for (const item of batch.results.filter((result) => result.status === 'fail')) {

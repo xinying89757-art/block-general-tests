@@ -536,6 +536,20 @@ test('adds and identifies the fresh target before deleting every old target; pre
   assert.ok(progress.some((event) => event.stage === 'instance-added' && event.settingId === 'new-instance'));
 });
 
+test('defaults inventory harness errors still write a partial report and block publication', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 },
+    { blockId: '56', settingId: 'unrelated', ordinal: 0 }]);
+  adapter.readDefaults = async () => { throw new Error('inventory control did not stabilize'); };
+  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  assert.equal(adapter.state.report, report);
+  assert.equal(report.defaults.status, 'unavailable');
+  assert.equal(report.checks.find((item) => item.id === 'fresh-defaults-inventory')?.status, 'fail');
+  assert.equal(report.publishedAt, null);
+  assert.equal(adapter.events.some(([kind]) => kind === 'publish'), false);
+  assert.equal(report.lifecycle.addedSettingId, 'new-instance');
+  assert.deepEqual(countPageBlocksByNumber(adapter.state.instances), { '55': 1, '56': 1 });
+});
+
 test('a failed fresh add stops before deleting any existing target instance', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
   adapter.addDefaultBlock = async () => { adapter.events.push(['add-failed']); throw new Error('target unavailable'); };
