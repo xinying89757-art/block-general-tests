@@ -1,4 +1,5 @@
 import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, productSnapshot, rememberCategoryState } from './effect-checks.mjs';
+import { categorySelectionChanges } from './product-category-select.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText, fixtureCategoryState } from './shared.mjs';
 
@@ -14,6 +15,31 @@ const NAMES = {
   'pld-data-source-persist': '列表数据来源保存回读与恢复',
   'pld-front-note': '产品列表前台可观察性记录',
 };
+const backendCheckIds = Object.freeze([
+  'pld-fields-backend', 'pld-source-all-backend', 'pld-source-filter-backend',
+  'pld-source-products-backend', 'pld-source-category-backend', 'pld-size-backend',
+  'pld-pagination-backend', 'pld-compare-backend',
+]);
+export const checkGroups = Object.freeze(Object.fromEntries(backendCheckIds.map((id) => [id, ['backend']])));
+
+export async function runListEffectPlan(tasks, { checkGroup } = {}) {
+  const selected = checkGroup ? tasks.filter((task) => task.id === checkGroup) : tasks;
+  const checks = [];
+  for (let index = 0; index < selected.length; index += 1) {
+    const task = selected[index];
+    const check = await task.run();
+    checks.push(check);
+    if (!['env-paused', 'env-timeout'].includes(check.status)) continue;
+    for (const blocked of selected.slice(index + 1)) {
+      checks.push(result(blocked.id, check.status,
+        `因检查 ${check.id} 遇到 ${check.status}，此检查未执行。`,
+        { blockedByEnvironmentCheck: check.id, notExecuted: true }));
+    }
+    break;
+  }
+  return checks;
+}
+
 function result(id, status, detail, evidence, textFields = {}) {
   return { id, name: NAMES[id], suite: SUITE, status, detail, ...checkReportText(NAMES[id], status, detail, evidence, id), ...textFields,
     ...(evidence === undefined ? {} : { evidence }) };
@@ -660,7 +686,10 @@ async function sourceEffect(args, layer, kind) {
       if (!oracle.category) unavailable('缺少目标分类名称夹具。');
       const cats = (await tx.controls()).filter((item) => item.type === 'checkbox' && item.name === 'leafProdGroup');
       if (!cats.some((item) => item.label.trim() === oracle.category)) unavailable('设置中找不到夹具分类。');
-      for (const cat of cats) await tx.set(cat, cat.label.trim() === oracle.category);
+      const changes = categorySelectionChanges(cats, oracle.category);
+      tx.evidence.categorySelection = { candidateCount: cats.length, targetCategory: oracle.category,
+        selectedCount: changes.filter(({ value }) => value).length, plannedCount: changes.length };
+      await tx.setMany(changes, { restoreKey: 'category-state:selectProdType' });
       await tx.save();
     }
     // Inspect all site products without comparing the whole site list to the
@@ -751,9 +780,14 @@ async function listSizeEffect(args, layer) {
   } });
 }
 async function listEffects(args, layer) {
-  const checks = [await listFieldsEffect(args, layer)];
-  for (const kind of ['all', 'filter', 'products', ...(layer === 'backend' ? ['category'] : [])]) checks.push(await sourceEffect(args, layer, kind));
-  checks.push(await listSizeEffect(args, layer), await listToggleEffect(args, layer, 'pagination'), await listToggleEffect(args, layer, 'compare'));
-  return checks;
+  const tasks = [{ id: `pld-fields-${layer}`, run: () => listFieldsEffect(args, layer) }];
+  for (const kind of ['all', 'filter', 'products', ...(layer === 'backend' ? ['category'] : [])]) {
+    tasks.push({ id: `pld-source-${kind}-${layer}`, run: () => sourceEffect(args, layer, kind) });
+  }
+  tasks.push({ id: `pld-size-${layer}`, run: () => listSizeEffect(args, layer) });
+  tasks.push({ id: `pld-pagination-${layer}`, run: () => listToggleEffect(args, layer, 'pagination') });
+  tasks.push({ id: layer === 'front' ? 'pld-compare-off-front' : `pld-compare-${layer}`,
+    run: () => listToggleEffect(args, layer, 'compare') });
+  return runListEffectPlan(tasks, { checkGroup: layer === 'backend' ? args.config?.checkGroup : null });
 }
 export async function runBackendLayer(args) { return listEffects(args, 'backend'); }
