@@ -694,7 +694,10 @@ export async function createProductListBatchDefinitions(args) {
     fresh.check = (ctx) => checkBatch(setting, { phase: ctx?.phase || 'fresh-batch' });
     return fresh;
   });
-  return { settings: freshCandidates, metadata: batchSaveMetadata, checkBatch, saveBatch,
+  const region = capability?.dialogTitle || '设置产品列表';
+  const persistedControls = candidates.map((setting) => ({ settingId: setting.id, region,
+    controlIndex: setting.control?.index, type: setting.control?.type })).filter((item) => Number.isInteger(item.controlIndex) && item.type);
+  return { settings: freshCandidates, metadata: batchSaveMetadata, checkBatch, saveBatch, persistedControls,
     prepareSave: async () => {
       await session.save();
       await session.open(); await session.read(); await session.cancel(); await session.open();

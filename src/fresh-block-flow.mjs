@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { executeSettingBatches, planSettingBatches } from './batch-save.mjs';
+import { projectPersistedFreshValues } from './fresh-settings-adapter.mjs';
 
 export function parseFreshPageConfig(env = process.env) {
   const kind = String(env.FRESH_PAGE_KIND || '').trim().toLowerCase();
@@ -256,12 +257,25 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     if (published) {
       try {
         const readbackValues = await adapter.readPublishedValues(fresh);
-        const comparison = compareFreshValueSnapshots(values, readbackValues);
+        const hasDeclaredScope = Array.isArray(prepared?.persistedControls);
+        const persistedControls = prepared?.persistedControls || [];
+        const beforeCompared = hasDeclaredScope
+          ? projectPersistedFreshValues(values, persistedControls) : values;
+        const afterCompared = hasDeclaredScope
+          ? projectPersistedFreshValues(readbackValues, persistedControls) : readbackValues;
+        const comparison = beforeCompared.length
+          ? compareFreshValueSnapshots(beforeCompared, afterCompared)
+          : { status: 'skip', mismatches: [] };
         const readbackCheck = { id: 'fresh-post-publish-readback', status: comparison.status,
-          expected: 'All setting controls retain their pre-publish values after editor reload.',
-          actual: comparison.status === 'pass' ? 'All observed controls match.' : `${comparison.mismatches.length} control value(s) differ.`,
-          detail: comparison.status === 'pass' ? '发布后重载编辑器，设置值与发布前一致。'
-            : `发布后回读发现 ${comparison.mismatches.length} 项控件值变化。`,
+          expected: hasDeclaredScope
+            ? 'All persisted controls declared by adapted capability definitions retain their pre-publish values after editor reload.'
+            : 'All setting controls retain their pre-publish values after editor reload.',
+          actual: comparison.status === 'pass' ? `${beforeCompared.length} declared control(s) match.`
+            : comparison.status === 'skip' ? 'No adapted capability declared persisted controls for readback.'
+              : `${comparison.mismatches.length} declared control value(s) differ.`,
+          detail: comparison.status === 'pass' ? `发布后重载编辑器，${beforeCompared.length} 个能力已声明的持久设置控件与发布前一致。`
+            : comparison.status === 'skip' ? '没有适配能力声明可用于持久化回读的控件；全量控件仍记录在报告中。'
+              : `发布后回读发现 ${comparison.mismatches.length} 项已声明持久设置控件值变化。`,
           evidence: comparison.mismatches };
         if (comparison.status === 'fail') {
           const screenshot = await captureFailure('post-publish-readback');
@@ -271,6 +285,9 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
         }
         batch.results.push(readbackCheck);
         publishedReadback = { status: comparison.status, currentValues: readbackValues,
+          comparedControlCount: beforeCompared.length,
+          uncomparedControlCount: Math.max(0, values.length - beforeCompared.length),
+          scope: hasDeclaredScope ? 'adapted-capability-persisted-controls' : 'all-inventory-controls',
           mismatches: comparison.mismatches };
         await onProgress({ stage: 'post-publish-readback', status: comparison.status, mismatchCount: comparison.mismatches.length });
       } catch (error) {

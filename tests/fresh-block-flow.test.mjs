@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPageConfig,
   runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
 import { selectRetainedFailures } from '../src/batch-save.mjs';
-import { createFreshSettingsAdapter, currentValuesFromInventory } from '../src/fresh-settings-adapter.mjs';
+import { createFreshSettingsAdapter, currentValuesFromInventory, projectPersistedFreshValues } from '../src/fresh-settings-adapter.mjs';
 import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDeleteConfirmIndexes,
   matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from '../src/fresh-editor-actions.mjs';
 import { matchingPageSaveControls, waitForUniquePageSaveControl } from '../src/page-save-control.mjs';
@@ -337,7 +337,7 @@ test('full fresh flow runs PLD definitions on a scoped session, restores depende
   const resolvedTarget = resolveFreshPageTarget(pageTarget, { name: 'Catalog' });
   targetConfig.resolvedTarget = resolvedTarget;
   const profile = { fixture: { filteredProducts: ['AUTOTEST-Product'] }, requirements: {} };
-  const freshAdapter = await createFreshSettingsAdapter({ capabilities: ['product-list-display'],
+  const freshAdapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'product-list-display', dialogTitle: '设置与选取数据' }],
     context: { config: targetConfig, session: { id: 'outer-browser-session' }, page: {}, canvas: frame,
       profile, report: { fixture: { applied: true } }, scopedSession, initialControls: controls,
       save: async () => events.push('page-save') },
@@ -348,10 +348,18 @@ test('full fresh flow runs PLD definitions on a scoped session, restores depende
     targetConfig.resolvedTarget = resolveFreshPageTarget(target, { name: 'Catalog' });
     return { editorLink: '/editor/catalog', frontLink: '/catalog.html' };
   };
-  adapter.prepareSettings = () => freshAdapter.prepare({ page: {}, canvas: frame, config: targetConfig, profile,
-    report: { fixture: { applied: true } }, scopedSession, initialControls: controls });
-  const visibleValues = async () => state.controls.filter((item) => item.type === 'radio' && item.checked)
-    .map((item) => ({ region: 'settings', label: item.name, type: 'radio', value: item.label }));
+  adapter.prepareSettings = async () => {
+    const prepared = await freshAdapter.prepare({ page: {}, canvas: frame, config: targetConfig, profile,
+      report: { fixture: { applied: true } }, scopedSession, initialControls: controls });
+    assert.deepEqual(prepared.persistedControls.map(({ region, controlIndex, type }) => ({ region, controlIndex, type })), [
+      { region: '设置与选取数据', controlIndex: 0, type: 'radio' },
+      { region: '设置与选取数据', controlIndex: 4, type: 'radio' },
+    ]);
+    return prepared;
+  };
+  const visibleValues = async () => state.controls.filter((item) => item.type === 'radio')
+    .map((item) => ({ region: '设置与选取数据', label: item.name, type: 'radio', value: item.label,
+      controlIndex: item.index, controlIdentity: `mock:${item.index}` }));
   adapter.readCurrentValues = visibleValues;
   adapter.readPublishedValues = async () => {
     assert.equal(targetConfig.resolvedTarget.page, 'Catalog');
@@ -360,6 +368,7 @@ test('full fresh flow runs PLD definitions on a scoped session, restores depende
   };
 
   const report = await runFreshBlockFlow({ config: targetConfig, adapter });
+  assert.ok(report.publishedReadback, JSON.stringify(report.flowErrors));
   assert.equal(report.publishedReadback.status, 'pass');
   assert.deepEqual(report.batches.map((batch) => batch.restoreBefore), [[], ['data-source']]);
   assert.ok(report.checks.some((item) => item.id === 'pld-data-source-persist' && item.status === 'fail'));
@@ -369,6 +378,19 @@ test('full fresh flow runs PLD definitions on a scoped session, restores depende
   assert.equal(state.controls.find((item) => item.name === 'data-source' && item.checked)?.label, '使用筛选条件');
   assert.ok(events.includes('dialog-save'));
   assert.ok(events.includes('page-save'));
+});
+
+test('persisted readback scope follows capability control references, not control labels', () => {
+  const values = [
+    { controlIdentity: 'a', controlIndex: 3, region: 'Settings', type: 'radio', label: 'Mode A', value: true },
+    { controlIdentity: 'b', controlIndex: 8, region: 'Picker', type: 'checkbox', label: 'arbitrary CMS item', value: true },
+  ];
+  assert.deepEqual(projectPersistedFreshValues(values, [{ settingId: 'mode-check', region: 'Settings',
+    controlIndex: 3, type: 'radio' }]), [values[0]]);
+  assert.throws(() => projectPersistedFreshValues(values, [{ settingId: 'missing', region: 'Settings',
+    controlIndex: 99, type: 'radio' }]), /resolved 0 inventory controls/);
+  assert.throws(() => projectPersistedFreshValues([...values, { ...values[0], controlIdentity: 'duplicate' }],
+    [{ settingId: 'ambiguous', region: 'Settings', controlIndex: 3, type: 'radio' }]), /resolved 2 inventory controls/);
 });
 
 test('fresh setting definitions are prepared only after the fresh instance reloads', async () => {
@@ -388,9 +410,9 @@ test('current setting inventory records values with region and control identity'
     { type: 'text', label: 'Quantity', value: '12' },
     { type: 'password', label: 'API key', value: 'never-report-this' },
   ] }]), [
-    { controlIdentity: 'gallery:1:Settings:checkbox:Show name:name:0', region: 'Settings', label: 'Show name', type: 'checkbox', value: true },
-    { controlIdentity: 'gallery:1:Settings:text:Quantity:12:1', region: 'Settings', label: 'Quantity', type: 'text', value: '12' },
-    { controlIdentity: 'gallery:1:Settings:password:API key:[redacted]:2', region: 'Settings', label: 'API key', type: 'password', value: '[redacted]' },
+    { controlIdentity: 'gallery:1:Settings:checkbox:Show name:name:0', controlIndex: 0, region: 'Settings', label: 'Show name', type: 'checkbox', value: true },
+    { controlIdentity: 'gallery:1:Settings:text:Quantity:12:1', controlIndex: 1, region: 'Settings', label: 'Quantity', type: 'text', value: '12' },
+    { controlIdentity: 'gallery:1:Settings:password:API key:[redacted]:2', controlIndex: 2, region: 'Settings', label: 'API key', type: 'password', value: '[redacted]' },
   ]);
 });
 

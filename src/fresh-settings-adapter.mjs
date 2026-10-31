@@ -2,9 +2,12 @@
  * Shared adapter for capability-owned fresh-setting definitions.
  * A capability opts in by exporting:
  *   freshSettings = { status: 'adapted', metadata, createDefinitions(context) }
- * Definitions return { settings }, where each setting has id, key, apply(ctx),
- * and check(ctx). Definitions that have not been converted are reported
- * explicitly and never treated as passing checks.
+ * Definitions return { settings, persistedControls }, where each setting has
+ * id, key, apply(ctx), and check(ctx). persistedControls explicitly identify
+ * the controls whose values are covered by the capability's persistence
+ * assertions. Full inventories remain in the report, while transient controls
+ * outside adapted definitions are reported as unverified instead of silently
+ * becoming persistence assertions.
  */
 export async function createFreshSettingsAdapter({ capabilities = [], context = {}, loadCapability }) {
   if (typeof loadCapability !== 'function') throw new Error('Fresh adapter requires a capability module loader.');
@@ -22,6 +25,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
     const metadata = {};
     const capabilityResults = [];
     const staticResults = [];
+    const persistedControls = [];
     const preparedModules = new Map();
     for (const { id, item, definition } of modules) {
       if (!definition || definition.status !== 'adapted' || typeof definition.createDefinitions !== 'function') {
@@ -34,6 +38,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
       preparedModules.set(id, { definition, created });
       settings.push(...created.settings.map((setting) => ({ ...setting, capability: id })));
       staticResults.push(...(created.staticResults || []));
+      persistedControls.push(...(created.persistedControls || []).map((control) => ({ ...control, capability: id })));
       Object.assign(metadata, definition.metadata || {}, created.metadata || {});
       capabilityResults.push({ capability: id, status: 'adapted', settingIds: created.settings.map((setting) => setting.id) });
     }
@@ -72,7 +77,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         return setting.check({ ...mergedContext, ...phase, setting });
       },
     };
-    prepared = { settings, metadata, capabilityResults, staticResults, batchAdapter };
+    prepared = { settings, metadata, capabilityResults, staticResults, persistedControls, batchAdapter };
     return prepared;
   };
   return { prepare, get prepared() { return prepared; } };
@@ -87,8 +92,26 @@ export function currentValuesFromInventory(inventory) {
         ? Boolean(control.checked) : (control.value ?? null);
       const identityValue = sensitive ? '[redacted]' : (control.value || '');
       values.push({ controlIdentity: `${region.type}:${region.wrapIndex}:${region.title || region.kind || ''}:${control.type}:${control.label || ''}:${identityValue}:${index}`,
+        controlIndex: control.index ?? index,
         region: region.title || region.kind || region.type, label: control.label || '', type: control.type, value });
     }
   }
   return values;
+}
+
+export function projectPersistedFreshValues(values, persistedControls) {
+  const projected = [];
+  for (const reference of persistedControls || []) {
+    const matches = (values || []).filter((value) => value.region === reference.region
+      && value.controlIndex === reference.controlIndex && value.type === reference.type);
+    if (matches.length !== 1) {
+      const observed = (values || []).slice(0, 4).map((value) => `${value.region}/${value.controlIndex}/${value.type}`).join(',');
+      throw new Error(`Persisted control ${reference.settingId || reference.capability || ''} (${reference.region}, index ${reference.controlIndex}, ${reference.type}) resolved ${matches.length} inventory controls; expected exactly one. First controls: ${observed}`);
+    }
+    projected.push(matches[0]);
+  }
+  if (new Set(projected.map((item) => item.controlIdentity)).size !== projected.length) {
+    throw new Error('Fresh persisted-control references are not unique.');
+  }
+  return projected;
 }
