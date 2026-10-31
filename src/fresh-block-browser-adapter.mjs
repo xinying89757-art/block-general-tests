@@ -5,7 +5,8 @@ import { inventorySettings } from './baseline.mjs';
 import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
 import { matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from './fresh-editor-actions.mjs';
 import { waitForPublishSignal, verifyFrontInstance, choosePublishMenuItem } from './publish-confirm.mjs';
-import { inspectActiveModuleLibraryOpener, probeModuleLibraryModes } from './module-library-browser.mjs';
+import { inspectActiveModuleLibraryOpener, probeModuleLibraryModes,
+  waitForUniqueVisibleModuleLibraryPanel } from './module-library-browser.mjs';
 import { RAIL, openRailPanel, readSchemeColor, readModuleWidth, cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
@@ -113,8 +114,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
         throw error;
       }
       await addButton.first().click({ timeout: config.actionTimeoutMs });
-      const panel = page.locator('.backstage-addmodules-chooseWrapper');
-      await panel.waitFor({ state: 'visible', timeout: config.actionTimeoutMs });
+      const panel = await waitForUniqueVisibleModuleLibraryPanel(page, config.actionTimeoutMs);
       let lookup;
       try { lookup = await probeModuleLibraryModes({ page, panel, targetBlockId: blockId, config }); }
       finally {

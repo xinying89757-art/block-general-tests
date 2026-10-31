@@ -15,7 +15,8 @@ import { freshSettings as widthFreshSettings, moduleWidthPersistedControls } fro
 import { freshSettings as categoryFreshSettings, categoryPersistedControls } from '../src/capabilities/product-category-select.mjs';
 import { freshSettings as styleFreshSettings } from '../src/capabilities/block-style-spec.mjs';
 import { freshRailInventoryRegions, resolveFreshPageTarget } from '../src/fresh-block-browser-adapter.mjs';
-import { inspectActiveModuleLibraryOpener } from '../src/module-library-browser.mjs';
+import { inspectActiveModuleLibraryOpener, waitForUniqueVisibleControl,
+  waitForUniqueVisibleModuleLibraryPanel } from '../src/module-library-browser.mjs';
 import { selectBlock as selectRailBlock } from '../src/capabilities/rail.mjs';
 import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
 import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
@@ -577,6 +578,30 @@ test('module-library preflight uses the add path active-wrapper locator and reco
     ['frame', '#backstage-bodyArea .backstage-creatmodules-wrapper'],
     ['wrapper-first'], ['child', '.backstage-creatmodules-addbtn'], ['opener-first'],
   ]);
+});
+
+test('module-library mode tab and target search use unique visible controls scoped to the active panel', async () => {
+  const calls = [];
+  const control = { waitFor: async (options) => calls.push(['waitFor', options]),
+    count: async () => 1, first() { return this; }, click: async () => calls.push(['click']) };
+  const panel = { locator(selector) { calls.push(['panel-locator', selector]); return control; } };
+  assert.equal(await waitForUniqueVisibleControl(panel, '.user-handle-module[value="-1"]', 'Mode develop tab'), control);
+  assert.equal(await waitForUniqueVisibleControl(panel, '.addmodules_searchWrap input', 'Target search input (online)'), control);
+  assert.deepEqual(calls.filter(([kind]) => kind === 'panel-locator').map(([, selector]) => selector), [
+    '.user-handle-module[value="-1"]:visible', '.addmodules_searchWrap input:visible',
+  ]);
+  assert.ok(calls.filter(([kind]) => kind === 'waitFor').every(([, options]) => options.state === 'visible'));
+});
+
+test('module-library visible control lookup fails closed on multiple visible matches and scopes panel to page', async () => {
+  const pageCalls = [];
+  const visiblePanel = { first() { return this; }, waitFor: async () => {}, count: async () => 1 };
+  const page = { locator(selector) { pageCalls.push(selector); return visiblePanel; } };
+  assert.equal(await waitForUniqueVisibleModuleLibraryPanel(page), visiblePanel);
+  assert.deepEqual(pageCalls, ['.backstage-addmodules-chooseWrapper:visible']);
+  const ambiguous = { locator: () => ({ first: () => ({ waitFor: async () => {} }), count: async () => 2 }) };
+  await assert.rejects(waitForUniqueVisibleControl(ambiguous, '.user-handle-module', 'Mode tab'),
+    /2 visible matches/);
 });
 
 test('declared fresh batch dry run prints dependency restore steps without reading a site', () => {

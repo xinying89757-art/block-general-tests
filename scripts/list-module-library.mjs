@@ -5,8 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../src/config.mjs';
 import { launchSession } from '../src/browser.mjs';
 import { openEditor, gotoTargetPage } from '../src/editor.mjs';
-import { retryEnvironmentTimeout, waitForStable } from '../src/ui-waits.mjs';
-import { searchTargetInMode, summarizeTargetSearch } from '../src/module-library-inventory.mjs';
+import { inspectActiveModuleLibraryOpener, probeModuleLibraryModes,
+  waitForUniqueVisibleModuleLibraryPanel } from '../src/module-library-browser.mjs';
+import { summarizeTargetSearch } from '../src/module-library-inventory.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const optionKeys = new Set(['--block', '--page-kind', '--page-id', '--page-url', '--page-name']);
@@ -61,55 +62,15 @@ try {
     page: page.name || page.id, kind, ...(kind === 'system' ? { id: page.id, url: page.url } : { name: page.name }),
   }, blockId });
   const canvas = selected.frame;
-  const addButtons = canvas.locator('#backstage-bodyArea .backstage-creatmodules-wrapper .backstage-creatmodules-addbtn');
-  const addCount = await addButtons.count();
+  const { locator: addButton, matchCount: addCount } = await inspectActiveModuleLibraryOpener(canvas);
   if (addCount !== 1) throw new Error(`Module-library opener matched ${addCount} controls; refusing ambiguous open.`);
-  await addButtons.first().click({ timeout: config.actionTimeoutMs });
+  await addButton.click({ timeout: config.actionTimeoutMs });
   stage = 'library-open';
-  panel = session.page.locator('.backstage-addmodules-chooseWrapper');
-  await retryEnvironmentTimeout(() => panel.waitFor({ state: 'visible', timeout: config.actionTimeoutMs }),
-    { stage: 'library-load' });
-
-  const modes = [];
+  panel = await waitForUniqueVisibleModuleLibraryPanel(session.page, config.actionTimeoutMs);
   stage = 'library-inventory';
-  for (const [mode, value] of [['review', '-2'], ['develop', '-1']]) {
-    const candidate = panel.locator(`.btn.add[appid=${JSON.stringify(blockId)}]`);
-    modes.push(await searchTargetInMode({ mode, targetBlockId: blockId,
-      selectMode: async () => { const tab = panel.locator(`.user-handle-module[value="${value}"]`);
-        if (await tab.count() !== 1) throw new Error(`Mode ${mode} tab is unavailable or ambiguous.`);
-        await tab.first().click({ timeout: config.actionTimeoutMs }); },
-      submitTarget: async (target) => { const search = panel.locator('.addmodules_searchWrap input');
-        if (await search.count() !== 1) throw new Error(`Target search control unavailable in ${mode}.`);
-        await search.first().fill(target); await search.first().press('Enter'); },
-      waitForLazyResults: async () => retryEnvironmentTimeout(() => waitForStable(async () => await candidate.count(),
-        (count) => count > 0, { timeout: 2_000, stableMs: 250 }), { stage: 'library-load', retries: 0 })
-        .catch((error) => { if (error.name !== 'TimeoutError') throw error; }),
-      scrollResultsToEnd: async () => panel.evaluate((rootNode) => { for (const node of [rootNode, ...rootNode.querySelectorAll('*')])
-        if (node.scrollHeight > node.clientHeight + 2 && ['auto', 'scroll'].includes(getComputedStyle(node).overflowY)) node.scrollTop = node.scrollHeight; }),
-      targetPresent: async () => { const count = await candidate.count(); if (count > 1) throw new Error(`Target ${blockId} is ambiguous in ${mode}.`); return count === 1; },
-      captureMissing: async (currentMode) => { const directory = path.join(root, 'logs'); await fs.mkdir(directory, { recursive: true });
-        const file = path.join(directory, `module-library-${blockId}-${currentMode}-not-found.png`);
-        await session.page.screenshot({ path: file, fullPage: true, timeout: 30_000 }); return file; } }));
-  }
-
-  // Online libraries expose a search endpoint rather than a finite tab list.
-  // Search the requested number without clicking any add action.
-  const onlineCandidate = panel.locator(`.btn.add[appid=${JSON.stringify(blockId)}]`);
-  modes.push(await searchTargetInMode({ mode: 'online', targetBlockId: blockId, selectMode: async () => {},
-    submitTarget: async (target) => { const search = panel.locator('.addmodules_searchWrap input');
-      if (await search.count() !== 1) throw new Error('Target search control unavailable in online.');
-      await search.first().fill(target); await search.first().press('Enter'); },
-    waitForLazyResults: async () => retryEnvironmentTimeout(() => waitForStable(async () => await onlineCandidate.count(),
-      (count) => count > 0, { timeout: 2_000, stableMs: 250 }), { stage: 'library-load', retries: 0 })
-      .catch((error) => { if (error.name !== 'TimeoutError') throw error; }),
-    scrollResultsToEnd: async () => panel.evaluate((rootNode) => { for (const node of [rootNode, ...rootNode.querySelectorAll('*')])
-      if (node.scrollHeight > node.clientHeight + 2 && ['auto', 'scroll'].includes(getComputedStyle(node).overflowY)) node.scrollTop = node.scrollHeight; }),
-    targetPresent: async () => { const count = await onlineCandidate.count(); if (count > 1) throw new Error(`Target ${blockId} is ambiguous in online.`); return count === 1; },
-    captureMissing: async (mode) => { const directory = path.join(root, 'logs'); await fs.mkdir(directory, { recursive: true });
-      const file = path.join(directory, `module-library-${blockId}-${mode}-not-found.png`);
-      await session.page.screenshot({ path: file, fullPage: true, timeout: 30_000 }); return file; } }));
-
+  const modes = await probeModuleLibraryModes({ page: session.page, panel, targetBlockId: blockId, config });
   result = summarizeTargetSearch({ modes, targetBlockId: blockId });
+  result.moduleLibraryOpenerMatchCount = addCount;
   result.siteHost = siteHost;
   result.page = { kind, id: page.id || null, name: page.name || null, url: page.url || pageData?.url || null };
   result.links = { editor: page.editorHref || session.page.url(), front: pageData?.frontUrl || page.url || null };

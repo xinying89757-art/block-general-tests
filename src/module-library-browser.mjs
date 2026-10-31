@@ -3,6 +3,26 @@ import path from 'node:path';
 import { probeTargetAcrossModes, searchTargetInMode } from './module-library-inventory.mjs';
 import { retryEnvironmentTimeout } from './ui-waits.mjs';
 
+/**
+ * Resolve a single visible control inside an already-scoped surface. Hidden
+ * responsive/editor clones do not make a visible action ambiguous.
+ */
+export async function waitForUniqueVisibleControl(scope, selector, label, timeoutMs = 8_000) {
+  const visible = scope.locator(`${selector}:visible`);
+  await visible.first().waitFor({ state: 'visible', timeout: timeoutMs });
+  const count = await visible.count();
+  if (count !== 1) {
+    throw Object.assign(new Error(`${label} has ${count} visible matches in the active module-library panel.`), {
+      code: 'LIBRARY_CONTROL_AMBIGUOUS', searched: false,
+    });
+  }
+  return visible.first();
+}
+
+export async function waitForUniqueVisibleModuleLibraryPanel(page, timeoutMs = 30_000) {
+  return waitForUniqueVisibleControl(page, '.backstage-addmodules-chooseWrapper', 'Module-library panel', timeoutMs);
+}
+
 /** Uses the same first canvas wrapper/add control as the proven add path. */
 export async function inspectActiveModuleLibraryOpener(frame) {
   const wrapper = frame.locator('#backstage-bodyArea .backstage-creatmodules-wrapper').first();
@@ -11,7 +31,7 @@ export async function inspectActiveModuleLibraryOpener(frame) {
 }
 
 /** Target-only UI adapter shared by onboarding, read-only inventory, and add. */
-export async function probeModuleLibraryModes({ page, panel, targetBlockId, config, modes = ['review', 'develop', 'online'] }) {
+export async function probeModuleLibraryModes({ page, panel, targetBlockId, config, modes = ['online', 'develop', 'review'] }) {
   const target = String(targetBlockId);
   return probeTargetAcrossModes({ targetBlockId: target, modes,
     probeMode: async ({ mode }) => {
@@ -20,15 +40,15 @@ export async function probeModuleLibraryModes({ page, panel, targetBlockId, conf
         selectMode: async () => {
           if (mode === 'online') return;
           const value = mode === 'develop' ? '-1' : '-2';
-          const tab = panel.locator(`.user-handle-module[value="${value}"]`);
-          if (await tab.count() !== 1) throw Object.assign(new Error(`Mode ${mode} tab is unavailable or ambiguous.`), { code: 'MODE_UNAVAILABLE', searched: false });
-          await tab.first().click({ timeout: config.actionTimeoutMs });
+          const tab = await waitForUniqueVisibleControl(panel, `.user-handle-module[value="${value}"]`, `Mode ${mode} tab`,
+            Number(config.libraryControlTimeoutMs) || 8_000);
+          await tab.click({ timeout: config.actionTimeoutMs });
         },
         submitTarget: async (id) => {
-          const search = panel.locator('.addmodules_searchWrap input');
-          if (await search.count() !== 1) throw Object.assign(new Error(`Target search control unavailable in ${mode}.`), { code: 'TARGET_SEARCH_UNAVAILABLE', searched: false });
-          await search.first().fill(id);
-          await search.first().press('Enter');
+          const search = await waitForUniqueVisibleControl(panel, '.addmodules_searchWrap input', `Target search input (${mode})`,
+            Number(config.libraryControlTimeoutMs) || 8_000);
+          await search.fill(id);
+          await search.press('Enter');
         },
         waitForLazyResults: async () => retryEnvironmentTimeout(() => candidate.waitFor({
           state: 'attached', timeout: Number(config.libraryResultTimeoutMs) || 8_000,
