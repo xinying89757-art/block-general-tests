@@ -10,8 +10,8 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../src/config.mjs';
-import { launchSession } from '../src/browser.mjs';
-import { openEditor, ensureTargetPage, resolveTargetPage } from '../src/editor.mjs';
+import { resolveTargetPage } from '../src/editor.mjs';
+import { launchTargetEditor } from '../src/site-editor-session.mjs';
 import { captureBaseline } from '../src/baseline.mjs';
 import { readSiteBaseline, writeSiteBaseline } from '../src/site-baseline.mjs';
 import { waitForStable } from '../src/ui-waits.mjs';
@@ -23,11 +23,9 @@ const profilePath = path.resolve(projectRoot, config.profile || `profiles/${conf
 const profile = JSON.parse(await readFile(profilePath, 'utf8'));
 config.resolvedTarget = resolveTargetPage(config, profile);
 
-const session = await launchSession(config);
+const { session, page, canvas } = await launchTargetEditor(config);
 try {
-  session.page = (await openEditor(session.page, config)).page;
-  const { frame: canvas } = await ensureTargetPage(session.page, config);
-  const steps = await captureBaseline({ page: session.page, canvas, config, blockId: config.blockId });
+  const steps = await captureBaseline({ page, canvas, config, blockId: config.blockId });
   const readInstances = () => canvas.locator('body').evaluate((body, blockId) => {
     const blocks = [...body.querySelectorAll('.siteblocks-setting-wrap[data-appid]')];
     return blocks.flatMap((node, index) => {

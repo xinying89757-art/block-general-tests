@@ -5,11 +5,10 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../src/config.mjs';
-import { launchSession } from '../src/browser.mjs';
-import { openEditor, ensureTargetPage, resolveTargetPage } from '../src/editor.mjs';
+import { resolveTargetPage } from '../src/editor.mjs';
+import { launchTargetEditor } from '../src/site-editor-session.mjs';
 import { guardBaseline } from '../src/baseline-guard.mjs';
 import { readSiteBaseline } from '../src/site-baseline.mjs';
-import { spawnSync } from 'node:child_process';
 
 const blockId = process.argv[2] || process.env.BLOCK_ID;
 if (!blockId) throw new Error('请提供区块 ID：node scripts/restore-baseline.mjs <区块 ID>');
@@ -23,28 +22,16 @@ const { baseline: siteBaseline, file: baselineFile } = await readSiteBaseline(ro
 if (!siteBaseline?.steps?.length) throw new Error(`Site baseline ${baselineFile} 不存在或为空。`);
 config.resolvedTarget = resolveTargetPage(config, profile);
 
-let session = await launchSession(config);
-config.recoverEnvironment = async (reason, options = {}) => {
+let opened = await launchTargetEditor(config);
+let { session, page, canvas } = opened;
+config.recoverEnvironment = async (reason) => {
   try { await session?.browser?.close(); } catch {}
-  const openFresh = async () => {
-    session = await launchSession(config);
-    session.page = (await openEditor(session.page, config)).page;
-    const target = await ensureTargetPage(session.page, config);
-    return { session, page: session.page, canvas: target.frame, context: session.context };
-  };
-  try { return await openFresh(); }
-  catch {
-    try { await session?.browser?.close(); } catch {}
-    const login = spawnSync(process.execPath, ['scripts/explore-login.mjs', '--force-login'],
-      { cwd: root, stdio: 'ignore', timeout: 120_000, env: process.env });
-    if (login.error || login.status !== 0) throw new Error(`基线恢复在 ${reason} 后重新登录失败`);
-    return openFresh();
-  }
+  opened = await launchTargetEditor(config);
+  ({ session, page, canvas } = opened);
+  return { session, page, canvas, context: session.context };
 };
 try {
-  session.page = (await openEditor(session.page, config)).page;
-  const { frame: canvas } = await ensureTargetPage(session.page, config);
-  const result = await guardBaseline({ page: session.page, canvas, config, baseline: siteBaseline.steps });
+  const result = await guardBaseline({ page, canvas, config, baseline: siteBaseline.steps });
   console.log(JSON.stringify({ blockId, result }, null, 2));
   if (result.residue && !result.verifiedFresh) process.exitCode = 1;
 } catch (error) {
