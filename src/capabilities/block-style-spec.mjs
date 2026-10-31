@@ -7,12 +7,12 @@
 // Figma node -> DOM selector, which items are hard asserts vs record).
 //
 // Viewports: pc compares against the design frame; pad/mobile have no design
-// frame for 47748 (styleSpec.designFrames lists only "pc"), so those run
+// frame for 另一样本区块 (styleSpec.designFrames lists only "pc"), so those run
 // breakage checks only (horizontal overflow, sticking out, overlap, text
 // clipping, image distortion) plus screenshots for human review.
 // Two assertion kinds: computed values (fontSize/color/...) and geometry
 // (e.g. text centered in its box — lineHeight/textAlign are NOT compared
-// when flex does the centering, per the 47748 button/pagination lesson).
+// when flex does the centering, per the 另一样本区块 button/pagination lesson).
 import { previewSelector, checkReportText } from './shared.mjs';
 
 const SUITE = 'capability:block-style-spec';

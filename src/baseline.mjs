@@ -17,8 +17,12 @@
 // The right-rail color-scheme / module-width panels remain out of scope;
 // the button zone is handled through its in-canvas editor-box popover.
 import { clickSettings, controlValue, probeControls, widgetSession, TIMEOUT } from './capabilities/shared.mjs';
+import { savePage } from './editor.mjs';
 import { readButtonPopover, writeButtonPopover } from './capabilities/button-link.mjs';
-import { matchControl, normalizeControlIdentity } from './baseline-identity.mjs';
+import { matchControl, matchingControls, normalizeControlIdentity } from './baseline-identity.mjs';
+import { uiWaitConfig, waitForStable } from './ui-waits.mjs';
+import { makeFixtureSelectionRule, fixtureSelectionDiff } from './site-baseline.mjs';
+import { retryClosedRestoreStep } from './baseline-recovery.mjs';
 
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 const TITLE = '.backstage-dialog-title, .layui-layer-title';
@@ -95,7 +99,9 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
     return { type, wrapIndex };
   });
   const inventory = [];
-  for (const [index, { type, wrapIndex }] of regions.entries()) {
+  const readOrder = [...regions].sort((left, right) =>
+    Number(left.type === 'phoenix_blocks_button') - Number(right.type === 'phoenix_blocks_button'));
+  for (const [index, { type, wrapIndex }] of readOrder.entries()) {
     onProgress?.({ index: index + 1, total: regions.length, type, wrapIndex });
     if (type === 'phoenix_blocks_button') {
       const region = { type, wrapIndex, title: null, kind: 'button-popover', controls: [] };
@@ -103,7 +109,9 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
         const popover = await readButtonPopover({ page, canvas, config });
         region.controls = popover.want.map(({ to, ...item }) => ({ ...item,
           ...(item.type === 'checkbox' ? { checked: to } : { value: to }) }));
-      } catch (error) { region.skipped = error.message; }
+      } catch (error) {
+        throw new Error(`读取按钮浮层失败，拒绝捕获不完整基线：${error.message}`);
+      }
       inventory.push(region);
       continue;
     }
@@ -146,7 +154,10 @@ export async function captureBaseline(args) {
         want: controls.map((c) => ({ label: c.label, type: c.type, to: c.type === 'checkbox' ? c.checked : c.value })),
         ...(region.skipped ? { skipped: region.skipped } : {}) };
     }
-    const step = { title, type, wrapIndex, want: [] };
+    const dynamicSelection = type === 'phoenix_blocks_filterStyle'
+      || (type === 'phoenix_blocks_gallery' && /分类|产品列表|选取数据/.test(title || ''));
+    const step = { title, type, wrapIndex, want: [],
+      ...(dynamicSelection ? { fixtureSelection: makeFixtureSelectionRule(controls) } : {}) };
     if (title && controls.length) {
       const keyCounts = new Map();
       for (const control of controls) {
@@ -155,7 +166,8 @@ export async function captureBaseline(args) {
       }
       const duplicateKeys = new Set([...keyCounts.entries()]
         .filter(([, count]) => count > 1).map(([key]) => key));
-      const serializedControls = controls.map((control) => serializeControl(control, duplicateKeys));
+      const serializedControls = controls.map((control) => dynamicSelection && control.type === 'checkbox'
+        && control.identity !== 'select-all' ? null : serializeControl(control, duplicateKeys));
       const itemCounts = new Map();
       for (const item of serializedControls) {
         if (!item) continue;
@@ -185,13 +197,21 @@ export async function captureBaseline(args) {
   });
 }
 
-export async function applyBaseline({ page, canvas, config, baseline }) {
+export function baselineStepReadyTimeout(title, envValue = process.env.UI_READY_TIMEOUT_MS) {
+  const normal = title === '设置产品分类' ? 120_000 : 30_000;
+  return Math.max(normal, Number(envValue) || 0);
+}
+
+export async function applyBaseline(args) {
+  let { page, canvas } = args;
+  const { config, baseline } = args;
   const steps = [];
   let allVerified = true;
+  let recoveredBrowser = false;
   for (const stepDef of baseline || []) {
     const { title, type, wrapIndex } = stepDef;
     if (stepDef.kind === 'button-popover') {
-      const step = { title: null, type, wrapIndex, kind: stepDef.kind, set: [], verified: [], allVerified: false, errors: [] };
+      let step = { title: null, type, wrapIndex, kind: stepDef.kind, set: [], verified: [], allVerified: false, errors: [] };
       try {
         const applied = await writeButtonPopover({ page, canvas, config, want: stepDef.want || [] });
         step.verified = (stepDef.want || []).map((want) => ({ label: want.label,
@@ -200,23 +220,67 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
         step.set = step.verified.map((item) => `${item.label}：${String(item.value)}`);
         step.allVerified = applied.verified && step.verified.every((item) => item.ok);
       } catch (error) { step.errors.push(error.message); }
+      if (!step.allVerified && !config.disableBaselineRecovery && typeof config.recoverEnvironment === 'function') {
+        const attempt = await retryClosedRestoreStep({ step,
+          isClosed: (candidate) => page.isClosed?.() || /Target page, context or browser has been closed/i.test(candidate.errors.join(' ')),
+          recover: (candidate) => config.recoverEnvironment(config.environmentStatus || 'env-timeout', { skipBaselineGuard: true, failedStep: candidate.title || candidate.kind }),
+          retry: async (fresh) => {
+            page = fresh.page; canvas = fresh.canvas;
+            const retried = await applyBaseline({ page, canvas,
+              config: { ...config, disableBaselineRecovery: true }, baseline: [stepDef] });
+            return retried.steps[0];
+          },
+        });
+        step = attempt.step;
+        if (attempt.recovery) recoveredBrowser = true;
+      }
       if (!step.allVerified) allVerified = false;
       steps.push(step);
       continue;
     }
-    if (stepDef.skipped || !Array.isArray(stepDef.want) || stepDef.want.length === 0) {
+    if (stepDef.skipped || (!Array.isArray(stepDef.want) || stepDef.want.length === 0) && !stepDef.fixtureSelection) {
       steps.push({ title: title ?? null, type, wrapIndex, set: [], verified: [],
         allVerified: true, skipped: stepDef.skipped || '无可应用的设置项' });
       continue;
     }
-    const step = { title, type, wrapIndex, set: [], verified: [], allVerified: false, errors: [] };
+    let step = { title, type, wrapIndex, set: [], verified: [], allVerified: false, errors: [] };
     const session = widgetSession({ page, canvas, config, type, title, wrapIndex });
     try {
       const probe = await probeControls(session);
-      if (probe.reason) { step.errors.push(probe.reason); steps.push(step); allVerified = false; continue; }
+      if (probe.reason) throw new Error(probe.reason);
+      const readyTimeout = baselineStepReadyTimeout(title);
+      let controls;
+      try {
+        controls = await waitForStable((remaining) => session.read(remaining),
+          (items) => stepDef.want.every((wanted) => Boolean(matchControl(items, wanted)))
+            && (stepDef.fixtureSelection?.items || []).every((wanted) => matchingControls(items, { label: wanted.label, type: 'checkbox' }).length > 0),
+          { timeout: readyTimeout, stableMs: uiWaitConfig().stableMs });
+      } catch (error) {
+        const observed = await session.read().catch(() => []);
+        const missing = stepDef.want.filter((wanted) => {
+          try { return !matchControl(observed, wanted); } catch { return true; }
+        }).map((wanted) => wanted.label);
+        throw new Error(`基线“${title}”控件集未稳定：读到 ${observed.length} 个控件，缺少 ${missing.length}/${stepDef.want.length}${missing.length ? `（${missing.slice(0, 12).join('、')}）` : ''}；${error.message}`);
+      }
+      // Do not partially save a dialog when its recorded controls cannot all
+      // be resolved. A changing or incompletely loaded list needs investigation.
+      const missing = [];
+      for (const w of stepDef.want) {
+        try { if (!matchControl(controls, w)) missing.push(w.label); }
+        catch (error) { step.errors.push(error.message); }
+      }
+      for (const item of stepDef.fixtureSelection?.items || []) {
+        if (!matchingControls(controls, { label: item.label, type: 'checkbox' }).length) missing.push(item.label);
+      }
+      if (missing.length || step.errors.length) {
+        if (missing.length) step.errors.push(`恢复前找不到控件：${missing.join('、')}`);
+        allVerified = false;
+        steps.push(step);
+        continue;
+      }
       for (const w of stepDef.want) {
         let target;
-        try { target = matchControl(probe.controls, w); }
+        try { target = matchControl(controls, w); }
         catch (error) { step.errors.push(error.message); step.set.push(`${w.label}：身份不唯一`); continue; }
         if (!target) { step.set.push(`${w.label}：未找到`); continue; }
         const current = controlValue(target);
@@ -229,6 +293,19 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
         await session.set(target, w.to);
         step.set.push(`${w.label}：${String(current)} → ${String(w.to)}`);
       }
+      for (const item of stepDef.fixtureSelection?.items || []) {
+        const targets = matchingControls(controls, { label: item.label, type: 'checkbox' });
+        for (const target of targets) {
+          const current = controlValue(target);
+          if (current === item.selected) continue;
+          if (target.disabled) {
+            step.errors.push(`${item.label}：不可切换（disabled），当前 ${String(current)}，目标 ${String(item.selected)}`);
+            continue;
+          }
+          await session.set(target, item.selected);
+          step.set.push(`${item.label}：${String(current)} → ${String(item.selected)}`);
+        }
+      }
       await session.save();
       await session.open();
       const after = await session.read();
@@ -239,6 +316,13 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
         const value = item ? controlValue(item) : null;
         return { label: w.label, ...(w.occurrence === undefined ? {} : { occurrence: w.occurrence }), value, ok: value === w.to };
       });
+      if (stepDef.fixtureSelection) {
+        const selectionDiffs = fixtureSelectionDiff(stepDef.fixtureSelection, after);
+        step.verified.push(...selectionDiffs.map((item) => ({ ...item, ok: false })));
+        for (const item of stepDef.fixtureSelection.items) {
+          if (!selectionDiffs.some((diff) => diff.label === item.label)) step.verified.push({ label: item.label, value: item.selected, ok: true });
+        }
+      }
       step.allVerified = step.verified.every((v) => v.ok) && step.errors.length === 0;
       if (!step.allVerified) allVerified = false;
     } catch (error) {
@@ -248,7 +332,26 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
     } finally {
       try { await session.cancel(); } catch {}
     }
+    if (!step.allVerified && !config.disableBaselineRecovery && typeof config.recoverEnvironment === 'function') {
+      const attempt = await retryClosedRestoreStep({ step,
+        isClosed: (candidate) => page.isClosed?.() || /Target page, context or browser has been closed/i.test(candidate.errors.join(' ')),
+        recover: (candidate) => config.recoverEnvironment(config.environmentStatus || 'env-timeout', { skipBaselineGuard: true, failedStep: candidate.title }),
+        retry: async (fresh) => {
+          page = fresh.page; canvas = fresh.canvas;
+          const retried = await applyBaseline({ page, canvas,
+            config: { ...config, disableBaselineRecovery: true }, baseline: [stepDef] });
+          return retried.steps[0];
+        },
+      });
+      step = attempt.step;
+      if (attempt.recovery) recoveredBrowser = true;
+    }
+    if (!step.allVerified) allVerified = false;
     steps.push(step);
   }
-  return { steps, allVerified };
+  if (recoveredBrowser) {
+    try { await savePage(page); }
+    catch (error) { allVerified = false; steps.push({ title: '保存恢复后的页面', allVerified: false, errors: [error.message] }); }
+  }
+  return { steps, allVerified, recoveredBrowser };
 }

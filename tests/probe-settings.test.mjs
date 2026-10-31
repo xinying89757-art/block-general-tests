@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { matchCapabilities, signatures } from '../src/capabilities/signatures.mjs';
 import { displayFieldRequirements } from '../src/capabilities/product-list-display.mjs';
 import { checkRequirements, compareWithProfile, checkDisplayFieldRequirement } from '../src/probe-settings.mjs';
+import { profileWithSiteData } from './helpers/profile.mjs';
 const sample = async (id) => JSON.parse(await readFile(new URL(`./fixtures/inventory-${id}.json`, import.meta.url)));
 const ids = result => result.matched.map(m => m.id);
 test('盘点样本按设置语义匹配', async () => {
@@ -149,7 +150,8 @@ test('固定值需求：报告固定值、不算缺失；编辑器存在该设�
 });
 test('实站 47748：显示字段类型在需求指定的弹窗中核对', async () => {
   const inventory = await sample('47748');
-  const profile = JSON.parse(await (await import('node:fs/promises')).readFile(new URL('../profiles/47748.json', import.meta.url)));
+  const profile = profileWithSiteData('47748');
   const result = checkDisplayFieldRequirement(inventory, profile);
-  assert.ok(result.types.length === 3 && result.types.every(t => !/未识别/.test(t.message)), JSON.stringify(result));
+  assert.equal(result.status, 'ok', JSON.stringify(result));
+  assert.equal(result.types.length, 3);
 });

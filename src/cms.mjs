@@ -277,25 +277,32 @@ async function settleCmsNavigation(page, action) {
   }
 }
 
+export function exactProductId(matches, name) {
+  const ids = [...new Set(matches.map(({ productName, productId }) =>
+    productName === name ? productId : null).filter(Boolean))];
+  if (ids.length > 1) throw new Error(`产品名“${name}”不唯一，匹配 ${ids.length} 个产品。`);
+  return ids[0] || null;
+}
+
 export async function findProduct(page, name) {
   await assertProd(page);
-  // The product menu is a toggle. Repeated clicks while waiting for its
-  // submenu can collapse it again, leaving the runner waiting on a locator
-  // that was briefly present. Open it once, then wait for the observed entry.
-  let submenu = actionLocator(page, 'prod_list_sub').filter({ hasText: '产品名称' });
-  if (!await submenu.isVisible().catch(() => false)) {
-    await settleCmsNavigation(page, () => clickAction(page, 'prod_list', /^管理产品$/));
-  }
-  try { await submenu.waitFor({ state: 'visible', timeout: TIMEOUT }); }
-  catch (error) {
-    const menuEvidence = await page.locator('[action], [data-action]').filter({ visible: true }).evaluateAll((nodes) =>
-      nodes.map((node) => ({ action: node.getAttribute('action') || node.getAttribute('data-action'),
-        text: (node.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 80) }))
-        .filter(({ action, text }) => action === 'prod_list' || action === 'prod_list_sub' || /产品名称/.test(text)));
-    throw new Error(`产品管理导航未出现“产品名称”子菜单（prod_list_sub）；已见菜单项：${JSON.stringify(menuEvidence)}；${error.message}`);
-  }
-  // Search structure is unprobed: use observed semantic attributes/labels,
-  // require a unique input plus a unique search button before using it.
+  // Live probe 2026-10-30: navigating to /prod?invokeAction=prod_list_sub
+  // opens the observed product table directly. The sidebar prod_list toggle
+  // did not reveal its submenu when the SPA opened on the product form.
+  await gotoAction(page, 'prod_list_sub');
+  const findOnCurrentPage = async () => exactProductId(await page.evaluate(() => {
+    const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
+    const links = [...document.querySelectorAll('table tr a[href*="prodId="]')]
+      .filter((link) => link.getClientRects().length)
+      .map((link) => ({ productName: norm(link.innerText),
+        productId: new URL(link.getAttribute('href'), location.origin).searchParams.get('prodId') }));
+    return links;
+  }), name);
+  const firstPageId = await findOnCurrentPage();
+  if (firstPageId) return firstPageId;
+  // The live product list has no product-name search field in the current
+  // layout; its visible text input is the pagination jump control. Keep the
+  // semantic search path for versions that provide one, then scan pages.
   const inputs = page.locator('input[type="text"], input[type="search"]').filter({ visible: true });
   const searchIndexes = await inputs.evaluateAll((nodes) => nodes.flatMap((node, index) => {
     const labels = [node.placeholder, node.getAttribute('aria-label'), ...(node.labels || [])].map((value) => typeof value === 'string' ? value : value?.innerText || '');
@@ -306,7 +313,7 @@ export async function findProduct(page, name) {
     }
     return /搜索|产品名|产品名称|关键词|关键字/.test(labels.join(' ')) ? [index] : [];
   }));
-  if (searchIndexes.length > 1) throw new Error(`按产品名搜索不唯一：看到 ${searchIndexes.length} 个搜索输入框，须实跑核实。`);
+  if (searchIndexes.length > 1) throw new Error(`产品名称搜索输入框不唯一：看到 ${searchIndexes.length} 个。`);
   if (searchIndexes.length === 1) {
     await inputs.nth(searchIndexes[0]).fill(name);
     const search = page.getByRole('button', { name: /搜索|查询/ }).or(page.locator('a').filter({ hasText: /搜索|查询/ })).filter({ visible: true });
@@ -318,20 +325,31 @@ export async function findProduct(page, name) {
     // sidebar entries and the save button: the handler is JS, the overlay
     // cannot block a DOM click.
     await settleCmsNavigation(page, async () => (await unique(search, '产品名称搜索按钮')).evaluate((el) => el.click()));
+    return findOnCurrentPage();
   }
-  // If search is unavailable and the product is beyond page one, this scan
-  // may report it absent. First live run MUST verify the search path. New
-  // AUTOTEST products have no such risk; recently updated fixtures tend to
-  // appear on page one. Do not guess undocumented search selectors.
-  await page.locator('table').filter({ visible: true }).first().waitFor({ state: 'visible', timeout: TIMEOUT });
-  return waitForStable(() => page.evaluate((wanted) => {
-    const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
-    const links = [...document.querySelectorAll('table tr a[href*="prodId="]')]
-      .filter((link) => link.getClientRects().length && norm(link.innerText) === wanted);
-    const ids = [...new Set(links.map((link) => new URL(link.getAttribute('href'), location.origin).searchParams.get('prodId')))];
-    if (ids.length > 1) throw new Error(`产品名“${wanted}”不唯一，匹配 ${ids.length} 个产品。`);
-    return ids[0] || null;
-  }, name));
+  const totalPages = await page.evaluate(() => {
+    const match = (document.body.innerText || '').match(/共\s*(\d+)\s*页/);
+    return match ? Number(match[1]) : null;
+  });
+  if (!Number.isSafeInteger(totalPages) || totalPages < 1) {
+    throw new Error('产品名称搜索不可用，且分页总数未能唯一读出；不能判定产品不存在。');
+  }
+  if (totalPages > 1) {
+    const pageInput = page.locator('#pageNumInput').filter({ visible: true });
+    await unique(pageInput, '产品列表页码输入框');
+    const confirm = page.locator('a').filter({ visible: true });
+    for (let pageNumber = 2; pageNumber <= totalPages; pageNumber += 1) {
+      await pageInput.fill(String(pageNumber));
+      const confirmCount = await confirm.evaluateAll((nodes) => nodes.filter((node) => (node.innerText || '').replace(/\s+/g, ' ').trim() === '确认').length);
+      if (confirmCount !== 1) throw new Error(`跳转到第 ${pageNumber} 页的“确认”控件不唯一：${confirmCount} 个。`);
+      await settleCmsNavigation(page, async () => {
+        await confirm.evaluateAll((nodes) => nodes.find((node) => (node.innerText || '').replace(/\s+/g, ' ').trim() === '确认').click());
+      });
+      const productId = await findOnCurrentPage();
+      if (productId) return productId;
+    }
+  }
+  return null;
 }
 
 export async function createProduct(page, { name }) {
@@ -503,4 +521,112 @@ export async function setProductFieldValues(page, prodId, values) {
     } catch (error) { lastError = error.message; }
   } while (Date.now() < deadline);
   throw new Error(`产品字段保存后回读超时，不一致字段：${mismatch.join('、')}；实际 ${JSON.stringify(actual || {})}${lastError ? `；${lastError}` : ''}。`);
+}
+
+// These semantic CMS locators are deliberately strict; their DOM structure must
+// be checked on a test site before enabling fixture writes in production use.
+const autoName = name => typeof name === 'string' && name.startsWith('AUTOTEST-') && name.length > 9;
+function requireAuto(name) { if (!autoName(name)) throw new Error('拒绝操作非 AUTOTEST 数据。'); }
+export async function getCustomFieldIdentity(page, name) {
+  requireAuto(name);
+  await openField(page, name);
+  // Live probe 2026-10-30: the edit form carries the field id in the single
+  // hidden input field.encodePkId (other hidden inputs are page-level).
+  const id = await page.evaluate(() => {
+    const ids = [...new Set([...document.querySelectorAll('input[type="hidden"][name="field.encodePkId"]')].map(x => x.value).filter(Boolean))];
+    if (ids.length !== 1) throw new Error('字段 ID 隐藏控件 field.encodePkId 不唯一，需核实 CMS 表单。');
+    return ids[0];
+  });
+  const record = (await listCustomFields(page)).filter(f => f.name === name);
+  if (record.length !== 1) throw new Error('字段名称不唯一。');
+  return { ...record[0], id };
+}
+export async function updateCustomField(page, name, { missing = [], type, enable = false }) {
+  requireAuto(name);
+  await openField(page, name);
+  if (type) {
+    const radio = page.locator(`input[name="field.fieldType"][value=${quote(FIELD_TYPE_CODES[type])}]`);
+    if (await radio.count() !== 1 || await radio.isDisabled()) throw new Error('字段类型控件不可安全修改。');
+    if (!await radio.isChecked()) await radio.check();
+  }
+  if (enable) await page.locator('input[name="field.fieldStatus"][value="1"]').check();
+  for (const option of missing) {
+    const inputs = optionInputs(page), before = await inputs.count();
+    await (await unique(page.getByText(/^\+\s*添加选择项/).filter({ visible: true }), '添加选择项')).click();
+    if (await inputs.count() !== before + 1) throw new Error('新增字段选项控件数量不一致。');
+    await inputs.nth(before).fill(option); await inputs.nth(before).blur();
+  }
+  await saveCms(page, () => clickAction(page, 'saveFieldContent'));
+}
+// Live probe 2026-10-30: invokeAction=prod_group_list lists every category
+// row with a dataId checkbox (= group id) and a viewProductListByGoup link
+// carrying the name; invokeAction=prod_group_add may answer with a
+// "分类数量已经达到最大限制" system alert instead of a form.
+export class CategoryLimitError extends Error { code = 'CATEGORY_LIMIT'; }
+async function gotoAction(page, action, params = {}) {
+  const url = new URL(PROD_URL); url.searchParams.set('invokeAction', action);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  await page.goto(url.href, { waitUntil: 'load', timeout: 60_000 });
+  await assertProd(page);
+  await page.waitForTimeout(3000);
+}
+export async function findCategory(page, name) {
+  requireAuto(name);
+  await gotoAction(page, 'prod_group_list');
+  await page.locator('input[type="checkbox"][name="dataId"]').first().waitFor({ state: 'attached', timeout: TIMEOUT }).catch(() => {});
+  // Every row (leaf or not) carries its name in the dataId checkbox groupname.
+  return page.evaluate(wanted => {
+    const rows = [...document.querySelectorAll('input[type="checkbox"][name="dataId"]')].filter(n => (n.getAttribute('groupname') || '').trim() === wanted);
+    if (rows.length > 1) throw new Error('夹具分类重名。');
+    return rows.length ? { name: wanted, id: rows[0].value, parents: rows[0].closest('tr')?.getAttribute('parentgroup') ?? null } : null;
+  }, name);
+}
+export async function createCategory(page, name) {
+  requireAuto(name);
+  await gotoAction(page, 'prod_group_add');
+  const limit = await page.evaluate(() => /分类数量已经达到最大限制/.test(document.body.innerText || ''));
+  if (limit) throw new CategoryLimitError('站点产品分类数量已达上限，无法新建 AUTOTEST 分类。');
+  const form = await unique(page.locator('form[action="/prod/group/doAdd"]'), '新增分类表单');
+  const selected = form.locator('#treeboxbox_tree_pop .selectedTreeRow');
+  if (await selected.count() !== 1 || (await selected.innerText()).trim() !== '所有分组'
+      || await form.locator('#strParentGroup').inputValue() !== '') {
+    throw new Error('新增分类表单未选中顶级位置。');
+  }
+  const input = await unique(form.locator('input[name="group.groupName"]'), '分类名称');
+  await input.fill(name);
+  await input.blur();
+  const save = await unique(page.locator('a[action="prod_group_save_verify"][flag="list"]').filter({ visible: true }), '保存分类');
+  // The form enables this anchor asynchronously after the input event.
+  await page.locator('a[action="prod_group_save_verify"][flag="list"]:visible:not([disabled])')
+    .waitFor({ state: 'visible', timeout: TIMEOUT });
+  await saveCms(page, async () => {
+    if (await save.getAttribute('disabled') !== null) throw new Error('保存分类按钮不可用。');
+    await save.evaluate(node => node.click());
+  });
+  const created = await findCategory(page, name);
+  if (!created || created.parents !== '-1') throw new Error('创建后未找到唯一顶级夹具分类。');
+  return created;
+}
+async function openAutoProduct(page, prodId) {
+  await openProduct(page, prodId);
+  const input = await unique(page.locator('input[name="product.prodName"]'), '产品名称');
+  requireAuto(await input.inputValue());
+}
+// Live probe 2026-10-30: the product form stores categories in the hidden
+// input groupIds (comma separated ids); productGroupSelect() opens a picker
+// with checkboxGroupIds checkboxes and confirm #popWinProdGroupConfirm.
+const groupIds = page => page.locator('input[type="hidden"][name="groupIds"]').inputValue().then(v => v.split(',').map(s => s.trim()).filter(Boolean));
+export async function readProductCategories(page, prodId) {
+  await openAutoProduct(page, prodId);
+  return groupIds(page);
+}
+export async function addProductCategory(page, prodId, categoryId, categoryName) {
+  requireAuto(categoryName);
+  await openAutoProduct(page, prodId);
+  await page.evaluate(() => window.productGroupSelect());
+  const box = page.locator(`#popWin input[type="checkbox"][name="checkboxGroupIds"][value="${categoryId}"]`);
+  await (await unique(box, '分类选择框')).check();
+  await (await unique(page.locator('#popWinProdGroupConfirm'), '分类确认')).click();
+  if (!(await groupIds(page)).includes(categoryId)) throw new Error('分类选择后 groupIds 未包含目标分类。');
+  await saveProduct(page);
 }

@@ -3,6 +3,10 @@ import { waitForControlsReady, retryTransient, saveAndWait, readBackWithRetry, u
 export { readBackWithRetry } from '../ui-waits.mjs';
 
 export const TIMEOUT = 10_000;
+const CONTROL_LABEL_WHITESPACE_PATTERN = '\\s+';
+export function normalizeControlLabel(text) {
+  return String(text || '').replace(new RegExp(CONTROL_LABEL_WHITESPACE_PATTERN, 'g'), ' ').trim();
+}
 export function baselineRestoreTarget({ snapshot, baselineValue, defaultValue }) {
   if (baselineValue !== undefined && baselineValue !== null) return { value: baselineValue, source: 'baseline' };
   if (typeof snapshot === 'string' && /^AUTOTEST-/i.test(snapshot)) return { value: defaultValue, source: 'default-after-autotest-snapshot' };
@@ -13,7 +17,7 @@ export const isFieldCheckbox = (item) => item.type === 'checkbox'
   && /^\d+$/.test(item.value || '') && item.label !== '全选';
 export const blockSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 // Preview root: the data-appid wrap exists for every block. The LA class
-// (e.g. LA40838) is block-specific: 47748 has no LA class in preview, so
+// (e.g. LA样本区块) is block-specific: 另一样本区块 has no LA class in preview, so
 // relying on it fails the front layer for blocks that never had one.
 export const previewSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 
@@ -69,7 +73,7 @@ const EXPECTED = {
   'pcs-categories-front': '预览分类导航应与本次勾选的完整名称清单逐项一致，不得多出或缺少分类。',
   'cff-fields-backend': '画布自定义筛选组应恰好包含本次勾选的全部字段，不得多出或缺少字段。',
   'cff-fields-front': '预览自定义筛选组应恰好包含本次勾选的全部字段，不得多出或缺少字段。',
-  'cff-logic-front': '40838 交集应为测试产品A；并集应为测试产品A、测试产品小何1、测试产品小何2，不得迎合已知并集缺陷。',
+  'cff-logic-front': '交集与并集应分别等于夹具真值表计算的产品集合。',
   'cff-trigger-front': '手动模式选值后应保持原产品集合，点搜索后应显示夹具结果；自动模式不点搜索也应显示同一夹具结果。',
   'cff-scope-front': '当前分类与所有产品两种范围的筛选结果应分别等于各自独立夹具中的完整产品名单。',
   'cff-jump-front': '选择另一筛选后跳转页并执行筛选后，临时预览应进入所选页面对应的已确认地址。',
@@ -77,7 +81,7 @@ const EXPECTED = {
   'cff-background-front': '预览筛选区域的背景色应等于本次设置的红绿蓝数值，恢复后应回到原颜色。',
   'pld-fields-backend': '画布每张产品卡应恰好展示本次勾选的完整字段集合，不能多出或缺少字段。',
   'pld-fields-front': '预览每张产品卡应恰好展示本次勾选的完整字段集合，不能多出或缺少字段。',
-  'pld-source-category-backend': '来源只选测试分类后，画布列表应恰好显示画像中的七件上架产品，不显示下架或其他分类的产品。',
+  'pld-source-category-backend': '来源只选夹具分类后，画布列表应显示夹具计算的上架产品集合。',
   'pld-size-backend': '画布产品数应等于新设置的数量与可用产品数量中的较小值，并记录具体数量及完整产品名。',
   'pld-size-front': '预览产品数应等于新设置的数量与可用产品数量中的较小值，并记录具体数量及完整产品名。',
   'pld-pagination-backend': '有至少两件可用产品、每页设为一件时，画布分页选是应显示分页条，选否应隐藏分页条。',
@@ -86,8 +90,8 @@ const EXPECTED = {
   'pld-compare-off-front': '关闭产品对比后，预览所有产品卡都应没有对比入口。',
   'mw-width-backend': '画布依次设置 1200、1440、1600、1920 像素预设及自定义 1300 像素时，容器最大宽度应等于设置值；全屏时应无限制。',
   'mw-width-front': '预览依次设置 1440、1600、1920 像素预设及自定义 1300 像素时，容器最大宽度应等于设置值；全屏时应无限制。',
-  'pld-source-all-backend': '来源设为“所有产品”后，画布完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
-  'pld-source-all-front': '来源设为“所有产品”后，预览完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
+  'pld-source-all-backend': '来源设为“所有产品”后，画布应包含全部 3 件 AUTOTEST 产品，且可见数量符合分页/每页或总数量设置；站点其他产品不参与精确名单比较。缺少夹具时跳过并说明原因。',
+  'pld-source-all-front': '来源设为“所有产品”后，预览应包含全部 3 件 AUTOTEST 产品，且可见数量符合分页/每页或总数量设置；站点其他产品不参与精确名单比较。缺少夹具时跳过并说明原因。',
   'pld-source-filter-backend': '来源设为“使用筛选条件”后，画布完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
   'pld-source-filter-front': '来源设为“使用筛选条件”后，预览完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
   'pld-source-products-backend': '来源设为“选择指定产品”后，画布完整产品名单应与该来源的独立夹具逐项一致；缺少夹具时跳过并说明原因。',
@@ -150,7 +154,7 @@ export async function poll(read, accepts) {
     // A read that times out on the last millisecond (or a predicate that
     // cannot handle an empty read) is a non-match, not a crash: callers
     // decide what an unmatched poll means. Without this, a block whose
-    // preview never yields groups (47748) fails the baseline check with a
+    // preview never yields groups (另一样本区块) fails the baseline check with a
     // 1ms evaluate timeout instead of recording "no groups".
     try { value = await read(Math.max(1, deadline - Date.now())); } catch { value = undefined; }
     try { if (accepts(value)) return { matched: true, value }; } catch { /* non-match */ }
@@ -162,7 +166,7 @@ export async function poll(read, accepts) {
 }
 
 export async function clickSettings(canvas, config, type, wrapIndex = 0) {
-  // Several sub-regions can share one type (47748 has two gallery wraps:
+  // Several sub-regions can share one type (另一样本区块 has two gallery wraps:
   // category at 0, list at 1). wrapIndex picks the nth wrap of that type.
   const button = canvas.locator(blockSelector(config.blockId)).first()
     .locator(`.backstage-blocksEditor-wrap[data-blockseditor-type=${JSON.stringify(type)}]`).nth(wrapIndex)
@@ -202,6 +206,22 @@ export function findControl(controls, target) {
     && (!['checkbox', 'radio'].includes(item.type) || item.value === target.value));
 }
 
+export function planCheckboxBatch(controls, changes) {
+  const planned = [];
+  for (const { target, value } of changes) {
+    const current = findControl(controls, target);
+    if (!current || current.type !== 'checkbox') {
+      throw new Error(`复选框控件身份变化或缺失：${target?.label || '未命名'}（index=${target?.index}）。`);
+    }
+    if (current.checked === value) continue;
+    if (current.disabled || current.readOnly) {
+      throw new Error(`复选框“${current.label}”当前不可编辑，不能从 ${current.checked} 改为 ${value}。`);
+    }
+    planned.push({ target: current, value });
+  }
+  return planned;
+}
+
 export function controlSession(root, lifecycle) {
   const read = (timeout = uiWaitConfig().timeout) => retryTransient(async () => {
     await waitForControlsReady(root, timeout);
@@ -237,7 +257,38 @@ export function controlSession(root, lifecycle) {
     });
     if (!settled.matched) throw new Error('切换后控件值未达到预期');
   };
-  return { root, read, set, ...lifecycle,
+  const setMany = async (changes) => {
+    if (!Array.isArray(changes) || !changes.length) return;
+    await retryTransient(() => waitForControlsReady(root));
+    await root.evaluate((node, { updates, whitespacePattern }) => {
+      const norm = (text) => (text || '').replace(new RegExp(whitespacePattern, 'g'), ' ').trim();
+      const inputs = node.querySelectorAll('input, select, textarea');
+      for (const { target, value } of updates) {
+        const input = inputs[target.index];
+        const label = input && norm([...(input.labels || [])].map((item) => item.innerText).join(' ')
+          || input.closest('li, label, .el-form-item, div')?.innerText);
+        if (!input) throw new Error(`批量复选框控件缺失：${target.label}（index=${target.index}）。`);
+        if (input.tagName !== target.tag || input.type !== target.type
+          || (input.name || '') !== target.name || label !== target.label || input.value !== target.value) {
+          throw new Error(`批量复选框控件身份变化：${target.label}（index=${target.index}，当前标签=${label || '空'}）。`);
+        }
+        if (input.checked !== value && input.disabled) {
+          throw new Error(`批量复选框“${target.label}”当前不可编辑，不能从 ${input.checked} 改为 ${value}。`);
+        }
+      }
+      for (const { target, value } of updates) {
+        const input = inputs[target.index];
+        if (input.checked !== value) input.click();
+      }
+    }, { updates: changes, whitespacePattern: CONTROL_LABEL_WHITESPACE_PATTERN }, { timeout: TIMEOUT });
+    const targets = changes;
+    const settled = await poll(read, (items) => targets.every(({ target, value }) => {
+      const actual = findControl(items, target);
+      return actual && controlValue(actual) === value;
+    }));
+    if (!settled.matched) throw new Error('批量切换后控件值未全部达到预期');
+  };
+  return { root, read, set, setMany, ...lifecycle,
     open: () => retryTransient(async () => {
       await lifecycle.open();
       await waitForControlsReady(root);
@@ -297,7 +348,7 @@ export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0
       }
     }
   };
-  // The dismiss button is 取消 in most dialogs but 关闭 in 47748's
+  // The dismiss button is 取消 in most dialogs but 关闭 in 另一样本区块's
   // 设置与选取数据 dialog. Try both, in that order.
   const dismiss = async (dialog) => {
     for (const text of ['取消', '关闭']) {
@@ -469,4 +520,14 @@ export async function radioPersist({ session, page, name, prefixes, afterSwitch 
   }
   outcome.detail = `“${name}”由“${original.label}”切换为“${alternate.label}”后保存重开，恢复后回到“${original.label}”。${outcome.detail}`;
   return outcome;
+}
+
+// AUTOTEST category usable for category-scoped checks, or the reason it is not
+// (fixture prep failed, or the site could not host the category).
+export function fixtureCategoryState(profile, report) {
+  const name = profile?.fixture?.category?.name;
+  if (!name) return { name: null, reason: '画像未提供 AUTOTEST 分类。' };
+  const record = report?.fixture?.records?.category;
+  if (record?.unavailable) return { name: null, reason: `AUTOTEST 分类不可用：${record.unavailable}` };
+  return { name, reason: null };
 }

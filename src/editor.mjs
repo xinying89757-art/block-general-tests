@@ -1,4 +1,5 @@
 import { saveAndWait } from './ui-waits.mjs';
+import { selectedBlockInstance, waitForCanvasRender } from './block-render.mjs';
 
 const CANVAS = 'iframe.backstage-pc-proview';
 const PANEL = '.backstage-addmodules-chooseWrapper';
@@ -152,39 +153,49 @@ export async function openEditor(page, config) {
   if (!editorPage.url().includes('/phoenix/pagebuilder')) {
     throw new Error(`未进入领动编辑器，当前地址：${editorPage.url()}。请检查站名、语言和站点权限；登录态失效时重跑 scripts/explore-login.mjs。`);
   }
-  await verifyEditorSiteIdentity(editorPage, config);
   await waitForEditorReady(editorPage);
+  await verifyEditorSiteIdentity(editorPage, config);
   return { page: editorPage };
+}
+
+export function resolveEditorSiteHosts({ pageUrl, frameUrls = [], domHosts = [] }, expectedHost) {
+  const ignored = PLATFORM_HOSTS;
+  const hosts = new Set();
+  for (const value of [pageUrl, ...frameUrls, ...domHosts]) {
+    const raw = String(value || '').trim();
+    const host = hostOf(raw) || (/^[a-z0-9.-]+(?::\d+)?$/i.test(raw) ? hostOf(`https://${raw}`) : '');
+    if (host && !ignored.has(host)) hosts.add(host);
+  }
+  if (!hosts.size) throw new Error(`无法确认当前编辑器对应的站点 host（目标 host: ${expectedHost}）；登录刷新后仍无可验证 host，已停止。`);
+  if (!hosts.has(expectedHost)) {
+    throw new Error(`编辑器站点身份不匹配：目标 host 为 ${expectedHost}，页面可识别 host 为 ${[...hosts].join(', ')}。`);
+  }
+  return [...hosts];
 }
 
 export async function verifyEditorSiteIdentity(page, config) {
   const expectedHost = hostOf(config.siteDomain);
   if (!expectedHost) return;
-  const foundHosts = new Set();
-  const current = hostOf(page.url());
-  if (current && !PLATFORM_HOSTS.has(current)) foundHosts.add(current);
+  let domHosts = [];
   try {
-    const hosts = await page.evaluate(() => {
-      const values = [...document.querySelectorAll('[data-site-domain], [data-domain]')]
-        .flatMap((node) => ['data-site-domain', 'data-domain'].map((key) => node.getAttribute(key)).filter(Boolean));
-      return values.map((value) => { try { return new URL(value, location.href).host.toLowerCase(); } catch { return ''; } });
+    domHosts = await page.evaluate(() => {
+      const values = [...document.querySelectorAll('[data-site-domain], [data-domain], [pageurl]')]
+        .flatMap((node) => ['data-site-domain', 'data-domain', 'pageurl'].map((key) => node.getAttribute(key)).filter(Boolean));
+      return values;
     });
-    for (const host of hosts) if (host && !PLATFORM_HOSTS.has(host)) foundHosts.add(host);
-  } catch { /* Some editor shells prevent DOM inspection; identity remains unverified. */ }
-  if (!foundHosts.size) {
-    console.warn(`[editor] 无法从编辑器页面确认当前站点身份（目标 host: ${expectedHost}）。`);
-    return;
-  }
-  if (!foundHosts.has(expectedHost)) {
-    throw new Error(`编辑器站点身份不匹配：目标 host 为 ${expectedHost}，页面可识别 host 为 ${[...foundHosts].join(', ')}。`);
-  }
+  } catch { /* The frame URL remains a separate identity source. */ }
+  return resolveEditorSiteHosts({ pageUrl: page.url(), frameUrls: page.frames().map((frame) => frame.url()), domHosts }, expectedHost);
 }
 
 async function waitForEditorReady(page) {
   await page.waitForTimeout(5_000);
   const know = page.getByText('我知道了', { exact: true }).first();
   if (await know.isVisible()) await know.click();
-  await page.getByText('页面:', { exact: true }).first().waitFor({ state: 'visible' });
+  try {
+    await page.getByText('页面:', { exact: true }).first().waitFor({ state: 'visible', timeout: 60_000 });
+  } catch (error) {
+    throw new Error(`编辑器未显示“页面:”，登录态可能已过期或编辑器未完成加载：${error.message}`);
+  }
 }
 
 // CMS field changes become visible after an editor reload; no publishing.
@@ -198,7 +209,7 @@ export async function reloadEditor(page, config) {
   const target = config?.resolvedTarget;
   const wanted = target ? (PAGE_LABELS[target.page.toLowerCase()] || target.page) : before;
   if (!wanted) throw new Error('刷新编辑器前无法确定目标页。');
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: Number(config?.navigationTimeoutMs) || 60_000 });
   await waitForEditorReady(page);
   if (await currentPageName() !== wanted) {
     if (!config) throw new Error(`刷新编辑器后未停留在目标页「${wanted}」，请提供目标页配置。`);
@@ -324,8 +335,37 @@ export async function ensureTargetPage(page, config) {
 
 export async function addBlockIfNeeded(page, frame, config) {
   const containers = frame.locator(blockSelector(config.blockId));
-  const countBefore = await containers.count();
-  if (countBefore > 0) return { added: false, countBefore, countAfter: countBefore };
+  const inspectCanvas = () => frame.locator('body').evaluate((body, blockId) => {
+    const canvas = body.querySelector('#backstage-bodyArea');
+    const blocks = canvas ? [...canvas.querySelectorAll('.siteblocks-setting-wrap[data-appid]')] : [];
+    const targets = blocks.flatMap((element, index) => {
+      if (element.getAttribute('data-appid') !== String(blockId)) return [];
+      const rect = element.getBoundingClientRect();
+      const settingAttr = [...element.attributes].find((attr) => /setting.?id/i.test(attr.name));
+      const nested = [...element.querySelectorAll('*')].flatMap((node) => [...node.attributes]
+        .filter((attr) => /setting.?id/i.test(attr.name)).map((attr) => attr.value))[0];
+      return [{ index, position: { x: Math.round(rect.x), y: Math.round(rect.y),
+        width: Math.round(rect.width), height: Math.round(rect.height) },
+        settingId: settingAttr?.value || nested || null }];
+    });
+    const loading = [...document.querySelectorAll('[aria-busy="true"], .backstage-loading, .loading-mask, .layui-layer-loading')]
+      .some((element) => element.getClientRects().length > 0);
+    const signature = blocks.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return [element.getAttribute('data-appid'), element.childElementCount,
+        (element.innerText || '').length, Math.round(rect.width), Math.round(rect.height)];
+    });
+    return { ready: document.readyState === 'complete', canvasReady: Boolean(canvas?.getClientRects().length),
+      loading, blockCount: blocks.length, targets, signature };
+  }, String(config.blockId));
+  const rendered = await waitForCanvasRender(inspectCanvas, {
+    timeoutMs: Number(process.env.CANVAS_RENDER_TIMEOUT_MS) || 45_000,
+    stableMs: Number(process.env.CANVAS_RENDER_STABLE_MS) || 8_000,
+  });
+  const countBefore = rendered.targets.length;
+  const chosenBefore = selectedBlockInstance(rendered.targets);
+  if (countBefore > 0) return { added: false, countBefore, countAfter: countBefore,
+    instances: rendered.targets, selectedInstance: chosenBefore };
 
   const addButton = frame
     .locator('#backstage-bodyArea .backstage-creatmodules-wrapper').first()
@@ -348,7 +388,7 @@ export async function addBlockIfNeeded(page, frame, config) {
       await search.fill(String(config.blockId));
       await search.press('Enter');
     } else {
-      // The panel may not have this tab at all (47748: only the review tab
+      // The panel may not have this tab at all (另一样本区块: only the review tab
       // exists, no develop tab). Skip a missing tab instead of timing out.
       const value = moduleType === 'develop' ? '-1' : '-2';
       const tab = panel.locator(`.user-handle-module[value="${value}"]`).first();
@@ -380,10 +420,17 @@ export async function addBlockIfNeeded(page, frame, config) {
 
     // Once clicked, do not try another list: a slow render could duplicate the block.
     await containers.first().waitFor({ state: 'attached', timeout: 60_000 });
+    const afterRender = await waitForCanvasRender(inspectCanvas, {
+      timeoutMs: Number(process.env.CANVAS_RENDER_TIMEOUT_MS) || 45_000,
+      stableMs: Number(process.env.CANVAS_RENDER_STABLE_MS) || 8_000,
+    });
+    const countAfter = afterRender.targets.length;
+    if (countAfter === 0) throw new Error(`区块 ${config.blockId} 添加后未在稳定画布中出现。`);
     const close = panel.locator('.addmodules_searchContainer > .block-iconbaseline-close').first();
     if (await close.isVisible()) await close.click();
     await panel.waitFor({ state: 'hidden' });
-    return { added: true, addedVia: moduleType, countBefore, countAfter: await containers.count(), attempts };
+    return { added: true, addedVia: moduleType, countBefore, countAfter, attempts,
+      instances: afterRender.targets, selectedInstance: selectedBlockInstance(afterRender.targets) };
   }
   throw new Error(`区块 ${config.blockId} 在模块列表中未找到（已尝试 ${order.join(' → ')}）。`);
 }

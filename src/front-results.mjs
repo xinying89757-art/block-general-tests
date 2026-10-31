@@ -26,11 +26,14 @@ export function frontRunPhases(config = {}, profile = {}, added = false) {
   const capabilities = profile.capabilities || [];
   const filter = config.capabilityFilter;
   return {
-    baselineGuard: Array.isArray(profile.baseline) && profile.baseline.length > 0,
+    // A newly inserted block starts with factory defaults, and APPLY_BASELINE
+    // explicitly requests reconfiguration. In both cases apply and verify the
+    // saved baseline directly instead of comparing first.
+    baselineGuard: !added && !config.applyBaseline && Array.isArray(profile.baseline) && profile.baseline.length > 0,
     applyBaseline: Array.isArray(profile.baseline) && profile.baseline.length > 0
       && (added || Boolean(config.applyBaseline)),
     prepareFixture: Boolean(profile.fixture)
-      && (!filter?.length || filter.includes('custom-filter-fields')),
+      && (!filter?.length || filter.some(id => ['custom-filter-fields', 'product-category-select', 'product-list-display'].includes(id))),
     settings: true,
     backend: shouldRunLayer('backend', config),
     front: true,

@@ -24,18 +24,25 @@ test('FRONT_ONLY retains front-effect setup and front checks, but skips canvas b
   assert.equal(shouldRunLayer('front', config), true);
 });
 
-test('FRONT_ONLY still guards/applies baseline and prepares a selected CFF fixture', () => {
+test('new blocks apply baseline before capabilities and prepare a selected CFF fixture', () => {
   const profile = { baseline: [{ want: [] }], fixture: { fields: [] },
     capabilities: [{ id: 'custom-filter-fields' }] };
   assert.deepEqual(frontRunPhases({ frontOnly: true }, profile, true), {
-    baselineGuard: true, applyBaseline: true, prepareFixture: true,
+    baselineGuard: false, applyBaseline: true, prepareFixture: true,
+    settings: true, backend: false, front: true, capabilities: ['custom-filter-fields'],
+  });
+  assert.equal(frontRunPhases({ frontOnly: true }, profile, false).baselineGuard, true);
+  assert.deepEqual(frontRunPhases({ frontOnly: true, applyBaseline: true }, profile, false), {
+    baselineGuard: false, applyBaseline: true, prepareFixture: true,
     settings: true, backend: false, front: true, capabilities: ['custom-filter-fields'],
   });
 });
 
-test('fixture preparation stays omitted when a capability filter excludes CFF', () => {
+test('fixture preparation covers category and product list filters, but skips unrelated capabilities', () => {
   const profile = { baseline: [], fixture: {}, capabilities: [{ id: 'custom-filter-fields' }] };
-  assert.equal(frontRunPhases({ frontOnly: true, capabilityFilter: ['product-list-display'] }, profile).prepareFixture, false);
+  assert.equal(frontRunPhases({ frontOnly: true, capabilityFilter: ['product-list-display'] }, profile).prepareFixture, true);
+  assert.equal(frontRunPhases({ frontOnly: true, capabilityFilter: ['product-category-select'] }, profile).prepareFixture, true);
+  assert.equal(frontRunPhases({ frontOnly: true, capabilityFilter: ['button-link'] }, profile).prepareFixture, false);
 });
 
 test('FRONT_ONLY dispatches only a capability’s transactional front effects from settings layer', async () => {

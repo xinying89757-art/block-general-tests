@@ -1,5 +1,6 @@
 import { hostname } from 'node:os';
-import { mkdirSync, openSync, closeSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, openSync, closeSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,7 +8,9 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
 function lockPath(site) {
-  const dir = path.resolve(root, process.env.RUN_LOCK_DIR || '.run-lock');
+  // Shared across all worktrees/clones on this machine (a per-worktree dir let
+  // two checkouts run on the same site concurrently).
+  const dir = path.resolve(root, process.env.RUN_LOCK_DIR || path.join(homedir(), '.cache', 'block-general-tests', 'run-lock'));
   const key = String(site || 'unknown-site').toLowerCase().replace(/[^a-z0-9.-]/g, '_');
   return { dir, file: path.join(dir, `${key}.json`) };
 }
@@ -22,7 +25,29 @@ function isFresh(lock) {
   return true;
 }
 
+// Other live runner processes on this machine, independent of lock files
+// (guards against a lock removed by hand or held in another checkout).
+const RUNNER = /(^|\/)(src\/run|scripts\/(check-baseline|restore-baseline|capture-baseline|probe-settings|add-block|setup-oracle-fixture))\.mjs$/;
+export function otherRunnerProcesses(procRoot = '/proc', self = process.pid, parent = process.ppid) {
+  let entries = [];
+  try { entries = readdirSync(procRoot); } catch { return []; }
+  const found = [];
+  for (const pid of entries.filter(e => /^\d+$/.test(e)).map(Number)) {
+    if (pid === self || pid === parent) continue;
+    let argv;
+    try { argv = readFileSync(path.join(procRoot, String(pid), 'cmdline'), 'utf8').split('\0').filter(Boolean); } catch { continue; }
+    if (!/(^|\/)node$/.test(argv[0] || '')) continue;
+    const script = argv.slice(1).find(a => !a.startsWith('-'));
+    if (script && RUNNER.test(script)) found.push({ pid, script });
+  }
+  return found;
+}
+
 export function acquireRunLock({ site, mode }) {
+  if (process.env.RUN_LOCK_ALLOW_PARALLEL !== '1') {
+    const others = otherRunnerProcesses();
+    if (others.length) throw new Error(`本机已有实站运行进程，拒绝并发启动：${others.map(o => `pid=${o.pid} ${o.script}`).join('；')}。`);
+  }
   const { dir, file } = lockPath(site);
   mkdirSync(dir, { recursive: true });
   const record = { host: hostname(), pid: process.pid, startedAt: new Date().toISOString(), mode };

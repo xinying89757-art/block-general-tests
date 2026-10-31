@@ -1,9 +1,10 @@
 // Independent effect transactions. Only the caller's block and throwaway
 // previews are inspected. The journal is populated BEFORE each attempted write.
 import { savePage, openPreview } from '../editor.mjs';
-import { baselineRestoreTarget, blockSelector, probeControls, findControl, controlValue, TIMEOUT } from './shared.mjs';
+import { baselineRestoreTarget, blockSelector, probeControls, findControl, controlValue, planCheckboxBatch, TIMEOUT } from './shared.mjs';
 import { waitForStable, readBackWithRetry } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
+import { withTimeout } from '../run-safety.mjs';
 
 export const sameSet = (left, right) => JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
 export const sentenceList = (items) => items.length ? items.join('、') : '无';
@@ -48,7 +49,10 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
   if (config.deferFront && layer === 'front') {
     return result(id, 'deferred', 'deferred-to-front-runner', { deferred: true });
   }
+  const cached = config.replayCachedCheck ? config.resumeChecks?.get(id) : null;
+  if (cached && !['env-paused', 'env-timeout'].includes(cached.status)) return cached;
   console.log(`[progress] ${new Date().toISOString()} 效果检查开始：${id}`);
+  config.watchdogProgress?.();
   const errors = [], evidence = { observations: [], restored: [] }, journal = new Map(), pending = new Map();
   let status = 'pass', detail = '', expected;
   const controls = async () => {
@@ -89,6 +93,17 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
       pending.set(key, { target: current, value });
       await session.set(current, value);
     },
+    setMany: async (changes, { restoreKey } = {}) => {
+      if (!restoreKey || !journal.has(restoreKey)) {
+        unavailable('批量复选框写入缺少完整快照恢复记录，未写入。');
+      }
+      const items = await controls();
+      let planned;
+      try { planned = planCheckboxBatch(items, changes); }
+      catch (error) { unavailable(error.message); }
+      for (const { target, value } of planned) pending.set(`control:${target.index}`, { target, value });
+      if (planned.length) await session.setMany(planned);
+    },
     // For controls with a dedicated UI (Spectrum and button link type tabs).
     remember: (key, restore) => { if (!journal.has(key)) journal.set(key, { restore }); },
     save: async () => {
@@ -111,16 +126,27 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
   };
   try {
     if (layer === 'front' && !context) unavailable('未提供浏览器环境，无法打开临时预览。');
-    await run(tx);
+    await withTimeout(() => run(tx), config.checkTimeoutMs || 300_000, `检查 ${id}`, {
+      onTimeout: (error) => config.abortEnvironment?.(error.envStatus),
+    });
     detail = evidence.observations.join('；') || '设置对应的效果与预期一致。';
   } catch (error) {
+    const environmentStatus = error.envStatus || config.environmentStatus;
+    if (environmentStatus === 'env-paused' || environmentStatus === 'env-timeout') {
+      status = environmentStatus;
+      detail = error.message;
+      evidence.error = error.message;
+      try { if (error.envStatus) await config.onEnvironmentFailure?.(error); } catch {}
+    } else {
     status = error.effectStatus || 'fail';
     detail = error.effectStatus ? error.message : '效果检查操作失败，详细错误保留在结构化证据中。';
     evidence.error = error.message;
     if (!error.effectStatus) errors.push(detail);
+    }
   } finally {
     // Each undo/save is independent so a failed undo cannot suppress the rest.
-    for (const { target, value, restore } of [...journal.values()].reverse()) {
+    for (const { target, value, restore } of status === 'env-paused' || status === 'env-timeout'
+      ? [] : [...journal.values()].reverse()) {
       try {
         await session.cancel();
         await session.open();
@@ -142,16 +168,27 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
         (evidence.restoreErrors ||= []).push(error.message);
       }
     }
-    try { await session.cancel(); } catch (error) { errors.push('退出设置面板失败。'); evidence.dismissError = error.message; }
-    if (journal.size) {
+    if (status !== 'env-paused' && status !== 'env-timeout') {
+      try { await session.cancel(); } catch (error) { errors.push('退出设置面板失败。'); evidence.dismissError = error.message; }
+    }
+    if (journal.size && status !== 'env-paused' && status !== 'env-timeout') {
       try { await savePage(page); } catch (error) { errors.push('保存恢复后的页面失败。'); evidence.saveError = error.message; }
     }
   }
+  if (status === 'env-paused' || status === 'env-timeout') {
+    const check = result(id, status, detail, { ...evidence, retryable: true }, {
+      ...(expected ? { expected } : {}), actual: detail, evidenceText: [detail],
+    });
+    await config.checkpointCheck?.(check, config.baselineCapabilityId || 'unknown', layer);
+    return check;
+  }
   if (errors.length) { status = 'fail'; detail = `${detail}；${errors.join('；')}`; }
-  return result(id, status, detail, evidence, {
+  const check = result(id, status, detail, evidence, {
     ...(expected ? { expected } : {}), actual: detail,
     evidenceText: [...evidence.observations, ...(status === 'pass' ? ['已在同一次浏览器会话中恢复原设置并保存页面。'] : [detail])],
   });
+  await config.checkpointCheck?.(check, config.baselineCapabilityId || 'unknown', layer);
+  return check;
 }
 
 // All snapshots count visible content; hidden grid/list duplicates are excluded.
@@ -177,10 +214,9 @@ export function rememberCategoryState(tx, session, items, modeName) {
       return current;
     };
     await session.set(await fresh(partial), true); await session.save(); await session.open();
-    for (const box of boxes) {
-      const current = await fresh(box);
-      if (current.checked !== box.checked) await session.set(current, box.checked);
-    }
+    const current = await session.read();
+    const restores = categoryRestoreChanges(current, boxes);
+    await session.setMany(restores);
     await session.save(); await session.open();
     const restoredBoxes = await session.read();
     if (!boxes.every((box) => findControl(restoredBoxes, box)?.checked === box.checked)) throw new Error('分类勾选清单未完整恢复');
@@ -188,5 +224,13 @@ export function rememberCategoryState(tx, session, items, modeName) {
     const after = await session.read();
     if (!findControl(after, original[0])?.checked || !boxes.every((box) => findControl(after, box)?.checked === box.checked)) throw new Error('恢复原分类方式后勾选清单变化');
     tx.evidence.restoredCategoryState = { mode: original[0].label, checked: boxes.filter((box) => box.checked).map((box) => box.label) };
+  });
+}
+
+export function categoryRestoreChanges(currentControls, originalBoxes) {
+  return originalBoxes.map((box) => {
+    const item = findControl(currentControls, box);
+    if (!item) throw new Error('恢复分类时有勾选框身份变化');
+    return { target: item, value: box.checked };
   });
 }

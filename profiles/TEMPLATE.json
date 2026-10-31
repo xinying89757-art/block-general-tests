@@ -1,73 +1,5 @@
 {
-  "baseline": [
-    {
-      "title": "设置自定义字段筛选",
-      "type": "phoenix_blocks_filterStyle",
-      "want": [
-        {
-          "label": "测试单选按钮A",
-          "to": true,
-          "type": "checkbox",
-          "value": "826554"
-        },
-        {
-          "label": "测试下拉列表",
-          "to": true,
-          "type": "checkbox",
-          "value": "826574"
-        }
-      ],
-      "wrapIndex": 0
-    },
-    {
-      "title": "设置与选取数据",
-      "type": "phoenix_blocks_gallery",
-      "want": [
-        {
-          "label": "所有产品",
-          "to": true,
-          "type": "radio"
-        },
-        {
-          "label": "是",
-          "to": true,
-          "type": "radio"
-        },
-        {
-          "label": "Brand",
-          "to": true,
-          "type": "checkbox"
-        },
-        {
-          "label": "Product Code",
-          "to": true,
-          "type": "checkbox"
-        },
-        {
-          "label": "Model",
-          "to": true,
-          "type": "checkbox"
-        },
-        {
-          "label": "Brief",
-          "to": true,
-          "type": "checkbox"
-        },
-        {
-          "label": "测试单选按钮A",
-          "to": true,
-          "type": "checkbox"
-        },
-        {
-          "label": "测试下拉列表",
-          "to": true,
-          "type": "checkbox"
-        }
-      ],
-      "wrapIndex": 1
-    }
-  ],
-  "baselineNote": "基线：区块加到测试页后，运行器按此配置一遍（只覆盖 widget 设置弹窗；右侧图标栏配色/模块宽度与按钮区画布浮层不在 v1 范围）。已在别页配好的区块，从现配捕获：node scripts/capture-baseline.mjs <BLOCK_ID>。全新区块由智能体按设计稿拟一份，给用户确认一次再写进来。",
+  "baselineNote": "区块基线保存在 sites/<site-host>/<block-id>.baseline.json；profile 仅记录区块结构、设置要求与断言。新站点首次运行时只读捕获基线并报告 onboarding。",
   "blockId": "<BLOCK_ID>",
   "capabilities": [
     {
@@ -115,10 +47,6 @@
   },
   "fixture": {
     "note": "前置判定结论：<用户确认日期或需求/设计稿依据>。可选段，不支持筛选时删除本段；每种支持类型一个字段，N 个字段配 N+1 件产品。多选主表每件只挂一个值；字段与产品常驻不删，收尾只恢复区块设置。示例占位符须替换，新建名称保留 AUTOTEST- 前缀。",
-    "supportedTypes": [
-      "单选按钮",
-      "多选按钮"
-    ],
     "fields": [
       {
         "name": "AUTOTEST-<单选字段名>",
@@ -161,13 +89,49 @@
           "AUTOTEST-<多选字段名>": "<多选第二值>"
         }
       }
-    ]
+    ],
+    "filterFieldTypes": [
+      "单选按钮",
+      "多选按钮"
+    ],
+    "category": {
+      "name": "AUTOTEST-<分类名>"
+    },
+    "displayFields": {
+      "fields": [
+        {
+          "name": "AUTOTEST-<单选字段名>",
+          "type": "单选按钮",
+          "options": [
+            "<单选第一值>",
+            "<单选第二值>"
+          ],
+          "values": {
+            "AUTOTEST-<基准产品名>": "<单选第一值>",
+            "AUTOTEST-<翻单选产品名>": "<单选第二值>",
+            "AUTOTEST-<翻多选产品名>": "<单选第一值>"
+          }
+        },
+        {
+          "name": "AUTOTEST-<多选字段名>",
+          "type": "多选按钮",
+          "options": [
+            "<多选第一值>",
+            "<多选第二值>"
+          ],
+          "values": {
+            "AUTOTEST-<基准产品名>": "<多选第一值>",
+            "AUTOTEST-<翻单选产品名>": "<多选第一值>",
+            "AUTOTEST-<翻多选产品名>": "<多选第二值>"
+          }
+        }
+      ]
+    }
   },
   "requirements": {
     "displayFieldTypes": [
       "单选按钮",
-      "多选按钮",
-      "下拉列表"
+      "多选按钮"
     ],
     "_note": "设置项 id 来自 signatures；params 可选，用于限制弹窗标题和区域序号。弹窗里隐藏、取固定值的需求写 mode=fixed-front 和 fixedValue：探查只报告固定值，不算缺失，由前台验证。展示字段类型缺需求时需人工补充。",
     "capabilities": [
