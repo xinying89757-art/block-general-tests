@@ -1,7 +1,7 @@
 import { addBlockIfNeeded, gotoFreshTargetPage, openEditor, savePage } from './editor.mjs';
 import { inventorySettings } from './baseline.mjs';
 import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
-import { matchingDeleteActionIndexes, matchingDeleteConfirmIndexes } from './fresh-editor-actions.mjs';
+import { matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from './fresh-editor-actions.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 
@@ -119,7 +119,9 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
   async function actionDescriptors(locator) {
     return locator.evaluateAll((nodes) => nodes.map((element) => ({
       dataId: element.getAttribute('data-id'),
-      text: (element.innerText || '').replace(/\s+/g, ' ').trim(),
+      // Several toolbar actions have visible child labels whose innerText is
+      // empty in this editor iframe. textContent reads the persisted DOM label.
+      text: (element.textContent || '').replace(/\s+/g, ' ').trim(),
       title: element.getAttribute('title'), ariaLabel: element.getAttribute('aria-label'),
       iconClasses: [...element.querySelectorAll('[class]')].map((node) => String(node.className?.baseVal || node.className || '')),
       visible: Boolean(element.getClientRects().length) && getComputedStyle(element).visibility !== 'hidden'
@@ -136,21 +138,35 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     // version-specific toolbar-container class; require both exact delete
     // wording and a trash/delete icon on the identity-bound action.
     const targetDataId = `siteblocks-setting-wrap-${instance.settingId}`;
-    const candidates = frame.locator(`[data-id=${JSON.stringify(targetDataId)}]`);
-    const indexes = matchingDeleteActionIndexes(await actionDescriptors(candidates), instance.settingId);
-    if (indexes.length !== 1) throw new Error(`Selected block delete control is ambiguous (${indexes.length}); nothing was deleted.`);
-    await candidates.nth(indexes[0]).click();
-    const dialogs = page.locator('[role="dialog"]:visible,[role="alertdialog"]:visible,.backstage-dialog:visible,.layui-layer:visible,.el-message-box:visible');
-    const dialogCount = await dialogs.count();
-    if (dialogCount > 1) throw new Error(`Delete opened ${dialogCount} possible confirmation dialogs; refusing to guess.`);
-    if (dialogCount === 1) {
-      const dialog = dialogs.first();
-      const message = (await dialog.innerText()).replace(/\s+/g, ' ').trim();
+    const selector = `[data-id=${JSON.stringify(targetDataId)}]`;
+    const selectedAction = await waitForUniqueDeleteAction({ settingId: instance.settingId,
+      timeoutMs: Math.min(Number(config.deleteToolbarTimeoutMs) || 10_000, 15_000),
+      readScopes: async () => {
+        const scopes = [{ name: 'page', locator: page.locator(selector) },
+          ...page.frames().filter((candidate) => candidate !== page.mainFrame())
+            .map((candidate, index) => ({ name: `frame-${index}`, locator: candidate.locator(selector) }))];
+        return Promise.all(scopes.map(async (scope) => ({ ...scope, actions: await actionDescriptors(scope.locator) })));
+      } });
+    await selectedAction.locator.nth(selectedAction.index).click();
+    const dialogSelector = '[role="dialog"]:visible,[role="alertdialog"]:visible,.backstage-dialog:visible,.layui-layer:visible,.el-message-box:visible';
+    const dialogScopes = [{ name: 'page', locator: page.locator(dialogSelector) },
+      ...page.frames().filter((candidate) => candidate !== page.mainFrame())
+        .map((candidate, index) => ({ name: `frame-${index}`, locator: candidate.locator(dialogSelector) }))];
+    const dialogs = [];
+    for (const scope of dialogScopes) {
+      const count = await scope.locator.count().catch(() => 0);
+      for (let index = 0; index < count; index += 1) dialogs.push({ scope: scope.name, locator: scope.locator.nth(index) });
+    }
+    if (dialogs.length > 1) throw new Error(`Delete opened ${dialogs.length} possible confirmation dialogs; refusing to guess.`);
+    if (dialogs.length === 1) {
+      const dialog = dialogs[0].locator;
+      const message = (await dialog.evaluate((element) => element.textContent || '')).replace(/\s+/g, ' ').trim();
       if (!/(删除|delete|remove)/i.test(message)) throw new Error('Delete confirmation content is unrecognized; refusing to confirm.');
       const confirmations = dialog.locator('button,a,[role="button"]');
-      const indexes = matchingDeleteConfirmIndexes(await actionDescriptors(confirmations));
-      if (indexes.length !== 1) throw new Error(`Delete confirmation action matched ${indexes.length}; refusing to guess.`);
-      await confirmations.nth(indexes[0]).click();
+      const confirmMatches = matchingDeleteConfirmMatches([{ name: dialogs[0].scope, locator: confirmations,
+        actions: await actionDescriptors(confirmations) }]);
+      if (confirmMatches.length !== 1) throw new Error(`Delete confirmation action matched ${confirmMatches.length}; refusing to guess.`);
+      await confirmMatches[0].locator.nth(confirmMatches[0].index).click();
     }
     await wrap.waitFor({ state: 'detached', timeout: 15_000 });
     await savePage(page);

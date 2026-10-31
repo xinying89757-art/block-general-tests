@@ -4,7 +4,8 @@ import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPa
   runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
 import { selectRetainedFailures } from '../src/batch-save.mjs';
 import { createFreshSettingsAdapter, currentValuesFromInventory } from '../src/fresh-settings-adapter.mjs';
-import { matchingDeleteActionIndexes, matchingDeleteConfirmIndexes } from '../src/fresh-editor-actions.mjs';
+import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDeleteConfirmIndexes,
+  matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from '../src/fresh-editor-actions.mjs';
 import { freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
 
 function fakeAdapter(initialInstances = []) {
@@ -243,4 +244,40 @@ test('delete confirmation locator accepts only exact visible action labels', () 
   assert.deepEqual(matchingDeleteConfirmIndexes([{ text: '确定', visible: true }]), [0]);
   assert.deepEqual(matchingDeleteConfirmIndexes([{ text: '确定删除页面', visible: true }]), []);
   assert.deepEqual(matchingDeleteConfirmIndexes([{ text: '删除', visible: false }]), []);
+  assert.deepEqual(matchingDeleteConfirmMatches([{ name: 'dialog-frame', locator: 'confirm-locator',
+    actions: [{ textContent: ' 删除 ', visible: true }] }]), [{ scope: 'dialog-frame', index: 0, locator: 'confirm-locator' }]);
+});
+
+test('delete locator reads the child DOM label when innerText is empty', () => {
+  assert.deepEqual(matchingDeleteActionIndexes([{ dataId: 'siteblocks-setting-wrap-sid', text: '',
+    textContent: ' 删除 ', iconClasses: ['icon-trash'], visible: true }], 'sid'), [0]);
+  assert.deepEqual(matchingDeleteActionIndexes([{ dataId: 'siteblocks-setting-wrap-sid', text: '',
+    textContent: '复制', iconClasses: ['icon-trash'], visible: true }], 'sid'), []);
+});
+
+test('delete locator aggregates the unique identity-bound action across page and frames', () => {
+  const main = { selector: 'main-selector' };
+  const canvas = { selector: 'frame-selector' };
+  const action = { dataId: 'siteblocks-setting-wrap-sid', textContent: '删除', iconClasses: ['icon-trash'], visible: true };
+  assert.deepEqual(matchingDeleteActionMatches([
+    { name: 'page', locator: main, actions: [] }, { name: 'canvas', locator: canvas, actions: [action] },
+  ], 'sid'), [{ scope: 'canvas', index: 0, locator: canvas }]);
+  assert.equal(matchingDeleteActionMatches([
+    { name: 'page', actions: [action] }, { name: 'canvas', actions: [action] },
+  ], 'sid').length, 2);
+});
+
+test('delete action wait allows toolbar rendering but fails closed on timeout or ambiguity', async () => {
+  let reads = 0;
+  const locator = { scope: 'rendered-frame' };
+  const action = { dataId: 'siteblocks-setting-wrap-sid', textContent: '删除', iconClasses: ['icon-trash'], visible: true };
+  const found = await waitForUniqueDeleteAction({ settingId: 'sid', timeoutMs: 100,
+    readScopes: async () => ++reads < 2 ? [{ name: 'canvas', locator, actions: [] }]
+      : [{ name: 'canvas', locator, actions: [action] }],
+    wait: async () => {} });
+  assert.deepEqual(found, { scope: 'canvas', index: 0, locator });
+  await assert.rejects(waitForUniqueDeleteAction({ settingId: 'sid', timeoutMs: 0,
+    readScopes: async () => [{ name: 'canvas', actions: [] }] }), /matched 0.*timeout/);
+  await assert.rejects(waitForUniqueDeleteAction({ settingId: 'sid', timeoutMs: 0,
+    readScopes: async () => [{ name: 'page', actions: [action] }, { name: 'canvas', actions: [action] }] }), /ambiguous \(2\)/);
 });
