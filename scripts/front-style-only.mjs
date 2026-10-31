@@ -4,6 +4,7 @@
 // profile's existing styleSpec assertions (runFrontLayer). Generic: site,
 // page URL and block come from arguments; expectations come from the profile.
 //
+// TLS errors ignored by default like IGNORE_HTTPS_ERRORS=true in config.mjs; --strict-tls 1 to enforce.
 // Usage: node scripts/front-style-only.mjs --block <id> --url <frontUrl>
 //          [--profile profiles/<id>.json] [--out reports/x.json] [--setting-id <id>] [--channel chrome]
 import fs from 'node:fs';
@@ -38,7 +39,7 @@ const report = { flow: 'front-style-only', blockId, url: args.url, settingId: ar
   startedAt: new Date().toISOString(), host: process.platform, checks: [], error: null };
 let exitCode = 0;
 try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: args['strict-tls'] !== '1' });
   const page = await context.newPage();
   await page.goto(args.url, { waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });
   const root = page.locator(previewSelector(blockId));
