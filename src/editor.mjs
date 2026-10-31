@@ -68,8 +68,50 @@ async function visiblePageMenuLinkCount(page) {
       && getComputedStyle(anchor).visibility !== 'hidden' && getComputedStyle(anchor).display !== 'none').length);
 }
 
+export function selectNeutralToolbarCandidate(candidates = []) {
+  return candidates.find((candidate) => candidate.insideToolbar && !candidate.insideChooser
+    && !candidate.insideCanvas && !candidate.interactive && !candidate.hasClickHandler) || null;
+}
+
+async function clickNeutralToolbarArea(page) {
+  const candidates = await page.evaluate(() => {
+    const toolbar = document.querySelector('.backstage-topToolbar');
+    if (!toolbar) return [];
+    const rect = toolbar.getBoundingClientRect();
+    const interactive = 'button,a,[role="button"],input,select,textarea,[tabindex]:not([tabindex="-1"]),[onclick]';
+    const points = [];
+    const xs = [rect.left + rect.width * 0.32, rect.left + rect.width * 0.5, rect.left + rect.width * 0.68];
+    const ys = [rect.top + rect.height * 0.5];
+    for (const x of xs) for (const y of ys) {
+      const target = document.elementFromPoint(x, y);
+      if (!target) continue;
+      points.push({ x, y, insideToolbar: toolbar.contains(target),
+        insideChooser: Boolean(target.closest('.backstage-topToolbar-pageBox')),
+        insideCanvas: Boolean(target.closest('iframe, .backstage-pc-proview')),
+        interactive: Boolean(target.closest(interactive)), hasClickHandler: Boolean(target.onclick) });
+    }
+    return points;
+  });
+  const point = selectNeutralToolbarCandidate(candidates);
+  if (!point) return false;
+  await page.mouse.click(point.x, point.y);
+  return true;
+}
+
+async function savePageChooserFailureScreenshot(page) {
+  try {
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+    const directory = path.resolve(process.cwd(), 'reports', 'screenshots');
+    await fs.mkdir(directory, { recursive: true });
+    const file = path.join(directory, `page-chooser-dismiss-${Date.now()}.png`);
+    await page.screenshot({ path: file, fullPage: true, timeout: 10_000 });
+    return path.relative(process.cwd(), file);
+  } catch { return null; }
+}
+
 /** Close an open page chooser without navigating or saving the page. */
-export async function closePageMenuIfOpen(page) {
+export async function closePageMenuIfOpen(page, { triggerTimeoutMs = 5_000, neutralTimeoutMs = 3_000 } = {}) {
   await waitForEditorLoadingToClear(page);
   if (await visiblePageMenuLinkCount(page) === 0) return false;
   // Dropdowns can remain open after the toolbar label is clicked (the page
@@ -80,16 +122,29 @@ export async function closePageMenuIfOpen(page) {
   if (await visiblePageMenuLinkCount(page) === 0) return true;
   const triggers = page.getByText('页面:', { exact: true }).filter({ visible: true });
   const count = await triggers.count();
-  if (count !== 1) throw new Error(`页面选择菜单已打开，但关闭触发器匹配 ${count} 个；拒绝猜测。`);
-  await triggers.click({ timeout: 5_000 });
-  try {
-    await waitForStable(() => visiblePageMenuLinkCount(page), (links) => links === 0,
-      { timeout: 5_000, stableMs: 200 });
-  } catch (error) {
-    const remaining = await visiblePageMenuLinkCount(page).catch(() => -1);
-    throw new Error(`页面选择菜单关闭失败：点击唯一触发器后仍有 ${remaining} 个可见链接；${error.message}`);
+  let triggerFailure = count === 1 ? null : new Error(`关闭触发器匹配 ${count} 个；拒绝点击。`);
+  if (count === 1) {
+    try {
+      await triggers.click({ timeout: triggerTimeoutMs });
+      await waitForStable(() => visiblePageMenuLinkCount(page), (links) => links === 0,
+        { timeout: triggerTimeoutMs, stableMs: 200 });
+      return true;
+    } catch (error) { triggerFailure = error; }
   }
-  return true;
+  let remaining = await visiblePageMenuLinkCount(page).catch(() => -1);
+  let neutralAttempted = false;
+  if (remaining > 0) {
+    neutralAttempted = await clickNeutralToolbarArea(page).catch(() => false);
+    if (neutralAttempted) {
+      try {
+        await waitForStable(() => visiblePageMenuLinkCount(page), (links) => links === 0,
+          { timeout: neutralTimeoutMs, stableMs: 200 });
+        return true;
+      } catch { remaining = await visiblePageMenuLinkCount(page).catch(() => -1); }
+    }
+  }
+  const screenshot = await savePageChooserFailureScreenshot(page);
+  throw new Error(`页面选择菜单关闭失败：唯一触发器匹配 ${count} 个；关闭后仍有 ${remaining} 个可见链接；中立非画布点击${neutralAttempted ? '已尝试' : '不可用'}；${triggerFailure?.message || '触发器路径未能关闭菜单'}; screenshot=${screenshot || 'unavailable'}`);
 }
 
 /** Resolve a Playwright Frame/Page to its owning Page and close a visible page chooser before a generic canvas action. */

@@ -58,3 +58,8 @@ export function choosePublishMenuItem(labels, scope = 'current') {
   if (hits.length !== 1) throw new Error(`发布菜单「${scope}」匹配 ${hits.length} 个；拒绝发布。`);
   return hits[0];
 }
+
+export function publishStageDiagnostics({ stage, chooserVisibleCount = 0, publishMenuVisibleCount = 0,
+  confirmDialogVisibleCount = 0 }) {
+  return { stage, chooserVisibleCount, publishMenuVisibleCount, confirmDialogVisibleCount };
+}

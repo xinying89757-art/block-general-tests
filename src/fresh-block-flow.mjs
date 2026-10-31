@@ -400,10 +400,12 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
       } }
     catch (error) {
       const screenshot = await captureFailure('publish');
-      flowErrors.push({ stage: 'publish', message: error.message, screenshot });
+      flowErrors.push({ stage: 'publish', message: error.message, screenshot,
+        ...(error.publishDiagnostics ? { diagnostics: error.publishDiagnostics } : {}) });
       batch.results.push({ id: 'fresh-publish', status: 'fail', detail: error.message,
         batchResult: { expected: 'The selected page publishes successfully.', actual: error.message,
-          detail: error.message, screenshot } });
+          detail: error.message, screenshot,
+          ...(error.publishDiagnostics ? { diagnostics: error.publishDiagnostics } : {}) } });
     }
     if (published) {
       try {

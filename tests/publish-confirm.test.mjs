@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { waitForPublishSignal, verifyFrontInstance, cacheBustedUrl, frontHasInstance } from '../src/publish-confirm.mjs';
+import { waitForPublishSignal, verifyFrontInstance, cacheBustedUrl, frontHasInstance,
+  publishStageDiagnostics } from '../src/publish-confirm.mjs';
 
 const fakeClock = () => { let t = 0; return { now: () => t, sleep: async (ms) => { t += ms; } }; };
 
@@ -47,6 +48,21 @@ test('publish menu: picks exactly the scoped entry, refuses unknown or ambiguous
   assert.throws(() => choosePublishMenuItem(['整站发布'], 'current'));
   assert.throws(() => choosePublishMenuItem(['当前页面发布', '当前页面发布']));
   assert.throws(() => choosePublishMenuItem(['当前页面发布'], 'x'));
+});
+
+test('publish diagnostics report only workflow stage and menu/dialog visibility counts', () => {
+  const diagnostics = publishStageDiagnostics({ stage: 'wait-confirm-dialog', chooserVisibleCount: 0,
+    publishMenuVisibleCount: 0, confirmDialogVisibleCount: 0 });
+  assert.deepEqual(diagnostics, { stage: 'wait-confirm-dialog', chooserVisibleCount: 0,
+    publishMenuVisibleCount: 0, confirmDialogVisibleCount: 0 });
+});
+
+test('publish adapter requires the chooser closed, confirmation dialog, and confirmed front verification', async () => {
+  const src = (await import('node:fs')).readFileSync(new URL('../src/fresh-block-browser-adapter.mjs', import.meta.url), 'utf8');
+  assert.match(src, /afterDismiss\.chooserVisibleCount !== 0/);
+  assert.match(src, /stage = 'wait-confirm-dialog'/);
+  assert.doesNotMatch(src, /dialog\.first\(\)\.waitFor\([^;]+\.catch\(\(\) => \{\}\)/);
+  assert.match(src, /confirmed: publishSignal\.status === 'confirmed' && frontVerification\.status === 'present'/);
 });
 test('adapter opens the publish scope submenu instead of treating the toggle click as a publish', async () => {
   const src = (await import('node:fs')).readFileSync(new URL('../src/fresh-block-browser-adapter.mjs', import.meta.url), 'utf8');

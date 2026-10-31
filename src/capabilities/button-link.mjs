@@ -286,12 +286,6 @@ export async function readButtonPopover({ page, canvas, config }) {
       pressEscape: async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(300); },
       neutralClick: async () => { await page.mouse.click(1, 1); await page.waitForTimeout(300); },
       toggleTrigger: async () => { await clickSettings(canvas, config, 'phoenix_blocks_button'); await page.waitForTimeout(300); },
-      focusAway: async () => {
-        const pageMenu = page.getByText('页面:', { exact: true }).first();
-        await pageMenu.click({ timeout: 5_000 });
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(300);
-      },
       reloadDiscard: async () => {
         const reload = async () => { canvas = await reloadEditorDiscardingButtonUi({ page, canvas, config }); };
         if (!values) { await reload(); return; }

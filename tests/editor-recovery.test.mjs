@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assertCurrentPageLabel, hasActivePageMarker, resolveCurrentPageLabel, resolveEditorSiteHosts,
-  verifyCurrentPageIdentity, closePageMenuIfOpen } from '../src/editor.mjs';
+  verifyCurrentPageIdentity, closePageMenuIfOpen, selectNeutralToolbarCandidate } from '../src/editor.mjs';
 
 test('current page identity uses the one active page label instead of page-menu contents', () => {
   const snapshot = { toolbarText: '页面: 保存  Products Product Detail Product Category News', activeItems: [
@@ -78,6 +78,54 @@ test('page chooser close refuses ambiguous toolbar triggers', async () => {
     keyboard: { press: async () => {} },
     getByText: () => ({ filter() { return this; }, count: async () => 2, click: async () => assert.fail('must not click') }) };
   await assert.rejects(closePageMenuIfOpen(page), /关闭触发器匹配 2 个/);
+});
+
+test('neutral chooser dismissal selects only empty non-interactive non-canvas toolbar targets', () => {
+  assert.deepEqual(selectNeutralToolbarCandidate([
+    { insideToolbar: true, insideChooser: false, insideCanvas: false, interactive: true, hasClickHandler: false },
+    { insideToolbar: true, insideChooser: true, insideCanvas: false, interactive: false, hasClickHandler: false },
+    { insideToolbar: true, insideChooser: false, insideCanvas: false, interactive: false, hasClickHandler: false, x: 20, y: 10 },
+  ]), { insideToolbar: true, insideChooser: false, insideCanvas: false, interactive: false, hasClickHandler: false, x: 20, y: 10 });
+  assert.equal(selectNeutralToolbarCandidate([{ insideToolbar: false, insideChooser: false, insideCanvas: false,
+    interactive: false, hasClickHandler: false }]), null);
+});
+
+test('chooser is rechecked after Escape and unique-trigger click, then closed by safe neutral toolbar click', async () => {
+  let visibleLinks = 2, triggerClicks = 0, neutralClicks = 0;
+  const page = {
+    locator: () => ({ evaluate: async () => [] }),
+    evaluate: async (fn) => fn.toString().includes('elementFromPoint')
+      ? [{ x: 20, y: 10, insideToolbar: true, insideChooser: false, insideCanvas: false, interactive: false, hasClickHandler: false }]
+      : visibleLinks,
+    keyboard: { press: async () => {} },
+    mouse: { click: async () => { neutralClicks++; visibleLinks = 0; } },
+    getByText: () => ({ filter() { return this; }, count: async () => 1,
+      click: async () => { triggerClicks++; } }),
+  };
+  assert.equal(await closePageMenuIfOpen(page, { triggerTimeoutMs: 1, neutralTimeoutMs: 300 }), true);
+  assert.equal(triggerClicks, 1);
+  assert.equal(neutralClicks, 1);
+  assert.equal(visibleLinks, 0);
+});
+
+test('chooser remains fail-closed when no safe neutral point closes it and captures a screenshot', async () => {
+  let screenshots = 0, visibleLinks = 1;
+  const page = {
+    locator: () => ({ evaluate: async () => [] }),
+    evaluate: async (fn) => fn.toString().includes('elementFromPoint') ? [] : visibleLinks,
+    keyboard: { press: async () => {} }, mouse: { click: async () => {} },
+    screenshot: async () => { screenshots++; },
+    getByText: () => ({ filter() { return this; }, count: async () => 1, click: async () => {} }),
+  };
+  await assert.rejects(closePageMenuIfOpen(page, { triggerTimeoutMs: 1, neutralTimeoutMs: 1 }),
+    /页面选择菜单关闭失败.*1 个可见链接.*screenshot=/);
+  assert.equal(screenshots, 1);
+});
+
+test('button-popover lifecycle never opens the page chooser as a focus-away action', async () => {
+  const source = (await import('node:fs')).readFileSync(new URL('../src/capabilities/button-link.mjs', import.meta.url), 'utf8');
+  assert.match(source, /const open = async \(\) => \{\s*await closePageMenuIfOpen\(page\)/);
+  assert.doesNotMatch(source, /focusAway:\s*async\s*\(\)\s*=>\s*\{[\s\S]*?页面:/);
 });
 
 test('shared toolbar-menu guard resolves a canvas frame to its page before action paths run', async () => {

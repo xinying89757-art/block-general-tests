@@ -736,6 +736,17 @@ test('fresh flow never reports publication when publish and front confirmation a
   assert.ok(report.flowErrors.some(({ stage }) => stage === 'publish-confirmation'));
 });
 
+test('publish timeout diagnostics are preserved in the partial report without page values', async () => {
+  const adapter = fakeAdapter();
+  const diagnostics = { stage: 'wait-confirm-dialog', chooserVisibleCount: 0,
+    publishMenuVisibleCount: 0, confirmDialogVisibleCount: 0 };
+  adapter.publishPage = async () => { throw Object.assign(new Error('dialog wait timed out'), { publishDiagnostics: diagnostics }); };
+  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  assert.equal(report.publishedAt, null);
+  assert.deepEqual(report.flowErrors.find(({ stage }) => stage === 'publish')?.diagnostics, diagnostics);
+  assert.deepEqual(report.checks.find(({ id }) => id === 'fresh-publish')?.batchResult.diagnostics, diagnostics);
+});
+
 test('post-publish readback mismatch is a failure with screenshot evidence and separate values', async () => {
   const adapter = fakeAdapter();
   adapter.readPublishedValues = async () => [{ key: 'setting', value: 'persisted-different' }];

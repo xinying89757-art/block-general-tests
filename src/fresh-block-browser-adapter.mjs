@@ -4,7 +4,7 @@ import { addBlockIfNeeded, closeToolbarMenusBeforeAction, gotoFreshTargetPage, o
 import { inventorySettings } from './baseline.mjs';
 import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
 import { matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from './fresh-editor-actions.mjs';
-import { waitForPublishSignal, verifyFrontInstance, choosePublishMenuItem } from './publish-confirm.mjs';
+import { waitForPublishSignal, verifyFrontInstance, choosePublishMenuItem, publishStageDiagnostics } from './publish-confirm.mjs';
 import { inspectActiveModuleLibraryOpener, probeModuleLibraryModes,
   waitForUniqueVisibleModuleLibraryPanel } from './module-library-browser.mjs';
 import { RAIL, openRailPanel, readSchemeColor, readModuleWidth, cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
@@ -243,45 +243,69 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       return file;
     },
     async publishPage({ settingId } = {}) {
-      const toolbar = page.locator('.backstage-topToolbar');
-      await closeToolbarMenusBeforeAction(page);
-      const publish = toolbar.locator('button,a,[role="button"]');
-      const publishIndexes = await exactActionIndexes(publish, /^(发布|发布网站)$/);
-      if (publishIndexes.length !== 1) throw new Error(`页面发布控件匹配 ${publishIndexes.length} 个；拒绝把保存按钮当作发布操作。`);
-      await publish.nth(publishIndexes[0]).click();
-      // This flow is approved to publish only the selected page. Never offer
-      // or accept the whole-site action here.
-      const menu = toolbar.locator('.backstage-publish-type > div');
-      await menu.first().waitFor({ state: 'visible', timeout: Number(config.publishMenuTimeoutMs) || 5_000 });
-      const labels = await menu.evaluateAll((nodes) => nodes.map((n) => (n.getClientRects().length ? n.textContent : '')));
-      await menu.nth(choosePublishMenuItem(labels, 'current')).click();
-      // The confirm dialog can render after the click; wait for it instead of
-      // checking once immediately (a missed dialog means nothing was published).
-      const dialog = page.locator('.backstage-dialog:visible');
-      await dialog.first().waitFor({ state: 'visible', timeout: Number(config.publishDialogTimeoutMs) || 5_000 }).catch(() => {});
-      if (await dialog.count()) {
+      let stage = 'close-page-chooser';
+      const readVisibility = async () => page.evaluate(() => {
+        const visible = (element) => element.getClientRects().length > 0
+          && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
+        return {
+          chooserVisibleCount: [...document.querySelectorAll('.backstage-topToolbar-pageBox a[data-href]')].filter(visible).length,
+          publishMenuVisibleCount: [...document.querySelectorAll('.backstage-publish-type > div')].filter(visible).length,
+          confirmDialogVisibleCount: [...document.querySelectorAll('.backstage-dialog')].filter(visible).length,
+        };
+      }).catch(() => ({ chooserVisibleCount: -1, publishMenuVisibleCount: -1, confirmDialogVisibleCount: -1 }));
+      try {
+        const toolbar = page.locator('.backstage-topToolbar');
+        await closeToolbarMenusBeforeAction(page);
+        const afterDismiss = await readVisibility();
+        if (afterDismiss.chooserVisibleCount !== 0) throw new Error('页面选择菜单未关闭；拒绝打开发布菜单。');
+        stage = 'open-publish-dropdown';
+        const publish = toolbar.locator('button,a,[role="button"]');
+        const publishIndexes = await exactActionIndexes(publish, /^(发布|发布网站)$/);
+        if (publishIndexes.length !== 1) throw new Error(`页面发布控件匹配 ${publishIndexes.length} 个；拒绝把保存按钮当作发布操作。`);
+        await publish.nth(publishIndexes[0]).click();
+        // This flow is approved to publish only the selected page. Never offer
+        // or accept the whole-site action here.
+        const menu = toolbar.locator('.backstage-publish-type > div');
+        await menu.first().waitFor({ state: 'visible', timeout: Number(config.publishMenuTimeoutMs) || 5_000 });
+        const labels = await menu.evaluateAll((nodes) => nodes.map((n) => (n.getClientRects().length ? n.textContent : '')));
+        stage = 'select-current-page-publish';
+        await menu.nth(choosePublishMenuItem(labels, 'current')).click();
+        // A confirmation dialog is required; absence must never be treated as
+        // a successful publish or silently skipped.
+        stage = 'wait-confirm-dialog';
+        const dialog = page.locator('.backstage-dialog:visible');
+        await dialog.first().waitFor({ state: 'visible', timeout: Number(config.publishDialogTimeoutMs) || 5_000 });
+        if (await dialog.count() !== 1) throw new Error(`发布确认对话框可见数量为 ${await dialog.count()}；拒绝确认。`);
+        stage = 'confirm-current-page-publish';
         const confirm = dialog.locator('button,a,[role="button"]');
         const indexes = await exactActionIndexes(confirm, /^(发布|确定)$/);
         if (indexes.length !== 1) throw new Error('发布确认控件不唯一。');
         await confirm.nth(indexes[0]).click();
+        stage = 'wait-publish-success';
+        const publishSignal = await waitForPublishSignal({
+          timeoutMs: Number(config.publishSignalTimeoutMs) || 60_000,
+          readTexts: () => page.evaluate(() => [...document.querySelectorAll(
+            '[class*="message"],[class*="toast"],[class*="notice"],[class*="tip"],[role="alert"],.backstage-dialog')]
+            .filter((el) => el.getClientRects().length).map((el) => el.innerText)).catch(() => []),
+        });
+        if (publishSignal.status !== 'confirmed') throw new Error(publishSignal.status === 'failed'
+          ? `编辑器提示发布失败：${publishSignal.signal}` : '等待编辑器发布成功信号超时。');
+        stage = 'verify-cache-busted-front';
+        let frontLink = resolvedTarget.kind === 'system' ? resolvedTarget.url : pageItem?.pageurl;
+        const scheme = (config.frontScheme || process.env.FRONT_SCHEME || 'http').replace(/:.*$/, '');
+        if (frontLink && !/^https?:\/\//i.test(frontLink)) frontLink = new URL(frontLink, `${scheme}://${config.siteDomain}`).href;
+        const frontVerification = frontLink && settingId !== undefined
+          ? await verifyFrontInstance({ url: frontLink, blockId: config.blockId, settingId: settingId || null,
+            attempts: Number(config.frontVerifyAttempts) || 6, delayMs: Number(config.frontVerifyDelayMs) || 10_000,
+            fetchText: async (url) => { const r = await page.context().request.get(url, { timeout: 30_000 }); return { status: r.status(), text: await r.text() }; } })
+          : { status: 'skipped' };
+        return { frontLink, publishedAt: new Date().toISOString(), publishSignal, frontVerification,
+          confirmed: publishSignal.status === 'confirmed' && frontVerification.status === 'present' };
+      } catch (error) {
+        const visibility = await readVisibility();
+        error.publishDiagnostics = publishStageDiagnostics({ stage, ...visibility });
+        throw error;
       }
-      const publishSignal = await waitForPublishSignal({
-        timeoutMs: Number(config.publishSignalTimeoutMs) || 60_000,
-        readTexts: () => page.evaluate(() => [...document.querySelectorAll(
-          '[class*="message"],[class*="toast"],[class*="notice"],[class*="tip"],[role="alert"],.backstage-dialog')]
-          .filter((el) => el.getClientRects().length).map((el) => el.innerText)).catch(() => []),
-      });
-      if (publishSignal.status === 'failed') throw new Error(`编辑器提示发布失败：${publishSignal.signal}`);
-      let frontLink = resolvedTarget.kind === 'system' ? resolvedTarget.url : pageItem?.pageurl;
-      const scheme = (config.frontScheme || process.env.FRONT_SCHEME || 'http').replace(/:.*$/, '');
-      if (frontLink && !/^https?:\/\//i.test(frontLink)) frontLink = new URL(frontLink, `${scheme}://${config.siteDomain}`).href;
-      const frontVerification = frontLink && settingId !== undefined
-        ? await verifyFrontInstance({ url: frontLink, blockId: config.blockId, settingId: settingId || null,
-          attempts: Number(config.frontVerifyAttempts) || 6, delayMs: Number(config.frontVerifyDelayMs) || 10_000,
-          fetchText: async (url) => { const r = await page.context().request.get(url, { timeout: 30_000 }); return { status: r.status(), text: await r.text() }; } })
-        : { status: 'skipped' };
-      return { frontLink, publishedAt: new Date().toISOString(), publishSignal, frontVerification,
-        confirmed: publishSignal.status === 'confirmed' && frontVerification.status === 'present' };
     },
     editorLink: () => page.url(),
   };
