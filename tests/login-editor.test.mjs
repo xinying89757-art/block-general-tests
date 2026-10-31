@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { login, attemptStorageStateReuse, matchSiteLanguage, matchSiteListCards } from '../scripts/explore-login.mjs';
+import { login, attemptStorageStateReuse, matchSiteLanguage, matchSiteListCards, readAuthCredentials } from '../scripts/explore-login.mjs';
 import { SITE_LIST_URL, matchAttachedCardIndexes } from '../src/editor.mjs';
 
 function loginPage({ rejected = false } = {}) {
@@ -92,4 +92,12 @@ test('navigation4 miss falls back to host matching in site-list cards', () => {
 test('editor enters through the www site-list; attached offscreen cards remain eligible', () => {
   assert.equal(SITE_LIST_URL, 'https://www.leadong.com/website.html');
   assert.deepEqual(matchAttachedCardIndexes(['elsewhere.test', 'target.test'], 'target.test'), [1]);
+});
+
+test('auth-file loader accepts the private account/password shape without exposing values', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'login-auth-file-'));
+  const file = path.join(dir, 'auth.json');
+  writeFileSync(file, JSON.stringify({ account: 'unit-account', password: 'unit-password' }));
+  try { assert.deepEqual(readAuthCredentials(file), { account: 'unit-account', password: 'unit-password' }); }
+  finally { rmSync(dir, { recursive: true, force: true }); }
 });
