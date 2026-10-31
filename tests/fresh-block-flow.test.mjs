@@ -100,6 +100,61 @@ test('fresh adapter commits the active surface before opening another lifecycle 
   assert.equal(events.filter((event) => event === 'page-save').length, 1);
 });
 
+test('all fresh surface lifecycles share one batch in dialog, popover, rail, and whole-category order', async () => {
+  const events = [];
+  const makeSetting = (capability, id, key, kind, initialValue, value) => {
+    let state = structuredClone(initialValue);
+    const lifecycle = createFreshLifecycle(kind, {
+      open: async () => events.push(`${id}:open`),
+      read: async () => structuredClone(state),
+      apply: async (next) => { state = structuredClone(next); events.push(`${id}:apply`); },
+      commit: async () => events.push(`${id}:commit`),
+      ...(kind === 'canvas-popover' ? {} : { cancel: async () => events.push(`${id}:cancel`) }),
+    });
+    const setting = { id, key, lifecycle, initialValue, value, expected: value,
+      apply: () => lifecycle.apply(value), restore: () => lifecycle.apply(initialValue),
+      check: async () => {
+        await lifecycle.open();
+        try {
+          const actual = await lifecycle.read();
+          return { status: JSON.stringify(actual) === JSON.stringify(value) ? 'pass' : 'fail',
+            expected: value, actual };
+        } finally {
+          if (kind === 'canvas-popover') await lifecycle.commit();
+          else await lifecycle.cancel();
+        }
+      } };
+    return { capability, setting };
+  };
+  const planned = [
+    makeSetting('product-list-display', 'pld-dialog', 'display', 'settings-dialog', 'default', 'changed'),
+    makeSetting('custom-filter-fields', 'cff-dialog', 'field', 'settings-dialog', false, true),
+    makeSetting('button-link', 'button-popover', 'button', 'canvas-popover', 'old text', 'AUTOTEST text'),
+    makeSetting('block-color-scheme', 'color-rail', 'color', 'right-rail-flyout', '#000000', '#ff0000'),
+    makeSetting('module-width', 'width-rail', 'width', 'right-rail-flyout', '1440px', '1200px'),
+    makeSetting('product-category-select', 'category-whole-list', 'category-list', 'settings-dialog',
+      { mode: 'all', selected: [] }, { mode: 'partial', selected: ['fixture-category'] }),
+  ];
+  const adapter = await createFreshSettingsAdapter({ capabilities: planned.map(({ capability }) => ({ id: capability })),
+    context: { save: async () => events.push('page-save') },
+    loadCapability: async (id) => ({ freshSettings: { status: 'adapted', createDefinitions: async () => ({
+      settings: [planned.find((item) => item.capability === id).setting],
+    }) } }) });
+  const prepared = await adapter.prepare();
+  const execution = await executeSettingBatches({ settings: prepared.settings, metadata: prepared.metadata,
+    adapter: prepared.batchAdapter, finalState: 'retain-tested-values' });
+  assert.equal(execution.batches.length, 1, JSON.stringify(execution.batches));
+  assert.deepEqual(execution.results.map(({ status }) => status), Array(6).fill('pass'));
+  assert.deepEqual(execution.results.at(-1).expected, { mode: 'partial', selected: ['fixture-category'] });
+  for (const [previous, next] of [['pld-dialog', 'cff-dialog'], ['cff-dialog', 'button-popover'],
+    ['button-popover', 'color-rail'], ['color-rail', 'width-rail'], ['width-rail', 'category-whole-list']]) {
+    assert.ok(events.indexOf(`${previous}:commit`) < events.indexOf(`${next}:open`), events.join(','));
+  }
+  assert.equal(events.filter((event) => event === 'page-save').length, 1);
+  assert.throws(() => createFreshLifecycle('unknown-lifecycle', {}), /Unknown fresh settings lifecycle/);
+  assert.throws(() => createFreshLifecycle('right-rail-flyout', { open: async () => {} }), /requires read/);
+});
+
 test('fresh button-link definitions use the canvas-popover lifecycle and existing persistence values', async () => {
   const events = [];
   const controls = [

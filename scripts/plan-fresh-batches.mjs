@@ -14,6 +14,11 @@ for (const capability of profile.capabilities || []) {
   const modulePath = pathToFileURL(path.join(root, 'src', 'capabilities', `${capability.id}.mjs`)).href;
   const module = await import(modulePath);
   const definition = module.freshSettings;
+  if (definition?.status === 'check-only') {
+    output.push({ capability: capability.id, status: 'check-only',
+      reason: 'Runs capability assertions after publication; it contributes no setting writes to this batch plan.' });
+    continue;
+  }
   if (definition?.status !== 'adapted') {
     output.push({ capability: capability.id, status: 'not-adapted', reason: definition?.reason || 'No freshSettings definition.' });
     continue;
