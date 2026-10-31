@@ -1,4 +1,4 @@
-import { retryEnvironmentTimeout, saveAndWait, waitForEditorLoadingToClear } from './ui-waits.mjs';
+import { retryEnvironmentTimeout, saveAndWait, waitForEditorLoadingToClear, waitForStable } from './ui-waits.mjs';
 import { selectedBlockInstance, waitForCanvasRender } from './block-render.mjs';
 import { waitForUniquePageSaveControl } from './page-save-control.mjs';
 
@@ -60,6 +60,25 @@ export async function verifyCurrentPageIdentity(page, expected) {
   const actual = resolveCurrentPageLabel(snapshot);
   if (!actual) throw new Error('刷新编辑器后无法读取当前页面自己的活动标签。');
   return expected === undefined ? actual : assertCurrentPageLabel(actual, expected);
+}
+
+async function visiblePageMenuLinkCount(page) {
+  return page.evaluate(() => [...document.querySelectorAll('.backstage-topToolbar-pageBox a[data-href]')]
+    .filter((anchor) => anchor.getClientRects().length > 0
+      && getComputedStyle(anchor).visibility !== 'hidden' && getComputedStyle(anchor).display !== 'none').length);
+}
+
+/** Close an open page chooser without navigating or saving the page. */
+export async function closePageMenuIfOpen(page) {
+  await waitForEditorLoadingToClear(page);
+  if (await visiblePageMenuLinkCount(page) === 0) return false;
+  const triggers = page.getByText('页面:', { exact: true }).filter({ visible: true });
+  const count = await triggers.count();
+  if (count !== 1) throw new Error(`页面选择菜单已打开，但关闭触发器匹配 ${count} 个；拒绝猜测。`);
+  await triggers.click({ timeout: 5_000 });
+  await waitForStable(() => visiblePageMenuLinkCount(page), (links) => links === 0,
+    { timeout: 5_000, stableMs: 200 });
+  return true;
 }
 
 function blockSelector(blockId) {
@@ -336,6 +355,7 @@ export async function reloadEditor(page, config) {
   if (!wanted) throw new Error('刷新编辑器前无法确定目标页。');
   await page.reload({ waitUntil: 'domcontentloaded', timeout: Number(config?.navigationTimeoutMs) || 60_000 });
   await waitForEditorReady(page);
+  await closePageMenuIfOpen(page);
   await verifyCurrentPageIdentity(page, wanted);
   return { frame: page.frameLocator(CANVAS) };
 }

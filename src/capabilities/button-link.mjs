@@ -3,7 +3,7 @@ import { baselineRestoreTarget, clickSettings, controlSession, probeControls, pe
 import { retryTransient, uiWaitConfig, waitForControlsReady, waitForEditorLoadingToClear } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
 import { dismissReadOnlyPopover, reloadDiscardAndVerify } from '../read-only-dismiss.mjs';
-import { reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
+import { closePageMenuIfOpen, reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
 
@@ -52,6 +52,7 @@ function popoverSession({ page, canvas, config }) {
   const root = canvas.locator(`[${MARKER}="true"]`).filter({ visible: true });
   let structure;
   const open = async () => {
+    await closePageMenuIfOpen(page);
     if (!await root.isVisible()) await clickSettings(canvas, config, 'phoenix_blocks_button');
     const discovered = await poll(() => body.evaluate(discoverPopover), (data) => data.found);
     if (!discovered.matched) throw Object.assign(new Error(discovered.value.reason), {
@@ -61,12 +62,14 @@ function popoverSession({ page, canvas, config }) {
     await root.waitFor({ state: 'visible', timeout: TIMEOUT });
   };
   const save = async () => {
+    await closePageMenuIfOpen(page);
     const buttons = root.locator('xpath=..').getByText('保存', { exact: true }).filter({ visible: true });
     if (await buttons.count() !== 1) throw new Error('editor-box 或紧邻操作区的保存控件不唯一');
     await buttons.click({ timeout: TIMEOUT });
     await retryTransient(() => root.waitFor({ state: 'hidden', timeout: uiWaitConfig().saveTimeout }));
   };
   const cancel = async () => {
+    await closePageMenuIfOpen(page);
     if (!await root.isVisible()) return;
     const cancelButton = root.getByText('取消', { exact: true }).filter({ visible: true });
     if (await cancelButton.count() === 1) await cancelButton.click({ timeout: TIMEOUT });
