@@ -2,13 +2,6 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { executeSettingBatches, planSettingBatches } from './batch-save.mjs';
 
-export const FRESH_MARKER_ATTRIBUTE = 'data-autotest-marker';
-
-export function freshMarker(siteHost, blockId) {
-  if (!siteHost || !blockId) throw new Error('siteHost and blockId are required to create the AUTOTEST marker.');
-  return `autotest-block:${encodeURIComponent(String(siteHost).toLowerCase())}:${encodeURIComponent(String(blockId))}`;
-}
-
 export function parseFreshPageConfig(env = process.env) {
   const kind = String(env.FRESH_PAGE_KIND || '').trim().toLowerCase();
   if (!kind) throw new Error('fresh-block flow requires FRESH_PAGE_KIND=custom or system; no page is selected automatically.');
@@ -24,14 +17,11 @@ export function parseFreshPageConfig(env = process.env) {
   return { kind, id, url };
 }
 
-export function matchMarkedInstances(instances, marker) {
-  if (!marker || typeof marker !== 'string') throw new Error('A non-empty AUTOTEST marker is required.');
-  const matches = (instances || []).filter((item) => item.marker === marker);
-  if ((instances || []).some((item) => item.markerAmbiguous === true)) {
-    throw new Error('Block marker identity is ambiguous; no block will be deleted.');
+export function targetBlockInstances(instances, blockId) {
+  if (blockId === undefined || blockId === null || String(blockId).trim() === '') {
+    throw new Error('A target block number is required.');
   }
-  if (matches.length > 1) throw new Error(`Found ${matches.length} blocks with the AUTOTEST marker; no block will be deleted.`);
-  return matches[0] || null;
+  return (instances || []).filter((item) => String(item.blockId) === String(blockId));
 }
 
 const identity = (item) => String(item.controlIdentity ?? item.id ?? item.key);
@@ -73,7 +63,7 @@ export async function writeFreshDefaultsSnapshot(file, snapshot) {
   await fs.rename(temporary, file);
 }
 
-export function buildFreshReport({ runId, siteHost, blockId, page, marker, markedInstance,
+export function buildFreshReport({ runId, siteHost, blockId, page, instance,
   defaults, batch, currentValues, editorLink, frontLink, publishedAt, flowErrors = [] }) {
   const failures = batch.results.filter((item) => item.status === 'fail').map((item) => ({
     checkId: item.id,
@@ -87,8 +77,8 @@ export function buildFreshReport({ runId, siteHost, blockId, page, marker, marke
   }));
   return {
     schemaVersion: 1, flow: 'fresh-block', runId, siteHost, blockId,
-    marker: { attribute: FRESH_MARKER_ATTRIBUTE, value: marker }, page,
-    block: { settingId: markedInstance.settingId || null, position: markedInstance.position || null,
+    page,
+    block: { settingId: instance.settingId || null, position: instance.position || null,
       currentValues: currentValues || [] },
     defaults, batches: batch.batches, checks: batch.results, failures,
     retainedFailures: batch.timing.retainedFailures || { selectedIds: [], suppressed: [] },
@@ -98,17 +88,17 @@ export function buildFreshReport({ runId, siteHost, blockId, page, marker, marke
 }
 
 /**
- * Adapter boundary is deliberate: all destructive editor operations are
- * guarded here by persisted-marker cardinality, while browser specifics stay
- * behind explicit methods that can be mocked offline.
+ * The block number is the sole deletion key. Every target-number instance on
+ * the selected page is deleted and independently verified before one fresh
+ * instance is added. Other block numbers are snapshotted and must remain.
  */
 export async function runFreshBlockFlow({ config, adapter, settings, metadata = {}, runId = new Date().toISOString() }) {
   if (!config?.page || !['custom', 'system'].includes(config.page.kind)) {
     throw new Error('Fresh block flow requires an explicit page config; set FRESH_PAGE_KIND and its page fields.');
   }
-  if (!config.siteHost || !config.blockId || !config.marker) throw new Error('siteHost, blockId, and marker are required.');
-  for (const method of ['openPage', 'listBlockInstances', 'deleteMarkedBlock', 'addDefaultBlock',
-    'setMarker', 'savePage', 'reloadPage', 'readDefaults', 'publishPage', 'readCurrentValues']) {
+  if (!config.siteHost || !config.blockId) throw new Error('siteHost and blockId are required.');
+  for (const method of ['openPage', 'listAllBlockInstances', 'deleteBlockInstance', 'addDefaultBlock',
+    'savePage', 'reloadPage', 'readDefaults', 'publishPage', 'readCurrentValues']) {
     if (typeof adapter?.[method] !== 'function') throw new Error(`Fresh block adapter is missing ${method}().`);
   }
   if (!adapter.batchAdapter) throw new Error('Fresh block adapter must provide batchAdapter; settings cannot be tested without batch saves.');
@@ -118,35 +108,39 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
   }
 
   const opened = await adapter.openPage(config.page);
-  let instances = await adapter.listBlockInstances(config.blockId);
-  const prior = matchMarkedInstances(instances, config.marker);
-  if (prior) {
-    await adapter.deleteMarkedBlock(prior);
-    instances = await adapter.listBlockInstances(config.blockId);
-    if (matchMarkedInstances(instances, config.marker)) throw new Error('Marked block remained after deletion; stopped before adding another instance.');
+  let instances = await adapter.listAllBlockInstances();
+  const otherBlockCounts = countOtherBlocks(instances, config.blockId);
+  let targets = targetBlockInstances(instances, config.blockId);
+  assertUniqueTargetIdentities(targets);
+  while (targets.length) {
+    const target = targets[0];
+    if (!target.settingId || !Number.isInteger(target.ordinal)) {
+      throw new Error('Target block instance lacks a unique settingId/ordinal; no further delete or add will be attempted.');
+    }
+    await adapter.deleteBlockInstance(target);
+    const afterDelete = await adapter.listAllBlockInstances();
+    assertOtherBlocksUnchanged(otherBlockCounts, afterDelete, config.blockId);
+    const remaining = targetBlockInstances(afterDelete, config.blockId);
+    if (remaining.length !== targets.length - 1 || remaining.some((item) => item.settingId === target.settingId)) {
+      throw new Error('Delete did not remove exactly the selected target instance; stopped before adding.');
+    }
+    instances = afterDelete;
+    targets = remaining;
   }
 
   const created = await adapter.addDefaultBlock(config.blockId);
   if (!created || created.blockId !== String(config.blockId)) throw new Error('Adapter did not identify the newly added block instance.');
-  await adapter.setMarker(created, config.marker);
   await adapter.savePage();
   await adapter.reloadPage();
-  instances = await adapter.listBlockInstances(config.blockId);
-  let marked;
-  try {
-    marked = matchMarkedInstances(instances, config.marker);
-    if (!marked || !created.settingId || String(marked.settingId || '') !== String(created.settingId)) {
-      throw new Error('Saved marker could not be read back on the newly added instance; settings were not run.');
-    }
-  } catch (error) {
-    if (typeof adapter.deleteCreatedBlock === 'function') {
-      await adapter.deleteCreatedBlock(created);
-      await adapter.savePage();
-    }
-    throw error;
+  instances = await adapter.listAllBlockInstances();
+  assertOtherBlocksUnchanged(otherBlockCounts, instances, config.blockId);
+  const freshInstances = targetBlockInstances(instances, config.blockId);
+  if (freshInstances.length !== 1 || !created.settingId || String(freshInstances[0].settingId) !== String(created.settingId)) {
+    throw new Error('After save/reload the selected page does not contain exactly the newly added target block.');
   }
+  const fresh = freshInstances[0];
 
-  const defaultsValues = await adapter.readDefaults(marked);
+  const defaultsValues = await adapter.readDefaults(fresh);
   const defaultsPath = freshDefaultsPath(config.projectRoot || process.cwd(), config.siteHost, config.blockId);
   const priorDefaults = await (adapter.readDefaultsSnapshot?.(defaultsPath) ?? readFreshDefaultsSnapshot(defaultsPath)) || null;
   if (priorDefaults && (priorDefaults.siteHost !== config.siteHost || String(priorDefaults.blockId) !== String(config.blockId))) {
@@ -169,20 +163,48 @@ export async function runFreshBlockFlow({ config, adapter, settings, metadata = 
       results: [{ id: 'fresh-batch-execution', status: 'fail', detail: error.message }],
       timing: { startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), durationMs: 0 } };
   }
-  const values = await adapter.readCurrentValues(marked);
-  try {
-    const remainingMarked = matchMarkedInstances(await adapter.listBlockInstances(config.blockId), config.marker);
-    if (!remainingMarked || remainingMarked.settingId !== marked.settingId) {
-      flowErrors.push({ stage: 'final-marker-check', message: 'The page no longer contains exactly one marked test instance.' });
-    }
-  } catch (error) { flowErrors.push({ stage: 'final-marker-check', message: error.message }); }
+  const values = await adapter.readCurrentValues(fresh);
+  const finalInstances = await adapter.listAllBlockInstances();
+  assertOtherBlocksUnchanged(otherBlockCounts, finalInstances, config.blockId);
+  const remaining = targetBlockInstances(finalInstances, config.blockId);
+  if (remaining.length !== 1 || remaining[0].settingId !== fresh.settingId) {
+    throw new Error('The page no longer contains exactly one test instance of the target block number; refusing to publish.');
+  }
   let published = null;
   try { published = await adapter.publishPage(); }
   catch (error) { flowErrors.push({ stage: 'publish', message: error.message }); }
   const report = buildFreshReport({ runId, siteHost: config.siteHost, blockId: config.blockId,
-    page: config.page, marker: config.marker, markedInstance: marked, defaults, batch,
+    page: config.page, instance: fresh, defaults, batch,
     currentValues: values, editorLink: opened.editorLink || adapter.editorLink?.(),
     frontLink: published?.frontLink || opened.frontLink, publishedAt: published?.publishedAt || null, flowErrors });
   await adapter.writeReport?.(report);
   return report;
+}
+
+function countOtherBlocks(instances, blockId) {
+  const counts = new Map();
+  for (const item of instances || []) {
+    if (String(item.blockId) === String(blockId)) continue;
+    const key = String(item.blockId);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return counts;
+}
+
+function assertOtherBlocksUnchanged(expected, instances, blockId) {
+  const actual = countOtherBlocks(instances, blockId);
+  if (expected.size !== actual.size || [...expected].some(([id, count]) => actual.get(id) !== count)) {
+    throw new Error('A non-target block number changed on the selected page; stopping immediately.');
+  }
+}
+
+function assertUniqueTargetIdentities(instances) {
+  const ids = instances.map((item) => item.settingId);
+  if (ids.some((id) => !id) || new Set(ids).size !== ids.length) {
+    throw new Error('Target block instances do not have unique settingId values; refusing to delete any block.');
+  }
+  const ordinals = instances.map((item) => item.ordinal);
+  if (ordinals.some((ordinal) => !Number.isInteger(ordinal)) || new Set(ordinals).size !== ordinals.length) {
+    throw new Error('Target block instances do not have unique positions in the editor; refusing to delete any block.');
+  }
 }

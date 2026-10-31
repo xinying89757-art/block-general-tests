@@ -1,10 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildFreshReport, diffFreshDefaults, matchMarkedInstances, parseFreshPageConfig,
+import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPageConfig,
   runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
 import { selectRetainedFailures } from '../src/batch-save.mjs';
-
-const marker = 'autotest:catalog-smoke';
 
 function fakeAdapter(initialInstances = []) {
   const events = [];
@@ -19,16 +17,15 @@ function fakeAdapter(initialInstances = []) {
   };
   return { events, state, batchAdapter,
     openPage: async (page) => { events.push(['openPage', page.kind]); return { editorLink: '/editor' }; },
-    listBlockInstances: async () => structuredClone(state.instances),
-    deleteMarkedBlock: async (instance) => {
-      events.push(['delete', instance.marker]);
-      state.instances = state.instances.filter((item) => item !== instance && item.marker !== instance.marker);
+    listAllBlockInstances: async () => structuredClone(state.instances),
+    deleteBlockInstance: async (instance) => {
+      events.push(['delete', instance.blockId, instance.settingId]);
+      state.instances = state.instances.filter((item) => item.settingId !== instance.settingId);
     },
     addDefaultBlock: async (blockId) => {
       const instance = { blockId: String(blockId), settingId: 'new-instance', position: { x: 0, y: 100 } };
       state.instances.push(instance); events.push(['add', blockId]); return instance;
     },
-    setMarker: async (instance, value) => { instance.marker = value; const target = state.instances.find((item) => item.settingId === instance.settingId); target.marker = value; },
     savePage: async () => events.push(['savePage']), reloadPage: async () => events.push(['reloadPage']),
     readDefaults: async () => [{ controlIdentity: 'dialog:text:heading', label: 'Heading', value: 'Default' }],
     readDefaultsSnapshot: async () => null,
@@ -39,7 +36,7 @@ function fakeAdapter(initialInstances = []) {
   };
 }
 
-const config = { page: { kind: 'custom', name: 'Catalog test' }, siteHost: 'example.test', blockId: '55', marker,
+const config = { page: { kind: 'custom', name: 'Catalog test' }, siteHost: 'example.test', blockId: '55',
   projectRoot: '/tmp/fresh-flow-test' };
 
 test('fresh flow requires explicit custom or system page configuration', () => {
@@ -52,48 +49,52 @@ test('fresh flow requires explicit custom or system page configuration', () => {
 
 test('flow refuses to start before opening an editor when page choice is absent', async () => {
   let opened = false;
-  await assert.rejects(runFreshBlockFlow({ config: { siteHost: 'h', blockId: 'b', marker },
+  await assert.rejects(runFreshBlockFlow({ config: { siteHost: 'h', blockId: 'b' },
     adapter: { openPage: async () => { opened = true; } }, settings: [] }), /explicit page config/);
   assert.equal(opened, false);
 });
 
-test('marker matching accepts zero or one and refuses multiple or ambiguous matches', () => {
-  assert.equal(matchMarkedInstances([{ marker: 'other' }], marker), null);
-  const one = { marker };
-  assert.equal(matchMarkedInstances([one, { marker: 'other' }], marker), one);
-  assert.throws(() => matchMarkedInstances([{ marker }, { marker }], marker), /no block will be deleted/);
-  assert.throws(() => matchMarkedInstances([{ marker: 'other', markerAmbiguous: true }], marker), /ambiguous/);
+test('target block matching uses only the block number', () => {
+  const items = [{ blockId: '55', settingId: 'a' }, { blockId: '56', settingId: 'b' }];
+  assert.deepEqual(targetBlockInstances(items, '55'), [items[0]]);
+  assert.deepEqual(targetBlockInstances(items, '57'), []);
+  assert.throws(() => targetBlockInstances(items, ''), /block number/);
 });
 
-test('only the marked instance is deleted; an unmarked block is preserved', async () => {
-  const adapter = fakeAdapter([{ blockId: '55', settingId: 'unmarked', marker: null },
-    { blockId: '55', settingId: 'old-test', marker }]);
+test('deletes every instance of the target number and preserves all other block numbers', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old-one', ordinal: 0 },
+    { blockId: '56', settingId: 'unrelated', ordinal: 0 }, { blockId: '55', settingId: 'old-two', ordinal: 1 }]);
   const report = await runFreshBlockFlow({ config, adapter, settings: [] });
-  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'delete'), [['delete', marker]]);
-  assert.ok(adapter.state.instances.some((item) => item.settingId === 'unmarked'));
-  assert.equal(adapter.state.instances.filter((item) => item.marker === marker).length, 1);
+  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'delete'), [['delete', '55', 'old-one'], ['delete', '55', 'old-two']]);
+  assert.ok(adapter.state.instances.some((item) => item.settingId === 'unrelated'));
+  assert.equal(adapter.state.instances.filter((item) => item.blockId === '55').length, 1);
   assert.equal(report.block.settingId, 'new-instance');
 });
 
-test('fresh flow stops without deletion when marker matches more than one instance', async () => {
-  const adapter = fakeAdapter([{ blockId: '55', settingId: 'one', marker }, { blockId: '55', settingId: 'two', marker }]);
-  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /no block will be deleted/);
+test('stops before adding if a target instance delete did not remove exactly one', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
+  adapter.deleteBlockInstance = async (instance) => adapter.events.push(['unexpected-delete-noop', instance.settingId]);
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /did not remove exactly/);
+  assert.equal(adapter.events.some(([kind]) => kind === 'add'), false);
+});
+
+test('duplicate target instance identity refuses all deletion', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'duplicate', ordinal: 0 },
+    { blockId: '55', settingId: 'duplicate', ordinal: 1 }]);
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /unique settingId/);
   assert.equal(adapter.events.some(([kind]) => kind === 'delete'), false);
   assert.equal(adapter.events.some(([kind]) => kind === 'add'), false);
 });
 
-test('marker must survive save and reload or settings stay unrun and only the new instance is cleaned up', async () => {
-  const adapter = fakeAdapter();
-  const removeCreated = [];
-  const originalReload = adapter.reloadPage;
-  adapter.reloadPage = async () => {
-    await originalReload();
-    delete adapter.state.instances.find((item) => item.settingId === 'new-instance').marker;
+test('stops if a delete changes an unmarked different block number', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }, { blockId: '56', settingId: 'keep', ordinal: 0 }]);
+  const original = adapter.deleteBlockInstance;
+  adapter.deleteBlockInstance = async (instance) => {
+    await original(instance);
+    adapter.state.instances = adapter.state.instances.filter((item) => item.settingId !== 'keep');
   };
-  adapter.deleteCreatedBlock = async (instance) => removeCreated.push(instance.settingId);
-  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [{ id: 'x', key: 'x', value: true }] }), /marker could not be read back/);
-  assert.deepEqual(removeCreated, ['new-instance']);
-  assert.equal(adapter.events.some(([kind]) => kind === 'apply'), false);
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /non-target block number changed/);
+  assert.equal(adapter.events.some(([kind]) => kind === 'add'), false);
 });
 
 test('interfering failed settings retain one failure and report the suppressed value/evidence', () => {
@@ -154,8 +155,8 @@ test('changed defaults are reported as informational differences', () => {
 });
 
 test('fresh report carries links, current values, failure evidence, and default warnings', () => {
-  const report = buildFreshReport({ runId: 'r1', siteHost: 'h', blockId: 'b', page: config.page, marker,
-    markedInstance: { settingId: 'sid', position: { y: 3 } }, defaults: { firstCapture: false, changes: [{ kind: 'changed' }] },
+  const report = buildFreshReport({ runId: 'r1', siteHost: 'h', blockId: 'b', page: config.page,
+    instance: { settingId: 'sid', position: { y: 3 } }, defaults: { firstCapture: false, changes: [{ kind: 'changed' }] },
     batch: { batches: [], results: [{ id: 'check', status: 'fail', batchResult: { expected: 'yes', actual: 'no', screenshot: 'shot.png' } }],
       timing: { retainedFailures: { selectedIds: ['check'], suppressed: [] } } },
     currentValues: [{ key: 'x', value: 'v' }], editorLink: '/e', frontLink: '/f', publishedAt: 'time' });

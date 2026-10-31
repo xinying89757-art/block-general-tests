@@ -2,20 +2,20 @@ import { addBlockIfNeeded, gotoFreshTargetPage, openEditor, savePage } from './e
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 
-async function listInstances(frame, blockId) {
+async function listInstances(frame) {
   return frame.locator('body').evaluate((body, id) => {
     const all = [...body.querySelectorAll('.siteblocks-setting-wrap[data-appid]')];
     return all.flatMap((element) => {
-      if (element.getAttribute('data-appid') !== String(id)) return [];
+      const blockId = element.getAttribute('data-appid');
       const rect = element.getBoundingClientRect();
       const attrs = [...element.attributes, ...[...element.querySelectorAll('*')].flatMap((node) => [...node.attributes])];
       const settingId = attrs.find((attr) => /setting.?id/i.test(attr.name))?.value || '';
-      return [{ blockId: String(id), settingId, marker: element.getAttribute('data-autotest-marker'),
-        ordinal: all.filter((candidate) => candidate.getAttribute('data-appid') === String(id)).indexOf(element),
+      return [{ blockId: String(blockId), settingId,
+        ordinal: all.filter((candidate) => candidate.getAttribute('data-appid') === String(blockId)).indexOf(element),
         position: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) },
         text: (element.innerText || '').slice(0, 400) }];
     });
-  }, String(blockId));
+  });
 }
 
 async function locateInstance(frame, instance) {
@@ -26,10 +26,9 @@ async function locateInstance(frame, instance) {
   const wrap = wraps.nth(instance.ordinal);
   const current = await wrap.evaluate((element) => {
     const attrs = [...element.attributes, ...[...element.querySelectorAll('*')].flatMap((node) => [...node.attributes])];
-    return { marker: element.getAttribute('data-autotest-marker'),
-      settingId: attrs.find((attr) => /setting.?id/i.test(attr.name))?.value || '' };
+    return { settingId: attrs.find((attr) => /setting.?id/i.test(attr.name))?.value || '' };
   });
-  if (current.settingId !== instance.settingId || (instance.marker !== undefined && current.marker !== instance.marker)) {
+  if (current.settingId !== instance.settingId) {
     throw new Error('Block instance identity changed before action; refusing to continue.');
   }
   return wrap;
@@ -41,7 +40,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
   let pageItem;
   let resolvedTarget;
   const selectedCreated = (instance) => ({ blockId: String(config.blockId), settingId: instance.settingId,
-    ordinal: instance.ordinal, position: instance.position, marker: instance.marker });
+    ordinal: instance.ordinal, position: instance.position });
 
   const adapter = {
     batchAdapter: settingsAdapter.batchAdapter,
@@ -53,24 +52,21 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       pageItem = selected.pageItem || { pageurl: target.url || '' };
       return { editorLink: page.url(), frontLink: target.url || pageItem.pageurl || null };
     },
-    async listBlockInstances(blockId) { return listInstances(frame, blockId); },
-    async deleteMarkedBlock(instance) {
-      if (instance.marker !== config.marker) throw new Error('Deletion is restricted to the configured AUTOTEST marker.');
-      await deleteInstance(instance, config.marker);
+    async listAllBlockInstances() { return listInstances(frame); },
+    async deleteBlockInstance(instance) {
+      if (String(instance.blockId) !== String(config.blockId)) {
+        throw new Error('Deletion is restricted to the configured target block number.');
+      }
+      await deleteInstance(instance);
     },
-    async deleteCreatedBlock(instance) { await deleteInstance(instance, undefined); },
     async addDefaultBlock(blockId) {
-      const before = await listInstances(frame, blockId);
+      const before = (await listInstances(frame)).filter((item) => item.blockId === String(blockId));
       const result = await addBlockIfNeeded(page, frame, { ...config, blockId, addAnotherInstance: true });
       if (!result.added || result.countAfter !== before.length + 1) throw new Error('Fresh add did not create exactly one new block instance.');
-      const after = await listInstances(frame, blockId);
+      const after = (await listInstances(frame)).filter((item) => item.blockId === String(blockId));
       const created = after.filter((item) => !before.some((prior) => prior.settingId && prior.settingId === item.settingId));
       if (created.length !== 1 || !created[0].settingId) throw new Error('Could not uniquely identify the newly added block instance.');
       return selectedCreated(created[0]);
-    },
-    async setMarker(instance, marker) {
-      const wrap = await locateInstance(frame, instance);
-      await wrap.evaluate((element, value) => element.setAttribute('data-autotest-marker', value), marker);
     },
     async savePage() { await savePage(page); },
     async reloadPage() {
@@ -110,9 +106,9 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     }), pattern.source);
   }
 
-  async function deleteInstance(instance, expectedMarker) {
-    if (expectedMarker !== undefined && instance.marker !== expectedMarker) throw new Error('Deletion is restricted to the configured AUTOTEST marker.');
-    const wrap = await locateInstance(frame, expectedMarker === undefined ? { ...instance, marker: undefined } : instance);
+  async function deleteInstance(instance) {
+    if (String(instance.blockId) !== String(config.blockId)) throw new Error('Refusing to delete a non-target block number.');
+    const wrap = await locateInstance(frame, instance);
     await wrap.scrollIntoViewIfNeeded();
     await wrap.click();
     const candidates = frame.locator('.siteblocks-setting-operateTools:visible a, .siteblocks-setting-operateTools:visible button, .siteblocks-setting-operateTools:visible [role="button"], .siteblocks-setting-operateTools:visible [title], .siteblocks-setting-operateTools:visible [aria-label]');
