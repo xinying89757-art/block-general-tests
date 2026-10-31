@@ -7,6 +7,7 @@ import { createFreshSettingsAdapter, currentValuesFromInventory } from '../src/f
 import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDeleteConfirmIndexes,
   matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from '../src/fresh-editor-actions.mjs';
 import { freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
+import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
 
 function fakeAdapter(initialInstances = []) {
   const events = [];
@@ -68,11 +69,16 @@ test('target block matching uses only the block number', () => {
 test('deletes every instance of the target number and preserves all other block numbers', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'old-one', ordinal: 0 },
     { blockId: '56', settingId: 'unrelated', ordinal: 0 }, { blockId: '55', settingId: 'old-two', ordinal: 1 }]);
-  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  const progress = [];
+  const report = await runFreshBlockFlow({ config, adapter, settings: [], onProgress: async (event) => progress.push(event) });
   assert.deepEqual(adapter.events.filter(([kind]) => kind === 'delete'), [['delete', '55', 'old-one'], ['delete', '55', 'old-two']]);
   assert.ok(adapter.state.instances.some((item) => item.settingId === 'unrelated'));
   assert.equal(adapter.state.instances.filter((item) => item.blockId === '55').length, 1);
   assert.equal(report.block.settingId, 'new-instance');
+  assert.deepEqual(report.lifecycle, { deletedSettingIds: ['old-one', 'old-two'], addedSettingId: 'new-instance' });
+  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'delete').map((event) => event[2]), ['old-one', 'old-two']);
+  assert.deepEqual(progress.filter((event) => event.stage === 'instance-deleted').map(({ deletedSettingId }) => deletedSettingId), ['old-one', 'old-two']);
+  assert.ok(progress.some((event) => event.stage === 'instance-added' && event.settingId === 'new-instance'));
 });
 
 test('stops before adding if a target instance delete did not remove exactly one', async () => {
@@ -172,7 +178,22 @@ test('fresh report carries links, current values, failure evidence, and default 
   assert.deepEqual(report.links, { editor: '/e', front: '/f' });
   assert.deepEqual(report.defaults.changes, [{ kind: 'changed' }]);
   assert.deepEqual(report.capabilities, [{ capability: 'unsupported', status: 'not-adapted' }]);
+  assert.deepEqual(report.lifecycle, { deletedSettingIds: [], addedSettingId: 'sid' });
   assert.equal(report.settingsMode, 'BATCH_SAVE / retain-tested-values');
+});
+
+test('declared fresh batch dry run prints dependency restore steps without reading a site', () => {
+  const plan = planDeclaredFreshSettings({ settingKeys: ['source', 'quantity', 'pagination', 'comparison'], metadata: {
+    source: { interferesWith: ['pagination'] },
+    quantity: { interferesWith: ['pagination'] },
+    pagination: { interferesWith: ['source', 'quantity'], requiresBaseline: ['source', 'quantity'] },
+    comparison: {},
+  } });
+  assert.equal(plan.basis, 'declared-setting-keys; concrete controls are discovered in the editor');
+  assert.deepEqual(plan.batches, [
+    { index: 0, settingKeys: ['source', 'quantity', 'comparison'], restoreBefore: [] },
+    { index: 1, settingKeys: ['pagination'], restoreBefore: ['source', 'quantity'] },
+  ]);
 });
 
 test('shared fresh adapter reports unsupported capabilities explicitly and never counts them as checks', async () => {

@@ -64,7 +64,7 @@ export async function writeFreshDefaultsSnapshot(file, snapshot) {
 }
 
 export function buildFreshReport({ runId, siteHost, blockId, page, instance, capabilities = [],
-  defaults, batch, currentValues, editorLink, frontLink, publishedAt, flowErrors = [] }) {
+  defaults, batch, currentValues, editorLink, frontLink, publishedAt, deletedSettingIds = [], flowErrors = [] }) {
   const failures = batch.results.filter((item) => item.status === 'fail').map((item) => ({
     checkId: item.id,
     setting: item.setting || item.id,
@@ -80,6 +80,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
     page,
     block: { settingId: instance.settingId || null, position: instance.position || null,
       currentValues: currentValues || [] },
+    lifecycle: { deletedSettingIds: [...deletedSettingIds], addedSettingId: instance.settingId || null },
     defaults, capabilities, batches: batch.batches, checks: batch.results, failures,
     retainedFailures: batch.timing.retainedFailures || { selectedIds: [], suppressed: [] },
     timing: batch.timing, settingsMode: 'BATCH_SAVE / retain-tested-values', flowErrors,
@@ -105,6 +106,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   }
   const opened = await adapter.openPage(config.page);
   await onProgress({ stage: 'page-opened' });
+  const deletedSettingIds = [];
   let instances = await adapter.listAllBlockInstances();
   await onProgress({ stage: 'instances-inventoried', targetCount: targetBlockInstances(instances, config.blockId).length });
   const otherBlockCounts = countOtherBlocks(instances, config.blockId);
@@ -125,12 +127,14 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     }
     instances = afterDelete;
     targets = remaining;
-    await onProgress({ stage: 'instance-deleted', targetCount: targets.length });
+    deletedSettingIds.push(String(target.settingId));
+    await onProgress({ stage: 'instance-deleted', targetCount: targets.length,
+      deletedSettingId: String(target.settingId), deletedSettingIds: [...deletedSettingIds] });
   }
 
   const created = await adapter.addDefaultBlock(config.blockId);
-  await onProgress({ stage: 'instance-added' });
   if (!created || created.blockId !== String(config.blockId)) throw new Error('Adapter did not identify the newly added block instance.');
+  await onProgress({ stage: 'instance-added', settingId: String(created.settingId || '') });
   await adapter.savePage();
   await onProgress({ stage: 'fresh-instance-saved' });
   await adapter.reloadPage();
@@ -156,6 +160,10 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   if (plan.some((batch) => batch.restoreBefore.length) && typeof batchAdapter.restore !== 'function') {
     throw new Error('Fresh-block batch plan requires initial-value restoration between dependent checks, but the capability adapter does not provide it.');
   }
+  const printablePlan = plan.map(({ settings: items, restoreBefore }, index) => ({
+    index, settingIds: items.map((item) => item.id), restoreBefore,
+  }));
+  await onProgress({ stage: 'batch-plan-prepared', batches: printablePlan });
 
   const defaultsValues = await adapter.readDefaults(fresh);
   const defaultsPath = freshDefaultsPath(config.projectRoot || process.cwd(), config.siteHost, config.blockId);
@@ -198,7 +206,8 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   const report = buildFreshReport({ runId, siteHost: config.siteHost, blockId: config.blockId,
     page: config.page, instance: fresh, capabilities: capabilitiesToReport, defaults, batch,
     currentValues: values, editorLink: opened.editorLink || adapter.editorLink?.(),
-    frontLink: published?.frontLink || opened.frontLink, publishedAt: published?.publishedAt || null, flowErrors });
+    frontLink: published?.frontLink || opened.frontLink, publishedAt: published?.publishedAt || null,
+    deletedSettingIds, flowErrors });
   await adapter.writeReport?.(report);
   await onProgress({ stage: 'report-written' });
   return report;

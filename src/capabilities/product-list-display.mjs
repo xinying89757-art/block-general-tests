@@ -36,6 +36,7 @@ export const batchSaveMetadata = Object.freeze({
   'display-field': Object.freeze({}),
 });
 export const freshSettings = Object.freeze({ status: 'adapted', metadata: batchSaveMetadata,
+  settingKeys: Object.freeze(Object.keys(batchSaveMetadata)),
   createDefinitions: createProductListBatchDefinitions });
 
 export async function runListEffectPlan(tasks, { checkGroup } = {}) {
