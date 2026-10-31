@@ -52,11 +52,12 @@ test('target verification failure is not classified as runner-unreachable when s
 });
 
 test('external front result confirms only when HTTP succeeds and both target identifiers are found', () => {
-  const base = { blockId: '111', block: { settingId: 'AbC' }, publishedConfirmed: false,
+  const base = { blockId: '111', block: { settingId: 'AbC' }, published: false, publishedConfirmed: false,
     confirmationSource: null };
   const good = applyExternalFrontVerification(base, { url: 'http://a.example/p.html?t=4&token=secret',
     httpStatus: 200, blockFound: true, settingIdFound: true, checkedAt: '2026-11-01T00:00:00Z' });
   assert.equal(good.publishedConfirmed, true);
+  assert.equal(good.published, true);
   assert.equal(good.confirmationSource, 'external-front-check');
   assert.equal(good.externalFrontVerification.confirmed, true);
   assert.equal(good.externalFrontVerification.url, 'http://a.example/p.html?t=4');
@@ -69,6 +70,7 @@ test('external front result confirms only when HTTP succeeds and both target ide
     const result = applyExternalFrontVerification(base, { url: 'https://a.example/p.html', ...values,
       checkedAt: '2026-11-01T00:00:00Z' });
     assert.equal(result.publishedConfirmed, false);
+    assert.equal(result.published, false);
     assert.equal(result.externalFrontVerification.confirmed, false);
   }
 });

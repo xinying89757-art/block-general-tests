@@ -109,13 +109,31 @@
           "dialogTitle": "设置产品列表",
           "wrapIndex": 0
         }
+      },
+      {
+        "id": "btn-text",
+        "params": {
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "btn-url",
+        "params": {
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "btn-target",
+        "params": {
+          "wrapIndex": 0
+        }
       }
     ],
     "displayFieldTypes": []
   },
   "onboarding": {
     "status": "draft-unreviewed",
-    "discoveredAt": "2026-10-31T18:33:16.202Z",
+    "discoveredAt": "2026-10-31T19:14:10.697Z",
     "matched": [
       {
         "id": "module-width",
@@ -432,6 +450,48 @@
             "value": "0"
           }
         ]
+      },
+      {
+        "id": "btn-text",
+        "capability": "button-link",
+        "kind": "button-popover",
+        "type": "phoenix_blocks_button",
+        "title": null,
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "按钮文本",
+            "value": "分类按钮"
+          }
+        ]
+      },
+      {
+        "id": "btn-url",
+        "capability": "button-link",
+        "kind": "button-popover",
+        "type": "phoenix_blocks_button",
+        "title": null,
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "链接网址",
+            "value": "javascript:void(0)"
+          }
+        ]
+      },
+      {
+        "id": "btn-target",
+        "capability": "button-link",
+        "kind": "button-popover",
+        "type": "phoenix_blocks_button",
+        "title": null,
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "label": "新窗口打开",
+            "value": false
+          }
+        ]
       }
     ],
     "unmapped": [
@@ -532,18 +592,6 @@
           "disabled": false
         },
         "status": "unmapped"
-      }
-    ],
-    "inventoryErrors": [
-      {
-        "regionType": "phoenix_blocks_button",
-        "capabilityCandidates": [
-          "button-link"
-        ],
-        "code": "SETTINGS_INVENTORY_ERROR",
-        "message": "等待控件或保存状态稳定超时",
-        "diagnostics": null,
-        "screenshot": "reports/screenshots/inventory-button-popover-47498-1793471596089.png"
       }
     ],
     "note": "自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。"

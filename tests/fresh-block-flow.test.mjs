@@ -746,10 +746,12 @@ test('editor success remains distinct from an unreachable runner front path', as
     } } });
   const report = await runFreshBlockFlow({ config, adapter, settings: [] });
   assert.equal(report.editorPublishSucceeded, true);
+  assert.equal(report.published, false);
   assert.equal(report.publishedConfirmed, false);
   assert.equal(report.publishedAt, null);
   assert.equal(report.confirmationSource, null);
   assert.equal(report.frontVerification.status, 'front-unreachable-from-runner');
+  assert.equal(report.failures.at(-1).classification, 'front-unreachable-from-runner');
   assert.equal(report.frontVerification.reachability.rootProbe.server, 'Pingora');
 });
 

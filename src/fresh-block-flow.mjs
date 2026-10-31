@@ -155,6 +155,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
     frontVerification,
     publishedConfirmed: Boolean(publishedAt),
     confirmationSource: publishedAt ? 'editor-and-runner-front' : null,
+    published: Boolean(publishedAt),
     publishedAt,
   };
 }
@@ -400,7 +401,9 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
       if (unconfirmed) {
         const detail = `发布未确认：编辑器信号=${publishAttempt?.publishSignal?.status || 'n/a'}，前台=${publishAttempt?.frontVerification?.status || 'n/a'}`;
         flowErrors.push({ stage: 'publish-confirmation', message: detail, frontVerification: publishAttempt?.frontVerification || null });
-        batch.results.push({ id: 'fresh-publish-confirmed', status: 'fail', detail,
+        batch.results.push({ id: 'fresh-publish-confirmed', status: 'fail',
+          ...(publishAttempt?.frontVerification?.status === 'front-unreachable-from-runner'
+            ? { classification: 'front-unreachable-from-runner' } : {}), detail,
           batchResult: { expected: '编辑器出现发布成功提示，且带 ?t= 的前台页面包含本次新加的区块实例。', actual: detail, detail } });
       } }
     catch (error) {

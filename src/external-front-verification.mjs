@@ -26,6 +26,7 @@ export function applyExternalFrontVerification(report, result) {
   };
   return { ...report, externalFrontVerification,
     publishedConfirmed: Boolean(report.publishedConfirmed || confirmed),
+    published: Boolean(report.published || confirmed),
     confirmationSource: confirmed ? 'external-front-check'
       : (report.confirmationSource || null) };
 }

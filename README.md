@@ -93,7 +93,7 @@ HTTP 预览兼容：默认 `HTTPS_UPGRADE=1`，浏览器 context 会把指定的
 node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<run>.json /path/to/external-check.json
 ```
 
-脚本会追加 `externalFrontVerification`。只有 HTTP 2xx 且 `blockFound` 与 `settingIdFound` 都为 `true` 时，才将 `publishedConfirmed` 设为 `true`，来源记为 `external-front-check`。外部检查器应确认目标报告中的区块号和本次新 `settingId`；脚本会移除 URL 中的凭证、非缓存查询参数和片段，避免把令牌写进报告。
+脚本会追加 `externalFrontVerification`。只有 HTTP 2xx 且 `blockFound` 与 `settingIdFound` 都为 `true` 时，才将 `published` 和 `publishedConfirmed` 设为 `true`，来源记为 `external-front-check`。外部检查器应确认目标报告中的区块号和本次新 `settingId`；脚本会移除 URL 中的凭证、非缓存查询参数和片段，避免把令牌写进报告。
 
 ## 安全和恢复的底线
 
