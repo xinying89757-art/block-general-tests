@@ -186,6 +186,50 @@ test('fresh button-link definitions use the canvas-popover lifecycle and existin
   assert.ok(events.filter((item) => item === 'save').length >= 1);
 });
 
+test('fresh button URL uses its URL-prefix mode oracle when tab markers are absent and fails closed on ambiguity', async () => {
+  const makeAdapter = async ({ ambiguous = false } = {}) => {
+    const controls = [
+      { index: 0, tag: 'INPUT', type: 'text', name: 'text', label: '按钮文本', context: '', value: 'Current', checked: false },
+      { index: 1, tag: 'INPUT', type: 'text', name: 'url', label: '链接网址', context: '域名 邮箱地址', value: 'https://current.example', checked: false },
+      { index: 2, tag: 'INPUT', type: 'checkbox', name: 'target', label: '在新窗口打开', context: '', value: 'on', checked: false },
+    ];
+    let tabClicks = 0;
+    const events = [];
+    const scopedSession = {
+      root: { evaluate: async (fn, wanted) => {
+        if (/input,\s*textarea/.test(fn.toString())) return [0, 1, 2];
+        if (wanted) tabClicks++;
+        return { found: !ambiguous, selected: null, tabs: [
+          { text: '域名', selected: false }, { text: '邮箱地址', selected: false },
+        ] };
+      } },
+      open: async () => events.push('open'), read: async () => structuredClone(controls),
+      set: async (target, value) => { if (target.type === 'checkbox') controls[target.index].checked = value;
+        else controls[target.index].value = value; events.push(['set', target.index, value]); },
+      save: async () => events.push('save'), cancel: async () => events.push('cancel'),
+    };
+    const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'button-link' }],
+      context: { page: {}, canvas: {}, config: {}, scopedSession, save: async () => events.push('page-save') },
+      loadCapability: async () => ({ freshSettings: buttonFreshSettings }) });
+    const prepared = await adapter.prepare();
+    return { prepared, settings: prepared.settings, controls, events, get tabClicks() { return tabClicks; } };
+  };
+  const working = await makeAdapter();
+  const urlSetting = working.settings.find(({ id }) => id === 'btn-url-persist');
+  await working.prepared.batchAdapter.apply(urlSetting, { phase: 'test' });
+  await working.prepared.batchAdapter.save({ reason: 'test' });
+  const outcome = await working.prepared.batchAdapter.check(urlSetting, { phase: 'test' });
+  assert.equal(outcome.status, 'pass', JSON.stringify(outcome));
+  assert.equal(working.controls[1].value, 'https://www.baidu.com');
+  assert.equal(working.tabClicks, 0, 'already-domain URL type is inferred without an unavailable active-tab marker');
+
+  const ambiguous = await makeAdapter({ ambiguous: true });
+  const ambiguousSetting = ambiguous.settings.find(({ id }) => id === 'btn-url-persist');
+  await ambiguousSetting.lifecycle.open();
+  await assert.rejects(ambiguousSetting.apply(), /链接类型页签无法唯一定位/);
+  assert.equal(ambiguous.controls[1].value, 'https://current.example', 'ambiguous tabs are never written');
+});
+
 test('fresh color and width definitions use right-rail lifecycles and declare complete readback controls', async () => {
   const makeLifecycle = (kind, initial, applyValue) => {
     let state = structuredClone(initial), opened = false;
@@ -222,6 +266,9 @@ test('fresh color and width definitions use right-rail lifecycles and declare co
   assert.equal(width.persistedControls.length, moduleWidthPersistedControls(initialWidth).length);
   assert.deepEqual(width.persistedControls.map(({ region, controlIndex, type }) => ({ region, controlIndex, type })),
     moduleWidthPersistedControls(initialWidth));
+  assert.ok(!width.persistedControls.some(({ type }) => type === 'text'),
+    'the preset-width test reads persisted radio selection, not the inactive custom-width input');
+  assert.ok(moduleWidthPersistedControls(initialWidth, { custom: '1500' }).some(({ type }) => type === 'text'));
   const widthRun = await executeSettingBatches({ settings: width.settings, metadata: width.metadata,
     adapter: width.batchAdapter, finalState: 'retain-tested-values' });
   assert.equal(widthRun.results[0].status, 'pass');

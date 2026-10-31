@@ -92,6 +92,21 @@ test('failed batch check is rerun alone and both outcomes are retained', async (
   assert.equal(events.at(-1), 'baseline');
 });
 
+test('retain mode reports passing peers when one member of their saved batch fails', async () => {
+  const settings = [{ id: 'peer-pass', key: 'left', value: 'changed' },
+    { id: 'peer-fail', key: 'right', value: 'changed' }];
+  const run = await executeSettingBatches({ settings, finalState: 'retain-tested-values', adapter: {
+    apply: async () => {}, save: async () => {},
+    check: async (setting) => setting.id === 'peer-fail'
+      ? { status: 'fail', expected: 'wanted', actual: 'observed' }
+      : { status: 'pass', expected: 'changed', actual: 'changed' },
+  } });
+  assert.deepEqual(run.results.map(({ id, status }) => [id, status]), [
+    ['peer-fail', 'fail'], ['peer-pass', 'pass'],
+  ]);
+  assert.equal(run.results.find(({ id }) => id === 'peer-pass').batchResult.actual, 'changed');
+});
+
 test('retain mode restores required dependencies between checks then reapplies the selected failing value', async () => {
   const events = [];
   const values = {};

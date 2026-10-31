@@ -140,14 +140,8 @@ export async function createFreshDefinitions(args) {
     apply: async ({ key, target, value, linkType }) => {
       if (key === 'url') {
         assertAllowedLinkUrl(value);
-        const tabs = await linkTabs(session);
-        if (!tabs.found) unavailable('链接类型页签无法唯一定位，未改写链接。');
         const wantedType = linkType || '域名';
-        if (tabs.selected !== wantedType) {
-          await linkTabs(session, wantedType);
-          const ready = await poll(() => linkTabs(session), (state) => state.selected === wantedType);
-          if (!ready.matched) throw new Error(`切换链接类型后无法确认${wantedType}页签。`);
-        }
+        await selectFreshLinkType(session, wantedType);
         const refreshed = await buttonControls(session);
         await session.set(refreshed.url, value);
         return;
@@ -172,7 +166,8 @@ export async function createFreshDefinitions(args) {
   const settings = candidates.map((item) => ({ id: item.id, key: `button-${item.key}`, name: NAMES[item.id],
     lifecycle, initialValue: item.key === 'url' ? { value: item.original, linkType: item.originalLinkType } : item.original,
     originalValue: item.original, value: item.value, expected: item.value,
-    apply: () => lifecycle.apply({ key: item.key, target: item.target, value: item.value }),
+    apply: () => lifecycle.apply({ key: item.key, target: item.target, value: item.value,
+      linkType: item.key === 'url' ? item.originalLinkType : undefined }),
     restore: () => lifecycle.apply({ key: item.key, target: item.target, value: item.original,
       linkType: item.originalLinkType }),
     check: async () => {
@@ -432,6 +427,23 @@ async function readLinkType(session, current) {
   const tabs = await linkTabs(session);
   return { ...tabs, selected: tabs.selected || (/^mailto:/i.test(current.url.value) ? '邮箱地址' : '域名'),
     source: tabs.selected ? 'tab-marker' : 'url-prefix' };
+}
+
+async function selectFreshLinkType(session, wantedType) {
+  const tabs = await linkTabs(session);
+  if (!tabs.found) unavailable('链接类型页签无法唯一定位，未改写链接。');
+  const current = await buttonControls(session);
+  const observed = await readLinkType(session, current);
+  if (observed.selected === wantedType) return;
+  await linkTabs(session, wantedType);
+  // Some editor versions expose no selected-tab marker. In that case the
+  // URL prefix is the read-only mode oracle, and the fresh check verifies it
+  // again after commit/reopen. Polling a marker that does not exist would
+  // turn that valid path into a harness timeout.
+  if (tabs.selected) {
+    const ready = await poll(() => linkTabs(session), (state) => state.selected === wantedType);
+    if (!ready.matched) throw new Error(`切换链接类型后无法确认${wantedType}页签。`);
+  }
 }
 
 async function setLink(session, tab, value) {

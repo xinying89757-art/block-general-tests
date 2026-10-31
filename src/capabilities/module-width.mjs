@@ -21,10 +21,16 @@ const NAMES = {
 const ALT_WIDTH = '1200px';
 const BASE_WIDTH = 1440;
 
-export function moduleWidthPersistedControls(initial) {
+export function moduleWidthPersistedControls(initial, testedValue = { preset: ALT_WIDTH }) {
   const controls = (initial?.radios || []).map((_, index) => ({ region: 'right-rail-width', controlIndex: index, type: 'radio' }));
-  controls.push({ region: 'right-rail-width', controlIndex: (initial?.radios || []).length, type: 'text' },
-    { region: 'right-rail-width', controlIndex: (initial?.radios || []).length + 1, type: 'checkbox' });
+  // The custom-width input is active only when the tested selection is
+  // custom. A preset test asserts the selected/effective preset; after reload
+  // the editor clears the inactive custom input, so comparing its stale value
+  // would add a persistence assertion that the existing oracle never made.
+  if (testedValue?.custom !== undefined) {
+    controls.push({ region: 'right-rail-width', controlIndex: (initial?.radios || []).length, type: 'text' });
+  }
+  controls.push({ region: 'right-rail-width', controlIndex: (initial?.radios || []).length + 1, type: 'checkbox' });
   return controls;
 }
 
@@ -62,7 +68,7 @@ export async function createFreshDefinitions(args) {
           detail: `原有模块宽度持久化断言：切换至 ${ALT_WIDTH} 保存重开后生效宽度应为 ${ALT_WIDTH}，实际 ${actual.effective}px；全局应用保持 ${actual.globalApply}。` };
       } finally { await lifecycle.cancel(); }
     } };
-  return { settings: [setting], persistedControls: moduleWidthPersistedControls(initial),
+  return { settings: [setting], persistedControls: moduleWidthPersistedControls(initial, value),
     staticResults: [result('mw-state', 'record',
       `当前宽度选项=${initial.checked.label}，生效宽度=${initial.effective}px；全局应用未勾选。`, initial)] };
 }

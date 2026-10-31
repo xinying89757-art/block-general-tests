@@ -177,15 +177,16 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
           results.push({ id: setting.id, status: 'fail', batchResult: batchOutcomes.get(setting.id), rerunAloneResult: rerun });
           batchInfo.rerunAlone = { ...(batchInfo.rerunAlone || {}), [setting.id]: isolated };
         }
-        const passingPeers = finalState === 'restore'
-          ? batch.settings.filter((setting) => !failed.some((item) => item.id === setting.id)) : [];
-        for (const setting of passingPeers) {
-          const start = performance.now();
-          await adapter.apply(setting, { snapshot: snapshots.get?.(setting.id) ?? snapshots[setting.id], phase: 'batch-continue' });
-          batchInfo.applyMs += performance.now() - start;
-          changed.add(setting.id);
+        const passingPeers = batch.settings.filter((setting) => !failed.some((item) => item.id === setting.id));
+        if (finalState === 'restore') {
+          for (const setting of passingPeers) {
+            const start = performance.now();
+            await adapter.apply(setting, { snapshot: snapshots.get?.(setting.id) ?? snapshots[setting.id], phase: 'batch-continue' });
+            batchInfo.applyMs += performance.now() - start;
+            changed.add(setting.id);
+          }
+          if (passingPeers.length) await save(`batch-${index}-continue`, batchInfo);
         }
-        if (passingPeers.length) await save(`batch-${index}-continue`, batchInfo);
         for (const setting of passingPeers) results.push({ id: setting.id, status: outcomeStatus(batchOutcomes.get(setting.id)),
           batchResult: batchOutcomes.get(setting.id) });
       }
