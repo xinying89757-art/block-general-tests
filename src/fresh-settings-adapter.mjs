@@ -9,7 +9,7 @@
  * outside adapted definitions are reported as unverified instead of silently
  * becoming persistence assertions.
  */
-export const FRESH_LIFECYCLE_KINDS = Object.freeze(['canvas-popover', 'right-rail-flyout']);
+export const FRESH_LIFECYCLE_KINDS = Object.freeze(['settings-dialog', 'canvas-popover', 'right-rail-flyout']);
 
 /**
  * Shared lifecycle wrapper for non-dialog capability surfaces. Capability
@@ -18,7 +18,8 @@ export const FRESH_LIFECYCLE_KINDS = Object.freeze(['canvas-popover', 'right-rai
  */
 export function createFreshLifecycle(kind, operations = {}) {
   if (!FRESH_LIFECYCLE_KINDS.includes(kind)) throw new Error(`Unknown fresh settings lifecycle: ${kind}`);
-  for (const method of ['open', 'read', 'apply', 'commit', 'cancel']) {
+  const required = ['open', 'read', 'apply', 'commit', ...(kind !== 'canvas-popover' ? ['cancel'] : [])];
+  for (const method of required) {
     if (typeof operations[method] !== 'function') throw new Error(`Fresh ${kind} lifecycle requires ${method}().`);
   }
   let opened = false;
@@ -40,6 +41,7 @@ export function createFreshLifecycle(kind, operations = {}) {
     },
     async cancel(...args) {
       if (!opened) return;
+      if (typeof operations.cancel !== 'function') throw new Error(`Fresh ${kind} lifecycle has no verified non-saving cancel operation.`);
       await operations.cancel(...args); opened = false; dirty = false;
     },
     get isOpen() { return opened; },
@@ -65,7 +67,14 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
     const staticResults = [];
     const persistedControls = [];
     const preparedModules = new Map();
+    const postPublishDefinitions = [];
     for (const { id, item, definition } of modules) {
+      if (definition?.status === 'check-only' && typeof definition.runPostPublish === 'function') {
+        postPublishDefinitions.push({ id, item, definition });
+        capabilityResults.push({ capability: id, status: 'check-only',
+          reason: 'Runs its existing profile-driven assertions after page publication; it does not write block settings.' });
+        continue;
+      }
       if (!definition || definition.status !== 'adapted' || typeof definition.createDefinitions !== 'function') {
         capabilityResults.push({ capability: id, status: 'not-adapted',
           reason: definition?.reason || 'Capability has not exported fresh setting definitions.' });
@@ -80,7 +89,8 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
       }
       for (const setting of created.settings) {
         if (setting.lifecycle && (!FRESH_LIFECYCLE_KINDS.includes(setting.lifecycle.kind)
-          || ['open', 'read', 'apply', 'commit', 'cancel'].some((method) => typeof setting.lifecycle[method] !== 'function'))) {
+          || ['open', 'read', 'apply', 'commit'].some((method) => typeof setting.lifecycle[method] !== 'function')
+          || (setting.lifecycle.kind !== 'canvas-popover' && typeof setting.lifecycle.cancel !== 'function'))) {
           throw new Error(`Setting ${setting.id} has an unknown or incomplete fresh lifecycle.`);
         }
       }
@@ -137,7 +147,16 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         return setting.check({ ...mergedContext, ...phase, setting });
       },
     };
-    prepared = { settings, metadata, capabilityResults, staticResults, persistedControls, batchAdapter };
+    prepared = { settings, metadata, capabilityResults, staticResults, persistedControls, batchAdapter,
+      runPostPublishChecks: async (runtime = {}) => {
+        const checks = [];
+        for (const { definition, item } of postPublishDefinitions) {
+          const outcome = await definition.runPostPublish({ ...mergedContext, ...runtime, capability: item });
+          if (!Array.isArray(outcome)) throw new Error(`Check-only capability ${item.id} did not return a checks array.`);
+          checks.push(...outcome);
+        }
+        return checks;
+      } };
     return prepared;
   };
   return { prepare, get prepared() { return prepared; } };

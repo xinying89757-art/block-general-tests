@@ -2,14 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPageConfig,
   runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
-import { selectRetainedFailures } from '../src/batch-save.mjs';
+import { executeSettingBatches, selectRetainedFailures } from '../src/batch-save.mjs';
 import { createFreshLifecycle, createFreshSettingsAdapter, currentValuesFromInventory, projectPersistedFreshValues } from '../src/fresh-settings-adapter.mjs';
 import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDeleteConfirmIndexes,
   matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from '../src/fresh-editor-actions.mjs';
 import { matchingPageSaveControls, waitForUniquePageSaveControl } from '../src/page-save-control.mjs';
 import { bindFreshBatchSettingSession, freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
 import { freshSettings as customFilterFreshSettings } from '../src/capabilities/custom-filter-fields.mjs';
-import { resolveFreshPageTarget } from '../src/fresh-block-browser-adapter.mjs';
+import { freshSettings as buttonFreshSettings } from '../src/capabilities/button-link.mjs';
+import { freshSettings as colorFreshSettings } from '../src/capabilities/block-color-scheme.mjs';
+import { freshSettings as widthFreshSettings, moduleWidthPersistedControls } from '../src/capabilities/module-width.mjs';
+import { freshSettings as categoryFreshSettings, categoryPersistedControls } from '../src/capabilities/product-category-select.mjs';
+import { freshSettings as styleFreshSettings } from '../src/capabilities/block-style-spec.mjs';
+import { freshRailInventoryRegions, resolveFreshPageTarget } from '../src/fresh-block-browser-adapter.mjs';
 import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
 import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
 
@@ -66,6 +71,136 @@ test('shared fresh lifecycles support canvas popovers and right-rail flyouts wit
   assert.deepEqual(events, ['open', 'apply', 'commit', 'open', 'read', 'cancel']);
   assert.throws(() => createFreshLifecycle('unknown-surface', operations), /Unknown fresh settings lifecycle/);
   assert.throws(() => createFreshLifecycle('right-rail-flyout', { open: operations.open }), /requires read/);
+});
+
+test('fresh button-link definitions use the canvas-popover lifecycle and existing persistence values', async () => {
+  const events = [];
+  const controls = [
+    { index: 0, tag: 'INPUT', type: 'text', name: 'text', label: '按钮文本', context: '', value: 'Current', checked: false },
+    { index: 1, tag: 'INPUT', type: 'text', name: 'url', label: '链接网址', context: '域名 邮箱地址', value: 'javascript:void(0);', checked: false },
+    { index: 2, tag: 'INPUT', type: 'checkbox', name: 'target', label: '在新窗口打开', context: '', value: 'on', checked: false },
+  ];
+  const scopedSession = { root: { evaluate: async (fn) => /input,\s*textarea/.test(fn.toString())
+      ? [0, 1, 2] : { found: true, selected: '域名' } },
+    open: async () => events.push('open'), read: async () => structuredClone(controls),
+    set: async (target, value) => { events.push(['set', target.index, value]);
+      if (target.type === 'checkbox') controls[target.index].checked = value; else controls[target.index].value = value; },
+    save: async () => events.push('save'), cancel: async () => events.push('cancel') };
+  const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'button-link' }],
+    context: { page: {}, canvas: {}, config: {}, scopedSession, save: async () => events.push('page-save') },
+    loadCapability: async () => ({ freshSettings: buttonFreshSettings }) });
+  const prepared = await adapter.prepare();
+  assert.equal(prepared.settings.length, 3);
+  assert.ok(prepared.settings.every((item) => item.lifecycle.kind === 'canvas-popover'));
+  assert.deepEqual(prepared.persistedControls.map(({ region, controlIndex, type }) => ({ region, controlIndex, type })), [
+    { region: 'button-popover', controlIndex: 0, type: 'text' },
+    { region: 'button-popover', controlIndex: 1, type: 'text' },
+    { region: 'button-popover', controlIndex: 2, type: 'checkbox' },
+  ]);
+  const execution = await executeSettingBatches({ settings: prepared.settings, metadata: prepared.metadata,
+    adapter: prepared.batchAdapter, finalState: 'retain-tested-values' });
+  assert.equal(execution.results.length, 3, JSON.stringify(execution.results));
+  assert.ok(execution.results.every((item) => item.status === 'pass'));
+  assert.ok(events.filter((item) => item === 'save').length >= 1);
+});
+
+test('fresh color and width definitions use right-rail lifecycles and declare complete readback controls', async () => {
+  const makeLifecycle = (kind, initial, applyValue) => {
+    let state = structuredClone(initial), opened = false;
+    return createFreshLifecycle(kind, { open: async () => { opened = true; }, read: async () => structuredClone(state),
+      apply: async (value) => { state = applyValue(state, value); }, commit: async () => { opened = false; },
+      cancel: async () => { opened = false; } });
+  };
+  const colorLifecycle = makeLifecycle('right-rail-flyout', '#336699', (_state, value) => value);
+  const colorAdapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'block-color-scheme' }],
+    context: { page: {}, canvas: {}, config: { blockId: 'generic' }, lifecycle: colorLifecycle,
+      initialValue: '#336699', save: async () => {} },
+    loadCapability: async () => ({ freshSettings: colorFreshSettings }) });
+  const color = await colorAdapter.prepare();
+  assert.equal(color.settings[0].lifecycle.kind, 'right-rail-flyout');
+  assert.deepEqual(color.persistedControls, [{ capability: 'block-color-scheme', region: 'right-rail-color', controlIndex: 0, type: 'text' }]);
+  const colorRun = await executeSettingBatches({ settings: color.settings, metadata: color.metadata,
+    adapter: color.batchAdapter, finalState: 'retain-tested-values' });
+  assert.equal(colorRun.results[0].status, 'pass');
+
+  const initialWidth = { radios: [
+    { value: '1', label: '1200px', checked: false }, { value: '2', label: '1440px', checked: false },
+    { value: '-1', label: '自定义（需不小于1200px）', checked: true },
+  ], customVal: '1440', globalApply: false, checked: { value: '-1', label: '自定义（需不小于1200px）' }, effective: 1440 };
+  const widthLifecycle = makeLifecycle('right-rail-flyout', initialWidth, (state, value) => {
+    const radios = state.radios.map((item) => ({ ...item, checked: item.label === value.preset }));
+    return { ...state, radios, checked: radios.find((item) => item.checked), effective: Number.parseInt(value.preset, 10) };
+  });
+  const widthAdapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'module-width' }],
+    context: { page: {}, canvas: {}, config: { blockId: 'generic' }, lifecycle: widthLifecycle,
+      initialValue: initialWidth, save: async () => {} },
+    loadCapability: async () => ({ freshSettings: widthFreshSettings }) });
+  const width = await widthAdapter.prepare();
+  assert.equal(width.settings[0].lifecycle.kind, 'right-rail-flyout');
+  assert.equal(width.persistedControls.length, moduleWidthPersistedControls(initialWidth).length);
+  assert.deepEqual(width.persistedControls.map(({ region, controlIndex, type }) => ({ region, controlIndex, type })),
+    moduleWidthPersistedControls(initialWidth));
+  const widthRun = await executeSettingBatches({ settings: width.settings, metadata: width.metadata,
+    adapter: width.batchAdapter, finalState: 'retain-tested-values' });
+  assert.equal(widthRun.results[0].status, 'pass');
+});
+
+test('fresh category definition persists the whole fixture selection set as one setting', async () => {
+  const events = [];
+  let controls = [
+    { index: 0, tag: 'INPUT', type: 'radio', name: 'selectGroupWay', label: '选择所有产品分类', value: '0', checked: true },
+    { index: 1, tag: 'INPUT', type: 'radio', name: 'selectGroupWay', label: '选择部分产品分类', value: '1', checked: false },
+    { index: 2, tag: 'INPUT', type: 'checkbox', name: 'leafProdGroup', label: 'Fixture A', value: 'a', checked: true, disabled: true },
+    { index: 3, tag: 'INPUT', type: 'checkbox', name: 'leafProdGroup', label: 'Fixture B', value: 'b', checked: true, disabled: true },
+  ];
+  const scopedSession = { open: async () => events.push('open'), read: async () => structuredClone(controls),
+    set: async (target, value) => { events.push(['set', target.index, value]);
+      if (target.type === 'radio') { controls = controls.map((item) => item.name === target.name
+        ? { ...item, checked: item.index === target.index } : item);
+        controls = controls.map((item) => item.name === 'leafProdGroup' ? { ...item, disabled: target.index === 0 } : item); }
+    },
+    setMany: async (changes) => { events.push(['setMany', changes.length]);
+      controls = controls.map((item) => changes.some((change) => change.target.index === item.index)
+        ? { ...item, checked: changes.find((change) => change.target.index === item.index).value } : item); },
+    save: async () => events.push('save'), cancel: async () => events.push('cancel') };
+  const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'product-category-select' }],
+    context: { page: {}, canvas: {}, config: {}, capability: { wrapIndex: 0 }, profile: { fixture: { category: { name: 'Fixture A' } } },
+      scopedSession, save: async () => events.push('page-save') },
+    loadCapability: async () => ({ freshSettings: categoryFreshSettings }) });
+  const prepared = await adapter.prepare();
+  assert.equal(prepared.settings.length, 1);
+  assert.equal(prepared.settings[0].id, 'pcs-category-persist');
+  assert.deepEqual(prepared.settings[0].value, { mode: '选择部分产品分类', selected: ['Fixture A'] });
+  assert.equal(prepared.persistedControls.length, 4);
+  assert.deepEqual(prepared.persistedControls.map(({ controlIndex }) => controlIndex), [0, 1, 2, 3]);
+  const execution = await executeSettingBatches({ settings: prepared.settings, metadata: prepared.metadata,
+    adapter: prepared.batchAdapter, finalState: 'retain-tested-values' });
+  assert.equal(execution.results[0].status, 'pass');
+  assert.ok(events.some((item) => Array.isArray(item) && item[0] === 'setMany' && item[1] === 2));
+});
+
+test('style capability runs as post-publish check-only or returns front-machine deferred checks', async () => {
+  const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'block-style-spec', styleSpec: { items: [{ id: 'button-text', props: { color: '#000000' } }] } }],
+    context: { session: {}, config: { blockId: 'generic', siteDomain: 'example.test' } },
+    loadCapability: async () => ({ freshSettings: styleFreshSettings }) });
+  const prepared = await adapter.prepare();
+  assert.deepEqual(prepared.capabilityResults.map(({ status }) => status), ['check-only']);
+  const checks = await prepared.runPostPublishChecks({ frontLink: null });
+  assert.ok(checks.length > 0);
+  assert.ok(checks.every((item) => item.status === 'deferred'));
+  assert.ok(checks.every((item) => item.detail.includes('前台机器')));
+});
+
+test('fresh right-rail value inventory has stable declared control identities', () => {
+  const regions = freshRailInventoryRegions('#123456', { radios: [{ value: '1', label: '1200px', checked: false }],
+    customVal: '1440', globalApply: false });
+  const values = currentValuesFromInventory(regions);
+  assert.deepEqual(values.map(({ region, controlIndex, type }) => ({ region, controlIndex, type })), [
+    { region: 'right-rail-color', controlIndex: 0, type: 'text' },
+    { region: 'right-rail-width', controlIndex: 0, type: 'radio' },
+    { region: 'right-rail-width', controlIndex: 1, type: 'text' },
+    { region: 'right-rail-width', controlIndex: 2, type: 'checkbox' },
+  ]);
 });
 
 test('fresh flow requires explicit custom or system page configuration', () => {
@@ -352,18 +487,27 @@ test('custom-filter fresh definition uses its scoped dialog session and exports 
   assert.equal(state.controls[0].checked, false);
 });
 
-test('fresh adapter reports a capability not-adapted when no profile fixture identifies a safe setting', async () => {
+test('custom-field fresh definition discovers an editable control from inventory without a site label', async () => {
+  const state = [{ index: 0, tag: 'INPUT', type: 'checkbox', name: 'field', label: 'Site field',
+    value: '12345', checked: false, disabled: false }];
+  const events = [];
   const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'custom-filter-fields' }],
     context: { config: {}, page: {}, canvas: {}, profile: {},
-      scopedSession: { open: async () => {}, read: async () => [], set: async () => {}, save: async () => {}, cancel: async () => {} },
-      initialControls: [{ index: 0, tag: 'INPUT', type: 'checkbox', name: 'field', label: 'Site field',
-        value: 'site-field-id', checked: false, disabled: false }], save: async () => {} },
+      scopedSession: { open: async () => events.push('open'), read: async () => structuredClone(state),
+        set: async (_target, value) => { state[0].checked = value; }, save: async () => events.push('dialog-save'),
+        cancel: async () => events.push('cancel') },
+      initialControls: state, save: async () => events.push('page-save') },
     loadCapability: async () => ({ freshSettings: customFilterFreshSettings }) });
   const prepared = await adapter.prepare();
-  assert.deepEqual(prepared.capabilityResults, [{ capability: 'custom-filter-fields', status: 'not-adapted',
-    reason: 'The profile does not declare fixture.fields, so this run has no profile-identified field whose existing persistence assertion can be reused safely.' }]);
-  assert.equal(prepared.settings.length, 0);
-  assert.equal(prepared.staticResults.find((item) => item.id === 'cff-settings-persist').status, 'na');
+  assert.deepEqual(prepared.capabilityResults, [{ capability: 'custom-filter-fields', status: 'adapted',
+    settingIds: ['cff-settings-persist'] }]);
+  assert.equal(prepared.settings[0].control.label, 'Site field');
+  const execution = await executeSettingBatches({ settings: prepared.settings, metadata: prepared.metadata,
+    adapter: prepared.batchAdapter, finalState: 'retain-tested-values' });
+  assert.equal(execution.results[0].status, 'pass');
+  assert.equal(state[0].checked, true);
+  assert.ok(events.includes('dialog-save'));
+  assert.ok(events.includes('page-save'));
 });
 
 test('full fresh flow runs PLD definitions on a scoped session, restores dependencies, retains a failure, and reads back a resolved page', async () => {

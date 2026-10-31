@@ -1,10 +1,10 @@
 import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, rememberCategoryState, productSnapshot } from './effect-checks.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText, readBackWithRetry, fixtureCategoryState } from './shared.mjs';
+import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 
 const SUITE = 'capability:product-category-select';
-export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'Category mode and the full category checkbox set are currently one snapshot-backed transaction; they need a fresh-instance definition that preserves whole-list selection semantics before batch execution.' });
+export const freshSettings = Object.freeze({ status: 'adapted', createDefinitions: createFreshDefinitions });
 export const checkGroups = Object.freeze({
   'pcs-persistence': ['settings'],
   'pcs-categories-backend': ['backend'],
@@ -371,6 +371,105 @@ export function categorySelectionChanges(controls, targetName) {
   const boxes = categoriesOf(controls);
   const target = categoryControl(controls, targetName);
   return boxes.map((item) => ({ target: item, value: item.index === target.index }));
+}
+
+export function categoryPersistedControls(controls) {
+  return (controls || []).filter((item) => (item.type === 'radio' && item.name === 'selectGroupWay')
+    || (item.type === 'checkbox' && item.name === 'leafProdGroup'))
+    .map((item) => ({ region: '设置产品分类', controlIndex: item.index, type: item.type }));
+}
+
+export async function createFreshDefinitions(args) {
+  const { page, canvas, config, capability, profile } = args;
+  const session = args.scopedSession || widgetSession({ page, canvas, config,
+    type: 'phoenix_blocks_gallery', title: capability?.dialogTitle || '设置产品分类',
+    wrapIndex: capability?.wrapIndex ?? 0 });
+  await session.open();
+  const initial = Array.isArray(args.initialControls) ? args.initialControls : await session.read();
+  const categories = categoriesOf(initial);
+  const fixtureCategoryNames = profile?.fixture?.category?.name
+    ? [String(profile.fixture.category.name).trim()]
+    : categories.map((item) => item.label.trim()).filter((label) => /^AUTOTEST-/i.test(label));
+  const staticResults = [result('pcs-state', 'record',
+    `选择方式=${initial.find((item) => item.type === 'radio' && item.name === 'selectGroupWay' && item.checked)?.label || '未知'}；分类 ${categories.length} 个，已勾选 ${categories.filter((item) => item.checked).length} 个。`,
+    { mode: initial.find((item) => item.type === 'radio' && item.name === 'selectGroupWay' && item.checked)?.label,
+      categories: categories.map((item) => ({ label: item.label, checked: item.checked, disabled: item.disabled })) })];
+  if (!fixtureCategoryNames.length) {
+    try { await session.cancel(); } catch {}
+    return { settings: [], staticResults,
+      notAdaptedReason: 'Neither the profile nor the category inventory identifies an AUTOTEST fixture category for the existing whole-list selection assertion.' };
+  }
+  const modeOptions = initial.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay');
+  const allMode = modeOptions.filter((item) => item.label === '选择所有产品分类');
+  const partialMode = modeOptions.filter((item) => item.label === '选择部分产品分类');
+  if (allMode.length !== 1 || partialMode.length !== 1 || categories.length === 0) {
+    try { await session.cancel(); } catch {}
+    return { settings: [], staticResults,
+      notAdaptedReason: `The category surface is ambiguous (all mode ${allMode.length}, partial mode ${partialMode.length}, category controls ${categories.length}); no write definition was created.` };
+  }
+  const initialMode = modeOptions.find((item) => item.checked)?.label;
+  const initialSelection = categories.filter((item) => item.checked).map((item) => item.label.trim());
+  const expectedSelection = [...new Set(fixtureCategoryNames)];
+  try {
+    for (const name of expectedSelection) categoryControl(initial, name);
+  } catch (error) {
+    try { await session.cancel(); } catch {}
+    return { settings: [], staticResults,
+      notAdaptedReason: `The complete fixture category set is not uniquely identifiable before any write: ${error.message}` };
+  }
+  const lifecycle = createFreshLifecycle('settings-dialog', {
+    open: () => session.open(), read: () => session.read(),
+    apply: async ({ names }) => {
+      let controls = await session.read();
+      let selectedMode = controls.find((item) => item.type === 'radio' && item.name === 'selectGroupWay' && item.checked);
+      if (!selectedMode) throw new Error('分类模式没有唯一选中项。');
+      if (selectedMode.label !== '选择部分产品分类') {
+        const partial = controls.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay'
+          && item.label === '选择部分产品分类');
+        if (partial.length !== 1) throw new Error(`部分分类模式候选 ${partial.length} 个，拒绝切换。`);
+        await session.set(partial[0], true);
+        controls = await session.read();
+      }
+      if (names.length !== fixtureCategoryNames.length || names.some((name) => !fixtureCategoryNames.includes(name))) {
+        throw new Error('分类选择值与当前识别出的 fixture category 集合不一致。');
+      }
+      const boxes = categoriesOf(controls);
+      for (const name of names) categoryControl(controls, name);
+      await session.setMany(boxes.map((target) => ({ target, value: names.includes(target.label.trim()) })));
+    },
+    commit: () => session.save(), cancel: () => session.cancel(),
+  });
+  const setList = (names) => lifecycle.apply({ names });
+  const setting = { id: 'pcs-category-persist', key: 'category-selection-set', name: NAMES['pcs-category-persist'],
+    lifecycle, initialValue: { mode: initialMode, selected: initialSelection },
+    originalValue: { mode: initialMode, selected: initialSelection },
+    value: { mode: '选择部分产品分类', selected: expectedSelection },
+    expected: { mode: '选择部分产品分类', selected: expectedSelection },
+    apply: () => setList(expectedSelection),
+    restore: async () => {
+      await setList(initialSelection);
+      if (initialMode === '选择所有产品分类') {
+        const controls = await session.read();
+        const all = controls.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay' && item.label === initialMode);
+        if (all.length !== 1) throw new Error('恢复所有分类模式时控件不唯一。');
+        await session.set(all[0], true);
+      }
+    },
+    check: async () => {
+      await lifecycle.open();
+      try {
+        const controls = await lifecycle.read();
+        const mode = controls.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay' && item.checked);
+        const selected = categoriesOf(controls).filter((item) => item.checked).map((item) => item.label.trim()).sort();
+        const expected = [...expectedSelection].sort();
+        const pass = mode.length === 1 && mode[0].label === '选择部分产品分类' && sameSet(selected, expected);
+        return { status: pass ? 'pass' : 'fail', expected: { mode: '选择部分产品分类', selected: expected },
+          actual: { mode: mode[0]?.label || null, selected },
+          detail: `分类持久化断言：部分模式下所选完整集合应为 ${sentenceList(expected)}；实际模式=${mode[0]?.label || '未知'}，集合=${sentenceList(selected)}。` };
+      } finally { await lifecycle.cancel(); }
+    } };
+  try { await session.cancel(); } catch {}
+  return { settings: [setting], persistedControls: categoryPersistedControls(initial), staticResults };
 }
 export function selectedCheckGroupLayer(group) { return checkGroups[group] || null; }
 async function categoryEffects(args, layer, onlyKinds = null) {

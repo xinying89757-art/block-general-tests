@@ -299,6 +299,20 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
         batch.results.push(check);
         flowErrors.push({ stage: 'post-publish-readback', message: error.message, screenshot });
       }
+      if (typeof prepared?.runPostPublishChecks === 'function') {
+        try {
+          const postPublishChecks = await prepared.runPostPublishChecks({ published,
+            frontLink: published.frontLink || opened.frontLink, config, instance: fresh });
+          batch.results.push(...postPublishChecks);
+          await onProgress({ stage: 'post-publish-checks-finished', checkCount: postPublishChecks.length });
+        } catch (error) {
+          const screenshot = await captureFailure('post-publish-checks');
+          batch.results.push({ id: 'fresh-post-publish-checks', status: 'fail', detail: error.message,
+            batchResult: { expected: 'Check-only capability assertions complete after publication.',
+              actual: error.message, screenshot } });
+          flowErrors.push({ stage: 'post-publish-checks', message: error.message, screenshot });
+        }
+      }
     }
   } else {
     flowErrors.push({ stage: 'publish', message: 'Skipped because batch settings execution failed; page was left unpublished.' });

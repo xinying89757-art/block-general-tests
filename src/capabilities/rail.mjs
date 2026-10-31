@@ -164,6 +164,17 @@ export async function saveColorPanel(canvas) {
   await saveAndWait(panel.page(), () => panel.locator(RAIL.colorSave).click({ timeout: TIMEOUT }));
 }
 
+export async function cancelColorPanel(canvas) {
+  const panel = canvas.locator(`${RAIL.colorPanel}:visible`).first();
+  if (!await panel.count()) return;
+  const rail = canvas.locator(RAIL.rail).filter({ visible: true });
+  if (await rail.count() !== 1) throw new Error('配色浮层关闭时无法唯一定位当前区块右侧图标栏。');
+  const icon = rail.locator(RAIL.colorIcon);
+  if (await icon.count() !== 1) throw new Error('配色浮层关闭图标不唯一。');
+  await icon.click({ timeout: TIMEOUT });
+  await panel.waitFor({ state: 'hidden', timeout: TIMEOUT });
+}
+
 // Read the module-width state from the visible width flyout: which radio
 // is checked, the custom value, and the effective width in px
 // ('fullscreen' for 全屏). The default is stored as 自定义 1440, not as

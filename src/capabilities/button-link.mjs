@@ -4,10 +4,10 @@ import { retryTransient, uiWaitConfig } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
 import { dismissReadOnlyPopover, reloadDiscardAndVerify } from '../read-only-dismiss.mjs';
 import { reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
+import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 
 const SUITE = 'capability:button-link';
-export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'Button text, URL, and target checks share a canvas popover whose verified read-only close path reloads the editor; fresh mode needs a non-saving, per-instance popover lifecycle before these controls can be safely exposed.' });
+export const freshSettings = Object.freeze({ status: 'adapted', createDefinitions: createFreshDefinitions });
 const DEFAULT_TEXT = 'Please set up the required pop-up form here.';
 const MARKER = 'data-autotest-button-link-root';
 const NAMES = {
@@ -99,6 +99,96 @@ function identify(controls) {
   return { url, text, target, candidateCounts: {
     url: urlCandidates.length, text: textCandidates.length, target: targetCandidates.length,
   } };
+}
+
+export async function createFreshDefinitions(args) {
+  const { page, canvas, config } = args;
+  const session = args.scopedSession || popoverSession({ page, canvas, config });
+  let controls = args.initialControls;
+  if (!Array.isArray(controls)) {
+    const probed = await probeControls(session);
+    if (probed.reason) return { settings: [], staticResults: [result('btn-state', 'skip', probed.reason)],
+      notAdaptedReason: `The target canvas popover could not be uniquely read: ${probed.reason}` };
+    controls = probed.controls;
+  }
+  const visible = async (items) => {
+    if (!session.root?.evaluate) return items;
+    const indices = await session.root.evaluate((root) => [...root.querySelectorAll('input,textarea')]
+      .map((input, index) => ({ input, index })).filter(({ input }) => input.getClientRects().length
+        && getComputedStyle(input).display !== 'none' && getComputedStyle(input).visibility !== 'hidden')
+      .map(({ index }) => index));
+    return items.filter((item) => indices.includes(item.index));
+  };
+  const current = identify(await visible(controls));
+  if (!current.url || !current.text || !current.target || current.url.index === current.text.index) {
+    try { await session.cancel(); } catch {}
+    const counts = current.candidateCounts;
+    return { settings: [], staticResults: [result('btn-state', 'skip', '按钮浮层控件未能唯一识别，未写入。', counts)],
+      notAdaptedReason: `The popover controls were ambiguous (URL ${counts.url}, text ${counts.text}, target ${counts.target}); no setting was exposed.` };
+  }
+  const link = await readLinkType(session, current);
+  const stateDetail = '已记录链接网址、按钮文本与新窗口勾选状态。';
+  const staticResults = [result('btn-state', 'record', stateDetail,
+    { url: current.url.value, linkType: link.selected, text: current.text.value, target: current.target.checked })];
+  const lifecycle = createFreshLifecycle('canvas-popover', {
+    open: () => session.open(),
+    read: async () => {
+      const probed = await probeControls(session);
+      if (probed.reason) throw new Error(`按钮浮层读取失败：${probed.reason}`);
+      return identify(await visible(probed.controls));
+    },
+    apply: async ({ key, target, value, linkType }) => {
+      if (key === 'url') {
+        assertAllowedLinkUrl(value);
+        const tabs = await linkTabs(session);
+        if (!tabs.found) unavailable('链接类型页签无法唯一定位，未改写链接。');
+        const wantedType = linkType || '域名';
+        if (tabs.selected !== wantedType) {
+          await linkTabs(session, wantedType);
+          const ready = await poll(() => linkTabs(session), (state) => state.selected === wantedType);
+          if (!ready.matched) throw new Error(`切换链接类型后无法确认${wantedType}页签。`);
+        }
+        const refreshed = await buttonControls(session);
+        await session.set(refreshed.url, value);
+        return;
+      }
+      await session.set(target, value);
+    },
+    // This editor surface has no cancel or close affordance. Saving is its
+    // verified confirm-and-close operation; the next check reopens it.
+    commit: () => session.save(),
+  });
+  const candidates = [
+    { key: 'text', id: 'btn-text-persist', target: current.text,
+      original: current.text.value, value: current.text.value === 'AUTOTEST-BTN' ? 'AUTOTEST-BTN-ALT' : 'AUTOTEST-BTN',
+      ref: { region: 'button-popover', controlIndex: 0, type: 'text' } },
+    { key: 'url', id: 'btn-url-persist', target: current.url, original: current.url.value,
+      value: BAIDU, originalLinkType: link.selected,
+      ref: { region: 'button-popover', controlIndex: 1, type: 'text' } },
+    { key: 'target', id: 'btn-target-persist', target: current.target,
+      original: Boolean(current.target.checked), value: !current.target.checked,
+      ref: { region: 'button-popover', controlIndex: 2, type: 'checkbox' } },
+  ];
+  const settings = candidates.map((item) => ({ id: item.id, key: `button-${item.key}`, name: NAMES[item.id],
+    lifecycle, initialValue: item.key === 'url' ? { value: item.original, linkType: item.originalLinkType } : item.original,
+    originalValue: item.original, value: item.value, expected: item.value,
+    apply: () => lifecycle.apply({ key: item.key, target: item.target, value: item.value }),
+    restore: () => lifecycle.apply({ key: item.key, target: item.target, value: item.original,
+      linkType: item.originalLinkType }),
+    check: async () => {
+      await lifecycle.open();
+      try {
+        const back = await lifecycle.read();
+        const actual = item.key === 'text' ? back.text.value : item.key === 'url' ? back.url.value : Boolean(back.target.checked);
+        const actualLinkType = item.key === 'url' ? (await readLinkType(session, back)).selected : undefined;
+        const pass = actual === item.value && (item.key !== 'url' || actualLinkType === '域名');
+        return { status: pass ? 'pass' : 'fail', expected: item.value,
+          actual: item.key === 'url' ? { value: actual, linkType: actualLinkType } : actual,
+          detail: `${NAMES[item.id]}：预期 ${JSON.stringify(item.value)}，回读 ${JSON.stringify(actual)}${item.key === 'url' ? `（类型 ${actualLinkType}）` : ''}。` };
+      } finally { await lifecycle.commit(); }
+    } }));
+  try { await session.cancel(); } catch {}
+  return { settings, persistedControls: candidates.map((item) => item.ref), staticResults };
 }
 
 // Small public surface shared by baseline capture/guard/apply. The labels are

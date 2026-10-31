@@ -4,6 +4,7 @@ import { addBlockIfNeeded, gotoFreshTargetPage, openEditor, savePage } from './e
 import { inventorySettings } from './baseline.mjs';
 import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
 import { matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from './fresh-editor-actions.mjs';
+import { RAIL, openRailPanel, readSchemeColor, readModuleWidth, cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 
@@ -45,11 +46,38 @@ async function locateInstance(frame, instance) {
   return wrap;
 }
 
+export function freshRailInventoryRegions(color, width) {
+  const widthControls = (width?.radios || []).map((radio, index) => ({ index, tag: 'INPUT', type: 'radio',
+    name: 'modulewidth', label: radio.label || '', value: radio.value, checked: Boolean(radio.checked), disabled: false }));
+  const customIndex = widthControls.length;
+  widthControls.push({ index: customIndex, tag: 'INPUT', type: 'text', name: '', label: '自定义宽度',
+    value: width?.customVal ?? '', checked: false, disabled: false });
+  widthControls.push({ index: customIndex + 1, tag: 'INPUT', type: 'checkbox', name: 'globalApply', label: '全局应用',
+    value: 'on', checked: Boolean(width?.globalApply), disabled: false });
+  return [
+    { title: 'right-rail-color', type: 'right-rail-color', wrapIndex: 0, kind: 'right-rail-flyout',
+      controls: [{ index: 0, tag: 'INPUT', type: 'text', name: 'scheme-color', label: '配色方案', value: color ?? '', checked: false, disabled: false }] },
+    { title: 'right-rail-width', type: 'right-rail-width', wrapIndex: 0, kind: 'right-rail-flyout', controls: widthControls },
+  ];
+}
+
 export function createFreshBlockBrowserAdapter({ config, session, targetPage, settingsAdapter }) {
   let page = session.page;
   let frame;
   let pageItem;
   let resolvedTarget;
+  const readFreshInventory = async () => {
+    await openRailPanel(frame, config.blockId, RAIL.colorIcon, RAIL.colorPanel);
+    let color;
+    try { color = await readSchemeColor(frame); } finally { await cancelColorPanel(frame); }
+    await openRailPanel(frame, config.blockId, RAIL.widthIcon, RAIL.widthPanel);
+    let width;
+    try { width = await readModuleWidth(frame); } finally { await cancelWidthPanel(frame); }
+    // Keep the button popover last: its verified close operation confirms
+    // unchanged values when no non-saving dismissal is available.
+    return [...freshRailInventoryRegions(color, width),
+      ...await inventorySettings({ page, canvas: frame, config, blockId: config.blockId })];
+  };
   const selectedCreated = (instance) => ({ blockId: String(config.blockId), settingId: instance.settingId,
     ordinal: instance.ordinal, position: instance.position });
 
@@ -94,10 +122,10 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       frame = selected.frame;
     },
     async readDefaults() {
-      return currentValuesFromInventory(await inventorySettings({ page, canvas: frame, config, blockId: config.blockId }));
+      return currentValuesFromInventory(await readFreshInventory());
     },
     async readCurrentValues() {
-      return currentValuesFromInventory(await inventorySettings({ page, canvas: frame, config, blockId: config.blockId }));
+      return currentValuesFromInventory(await readFreshInventory());
     },
     async readPublishedValues(instance) {
       await page.reload({ waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });
@@ -109,7 +137,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       if (targets.length !== 1 || String(targets[0].settingId) !== String(instance.settingId)) {
         throw new Error(`Post-publish readback expected one fresh instance ${instance.settingId}; found ${targets.length} target instances.`);
       }
-      return currentValuesFromInventory(await inventorySettings({ page, canvas: frame, config, blockId: config.blockId }));
+      return currentValuesFromInventory(await readFreshInventory());
     },
     async captureFailureScreenshot({ runId, stage }) {
       const projectRoot = config.projectRoot || process.cwd();

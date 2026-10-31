@@ -9,10 +9,10 @@ import { waitForStable } from '../ui-waits.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { TIMEOUT, previewSelector, checkReportText, readBackWithRetry } from './shared.mjs';
 import { RAIL, openRailPanel, readModuleWidth, setModuleWidth, saveWidthPanel, cancelWidthPanel } from './rail.mjs';
+import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 
 const SUITE = 'capability:module-width';
-export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'The width control is a right-rail flyout with a custom-width composite value and a guarded global-apply checkbox; its existing persistence/effect checks are not yet exported as one safe per-setting definition.' });
+export const freshSettings = Object.freeze({ status: 'adapted', createDefinitions: createFreshDefinitions });
 const NAMES = {
   'mw-state': '模块宽度当前值',
   'mw-width-persist': '模块宽度保存回读与恢复',
@@ -20,6 +20,52 @@ const NAMES = {
 };
 const ALT_WIDTH = '1200px';
 const BASE_WIDTH = 1440;
+
+export function moduleWidthPersistedControls(initial) {
+  const controls = (initial?.radios || []).map((_, index) => ({ region: 'right-rail-width', controlIndex: index, type: 'radio' }));
+  controls.push({ region: 'right-rail-width', controlIndex: (initial?.radios || []).length, type: 'text' },
+    { region: 'right-rail-width', controlIndex: (initial?.radios || []).length + 1, type: 'checkbox' });
+  return controls;
+}
+
+export async function createFreshDefinitions(args) {
+  const { canvas, config } = args;
+  const lifecycle = args.lifecycle || createFreshLifecycle('right-rail-flyout', {
+    open: () => openRailPanel(canvas, config.blockId, RAIL.widthIcon, RAIL.widthPanel),
+    read: () => readModuleWidth(canvas),
+    apply: (value) => setModuleWidth(canvas, value),
+    commit: () => saveWidthPanel(canvas),
+    cancel: () => cancelWidthPanel(canvas),
+  });
+  const initial = args.initialValue ?? await (async () => {
+    await lifecycle.open();
+    try { return await lifecycle.read(); } finally { await lifecycle.cancel(); }
+  })();
+  if (!initial?.checked || initial.effective === null || initial.globalApply === null) {
+    return { settings: [], persistedControls: [], staticResults: [result('mw-state', 'skip', '模块宽度复合状态不完整，未写入。')],
+      notAdaptedReason: 'The right-rail width snapshot did not uniquely expose the selected width and global-apply state.' };
+  }
+  const value = { preset: ALT_WIDTH };
+  const setting = { id: 'mw-width-persist', key: 'module-width', name: NAMES['mw-width-persist'], lifecycle,
+    initialValue: initial, originalValue: initial.effective, value: ALT_WIDTH, expected: ALT_WIDTH,
+    apply: () => lifecycle.apply(value),
+    restore: async () => {
+      if (initial.customVal && Number(initial.customVal) >= 1200) await lifecycle.apply({ custom: initial.customVal });
+      if (initial.checked.value !== '-1') await lifecycle.apply({ preset: initial.checked.label });
+    },
+    check: async () => {
+      await lifecycle.open();
+      try {
+        const actual = await lifecycle.read();
+        const pass = actual.effective === Number.parseInt(ALT_WIDTH, 10);
+        return { status: pass ? 'pass' : 'fail', expected: ALT_WIDTH, actual,
+          detail: `原有模块宽度持久化断言：切换至 ${ALT_WIDTH} 保存重开后生效宽度应为 ${ALT_WIDTH}，实际 ${actual.effective}px；全局应用保持 ${actual.globalApply}。` };
+      } finally { await lifecycle.cancel(); }
+    } };
+  return { settings: [setting], persistedControls: moduleWidthPersistedControls(initial),
+    staticResults: [result('mw-state', 'record',
+      `当前宽度选项=${initial.checked.label}，生效宽度=${initial.effective}px；全局应用未勾选。`, initial)] };
+}
 
 function result(id, status, detail, evidence, textFields = {}) {
   return { id, name: NAMES[id], status, detail, suite: SUITE,

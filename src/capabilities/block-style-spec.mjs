@@ -16,8 +16,7 @@
 import { previewSelector, checkReportText } from './shared.mjs';
 
 const SUITE = 'capability:block-style-spec';
-export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'This capability only asserts rendered style and responsive behavior from profile expectations; it has no block setting to apply or save in fresh-value batches.' });
+export const freshSettings = Object.freeze({ status: 'check-only', runPostPublish: runFreshStyleChecks });
 let styleExpectations = {};
 
 function result(id, status, detail, evidence, textFields = {}) {
@@ -44,6 +43,27 @@ const NAMES = {
   'bss-breakage-pad': 'Pad 端样式错乱检查',
   'bss-breakage-mobile': '移动端样式错乱检查',
 };
+
+export async function runFreshStyleChecks(args) {
+  const { session, capability, config, frontLink, published } = args;
+  const front = frontLink || published?.frontLink;
+  if (!front || !session?.context?.newPage) {
+    return Object.keys(NAMES).map((id) => result(id, 'deferred', '发布后无法从当前执行环境打开前台页面；需前台机器运行此能力的既有样式断言。'));
+  }
+  let page;
+  try {
+    page = await session.context.newPage();
+    const url = /^https?:\/\//i.test(front) ? front : new URL(front, `https://${config.siteDomain}`).href;
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });
+    await page.locator(previewSelector(config.blockId)).first().waitFor({ state: 'attached', timeout: config.actionTimeoutMs });
+    return await runFrontLayer({ frame: page, previewPage: page, config, capability });
+  } catch (error) {
+    return Object.keys(NAMES).map((id) => result(id, 'deferred',
+      `发布后前台样式断言当前不可达（${error.message}）；需前台机器运行此能力的既有样式断言。`));
+  } finally {
+    if (page && !page.isClosed()) await page.close().catch(() => {});
+  }
+}
 
 const normColor = (c) => {
   const m = (c || '').match(/rgba?\(([^)]+)\)/);

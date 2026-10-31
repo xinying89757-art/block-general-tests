@@ -217,7 +217,12 @@ export async function createFreshDefinitions(args) {
   }).filter(([id]) => required[id]).map(([id, name]) => [name, required[id]])) };
   const fixtureNames = new Set((profile?.fixture?.fields || []).map((field) => field.name));
   const field = fields.find((item) => fixtureNames.has(item.label) && !item.disabled && !item.checked)
-    || fields.find((item) => fixtureNames.has(item.label) && !item.disabled);
+    || fields.find((item) => fixtureNames.has(item.label) && !item.disabled)
+    // With no profile fixture field, the existing inventory recognizer still
+    // identifies editable field-checkbox controls by DOM type/value. This
+    // gives the generic persistence check a control without embedding a site
+    // field label or inventing a field-specific oracle.
+    || fields.find((item) => !item.disabled);
   const staticResults = [result('cff-settings-fields', 'record',
     `可选字段 ${fields.length} 个（不含全选与字段值子选项）。`, fields)];
   staticResults.push(result('cff-settings-state', broken.length ? 'fail' : absent.length === Object.keys(state).length
@@ -229,9 +234,9 @@ export async function createFreshDefinitions(args) {
     checkedLabels: options.filter((item) => item.checked).map((item) => item.label), options })) }));
   if (!field) {
     const noFields = fields.length === 0;
-    const notAdaptedReason = !fixtureNames.size
-      ? 'The profile does not declare fixture.fields, so this run has no profile-identified field whose existing persistence assertion can be reused safely.'
-      : 'No profile-declared fixture field is switchable in the current dialog snapshot, so no fresh setting definition can reuse the existing persistence assertion.';
+    const notAdaptedReason = noFields
+      ? 'The block settings inventory contains no editable custom-field checkbox to which the existing persistence assertion can bind.'
+      : 'The block settings inventory contains custom-field controls, but none is currently editable; the persistence assertion cannot safely switch one.';
     staticResults.push(result('cff-settings-persist', noFields ? 'na' : 'skip',
       noFields ? '本区块没有可选自定义筛选字段设置项。' : '没有可切换的自定义字段。'));
     return { settings: [], staticResults, notAdaptedReason };
