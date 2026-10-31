@@ -98,6 +98,8 @@ First-run default control values are stored outside version control at `.local/f
 
 Capability definitions are opt-in and must preserve their existing assertion values and evidence fields. Current values/defaults are captured read-only from the selected block's editor controls; unsupported capability definitions remain explicit report entries. The existing baseline runner remains on its existing settings-layer path.
 
+For post-publish verification, adapted definitions also identify their persisted controls by dialog region, control index, and control type. The full current and reloaded inventories remain in the report; the equality assertion covers only declared controls, and the report counts controls outside adapted definitions as unverified. This separates stored settings from inactive picker UI state without filtering controls by CMS item name or label. The custom-filter fresh definition reuses the fixture-declared field choice and its existing persistence oracle; profile-declared fixed radio values and field inventory remain separately recorded.
+
 特殊控件不走通用 `persistControl`：背景颜色是 Spectrum 取色器，先试 `jQuery(input).spectrum('set', ...)` 加 `trigger('change')`，失败再降级到取色面板点选。两种方式都失败且尚未保存时，记 `skip`，不记 fail。
 
 背景颜色效果检查的两个实测结论（2026-10-28，40838）：(1) **设置项本身不生效**：保存的 rgb(1,2,3) 在画布和预览里哪都没出现，`.prodfield-form` 三种状态全是透明，样式表里也没有这个颜色——`cff-background-front/backend` 的 fail 是真问题，不是检查读错了元素（探针 `scripts/probes/probe-40838-filter-background.mjs`）。(2) **效果检查的恢复回读不可信**：上一轮两个背景检查的恢复在会话内回读都通过了，但新会话探针读到的持久化值仍是 rgb(1,2,3)；探针用同样路径恢复成 rgb(139,0,0) 后新会话读回才确认落库。恢复类验证必须用新会话读持久化值，会话内重开读绿不算数——`tx.remember` 的恢复回读目前就是会话内读，须按此口径复核。

@@ -8,6 +8,7 @@ import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDelet
   matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from '../src/fresh-editor-actions.mjs';
 import { matchingPageSaveControls, waitForUniquePageSaveControl } from '../src/page-save-control.mjs';
 import { bindFreshBatchSettingSession, freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
+import { freshSettings as customFilterFreshSettings } from '../src/capabilities/custom-filter-fields.mjs';
 import { resolveFreshPageTarget } from '../src/fresh-block-browser-adapter.mjs';
 import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
 import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
@@ -300,6 +301,37 @@ test('product-list fresh setting writes stay bound to the capability dialog sess
   await setting.apply({ session: { id: 'outer-browser-session' } });
   await setting.restore({ session: { id: 'outer-browser-session' } });
   assert.deepEqual(calls, [['apply', 'settings-dialog'], ['restore', 'settings-dialog']]);
+});
+
+test('custom-filter fresh definition uses its scoped dialog session and exports persisted field identity', async () => {
+  const events = [];
+  const state = { controls: [{ index: 0, tag: 'INPUT', type: 'checkbox', name: 'field', label: 'AUTOTEST-Field',
+    value: '826554', checked: false, disabled: false }] };
+  const scopedSession = {
+    open: async () => events.push('dialog-open'),
+    read: async () => structuredClone(state.controls),
+    set: async (target, value) => { events.push(['dialog-set', target.index, value]); state.controls[0].checked = value; },
+    save: async () => events.push('dialog-save'),
+    cancel: async () => events.push('dialog-cancel'),
+  };
+  const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'custom-filter-fields' }],
+    context: { config: {}, page: {}, canvas: {}, profile: { fixture: { fields: [{ name: 'AUTOTEST-Field' }] } },
+      scopedSession, initialControls: state.controls, save: async () => events.push('page-save') },
+    loadCapability: async () => ({ freshSettings: customFilterFreshSettings }) });
+  const prepared = await adapter.prepare();
+  assert.equal(prepared.capabilityResults[0].status, 'adapted');
+  assert.deepEqual(prepared.persistedControls, [{ capability: 'custom-filter-fields', settingId: 'cff-settings-persist',
+    region: '设置自定义字段筛选', controlIndex: 0, type: 'checkbox' }]);
+  const execution = await (await import('../src/batch-save.mjs')).executeSettingBatches({
+    settings: prepared.settings, metadata: prepared.metadata, adapter: prepared.batchAdapter,
+    finalState: 'retain-tested-values' });
+  assert.equal(execution.results[0].status, 'pass', JSON.stringify(execution.results));
+  assert.equal(state.controls[0].checked, true);
+  assert.ok(events.includes('dialog-save'));
+  assert.ok(events.includes('page-save'));
+  await prepared.batchAdapter.restore(prepared.settings[0]);
+  await prepared.batchAdapter.save({ reason: 'offline-restore-check' });
+  assert.equal(state.controls[0].checked, false);
 });
 
 test('full fresh flow runs PLD definitions on a scoped session, restores dependencies, retains a failure, and reads back a resolved page', async () => {

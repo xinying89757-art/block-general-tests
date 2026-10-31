@@ -3,7 +3,7 @@ import { blockSelector } from './shared.mjs';
 import { normalizeColor } from './rail.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { fixedRequirementValues } from './signatures.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText, readBackWithRetry, isFieldCheckbox, fixtureCategoryState } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText, readBackWithRetry, isFieldCheckbox, fixtureCategoryState, findControl } from './shared.mjs';
 
 // Editor/dialog selectors: docs/SETTINGS_INVENTORY_样本区块.md,
 // scripts/probes/probe-settings8.mjs and probe-settings10/12.mjs (control label context).
@@ -39,8 +39,7 @@ const TEXT = {
   ],
 };
 const SUITE = 'capability:custom-filter-fields';
-export const freshSettings = Object.freeze({ status: 'not-adapted',
-  reason: 'Field checkbox tests and the hidden profile-declared radio values share a legacy restore transaction; the fresh adapter must expose only visible controls while retaining the existing profile oracle and restore grouping.' });
+export const freshSettings = Object.freeze({ status: 'adapted', createDefinitions: createFreshDefinitions });
 const NAMES = {
   'cff-settings-fields': '可选自定义筛选字段与勾选状态',
   'cff-settings-state': '筛选逻辑、触发与产品范围当前值',
@@ -192,6 +191,73 @@ async function scopeBaseline(page, context, config) {
       (data) => data.groups.length > 0);
     return { status: 'record', groups: ready.value.groups };
   });
+}
+
+export async function createFreshDefinitions(args) {
+  const { page, canvas, config, capability, profile } = args;
+  const session = args.scopedSession || widgetSession({ page, canvas, config,
+    type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
+  const initial = Array.isArray(args.initialControls) ? { controls: args.initialControls } : await probeControls(session);
+  if (initial.reason) return { settings: [], staticResults: [result('cff-settings-persist', 'skip', initial.reason)] };
+  const fields = initial.controls.filter(isFieldCheckbox);
+  const radios = initial.controls.filter((item) => item.type === 'radio');
+  const state = Object.fromEntries(TEXT.radioGroups.map(({ name, prefixes }) => {
+    const selected = radios.filter((radio) => radio.checked && prefixes.some((prefix) => radio.label.startsWith(prefix)));
+    return [name, selected.length === 1 ? selected[0] : null];
+  }));
+  const absent = TEXT.radioGroups.filter(({ prefixes }) => !radios.some((radio) => prefixes.some((prefix) => radio.label.startsWith(prefix))))
+    .map(({ name }) => name);
+  const broken = TEXT.radioGroups.filter(({ name, prefixes }) => {
+    const candidates = radios.filter((radio) => prefixes.some((prefix) => radio.label.startsWith(prefix)));
+    return candidates.length > 0 && candidates.filter((radio) => radio.checked).length !== 1;
+  }).map(({ name }) => name);
+  const required = fixedRequirementValues(profile);
+  const fixed = { ...(capability?.fixedSettings || {}), ...Object.fromEntries(Object.entries({
+    'cff-logic': '筛选逻辑', 'cff-trigger': '筛选触发', 'cff-scope': '产品范围',
+  }).filter(([id]) => required[id]).map(([id, name]) => [name, required[id]])) };
+  const fixtureNames = new Set((profile?.fixture?.fields || []).map((field) => field.name));
+  const field = fields.find((item) => fixtureNames.has(item.label) && !item.disabled && !item.checked)
+    || fields.find((item) => fixtureNames.has(item.label) && !item.disabled);
+  const staticResults = [result('cff-settings-fields', 'record',
+    `可选字段 ${fields.length} 个（不含全选与字段值子选项）。`, fields)];
+  staticResults.push(result('cff-settings-state', broken.length ? 'fail' : absent.length === Object.keys(state).length
+    ? 'record' : 'pass',
+  Object.entries(state).map(([name, value]) => `${name}=${value ? `${value.label}（${value.value}）`
+    : fixed[name] ? `${fixed[name]}（设计稿固定值，弹窗隐藏）` : '本区块无此设置'}`).join('；'),
+  { ...state, absentGroups: absent, allRadioGroups: Object.entries(Object.groupBy(radios,
+    (item) => item.name || `unnamed:${item.index}`)).map(([name, options]) => ({ name,
+    checkedLabels: options.filter((item) => item.checked).map((item) => item.label), options })) }));
+  if (!field) {
+    const noFields = fields.length === 0;
+    staticResults.push(result('cff-settings-persist', noFields ? 'na' : 'skip',
+      noFields ? '本区块没有可选自定义筛选字段设置项。' : '没有可切换的自定义字段。'));
+    return { settings: [], staticResults };
+  }
+  const originalValue = Boolean(field.checked);
+  const alternateValue = !originalValue;
+  const setField = async (value) => {
+    await session.open();
+    const current = findControl(await session.read(), field);
+    if (!current) throw new Error(`自定义字段控件身份变化：${field.label}`);
+    await session.set(current, value);
+  };
+  const setting = {
+    id: 'cff-settings-persist', key: 'filter-field', name: '自定义筛选字段',
+    initialValue: originalValue, value: alternateValue, expected: alternateValue,
+    originalValue, alternateValue, control: field,
+    apply: () => setField(alternateValue), restore: () => setField(originalValue),
+    check: async () => {
+      const current = findControl(await session.read(), field);
+      const actual = current ? Boolean(current.checked) : null;
+      return { status: actual === alternateValue ? 'pass' : 'fail', expected: alternateValue, actual,
+        detail: `字段“${field.label}”保存重开后应为${alternateValue ? '勾选' : '未勾选'}，实际${actual === null ? '控件缺失' : actual ? '勾选' : '未勾选'}。`,
+        evidence: { field: field.label, original: originalValue, expected: alternateValue, actual } };
+    },
+  };
+  return { settings: [setting], staticResults,
+    persistedControls: [{ settingId: setting.id, region: TEXT.dialogTitle,
+      controlIndex: field.index, type: field.type }],
+    prepareSave: () => session.save(), afterSave: () => session.open() };
 }
 
 export async function runSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
