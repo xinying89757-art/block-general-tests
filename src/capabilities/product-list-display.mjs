@@ -676,9 +676,11 @@ export async function createProductListBatchDefinitions({ page, canvas, context,
   };
   const freshCandidates = candidates.map((setting) => {
     const legacyApply = setting.apply;
+    const legacyRestore = setting.restore;
     const captureEffect = setting.captureEffect;
     const fresh = { ...setting };
     fresh.apply = (ctx) => legacyApply(ctx?.session || session);
+    fresh.restore = () => legacyRestore(session);
     fresh.captureEffect = () => captureEffect?.();
     fresh.check = (ctx) => checkBatch(setting, { phase: ctx?.phase || 'fresh-batch' });
     return fresh;

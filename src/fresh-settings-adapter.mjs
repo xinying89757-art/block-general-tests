@@ -48,6 +48,11 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         await setting.apply({ ...mergedContext, ...phase, setting });
         pendingCapabilities.add(setting.capability);
       },
+      restore: async (setting, phase) => {
+        if (typeof setting.restore !== 'function') throw new Error(`Setting ${setting.id} has no initial-value restore definition.`);
+        await setting.restore({ ...mergedContext, ...phase, setting });
+        pendingCapabilities.add(setting.capability);
+      },
       save: async (info) => {
         if (typeof mergedContext.save !== 'function') throw new Error('Fresh capability adapter has no page-save operation.');
         const active = [...preparedModules.entries()].filter(([id]) => pendingCapabilities.has(id));

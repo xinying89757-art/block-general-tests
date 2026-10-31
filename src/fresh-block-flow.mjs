@@ -153,8 +153,8 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   const batchAdapter = prepared?.batchAdapter || adapter.batchAdapter;
   if (!batchAdapter) throw new Error('Fresh block adapter must provide batchAdapter; settings cannot be tested without batch saves.');
   const plan = planSettingBatches(settingsToRun, metadataToUse);
-  if (plan.some((batch) => batch.restoreBefore.length)) {
-    throw new Error('Fresh-block flow cannot run settings whose batch plan requires baseline restoration; split or redesign the generic setting metadata first.');
+  if (plan.some((batch) => batch.restoreBefore.length) && typeof batchAdapter.restore !== 'function') {
+    throw new Error('Fresh-block batch plan requires initial-value restoration between dependent checks, but the capability adapter does not provide it.');
   }
 
   const defaultsValues = await adapter.readDefaults(fresh);

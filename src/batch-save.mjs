@@ -76,6 +76,10 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
     throw new Error('批量保存适配器缺少 apply、save、check，或 restore 模式所需的 restore。');
   }
   const plan = planSettingBatches(settings, metadata);
+  if (finalState === 'retain-tested-values' && plan.some((batch) => batch.restoreBefore.length)
+    && typeof adapter.restore !== 'function') {
+    throw new Error('依赖设置需要恢复初始值，但保留测试值模式没有 restore 适配器；拒绝执行。');
+  }
   const startedAt = new Date().toISOString();
   const clockStart = performance.now();
   const snapshots = await adapter.capture?.(settings) || new Map();
@@ -125,7 +129,10 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
         await restoreIds(batch.restoreBefore.flatMap((key) => settings.filter((item) => item.key === key).map((item) => item.id)),
           `dependency-baseline-before-batch-${index}`, batchInfo);
       } else if (batch.restoreBefore.length) {
-        throw new Error(`Fresh-block batch ${index} requires baseline restoration (${batch.restoreBefore.join(', ')}); refusing a baseline-dependent check in no-restore mode.`);
+        const restoreStart = performance.now();
+        await restoreIds(batch.restoreBefore.flatMap((key) => settings.filter((item) => item.key === key).map((item) => item.id)),
+          `dependency-baseline-before-batch-${index}`, batchInfo);
+        batchInfo.restoreMs = performance.now() - restoreStart;
       }
       const applyErrors = new Map();
       for (const setting of batch.settings) {
