@@ -15,8 +15,11 @@ const PLATFORM_HOSTS = new Set(['www.leadong.com', 'website.leadong.com', 'jianz
 const LANGUAGE_NAMES = { 0: '英语', 1: '中文（简体）', 3: '阿拉伯语', 4: '法语', 10: '日语', 11: '韩语' };
 const LANGUAGE_PREFIXES = { en: 0, cn: 1, sa: 3, fr: 4, jp: 10, kr: 11 };
 
-function hostOf(value) {
-  try { return new URL(value).host.toLowerCase(); } catch { return ''; }
+export function hostOf(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try { return new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).host.toLowerCase(); }
+  catch { return ''; }
 }
 
 export function targetLanguage(config) {

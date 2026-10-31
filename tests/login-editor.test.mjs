@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { login, attemptStorageStateReuse, matchSiteLanguage, matchSiteListCards, readAuthCredentials } from '../scripts/explore-login.mjs';
-import { SITE_LIST_URL, matchAttachedCardIndexes, publicBaseUrlFromCardValues } from '../src/editor.mjs';
+import { SITE_LIST_URL, hostOf, matchAttachedCardIndexes, publicBaseUrlFromCardValues } from '../src/editor.mjs';
 
 function loginPage({ rejected = false } = {}) {
   const actions = [];
@@ -92,6 +92,8 @@ test('navigation4 miss falls back to host matching in site-list cards', () => {
 test('editor enters through the www site-list; attached offscreen cards remain eligible', () => {
   assert.equal(SITE_LIST_URL, 'https://www.leadong.com/website.html');
   assert.deepEqual(matchAttachedCardIndexes(['elsewhere.test', 'target.test'], 'target.test'), [1]);
+  assert.equal(hostOf('en-site79106751.ldwebsite.com'), 'en-site79106751.ldwebsite.com');
+  assert.equal(hostOf('http://en-site79106751.ldwebsite.com'), 'en-site79106751.ldwebsite.com');
 });
 
 test('site-card host discovery handles relative references and prefers the exact target host', () => {
