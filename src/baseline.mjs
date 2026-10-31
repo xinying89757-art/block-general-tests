@@ -17,10 +17,12 @@
 // The right-rail color-scheme / module-width panels remain out of scope;
 // the button zone is handled through its in-canvas editor-box popover.
 import { clickSettings, controlValue, probeControls, widgetSession, TIMEOUT } from './capabilities/shared.mjs';
+import { savePage } from './editor.mjs';
 import { readButtonPopover, writeButtonPopover } from './capabilities/button-link.mjs';
 import { matchControl, matchingControls, normalizeControlIdentity } from './baseline-identity.mjs';
 import { uiWaitConfig, waitForStable } from './ui-waits.mjs';
 import { makeFixtureSelectionRule, fixtureSelectionDiff } from './site-baseline.mjs';
+import { retryClosedRestoreStep } from './baseline-recovery.mjs';
 
 const DIALOG = '.backstage-dialog.backstage-dialog-widgetsettinsframe';
 const TITLE = '.backstage-dialog-title, .layui-layer-title';
@@ -191,13 +193,21 @@ export async function captureBaseline(args) {
   });
 }
 
-export async function applyBaseline({ page, canvas, config, baseline }) {
+export function baselineStepReadyTimeout(title, envValue = process.env.UI_READY_TIMEOUT_MS) {
+  const normal = title === '设置产品分类' ? 120_000 : 30_000;
+  return Math.max(normal, Number(envValue) || 0);
+}
+
+export async function applyBaseline(args) {
+  let { page, canvas } = args;
+  const { config, baseline } = args;
   const steps = [];
   let allVerified = true;
+  let recoveredBrowser = false;
   for (const stepDef of baseline || []) {
     const { title, type, wrapIndex } = stepDef;
     if (stepDef.kind === 'button-popover') {
-      const step = { title: null, type, wrapIndex, kind: stepDef.kind, set: [], verified: [], allVerified: false, errors: [] };
+      let step = { title: null, type, wrapIndex, kind: stepDef.kind, set: [], verified: [], allVerified: false, errors: [] };
       try {
         const applied = await writeButtonPopover({ page, canvas, config, want: stepDef.want || [] });
         step.verified = (stepDef.want || []).map((want) => ({ label: want.label,
@@ -206,6 +216,20 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
         step.set = step.verified.map((item) => `${item.label}：${String(item.value)}`);
         step.allVerified = applied.verified && step.verified.every((item) => item.ok);
       } catch (error) { step.errors.push(error.message); }
+      if (!step.allVerified && !config.disableBaselineRecovery && typeof config.recoverEnvironment === 'function') {
+        const attempt = await retryClosedRestoreStep({ step,
+          isClosed: (candidate) => page.isClosed?.() || /Target page, context or browser has been closed/i.test(candidate.errors.join(' ')),
+          recover: (candidate) => config.recoverEnvironment(config.environmentStatus || 'env-timeout', { skipBaselineGuard: true, failedStep: candidate.title || candidate.kind }),
+          retry: async (fresh) => {
+            page = fresh.page; canvas = fresh.canvas;
+            const retried = await applyBaseline({ page, canvas,
+              config: { ...config, disableBaselineRecovery: true }, baseline: [stepDef] });
+            return retried.steps[0];
+          },
+        });
+        step = attempt.step;
+        if (attempt.recovery) recoveredBrowser = true;
+      }
       if (!step.allVerified) allVerified = false;
       steps.push(step);
       continue;
@@ -215,12 +239,12 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
         allVerified: true, skipped: stepDef.skipped || '无可应用的设置项' });
       continue;
     }
-    const step = { title, type, wrapIndex, set: [], verified: [], allVerified: false, errors: [] };
+    let step = { title, type, wrapIndex, set: [], verified: [], allVerified: false, errors: [] };
     const session = widgetSession({ page, canvas, config, type, title, wrapIndex });
     try {
       const probe = await probeControls(session);
-      if (probe.reason) { step.errors.push(probe.reason); steps.push(step); allVerified = false; continue; }
-      const readyTimeout = Math.max(30_000, Number(process.env.UI_READY_TIMEOUT_MS) || 0);
+      if (probe.reason) throw new Error(probe.reason);
+      const readyTimeout = baselineStepReadyTimeout(title);
       let controls;
       try {
         controls = await waitForStable((remaining) => session.read(remaining),
@@ -304,7 +328,26 @@ export async function applyBaseline({ page, canvas, config, baseline }) {
     } finally {
       try { await session.cancel(); } catch {}
     }
+    if (!step.allVerified && !config.disableBaselineRecovery && typeof config.recoverEnvironment === 'function') {
+      const attempt = await retryClosedRestoreStep({ step,
+        isClosed: (candidate) => page.isClosed?.() || /Target page, context or browser has been closed/i.test(candidate.errors.join(' ')),
+        recover: (candidate) => config.recoverEnvironment(config.environmentStatus || 'env-timeout', { skipBaselineGuard: true, failedStep: candidate.title }),
+        retry: async (fresh) => {
+          page = fresh.page; canvas = fresh.canvas;
+          const retried = await applyBaseline({ page, canvas,
+            config: { ...config, disableBaselineRecovery: true }, baseline: [stepDef] });
+          return retried.steps[0];
+        },
+      });
+      step = attempt.step;
+      if (attempt.recovery) recoveredBrowser = true;
+    }
+    if (!step.allVerified) allVerified = false;
     steps.push(step);
   }
-  return { steps, allVerified };
+  if (recoveredBrowser) {
+    try { await savePage(page); }
+    catch (error) { allVerified = false; steps.push({ title: '保存恢复后的页面', allVerified: false, errors: [error.message] }); }
+  }
+  return { steps, allVerified, recoveredBrowser };
 }

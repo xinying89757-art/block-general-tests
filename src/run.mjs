@@ -308,7 +308,7 @@ async function main() {
     baseline = baselineDocument.steps;
     if (baselineDocument.fixtureRefs) profile.fixture = baselineDocument.fixtureRefs;
     if (profile) profile.baseline = baseline; // Runtime-only bridge; profiles remain site-independent.
-    config.recoverEnvironment = async (reason) => {
+    config.recoverEnvironment = async (reason, recoveryOptions = {}) => {
       const existingEvent = [...environmentEvents].reverse().find((event) => event.status === reason && !event.recoveryStartedAt);
       if (existingEvent) existingEvent.recoveryStartedAt = new Date().toISOString();
       else environmentEvents.push({ status: reason, at: new Date().toISOString() });
@@ -326,8 +326,10 @@ async function main() {
         if (login.error || login.status !== 0) throw new Error('环境恢复时重新登录失败');
         await openFresh();
       }
-      const verification = await guardBaseline({ page: session.page, canvas, config, baseline });
-      if (verification.residue && !verification.verifiedFresh) throw new Error('环境恢复后基线复原未通过');
+      if (!recoveryOptions.skipBaselineGuard) {
+        const verification = await guardBaseline({ page: session.page, canvas, config, baseline });
+        if (verification.residue && !verification.verifiedFresh) throw new Error('环境恢复后基线复原未通过');
+      }
       config.environmentStatus = null;
       watchdog.progress();
       return { session, page: session.page, canvas, context: session.context };
