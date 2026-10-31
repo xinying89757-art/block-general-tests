@@ -104,32 +104,38 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
     const ids = settings.map((setting) => setting.id);
     if (ids.some((id) => !id) || new Set(ids).size !== ids.length) throw new Error('Fresh capability setting ids must be present and globally unique.');
     const pendingCapabilities = new Set();
+    const pendingLifecycles = new Set();
+    let activeLifecycle = null;
+    const activateSurface = async (setting) => {
+      const lifecycle = setting.lifecycle;
+      if (!lifecycle) return;
+      if (activeLifecycle && activeLifecycle !== lifecycle && activeLifecycle.isOpen) {
+        await activeLifecycle.commit({ reason: 'surface-switch', capability: activeLifecycle.capability });
+      }
+      await lifecycle.open();
+      activeLifecycle = lifecycle;
+      pendingLifecycles.add(lifecycle);
+    };
     const batchAdapter = {
       capture: async (items) => new Map(items.map((setting) => [setting.id, setting.initialValue])),
       apply: async (setting, phase) => {
         if (typeof setting.apply !== 'function') throw new Error(`Setting ${setting.id} has no apply definition.`);
-        await setting.lifecycle?.open();
+        await activateSurface(setting);
         await setting.captureEffect?.({ ...mergedContext, ...phase, setting });
         await setting.apply({ ...mergedContext, ...phase, setting });
         pendingCapabilities.add(setting.capability);
       },
       restore: async (setting, phase) => {
         if (typeof setting.restore !== 'function') throw new Error(`Setting ${setting.id} has no initial-value restore definition.`);
-        await setting.lifecycle?.open();
+        await activateSurface(setting);
         await setting.restore({ ...mergedContext, ...phase, setting });
         pendingCapabilities.add(setting.capability);
       },
       save: async (info) => {
         if (typeof mergedContext.save !== 'function') throw new Error('Fresh capability adapter has no page-save operation.');
         const active = [...preparedModules.entries()].filter(([id]) => pendingCapabilities.has(id));
-        const committed = new Set();
-        for (const [, { created }] of active) {
-          for (const setting of created.settings) {
-            if (setting.lifecycle && !committed.has(setting.lifecycle)) {
-              committed.add(setting.lifecycle);
-              await setting.lifecycle.commit({ reason: info?.reason, capability: setting.capability });
-            }
-          }
+        for (const lifecycle of pendingLifecycles) {
+          if (lifecycle.isOpen) await lifecycle.commit({ reason: info?.reason, capability: lifecycle.capability });
         }
         for (const [id, { definition, created }] of active) {
           const prepareSave = created.prepareSave || definition.prepareSave;
@@ -141,6 +147,8 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
           await afterSave?.({ ...mergedContext, reason: info?.reason, capability: id });
         }
         pendingCapabilities.clear();
+        pendingLifecycles.clear();
+        activeLifecycle = null;
       },
       check: async (setting, phase) => {
         if (typeof setting.check !== 'function') throw new Error(`Setting ${setting.id} has no assertion definition.`);

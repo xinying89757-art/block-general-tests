@@ -15,6 +15,7 @@ import { freshSettings as widthFreshSettings, moduleWidthPersistedControls } fro
 import { freshSettings as categoryFreshSettings, categoryPersistedControls } from '../src/capabilities/product-category-select.mjs';
 import { freshSettings as styleFreshSettings } from '../src/capabilities/block-style-spec.mjs';
 import { freshRailInventoryRegions, resolveFreshPageTarget } from '../src/fresh-block-browser-adapter.mjs';
+import { selectBlock as selectRailBlock } from '../src/capabilities/rail.mjs';
 import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
 import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
 
@@ -71,6 +72,32 @@ test('shared fresh lifecycles support canvas popovers and right-rail flyouts wit
   assert.deepEqual(events, ['open', 'apply', 'commit', 'open', 'read', 'cancel']);
   assert.throws(() => createFreshLifecycle('unknown-surface', operations), /Unknown fresh settings lifecycle/);
   assert.throws(() => createFreshLifecycle('right-rail-flyout', { open: operations.open }), /requires read/);
+});
+
+test('fresh adapter commits the active surface before opening another lifecycle in the same batch', async () => {
+  const events = [];
+  const makeSurface = (name) => createFreshLifecycle('settings-dialog', {
+    open: async () => events.push(`${name}:open`), read: async () => name,
+    apply: async () => events.push(`${name}:apply`),
+    commit: async () => events.push(`${name}:commit`), cancel: async () => events.push(`${name}:cancel`),
+  });
+  const definitions = ['first', 'second'].map((id) => {
+    const lifecycle = makeSurface(id);
+    return { id, key: id, lifecycle, initialValue: 0, value: 1,
+      apply: () => lifecycle.apply(), restore: () => lifecycle.apply(),
+      check: async () => ({ status: 'pass', actual: 1 }) };
+  });
+  const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'generic-one' }, { id: 'generic-two' }],
+    context: { save: async () => events.push('page-save') },
+    loadCapability: async (id) => ({ freshSettings: { status: 'adapted',
+      createDefinitions: async () => ({ settings: [definitions[id === 'generic-one' ? 0 : 1]] }) } }) });
+  const prepared = await adapter.prepare();
+  await executeSettingBatches({ settings: prepared.settings, metadata: prepared.metadata,
+    adapter: prepared.batchAdapter, finalState: 'retain-tested-values' });
+  assert.ok(events.indexOf('first:commit') < events.indexOf('second:open'), events.join(','));
+  assert.equal(events.filter((event) => event === 'first:commit').length, 1);
+  assert.equal(events.filter((event) => event === 'second:commit').length, 1);
+  assert.equal(events.filter((event) => event === 'page-save').length, 1);
 });
 
 test('fresh button-link definitions use the canvas-popover lifecycle and existing persistence values', async () => {
@@ -201,6 +228,22 @@ test('fresh right-rail value inventory has stable declared control identities', 
     { region: 'right-rail-width', controlIndex: 1, type: 'text' },
     { region: 'right-rail-width', controlIndex: 2, type: 'checkbox' },
   ]);
+});
+
+test('rail selection activates the target element directly and waits for its rail without pointer-overlay interception', async () => {
+  let clicks = 0, reads = 0;
+  const wrap = { scrollIntoViewIfNeeded: async () => {},
+    click: async () => { throw new Error('pointer click must not be used through the stale dialog overlay'); },
+    evaluate: async (callback) => callback({ click: () => { clicks += 1; } }) };
+  const canvas = { locator: () => ({ first: () => wrap }) };
+  const index = await selectRailBlock(canvas, 'generic-block', { waitForRail: async () => {
+    reads += 1;
+    if (reads === 1) throw new Error('rail has not rendered yet');
+    return 0;
+  } });
+  assert.equal(index, 0);
+  assert.equal(clicks, 2);
+  assert.equal(reads, 2);
 });
 
 test('fresh flow requires explicit custom or system page configuration', () => {
@@ -501,6 +544,7 @@ test('custom-field fresh definition discovers an editable control from inventory
   const prepared = await adapter.prepare();
   assert.deepEqual(prepared.capabilityResults, [{ capability: 'custom-filter-fields', status: 'adapted',
     settingIds: ['cff-settings-persist'] }]);
+  assert.ok(events.includes('cancel'), 'capability preparation closes the dialog before another surface is prepared');
   assert.equal(prepared.settings[0].control.label, 'Site field');
   const execution = await executeSettingBatches({ settings: prepared.settings, metadata: prepared.metadata,
     adapter: prepared.batchAdapter, finalState: 'retain-tested-values' });

@@ -3,6 +3,7 @@ import { categorySelectionChanges } from './product-category-select.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText, fixtureCategoryState, findControl, controlValue } from './shared.mjs';
 import { executeSettingBatches } from '../batch-save.mjs';
+import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 
 const SUITE = 'capability:product-list-display';
 const NAMES = {
@@ -620,7 +621,10 @@ export async function createProductListBatchDefinitions(args) {
   const initial = Array.isArray(args.initialControls)
     ? { controls: args.initialControls }
     : await probeControls(session);
-  if (initial.reason) return { settings: [], staticResults: [result('pld-settings', 'skip', `无法读取产品列表设置：${initial.reason}`)] };
+  if (initial.reason) {
+    await session.cancel().catch(() => {});
+    return { settings: [], staticResults: [result('pld-settings', 'skip', `无法读取产品列表设置：${initial.reason}`)] };
+  }
 
   const controls = initial.controls;
   const checksById = new Map();
@@ -687,22 +691,34 @@ export async function createProductListBatchDefinitions(args) {
     await (args.savePageOperation || (() => savePage(page)))();
     await session.open();
   };
+  const lifecycle = createFreshLifecycle('settings-dialog', {
+    open: () => session.open(), read: () => session.read(), apply: async () => {},
+    commit: () => session.save(), cancel: () => session.cancel(),
+  });
   const freshCandidates = candidates.map((setting) => {
     const captureEffect = setting.captureEffect;
     const fresh = bindFreshBatchSettingSession(setting, session);
+    const apply = fresh.apply;
+    const restore = fresh.restore;
+    fresh.lifecycle = lifecycle;
+    fresh.apply = async () => { await lifecycle.apply(); await apply(); };
+    fresh.restore = async () => { await lifecycle.apply(); await restore(); };
     fresh.captureEffect = () => captureEffect?.();
-    fresh.check = (ctx) => checkBatch(setting, { phase: ctx?.phase || 'fresh-batch' });
+    fresh.check = async (ctx) => {
+      await lifecycle.open();
+      try { return await checkBatch(setting, { phase: ctx?.phase || 'fresh-batch' }); }
+      finally { await lifecycle.cancel(); }
+    };
     return fresh;
   });
   const region = capability?.dialogTitle || '设置产品列表';
   const persistedControls = candidates.map((setting) => ({ settingId: setting.id, region,
     controlIndex: setting.control?.index, type: setting.control?.type })).filter((item) => Number.isInteger(item.controlIndex) && item.type);
+  // Definitions are captured during sequential adapter preparation. Leave the
+  // modal closed so a later capability (for example, a canvas rail flyout)
+  // does not inherit an open dialog/backdrop.
+  await session.cancel();
   return { settings: freshCandidates, metadata: batchSaveMetadata, checkBatch, saveBatch, persistedControls,
-    prepareSave: async () => {
-      await session.save();
-      await session.open(); await session.read(); await session.cancel(); await session.open();
-    },
-    afterSave: async () => { await session.open(); },
     staticResults: [...checksById.values()] };
 }
 

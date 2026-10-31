@@ -26,15 +26,17 @@ export const RAIL = {
 // module's first openRailPanel and the width module's flip both hit this
 // in the same run, while the width module's first open worked). Poll
 // instead of reading once.
-export async function selectBlock(canvas, blockId) {
+export async function selectBlock(canvas, blockId, { clickTarget, waitForRail } = {}) {
   const wrap = canvas.locator(RAIL.wrap(blockId)).first();
   await wrap.scrollIntoViewIfNeeded();
+  const activate = clickTarget || ((element) => element.evaluate((node) => node.click()));
+  const wait = waitForRail || (() => visibleRailIndex(canvas));
   for (let attempt = 0; attempt < 2; attempt++) {
-    await wrap.click({ timeout: TIMEOUT });
-    try { return await visibleRailIndex(canvas); }
+    await activate(wrap);
+    try { return await wait(); }
     catch { /* retry the click once, then fall through to the error */ }
   }
-  return visibleRailIndex(canvas);
+  return wait();
 }
 
 export async function visibleRailIndex(canvas) {

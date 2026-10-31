@@ -3,6 +3,7 @@ import { blockSelector } from './shared.mjs';
 import { normalizeColor } from './rail.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { fixedRequirementValues } from './signatures.mjs';
+import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText, readBackWithRetry, isFieldCheckbox, fixtureCategoryState, findControl } from './shared.mjs';
 
 // Editor/dialog selectors: docs/SETTINGS_INVENTORY_样本区块.md,
@@ -198,7 +199,10 @@ export async function createFreshDefinitions(args) {
   const session = args.scopedSession || widgetSession({ page, canvas, config,
     type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
   const initial = Array.isArray(args.initialControls) ? { controls: args.initialControls } : await probeControls(session);
-  if (initial.reason) return { settings: [], staticResults: [result('cff-settings-persist', 'skip', initial.reason)] };
+  if (initial.reason) {
+    await session.cancel().catch(() => {});
+    return { settings: [], staticResults: [result('cff-settings-persist', 'skip', initial.reason)] };
+  }
   const fields = initial.controls.filter(isFieldCheckbox);
   const radios = initial.controls.filter((item) => item.type === 'radio');
   const state = Object.fromEntries(TEXT.radioGroups.map(({ name, prefixes }) => {
@@ -239,33 +243,41 @@ export async function createFreshDefinitions(args) {
       : 'The block settings inventory contains custom-field controls, but none is currently editable; the persistence assertion cannot safely switch one.';
     staticResults.push(result('cff-settings-persist', noFields ? 'na' : 'skip',
       noFields ? '本区块没有可选自定义筛选字段设置项。' : '没有可切换的自定义字段。'));
+    await session.cancel();
     return { settings: [], staticResults, notAdaptedReason };
   }
   const originalValue = Boolean(field.checked);
   const alternateValue = !originalValue;
+  const lifecycle = createFreshLifecycle('settings-dialog', {
+    open: () => session.open(), read: () => session.read(), apply: (target, value) => session.set(target, value),
+    commit: () => session.save(), cancel: () => session.cancel(),
+  });
   const setField = async (value) => {
-    await session.open();
-    const current = findControl(await session.read(), field);
+    const current = findControl(await lifecycle.read(), field);
     if (!current) throw new Error(`自定义字段控件身份变化：${field.label}`);
-    await session.set(current, value);
+    await lifecycle.apply(current, value);
   };
   const setting = {
     id: 'cff-settings-persist', key: 'filter-field', name: '自定义筛选字段',
+    lifecycle,
     initialValue: originalValue, value: alternateValue, expected: alternateValue,
     originalValue, alternateValue, control: field,
     apply: () => setField(alternateValue), restore: () => setField(originalValue),
     check: async () => {
-      const current = findControl(await session.read(), field);
-      const actual = current ? Boolean(current.checked) : null;
-      return { status: actual === alternateValue ? 'pass' : 'fail', expected: alternateValue, actual,
-        detail: `字段“${field.label}”保存重开后应为${alternateValue ? '勾选' : '未勾选'}，实际${actual === null ? '控件缺失' : actual ? '勾选' : '未勾选'}。`,
-        evidence: { field: field.label, original: originalValue, expected: alternateValue, actual } };
+      await lifecycle.open();
+      try {
+        const current = findControl(await lifecycle.read(), field);
+        const actual = current ? Boolean(current.checked) : null;
+        return { status: actual === alternateValue ? 'pass' : 'fail', expected: alternateValue, actual,
+          detail: `字段“${field.label}”保存重开后应为${alternateValue ? '勾选' : '未勾选'}，实际${actual === null ? '控件缺失' : actual ? '勾选' : '未勾选'}。`,
+          evidence: { field: field.label, original: originalValue, expected: alternateValue, actual } };
+      } finally { await lifecycle.cancel(); }
     },
   };
+  await session.cancel();
   return { settings: [setting], staticResults,
     persistedControls: [{ settingId: setting.id, region: TEXT.dialogTitle,
-      controlIndex: field.index, type: field.type }],
-    prepareSave: () => session.save(), afterSave: () => session.open() };
+      controlIndex: field.index, type: field.type }] };
 }
 
 export async function runSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
