@@ -7,7 +7,7 @@ import { createFreshSettingsAdapter, currentValuesFromInventory } from '../src/f
 import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDeleteConfirmIndexes,
   matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from '../src/fresh-editor-actions.mjs';
 import { matchingPageSaveControls, waitForUniquePageSaveControl } from '../src/page-save-control.mjs';
-import { freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
+import { bindFreshBatchSettingSession, freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
 import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
 import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
 
@@ -289,6 +289,16 @@ test('product list fresh definitions expose existing batch metadata and dialog s
   assert.equal(productListFreshSettings.status, 'adapted');
   assert.equal(typeof productListFreshSettings.createDefinitions, 'function');
   assert.ok(productListFreshSettings.metadata['data-source']);
+});
+
+test('product-list fresh setting writes stay bound to the capability dialog session', async () => {
+  const calls = [];
+  const scopedSession = { id: 'settings-dialog' };
+  const setting = bindFreshBatchSettingSession({ apply: async (session) => calls.push(['apply', session.id]),
+    restore: async (session) => calls.push(['restore', session.id]) }, scopedSession);
+  await setting.apply({ session: { id: 'outer-browser-session' } });
+  await setting.restore({ session: { id: 'outer-browser-session' } });
+  assert.deepEqual(calls, [['apply', 'settings-dialog'], ['restore', 'settings-dialog']]);
 });
 
 test('fresh setting definitions are prepared only after the fresh instance reloads', async () => {

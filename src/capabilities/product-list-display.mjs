@@ -543,6 +543,12 @@ function controlBatchSetting({ id, key, name, control, alternate }) {
   return setting;
 }
 
+export function bindFreshBatchSettingSession(setting, session) {
+  const apply = setting.apply;
+  const restore = setting.restore;
+  return { ...setting, apply: () => apply(session), restore: () => restore(session) };
+}
+
 function attachBatchEffect(setting, { canvas, config, profile, report }) {
   setting.captureEffect = async () => {
     try { setting.effectBefore = await readEffectRoot(canvas, config, productSnapshot); }
@@ -676,12 +682,8 @@ export async function createProductListBatchDefinitions({ page, canvas, context,
     await session.open();
   };
   const freshCandidates = candidates.map((setting) => {
-    const legacyApply = setting.apply;
-    const legacyRestore = setting.restore;
     const captureEffect = setting.captureEffect;
-    const fresh = { ...setting };
-    fresh.apply = (ctx) => legacyApply(ctx?.session || session);
-    fresh.restore = () => legacyRestore(session);
+    const fresh = bindFreshBatchSettingSession(setting, session);
     fresh.captureEffect = () => captureEffect?.();
     fresh.check = (ctx) => checkBatch(setting, { phase: ctx?.phase || 'fresh-batch' });
     return fresh;

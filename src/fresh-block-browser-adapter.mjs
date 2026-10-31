@@ -54,10 +54,13 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       // openEditor may return a newly opened pagebuilder tab. Keep the shared
       // session reference aligned so capability save callbacks use that tab.
       session.page = page;
-      resolvedTarget = target;
       const selected = await gotoFreshTargetPage(page, { ...target, blockId: config.blockId });
       frame = selected.frame;
       pageItem = selected.pageItem || { pageurl: target.url || '' };
+      const pageName = target.name || pageItem.name || pageItem.title;
+      if (!pageName) throw new Error('Selected page has no resolved display name for editor reload/readback.');
+      resolvedTarget = { ...target, page: pageName, kind: target.kind };
+      config.resolvedTarget = resolvedTarget;
       return { editorLink: target.editorHref || page.url(), frontLink: target.url || pageItem.pageurl || null };
     },
     async listAllBlockInstances() { return listInstances(frame); },
@@ -96,6 +99,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       await page.reload({ waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });
       const selected = await gotoFreshTargetPage(page, resolvedTarget);
       frame = selected.frame;
+      pageItem = selected.pageItem || pageItem;
       const instances = await listInstances(frame);
       const targets = instances.filter((item) => item.blockId === String(config.blockId));
       if (targets.length !== 1 || String(targets[0].settingId) !== String(instance.settingId)) {
