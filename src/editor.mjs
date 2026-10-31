@@ -256,7 +256,8 @@ async function listMenuPages(page) {
       if (a.offsetParent === null) return false;
       const li = a.closest('li, dt, dd');
       return li && a.getAttribute('data-href');
-    }).map((a) => ({ name: norm(a.textContent), title: a.getAttribute('title'), pageurl: a.getAttribute('pageurl'), href: a.getAttribute('data-href') }));
+    }).map((a) => ({ name: norm(a.textContent), title: a.getAttribute('title'), pageurl: a.getAttribute('pageurl'),
+      id: a.getAttribute('data-id') || a.getAttribute('pageid') || a.id || '', href: a.getAttribute('data-href') }));
   });
 }
 
@@ -278,6 +279,36 @@ export async function gotoTargetPage(page, config) {
   await frame.locator('body').waitFor({ state: 'attached', timeout: 60_000 });
   await page.waitForTimeout(3_000);
   return { frame, created: false };
+}
+
+// Fresh-block flow requires an explicit identity for system pages: an exact
+// editor page id or URL supplied by the caller. It never falls back to a
+// familiar/default page name.
+export async function gotoFreshTargetPage(page, target) {
+  if (target?.kind === 'custom') {
+    if (!target.name) throw new Error('FRESH_PAGE_NAME is required for a custom page.');
+    const config = { resolvedTarget: { page: target.name, kind: 'custom' }, blockId: target.blockId };
+    const selected = await ensureTargetPage(page, config);
+    await openPageMenu(page);
+    await clickPageTab(page, 'custom');
+    const matches = (await listMenuPages(page)).filter((item) => item.name === target.name || item.title === target.name);
+    if (matches.length !== 1) throw new Error(`Fresh custom page name matched ${matches.length} menu entries; cannot report an unambiguous front URL.`);
+    return { ...selected, pageItem: matches[0] };
+  }
+  if (target?.kind !== 'system' || !target.id || !target.url) {
+    throw new Error('Fresh system page requires both FRESH_PAGE_ID and FRESH_PAGE_URL.');
+  }
+  await openPageMenu(page);
+  await clickPageTab(page, 'system');
+  const items = await listMenuPages(page);
+  const matches = items.filter((item) => item.id === String(target.id) || item.pageurl === target.url || item.href === target.url);
+  if (matches.length !== 1) throw new Error(`Fresh system page selector matched ${matches.length} menu entries; expected one by id/url.`);
+  await page.locator(`.backstage-topToolbar-pageBox a[data-href=${JSON.stringify(matches[0].href)}]`).click();
+  await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
+  const frame = page.frameLocator(CANVAS);
+  await frame.locator('body').waitFor({ state: 'attached', timeout: 60_000 });
+  await page.waitForTimeout(3_000);
+  return { frame, created: false, pageItem: matches[0] };
 }
 
 async function ensurePageMenuOpen(page) {
@@ -361,10 +392,11 @@ export async function addBlockIfNeeded(page, frame, config) {
   const rendered = await waitForCanvasRender(inspectCanvas, {
     timeoutMs: Number(process.env.CANVAS_RENDER_TIMEOUT_MS) || 45_000,
     stableMs: Number(process.env.CANVAS_RENDER_STABLE_MS) || 8_000,
+    allowEmptyCanvas: Boolean(config.addAnotherInstance),
   });
   const countBefore = rendered.targets.length;
   const chosenBefore = selectedBlockInstance(rendered.targets);
-  if (countBefore > 0) return { added: false, countBefore, countAfter: countBefore,
+  if (countBefore > 0 && !config.addAnotherInstance) return { added: false, countBefore, countAfter: countBefore,
     instances: rendered.targets, selectedInstance: chosenBefore };
 
   const addButton = frame
@@ -430,7 +462,9 @@ export async function addBlockIfNeeded(page, frame, config) {
     if (await close.isVisible()) await close.click();
     await panel.waitFor({ state: 'hidden' });
     return { added: true, addedVia: moduleType, countBefore, countAfter, attempts,
-      instances: afterRender.targets, selectedInstance: selectedBlockInstance(afterRender.targets) };
+      instances: afterRender.targets, selectedInstance: config.addAnotherInstance
+        ? { ...afterRender.targets.at(-1), order: afterRender.targets.length, total: afterRender.targets.length }
+        : selectedBlockInstance(afterRender.targets) };
   }
   throw new Error(`区块 ${config.blockId} 在模块列表中未找到（已尝试 ${order.join(' → ')}）。`);
 }

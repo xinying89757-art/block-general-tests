@@ -1,6 +1,6 @@
 const asSet = (value) => new Set(Array.isArray(value) ? value : []);
 
-function conflicts(left, right, metadata) {
+export function settingsConflict(left, right, metadata = {}) {
   if (left.key === right.key) return true;
   const leftMeta = metadata[left.key] || {};
   const rightMeta = metadata[right.key] || {};
@@ -20,7 +20,7 @@ export function planSettingBatches(settings, metadata = {}) {
   }
   const batches = [];
   for (const setting of settings) {
-    let batch = batches.find((candidate) => candidate.settings.every((member) => !conflicts(setting, member, metadata)));
+    let batch = batches.find((candidate) => candidate.settings.every((member) => !settingsConflict(setting, member, metadata)));
     if (!batch) { batch = { settings: [], restoreBefore: [] }; batches.push(batch); }
     batch.settings.push(setting);
   }
@@ -50,10 +50,30 @@ export async function verifyBaselineWithRecovery({ verify, recover }) {
 
 const outcomeStatus = (outcome) => outcome?.status || 'pass';
 
-export async function executeSettingBatches({ settings, metadata = {}, adapter }) {
+export function selectRetainedFailures(results, settings, metadata = {}) {
+  const byId = new Map(settings.map((setting) => [setting.id, setting]));
+  const failed = results.filter((result) => result.status === 'fail' && byId.has(result.id)
+    && (!result.rerunAloneResult || result.rerunAloneResult.status === 'fail'));
+  const selected = [];
+  const suppressed = [];
+  for (const result of failed) {
+    const setting = byId.get(result.id);
+    const conflict = selected.find((prior) => settingsConflict(setting, byId.get(prior.id), metadata));
+    if (conflict) suppressed.push({
+      id: result.id, setting: setting.key, value: setting.value,
+      expected: result.batchResult?.expected, actual: result.batchResult?.actual,
+      screenshot: result.batchResult?.screenshot, retainedInstead: conflict.id,
+    });
+    else selected.push(result);
+  }
+  return { selected, suppressed };
+}
+
+export async function executeSettingBatches({ settings, metadata = {}, adapter, finalState = 'restore' }) {
+  if (!['restore', 'retain-tested-values'].includes(finalState)) throw new Error(`Unsupported batch final state: ${finalState}`);
   if (!adapter || typeof adapter.save !== 'function' || typeof adapter.check !== 'function'
-    || typeof adapter.apply !== 'function' || typeof adapter.restore !== 'function') {
-    throw new Error('批量保存适配器缺少 apply、save、check 或 restore。');
+    || typeof adapter.apply !== 'function' || (finalState === 'restore' && typeof adapter.restore !== 'function')) {
+    throw new Error('批量保存适配器缺少 apply、save、check，或 restore 模式所需的 restore。');
   }
   const plan = planSettingBatches(settings, metadata);
   const startedAt = new Date().toISOString();
@@ -101,8 +121,12 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter }
         saveMs: 0, applyMs: 0, checkMs: 0, totalMs: 0 };
       timing.batches.push(batchInfo);
       const batchStart = performance.now();
-      await restoreIds(batch.restoreBefore.flatMap((key) => settings.filter((item) => item.key === key).map((item) => item.id)),
-        `dependency-baseline-before-batch-${index}`, batchInfo);
+      if (finalState === 'restore') {
+        await restoreIds(batch.restoreBefore.flatMap((key) => settings.filter((item) => item.key === key).map((item) => item.id)),
+          `dependency-baseline-before-batch-${index}`, batchInfo);
+      } else if (batch.restoreBefore.length) {
+        throw new Error(`Fresh-block batch ${index} requires baseline restoration (${batch.restoreBefore.join(', ')}); refusing a baseline-dependent check in no-restore mode.`);
+      }
       const applyErrors = new Map();
       for (const setting of batch.settings) {
         const start = performance.now();
@@ -127,7 +151,7 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter }
         for (const setting of batch.settings) results.push({ id: setting.id, status: outcomeStatus(batchOutcomes.get(setting.id)),
           batchResult: batchOutcomes.get(setting.id) });
       } else {
-        await restoreIds(batch.settings.map((item) => item.id), `failed-batch-${index}-reset`, batchInfo);
+        if (finalState === 'restore') await restoreIds(batch.settings.map((item) => item.id), `failed-batch-${index}-reset`, batchInfo);
         for (const setting of failed) {
           const isolated = { saveMs: 0, applyMs: 0, checkMs: 0 };
           let rerun;
@@ -139,12 +163,15 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter }
             await save(`rerun-alone-${setting.id}`, isolated);
             rerun = await safeCheck(setting, 'rerun-alone', isolated);
           } catch (error) { rerun = { status: 'fail', detail: error.message, error: error.message }; }
-          try { await restoreIds([setting.id], `rerun-alone-${setting.id}-restore`, isolated); }
-          catch (error) { rerun = { ...rerun, restoreError: error.message, status: 'fail' }; }
+          if (finalState === 'restore') {
+            try { await restoreIds([setting.id], `rerun-alone-${setting.id}-restore`, isolated); }
+            catch (error) { rerun = { ...rerun, restoreError: error.message, status: 'fail' }; }
+          }
           results.push({ id: setting.id, status: 'fail', batchResult: batchOutcomes.get(setting.id), rerunAloneResult: rerun });
           batchInfo.rerunAlone = { ...(batchInfo.rerunAlone || {}), [setting.id]: isolated };
         }
-        const passingPeers = batch.settings.filter((setting) => !failed.some((item) => item.id === setting.id));
+        const passingPeers = finalState === 'restore'
+          ? batch.settings.filter((setting) => !failed.some((item) => item.id === setting.id)) : [];
         for (const setting of passingPeers) {
           const start = performance.now();
           await adapter.apply(setting, { snapshot: snapshots.get?.(setting.id) ?? snapshots[setting.id], phase: 'batch-continue' });
@@ -160,18 +187,40 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter }
   } finally {
     const restoreStart = performance.now();
     const restoreIdsInOrder = settings.filter((item) => changed.has(item.id)).map((item) => item.id).reverse();
-    try {
-      if (restoreIdsInOrder.length) await restoreIds(restoreIdsInOrder, 'final-restore', timing.restore = { settingIds: restoreIdsInOrder });
-    } catch (error) {
-      timing.restore ||= { settingIds: restoreIdsInOrder };
-      timing.restore.error = error.message;
-      for (const setting of settings) {
-        const existing = results.find((item) => item.id === setting.id);
-        if (existing) { existing.status = 'fail'; existing.restoreError = error.message; }
+    if (finalState === 'restore') {
+      try {
+        if (restoreIdsInOrder.length) await restoreIds(restoreIdsInOrder, 'final-restore', timing.restore = { settingIds: restoreIdsInOrder });
+      } catch (error) {
+        timing.restore ||= { settingIds: restoreIdsInOrder };
+        timing.restore.error = error.message;
+        for (const setting of settings) {
+          const existing = results.find((item) => item.id === setting.id);
+          if (existing) { existing.status = 'fail'; existing.restoreError = error.message; }
+        }
+      }
+      if (timing.restore) timing.restore.totalMs = performance.now() - restoreStart;
+    } else {
+      const retained = selectRetainedFailures(results, settings, metadata);
+      timing.retainedFailures = { selectedIds: retained.selected.map((item) => item.id), suppressed: retained.suppressed };
+      try {
+        for (const result of retained.selected) {
+          const setting = settings.find((item) => item.id === result.id);
+          await adapter.apply(setting, { phase: 'retain-failure' });
+          changed.add(setting.id);
+        }
+        if (retained.selected.length) {
+          timing.retainedFailures.saveMs = 0;
+          await save('retain-failing-settings', timing.retainedFailures);
+        }
+      } catch (error) {
+        timing.retainedFailures.error = error.message;
+        for (const setting of settings) {
+          const existing = results.find((item) => item.id === setting.id);
+          if (existing?.status === 'fail') existing.retentionError = error.message;
+        }
       }
     }
-    if (timing.restore) timing.restore.totalMs = performance.now() - restoreStart;
-    if (adapter.checkBaseline) {
+    if (finalState === 'restore' && adapter.checkBaseline) {
       const checkStart = performance.now();
       try { timing.baselineCheck = await adapter.checkBaseline(); }
       catch (error) { timing.baselineCheck = { status: 'fail', error: error.message }; }
@@ -180,6 +229,12 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter }
   }
   timing.finishedAt = new Date().toISOString();
   timing.durationMs = performance.now() - clockStart;
+  const detailedResults = results.map((result) => {
+    const setting = settings.find((item) => item.id === result.id);
+    return { ...result, setting: setting?.label || setting?.key || result.id, value: setting?.value,
+      expected: result.batchResult?.expected ?? result.rerunAloneResult?.expected ?? setting?.expected,
+      actual: result.batchResult?.actual ?? result.rerunAloneResult?.actual };
+  });
   return { batches: plan.map(({ settings: items, restoreBefore }) => ({ settingIds: items.map((item) => item.id), restoreBefore })),
-    results, timing };
+    results: detailedResults, timing };
 }

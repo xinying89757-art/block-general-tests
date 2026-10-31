@@ -1,6 +1,6 @@
-# 区块设置项复用手册 v1.15
+# 区块设置项复用手册 v1.16
 
-版本：v1.15（2026-10-31）
+版本：v1.16（2026-10-31）
 范围：已在两个区块上验证：40838（2026-10-23，20 pass / 0 fail；2026-10-26 产品对比前台加验后 21 pass / 0 fail）与 47748（2026-10-26，配置后 16 pass / 0 fail，配色与宽度加验后 20 pass / 0 fail，分类 oracle 两处加验后 22 pass / 0 fail；2026-10-27 样式检查加验后 31 pass / 5 fail，5 个 fail 均为用户已确认的样式偏差；2026-10-28 三层验证分段实跑后 48 pass / 7 fail，7 个 fail 全是已知问题，无新增），并对 40838 做了回归（20 pass / 0 fail）。v1.6 新增：分享给其他人用的包（任何智能体都能跑）与页面选择（新建自定义页面 / 系统页名称）。v1.7 新增：基线捕获与应用（画像 `baseline`，区块加到新页后自动按基线配好再跑）。v1.11 新增：按能力分段跑（`CAPABILITY_FILTER`）与多段报告合并（`scripts/merge-reports.mjs`），长套件被运行环境重启打断时可分段跑完再合并。v1.12 新增：自定义筛选夹具准备流程（探测前置、每种类型一个字段的交并集真值表、收尾只恢复区块）。
 目的：为区块各个设置项形成可复用的流程和脚本，不是以测出某个区块的缺陷为目标。40838 是首个样本，47748 是第二个验证样本；顺带发现的问题只记录，不在本手册里深挖。
 
@@ -78,6 +78,25 @@
 - `radioGroupPersist({ session, page, name, labels })`：任意个选项的 radio 组闭环（例如 47748 列表数据来源的 4 个选项）。组不存在返回 `na`；探查失败、选项不全、当前选中不唯一或有选项 disabled 时返回 `skip`。
 - `poll(read, accepts)`：10 秒轮询读值。读值超时或断言读不到值时算“没匹配上”，不直接抛错——前台本来就没有筛选组的区块（47748），基线采集应记 record，而不是在最后一毫秒抛超时。
 - `previewSelector(blockId)`：预览根节点，`.siteblocks-setting-wrap[data-appid]`，不要用 LA 类名。
+
+## 5.1 Fresh-block live-scene flow (opt-in)
+
+The separate fresh-block entry tests a newly inserted default instance and leaves it on the page. It does not read, capture, apply, or restore a site baseline. Existing baseline-based `npm run test:block` remains unchanged.
+
+Page selection is mandatory. Configure one of:
+
+```sh
+node scripts/fresh-block.mjs --page-kind custom --page-name "<configured page name>" --settings-adapter "./path/to/adapter.mjs"
+node scripts/fresh-block.mjs --page-kind system --page-id "<editor page id>" --page-url "/<page path>" --settings-adapter "./path/to/adapter.mjs"
+```
+
+Equivalent environment keys are `FRESH_PAGE_KIND`, `FRESH_PAGE_NAME` (custom), `FRESH_PAGE_ID` and `FRESH_PAGE_URL` (system), and `FRESH_SETTINGS_ADAPTER`. There is no default page; incomplete selection refuses to start. The adapter module exports `createFreshSettingsAdapter({ config, session, page, siteHost, blockId })` and returns `settings`, optional `metadata`, a `batchAdapter` (`apply/save/check`, and optional transient `capture`), `readDefaults(instance)`, and `readCurrentValues(instance)`. It does not need a `restore` method in fresh-block mode. Metadata uses the same generic setting-key relations as `src/batch-save.mjs` (`dependsOn`, `interferesWith`, `requiresBaseline`). In no-baseline mode, a planned batch that requires baseline restoration is refused before opening the page rather than silently checking a dependent value in a changed state.
+
+The workflow marker is the persisted wrapper attribute `data-autotest-marker="autotest-block:<encoded-host>:<encoded-block-id>"`. The runner scopes the attribute to a newly added block's unique `settingId`, saves, reloads the explicit page, and reads it back before running settings. Only a unique exact marker match can be deleted on the next run. Zero matches means add; multiple or ambiguous matches stop without deleting. Unmarked instances are never deletion candidates. If marker persistence cannot be read back, the workflow tries to remove only the just-created instance by its captured unique `settingId` and stops before settings.
+
+First-run default control values are stored outside version control at `.local/fresh-defaults/<encoded-host>/<encoded-block-id>.json`; subsequent differences are informational report entries, not failures. Batch settings are saved by declared non-interfering groups. Failed settings are rerun alone; conflicting confirmed failures retain only the first by check order, while the report lists the suppressed setting/value/expected/actual/screenshot. All-pass runs leave the final batch values. The page is published after checks, and the JSON report includes editor/front links, marked instance identity/position, current values, changed-default notes, per-check outcomes, and failure screenshot paths. The marker block remains for the next run.
+
+This flow depends on an explicitly supplied settings adapter because block setting controls are capability-specific. The adapter must preserve the existing assertion values and evidence fields; no adapter is inferred from page content or from another block's example.
 
 特殊控件不走通用 `persistControl`：背景颜色是 Spectrum 取色器，先试 `jQuery(input).spectrum('set', ...)` 加 `trigger('change')`，失败再降级到取色面板点选。两种方式都失败且尚未保存时，记 `skip`，不记 fail。
 

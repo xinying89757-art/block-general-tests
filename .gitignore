@@ -17,3 +17,4 @@ drafts/
 
 fixtures-state/
 .run-state/
+.local/
