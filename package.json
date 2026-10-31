@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --test \"tests/*.test.mjs\"",
+    "test": "node scripts/run-tests.mjs",
     "test:block": "node src/run.mjs",
     "check:syntax": "node scripts/check-syntax.mjs",
     "check:imports": "node scripts/check-relative-imports.mjs",

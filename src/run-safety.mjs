@@ -31,7 +31,6 @@ export async function withTimeout(operation, timeoutMs, label = '操作', { onTi
   work.catch(() => {});
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new RunTimeoutError(`${label}超过 ${timeoutMs}ms`)), timeoutMs);
-    timer.unref?.();
   });
   try {
     return await Promise.race([work, timeout]);
@@ -40,13 +39,12 @@ export async function withTimeout(operation, timeoutMs, label = '操作', { onTi
     let abortTimer;
     await Promise.race([
       Promise.resolve().then(() => onTimeout?.(error)).catch(() => {}),
-      new Promise((resolve) => { abortTimer = setTimeout(resolve, 10_000); abortTimer.unref?.(); }),
+      new Promise((resolve) => { abortTimer = setTimeout(resolve, 10_000); }),
     ]);
     clearTimeout(abortTimer);
     let settleTimer;
     await Promise.race([work.catch(() => {}), new Promise((resolve) => {
       settleTimer = setTimeout(resolve, settleMs);
-      settleTimer.unref?.();
     })]);
     clearTimeout(settleTimer);
     throw error;
