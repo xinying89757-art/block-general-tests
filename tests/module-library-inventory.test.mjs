@@ -43,3 +43,13 @@ test('all configured modes are searched only for the target and absent modes cap
     ['online', '47498', false, 'online-47498.png'],
   ]);
 });
+
+test('unavailable mode does not capture a full-library screenshot before a target query', async () => {
+  let screenshots = 0;
+  const result = await probeTargetAcrossModes({ targetBlockId: '47498', modes: ['review'],
+    probeMode: async () => ({ searched: false, found: false, status: 'error' }),
+    captureMissing: async () => { screenshots += 1; return 'unexpected.png'; } });
+  assert.equal(result[0].searched, false);
+  assert.equal(result[0].screenshot, null);
+  assert.equal(screenshots, 0);
+});

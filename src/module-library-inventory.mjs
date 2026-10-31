@@ -25,7 +25,7 @@ export async function probeTargetAcrossModes({ targetBlockId, modes = ['review',
     try { result = await probeMode({ mode, targetBlockId: target }); }
     catch (error) { result = { found: false, searched: error?.searched !== false, status: 'error', error: String(error?.message || error) }; }
     const found = Boolean(result?.found);
-    const screenshot = found ? null : await captureMissing?.(String(mode), target);
+    const screenshot = found || result?.searched === false ? null : await captureMissing?.(String(mode), target);
     results.push({ mode: String(mode), query: target, found, searched: result?.searched !== false,
       status: result?.status || 'checked', error: result?.error || null, screenshot: screenshot || null,
       waitedForLazyResults: Boolean(result?.waitedForLazyResults), scrolledToEnd: Boolean(result?.scrolledToEnd) });

@@ -99,7 +99,17 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     },
     async verifyModuleAvailability(blockId) {
       const addButton = frame.locator('#backstage-bodyArea .backstage-creatmodules-wrapper .backstage-creatmodules-addbtn');
-      if (await addButton.count() !== 1) throw new Error('Cannot uniquely open module library for target-only preflight.');
+      const openerCount = await addButton.count();
+      if (openerCount !== 1) {
+        const error = new Error(`Module-library opener matched ${openerCount} controls; stopped before opening any mode.`);
+        error.environment = true;
+        error.code = 'ENV_MODULE_LIBRARY_OPENER_UNAVAILABLE';
+        error.libraryLookup = ['review', 'develop', 'online'].map((mode) => ({ mode,
+          query: String(blockId), found: false, searched: false, status: 'not-attempted', screenshot: null,
+          waitedForLazyResults: false, scrolledToEnd: false,
+          error: 'Stopped before opening the module library; this mode was not entered.' }));
+        throw error;
+      }
       await addButton.first().click({ timeout: config.actionTimeoutMs });
       const panel = page.locator('.backstage-addmodules-chooseWrapper');
       await panel.waitFor({ state: 'visible', timeout: config.actionTimeoutMs });
@@ -112,7 +122,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
         await panel.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
       }
       if (lookup.some((mode) => mode.found)) return lookup;
-      const completeSearch = lookup.every((mode) => mode.searched);
+      const completeSearch = lookup.every((mode) => mode.searched && mode.status === 'checked' && !mode.error);
       const error = new Error(completeSearch
         ? `区块 ${blockId} 在模块列表中未找到；已按目标编号查询全部可用模式。`
         : `无法完成区块 ${blockId} 的模块库编号搜索。`);
