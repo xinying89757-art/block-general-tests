@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { runFrontLayer } from '../src/capabilities/block-style-spec.mjs';
+import { buildFrontStyleExecutionErrors, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 import { previewSelector } from '../src/capabilities/shared.mjs';
 
 const args = {};
@@ -34,33 +35,44 @@ fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.mkdirSync('screenshots', { recursive: true });
 const config = { blockId, actionTimeoutMs: 30000, navigationTimeoutMs: 60000 };
 
-const browser = await chromium.launch({ headless: true, ...(args.channel ? { channel: args.channel } : {}) });
-const report = { flow: 'front-style-only', blockId, url: args.url, settingId: args['setting-id'] || null,
+const report = { flow: 'front-style-only', blockId, url: sanitizeFrontStyleUrl(args.url), settingId: args['setting-id'] || null,
   startedAt: new Date().toISOString(), host: process.platform, checks: [], error: null };
 let exitCode = 0;
+let stage = 'launch-browser';
+let browser;
 try {
+  browser = await chromium.launch({ headless: true, ...(args.channel ? { channel: args.channel } : {}) });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: args['strict-tls'] !== '1' });
   const page = await context.newPage();
+  stage = 'navigate';
   await page.goto(args.url, { waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });
   const root = page.locator(previewSelector(blockId));
+  stage = 'locate-block';
   await root.first().waitFor({ state: 'attached', timeout: config.actionTimeoutMs });
   report.blockInstances = await root.count();
+  stage = 'read-style';
   report.checks = await runFrontLayer({ frame: page, previewPage: page, config, capability });
   const shots = fs.readdirSync('screenshots').filter((f) => f.startsWith(`style-${blockId}-`));
   report.screenshots = shots.map((f) => `screenshots/${f}`);
 } catch (error) {
-  report.error = error.message; exitCode = 1;
+  const safe = sanitizeFrontStyleError(error);
+  report.error = safe.message; exitCode = 1;
+  report.checks = buildFrontStyleExecutionErrors({ capability, blockId, stage, error: safe,
+    viewport: capability.styleSpec?.viewports });
   try {
-    const pg = browser.contexts()[0]?.pages()[0];
+    const pg = browser?.contexts()[0]?.pages()[0];
     if (pg) {
-      report.finalUrl = pg.url(); report.title = await pg.title();
-      report.appIdsOnPage = await pg.evaluate(() => [...new Set([...document.querySelectorAll('[data-appid]')].map((e) => e.getAttribute('data-appid')))]);
+      report.finalUrl = sanitizeFrontStyleUrl(pg.url());
+      if (!Number.isInteger(report.blockInstances)) report.blockInstances = await pg.locator(previewSelector(blockId)).count().catch(() => null);
       const f = `screenshots/front-error-${blockId}-${stamp}.png`;
       await pg.screenshot({ path: f, fullPage: true }); report.errorScreenshot = f;
     }
   } catch {}
+  if (report.errorScreenshot) {
+    for (const check of report.checks) if (check.reason) check.reason.screenshot = report.errorScreenshot;
+  }
 } finally {
-  await browser.close();
+  if (browser) await browser.close().catch(() => {});
 }
 const count = (s) => report.checks.filter((c) => c.status === s).length;
 report.summary = { pass: count('pass'), fail: count('fail'), na: count('na') + count('skip'), other: report.checks.length - count('pass') - count('fail') - count('na') - count('skip') };

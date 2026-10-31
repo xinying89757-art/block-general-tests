@@ -95,6 +95,10 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 
 脚本会追加 `externalFrontVerification`。只有 HTTP 2xx 且 `blockFound` 与 `settingIdFound` 都为 `true` 时，才将 `published` 和 `publishedConfirmed` 设为 `true`，来源记为 `external-front-check`。外部检查器应确认目标报告中的区块号和本次新 `settingId`；脚本会移除 URL 中的凭证、非缓存查询参数和片段，避免把令牌写进报告。
 
+### 前台样式失败原因
+
+`scripts/front-style-only.mjs` 的 JSON 报告在每条非 `pass` 检查上附 `reason`：`stage` 是 `locate`、`read` 或 `compare`；`locator` 和 `matchedElementCount` 说明使用的区块/样式定位方式及命中数；`property`、`expected`、`actual` 用规范化样式值描述比较项；`viewport` 记录视口。`skip`/`na`/`deferred` 还带 `applicability`，异常会带已脱敏的 `error.class` / `error.message`。有失败截图时，`reason.screenshot` 指向对应视口截图。原因里不保存页面正文、Cookie 或带令牌的 URL。外层浏览器/导航错误会作为 `status: "error"` 的逐项 harness 记录，不改写断言结果。
+
 ## 安全和恢复的底线
 
 - `.env` 里有你的账号密码，永远不提交、不分享、不打印。仓库里只有 `.env.example`。

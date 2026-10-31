@@ -100,7 +100,7 @@ async function readItem(frame, rootSel, item) {
   return frame.evaluate(({ rootSel, item }) => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const root = document.querySelector(rootSel);
-    if (!root) return { error: `预览里没有找到区块根节点 ${rootSel}` };
+    if (!root) return { error: `预览里没有找到区块根节点 ${rootSel}`, matchedCount: 0 };
     const cs = (el) => getComputedStyle(el);
     const num = (el, prop) => { const n = parseFloat(cs(el)[prop]); return Number.isFinite(n) ? n : null; };
     const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && cs(el).visibility !== 'hidden'; };
@@ -138,17 +138,23 @@ async function readItem(frame, rootSel, item) {
     };
     switch (item.kind) {
       case 'text': {
-        const el = [...root.querySelectorAll(item.selector)].find((x) => norm(x.innerText) === item.text);
+        const matches = [...root.querySelectorAll(item.selector)].filter((x) => norm(x.innerText) === item.text);
+        out.matchedCount = matches.length;
+        const el = matches[0];
         if (el) push(el, item.text);
         break;
       }
       case 'first': {
-        const el = root.querySelector(item.selector);
+        const matches = [...root.querySelectorAll(item.selector)];
+        out.matchedCount = matches.length;
+        const el = matches[0];
         if (el) push(el, item.selector);
         break;
       }
       case 'sample': {
-        const els = [...root.querySelectorAll(item.selector)].filter(vis).slice(0, item.sample ?? 2);
+        const found = [...root.querySelectorAll(item.selector)].filter(vis);
+        out.matchedCount = found.length;
+        const els = found.slice(0, item.sample ?? 2);
         els.forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
         break;
       }
@@ -158,6 +164,7 @@ async function readItem(frame, rootSel, item) {
           const li = a.closest('li');
           return li && li.parentElement?.closest('li') == null && li.querySelector('ul');
         });
+        out.matchedCount = parents.length;
         parents.slice(0, 2).forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
         break;
       }
@@ -167,6 +174,7 @@ async function readItem(frame, rootSel, item) {
           const li = a.closest('li');
           return li && !li.querySelector('ul');
         });
+        out.matchedCount = leaves.length;
         leaves.slice(0, 2).forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
         break;
       }
@@ -191,7 +199,9 @@ async function breakage(frame, rootSel) {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const root = document.querySelector(rootSel);
     if (!root) return { error: 'no root' };
-    const res = { viewportWidth: window.innerWidth, docScrollWidth: document.documentElement.scrollWidth, horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1 };
+    const res = { viewportWidth: window.innerWidth, docScrollWidth: document.documentElement.scrollWidth,
+      rootMatchedCount: document.querySelectorAll(rootSel).length,
+      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1 };
     const wrapBox = root.getBoundingClientRect();
     const sticking = [];
     for (const el of root.querySelectorAll('*')) {
@@ -271,7 +281,7 @@ function breakageFindings(b) {
   return f;
 }
 
-export async function runFrontLayer({ frame, previewPage, config, capability }) {
+async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
   const spec = capability?.styleSpec;
   styleExpectations = {};
   const propNames = { fontSize: '字号', fontWeight: '字重', lineHeight: '行高', color: '文字颜色',
@@ -338,7 +348,7 @@ export async function runFrontLayer({ frame, previewPage, config, capability }) 
       }
       if (item.kind === 'presence') {
         const read = await readItem(frame, rootSel, item);
-        if (read.error) { checks.push(result(checkId, 'skip', read.error)); continue; }
+        if (read.error) { checks.push(result(checkId, 'skip', read.error, { matchedCount: read.matchedCount ?? 0 })); continue; }
         checks.push(result(checkId, read.count > 0 ? 'pass' : 'fail',
           read.count > 0 ? `${read.cardCount} 张产品卡中找到 ${read.count} 个“${item.text}”链接。`
             : `${read.cardCount} 张产品卡里一张都没找到“${item.text}”链接。`,
@@ -346,10 +356,12 @@ export async function runFrontLayer({ frame, previewPage, config, capability }) 
         continue;
       }
       const read = await readItem(frame, rootSel, item);
-      if (read.error) { checks.push(result(checkId, 'skip', read.error)); continue; }
-      if (!read.elements.length) { checks.push(result(checkId, 'skip', `预览里没有找到 ${item.selector || item.kind} 对应的元素。`)); continue; }
+      if (read.error) { checks.push(result(checkId, 'skip', read.error, { matchedCount: read.matchedCount ?? 0 })); continue; }
+      if (!read.elements.length) { checks.push(result(checkId, 'skip', `预览里没有找到 ${item.selector || item.kind} 对应的元素。`,
+        { matchedCount: read.matchedCount ?? 0 })); continue; }
       const diffs = [];
-      const evidence = { elements: read.elements.map((el) => ({ ...el, color: el.color ? normColor(el.color) : el.color, backgroundColor: el.backgroundColor ? normColor(el.backgroundColor) : el.backgroundColor })) };
+      const evidence = { matchedCount: read.matchedCount ?? read.elements.length,
+        elements: read.elements.map((el) => ({ ...el, color: el.color ? normColor(el.color) : el.color, backgroundColor: el.backgroundColor ? normColor(el.backgroundColor) : el.backgroundColor })) };
       for (const el of read.elements) {
         const actual = { ...el };
         if (actual.color) actual.color = normColor(actual.color);
@@ -373,16 +385,19 @@ export async function runFrontLayer({ frame, previewPage, config, capability }) 
       // Product-name line clamp: design annotation 居中 最多2行隐藏.
       if (item.id === 'product-name' && item.clamp) {
         const clampDiffs = [];
-        const clamps = await frame.evaluate((rootSel) => {
+        const clampRead = await frame.evaluate((rootSel) => {
           const root = document.querySelector(rootSel);
-          return [...root.querySelectorAll('.prodlist-pro-name')].filter((el) => el.getClientRects().length).slice(0, 2)
-            .map((el) => ({ text: (el.innerText || '').trim().slice(0, 20), clamp: getComputedStyle(el).webkitLineClamp, overflow: getComputedStyle(el).overflow, display: getComputedStyle(el).display }));
+          const matches = [...root.querySelectorAll('.prodlist-pro-name')].filter((el) => el.getClientRects().length);
+          return { matchedCount: matches.length, clamps: matches.slice(0, 2)
+            .map((el) => ({ text: (el.innerText || '').trim().slice(0, 20), clamp: getComputedStyle(el).webkitLineClamp, overflow: getComputedStyle(el).overflow, display: getComputedStyle(el).display })) };
         }, rootSel);
+        const clamps = clampRead.clamps;
         for (const c of clamps) {
           if (String(c.clamp) !== String(item.clamp)) clampDiffs.push(`「${c.text}」line-clamp: ${c.clamp}（设计 ${item.clamp} 行）`);
         }
         checks.push(result('bss-product-name-clamp', clampDiffs.length ? 'fail' : 'pass',
-          clampDiffs.length ? clampDiffs.join('；') : `产品名最多 ${item.clamp} 行，超出隐藏（设计稿文字说明：居中 最多2行隐藏）。`, { clamps }));
+          clampDiffs.length ? clampDiffs.join('；') : `产品名最多 ${item.clamp} 行，超出隐藏（设计稿文字说明：居中 最多2行隐藏）。`,
+          { matchedCount: clampRead.matchedCount, clamps }));
       }
     }
     const pcFailed = checks.some((c) => c.status === 'fail');
@@ -407,5 +422,113 @@ export async function runFrontLayer({ frame, previewPage, config, capability }) 
       try { await previewPage.setViewportSize({ width: viewports.pc, height: 900 }); } catch {}
     }
   }
-  return checks;
+  return checks.map((check) => {
+    if (check.status === 'pass') return check;
+    const viewport = check.id.endsWith('-pad') ? 'pad' : check.id.endsWith('-mobile') ? 'mobile' : 'pc';
+    if (!shots.includes(viewport)) return check;
+    return { ...check, screenshot: `screenshots/style-${config.blockId}-${viewport}.png` };
+  });
+}
+
+const styleViewport = (checkId, spec) => {
+  const label = /breakage-pad$/.test(checkId) ? 'pad'
+    : /breakage-mobile$/.test(checkId) ? 'mobile' : 'pc';
+  const width = spec?.viewports?.[label] ?? ({ pc: 1440, pad: 768, mobile: 375 }[label]);
+  return { label, width: typeof width === 'number' ? width : null,
+    height: label === 'pc' ? 900 : label === 'pad' ? 1024 : 667 };
+};
+
+const normalizedStyle = (key, value) => ['color', 'backgroundColor', 'borderColor'].includes(key) && value
+  ? normColor(String(value)) : value ?? null;
+
+function styleItemForCheck(checkId, items) {
+  if (checkId === 'bss-product-name-clamp') return items.find((item) => item.id === 'product-name' && item.clamp);
+  return items.find((item) => `bss-${item.id}` === checkId);
+}
+
+function diagnosticValues(check, item) {
+  const evidence = check.evidence || {};
+  if (check.id.startsWith('bss-breakage-')) {
+    return {
+      expected: { horizontalOverflow: false, stickingOut: 0, overlaps: 0, textClipped: 0, imgDistorted: 0 },
+      actual: { horizontalOverflow: Boolean(evidence.horizontalOverflow),
+        stickingOut: evidence.stickingOut?.length ?? null, overlaps: evidence.overlaps?.length ?? null,
+        textClipped: evidence.textClipped?.length ?? null, imgDistorted: evidence.imgDistorted?.length ?? null,
+        documentWidth: evidence.docScrollWidth ?? null, viewportWidth: evidence.viewportWidth ?? null },
+    };
+  }
+  if (item?.kind === 'presence') return {
+    expected: { minimumMatches: 1 }, actual: { found: evidence.found ?? null, cards: evidence.cards ?? null },
+  };
+  if (check.id === 'bss-product-name-clamp') return {
+    expected: { lineClamp: item?.clamp ?? null },
+    actual: (evidence.clamps || []).map(({ clamp, overflow, display }) => ({ clamp, overflow, display })),
+  };
+  const props = Object.keys(item?.props || {});
+  const expected = Object.fromEntries(props.map((key) => [key, normalizedStyle(key, item.props[key])]));
+  if (item?.geometry?.centered) expected.centered = true;
+  const actual = (evidence.elements || []).map((element) => ({
+    ...Object.fromEntries(props.map((key) => [key, normalizedStyle(key, element[key])])),
+    ...(item?.geometry?.centered ? { centered: element.centered || null } : {}),
+  }));
+  return { expected, actual };
+}
+
+/** Add structured, value-safe diagnostics without changing a check verdict. */
+export function addStyleFailureReasons(checks, { capability, blockId, viewports } = {}) {
+  const spec = capability?.styleSpec || {};
+  const items = spec.items || [];
+  return checks.map((check) => {
+    if (check.status === 'pass') return check;
+    const item = styleItemForCheck(check.id, items);
+    const isBreakage = check.id.startsWith('bss-breakage-');
+    const selector = isBreakage ? 'block subtree layout invariants'
+      : item?.selector || item?.kind || 'styleSpec item';
+    const locator = `${previewSelector(String(blockId ?? ''))} → ${selector}`;
+    const evidence = check.evidence || {};
+    const matchedElementCount = Number.isInteger(evidence.matchedCount) ? evidence.matchedCount
+      : Number.isInteger(evidence.found) ? evidence.found
+        : Number.isInteger(evidence.rootMatchedCount) ? evidence.rootMatchedCount
+          : Array.isArray(evidence.elements) ? evidence.elements.length
+            : Array.isArray(evidence.clamps) ? evidence.clamps.length : null;
+    const stage = check.errorDiagnostic?.stage || (check.status === 'fail' ? 'compare'
+      : matchedElementCount === 0 ? 'locate' : 'read');
+    const { expected, actual } = diagnosticValues(check, item);
+    const configuredViewport = styleViewport(check.id, { ...spec, ...(viewports ? { viewports } : {}) });
+    if (Number.isInteger(evidence.viewportWidth)) configuredViewport.width = evidence.viewportWidth;
+    return { ...check, reason: {
+      stage, locator, matchedElementCount,
+      property: isBreakage ? ['horizontalOverflow', 'stickingOut', 'overlaps', 'textClipped', 'imgDistorted']
+        : item?.kind === 'presence' ? ['presence'] : item?.clamp ? ['lineClamp']
+          : [...Object.keys(item?.props || {}), ...(item?.geometry?.centered ? ['centered'] : [])],
+      expected, actual, viewport: configuredViewport,
+      ...(check.screenshot ? { screenshot: check.screenshot } : {}),
+      ...(check.errorDiagnostic ? { error: {
+        class: String(check.errorDiagnostic.class || 'Error'),
+        message: String(check.errorDiagnostic.message || '').slice(0, 240),
+      } } : {}),
+      ...(check.status === 'na' || check.status === 'skip' || check.status === 'deferred'
+        ? { applicability: String(check.detail || check.status).slice(0, 240) } : {}),
+    } };
+  });
+}
+
+export function styleCheckDescriptors(capability) {
+  const items = capability?.styleSpec?.items || [];
+  if (!items.length) return Object.keys(NAMES).map((id) => ({ id, name: NAMES[id], itemId: null }));
+  const descriptors = items.map((item) => ({ id: `bss-${item.id}`, name: NAMES[`bss-${item.id}`] || item.id,
+    itemId: item.id }));
+  if (items.some((item) => item.id === 'product-name' && item.clamp)) {
+    descriptors.push({ id: 'bss-product-name-clamp', name: NAMES['bss-product-name-clamp'], itemId: 'product-name' });
+  }
+  for (const vp of ['pc', 'pad', 'mobile']) descriptors.push({
+    id: `bss-breakage-${vp}`, name: NAMES[`bss-breakage-${vp}`], itemId: null,
+  });
+  return descriptors;
+}
+
+export async function runFrontLayer(args) {
+  const checks = await runFrontLayerRaw(args);
+  return addStyleFailureReasons(checks, { capability: args.capability, blockId: args.config?.blockId,
+    viewports: args.capability?.styleSpec?.viewports });
 }
