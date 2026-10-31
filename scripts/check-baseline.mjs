@@ -9,9 +9,12 @@ import { openEditor, ensureTargetPage, resolveTargetPage } from '../src/editor.m
 import { readCurrentState, diffAgainstBaseline } from '../src/baseline-guard.mjs';
 
 const config = loadConfig();
+const requestedBlockId = process.argv[2]?.trim();
+if (requestedBlockId) config.blockId = requestedBlockId;
 const root = fileURLToPath(new URL('../', import.meta.url));
 const profile = JSON.parse(await readFile(path.resolve(root, config.profile || `profiles/${config.blockId}.json`), 'utf8'));
 config.resolvedTarget = resolveTargetPage(config, profile);
+console.log(`[baseline] BLOCK_ID=${config.blockId}`);
 const session = await launchSession(config);
 try {
   session.page = (await openEditor(session.page, config)).page;
