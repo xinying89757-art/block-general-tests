@@ -1,8 +1,8 @@
 import { effectCheck, unavailable, readEffectRoot } from './effect-checks.mjs';
 import { baselineRestoreTarget, clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
-import { retryTransient, uiWaitConfig, waitForControlsReady, waitForEditorLoadingToClear } from '../ui-waits.mjs';
+import { retryTransient, uiWaitConfig, waitForEditorLoadingToClear } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
-import { dismissReadOnlyPopover, reloadDiscardAndVerify } from '../read-only-dismiss.mjs';
+import { dismissReadOnlyPopover, readStableSnapshot, reloadDiscardAndVerify } from '../read-only-dismiss.mjs';
 import { closePageMenuIfOpen, reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
@@ -196,10 +196,11 @@ async function readButtonPopoverValue({ page, canvas, config, session = popoverS
   await waitForEditorLoadingToClear(page);
   await waitForEditorLoadingToClear(canvas);
   await session.open();
-  await waitForControlsReady(session.root);
-  const controls = await buttonControls(session);
-  const link = await readLinkType(session, controls);
-  return { root: session.root, value: {
+  const value = await readStableSnapshot(async () => {
+    await waitForEditorLoadingToClear(canvas);
+    const controls = await buttonControls(session);
+    const link = await readLinkType(session, controls);
+    return {
       text: controls.text.value,
       url: controls.url.value,
       linkType: link.selected,
@@ -209,7 +210,9 @@ async function readButtonPopoverValue({ page, canvas, config, session = popoverS
         { label: '链接网址', type: 'text', to: controls.url.value },
         { label: '新窗口打开', type: 'checkbox', to: controls.target.checked },
       ],
-  } };
+    };
+  }, { timeoutMs: uiWaitConfig().timeout, intervalMs: 100, stableReads: 2 });
+  return { root: session.root, value };
 }
 
 async function reloadEditorDiscardingButtonUi({ page, canvas, config }) {

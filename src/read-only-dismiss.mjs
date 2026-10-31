@@ -16,18 +16,38 @@ export async function readStableSnapshot(read, { timeoutMs = 10_000, intervalMs 
     if (now() >= deadline) break;
     await wait(Math.min(intervalMs, Math.max(1, deadline - now())));
   } while (now() <= deadline);
-  const error = new Error(`只读回读值在 ${timeoutMs}ms 内未稳定：${JSON.stringify(last)}`);
+  const error = new Error(`只读回读值在 ${timeoutMs}ms 内未稳定。`);
   error.name = 'TimeoutError';
   error.code = 'READBACK_UNSTABLE';
   error.lastValue = last;
   throw error;
 }
 
+function changedPaths(expected, actual, prefix = '') {
+  if (Object.is(expected, actual)) return [];
+  if (Array.isArray(expected) || Array.isArray(actual)) {
+    if (!Array.isArray(expected) || !Array.isArray(actual)) return [prefix || 'value'];
+    const paths = [];
+    for (let index = 0; index < Math.max(expected.length, actual.length); index++) {
+      paths.push(...changedPaths(expected[index], actual[index], `${prefix}[${index}]`));
+    }
+    return paths;
+  }
+  if (expected && actual && typeof expected === 'object' && typeof actual === 'object') {
+    const paths = [];
+    for (const key of new Set([...Object.keys(expected), ...Object.keys(actual)])) {
+      paths.push(...changedPaths(expected[key], actual[key], prefix ? `${prefix}.${key}` : key));
+    }
+    return paths;
+  }
+  return [prefix || 'value'];
+}
+
 export async function reloadDiscardAndVerify({ reload, readBack, expected, finishReload = reload, stableReadOptions }) {
   await reload();
   const actual = await readStableSnapshot(readBack, stableReadOptions);
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(`只读按钮值在重载后发生变化；停止检查，未保存。expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}`);
+    throw new Error(`只读按钮值在重载后发生变化；停止检查，未保存。变化字段=${changedPaths(expected, actual).join(', ') || 'value'}`);
   }
   await finishReload();
   return actual;

@@ -61,7 +61,7 @@ test('read-only popover reload mismatch fails without any save action', async ()
     readBack: async () => [{ label: '按钮文本', type: 'text', to: 'changed' }],
     expected: [{ label: '按钮文本', type: 'text', to: 'original' }],
     finishReload: async () => { events.push('final-reload-discard'); },
-  }), /重载后发生变化.*未保存.*expected=.*original.*actual=.*changed/);
+  }), /重载后发生变化.*未保存.*变化字段=.*to/);
   assert.deepEqual(events, ['reload-discard']);
   assert.equal(events.some((event) => /save/i.test(event)), false);
 });
