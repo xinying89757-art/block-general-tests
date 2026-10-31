@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../../src/config.mjs';
 import { launchSession } from '../../src/browser.mjs';
-import { openEditor, listFreshEditorPages, SITE_LIST_URL, discoverPublicBaseUrl } from '../../src/editor.mjs';
+import { openEditor, listFreshEditorPages, SITE_LIST_URL } from '../../src/editor.mjs';
 import { normalizeSiteHost } from '../../src/site-baseline.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -22,14 +22,26 @@ try {
   const cards = session.page.locator('.mySiteBox');
   await cards.first().waitFor({ state: 'attached', timeout: 30_000 });
   const matchesByHost = [];
+  const observedHosts = new Set();
   for (let index = 0; index < await cards.count(); index += 1) {
-    const base = await discoverPublicBaseUrl(cards.nth(index));
-    if (!base) continue;
-    const host = new URL(base).host.toLowerCase();
-    if (host.split('.')[0] === siteSlug) matchesByHost.push(host);
+    const urls = await cards.nth(index).locator('a[href], [data-url], [data-href]').evaluateAll((nodes) =>
+      nodes.flatMap((node) => ['href', 'data-url', 'data-href'].map((name) => node.getAttribute(name)).filter(Boolean)));
+    const hosts = new Set();
+    for (const value of urls) {
+      try {
+        const url = new URL(value, 'https://www.leadong.com');
+        if (!/^https?:$/i.test(url.protocol) || ['www.leadong.com', 'website.leadong.com', 'jianzhan.leadong.com'].includes(url.hostname.toLowerCase())
+          || /\/phoenix\//i.test(url.pathname)) continue;
+        hosts.add(url.host.toLowerCase());
+      } catch { /* Ignore non-URL link attributes. */ }
+    }
+    for (const host of hosts) {
+      observedHosts.add(host);
+      if (host.split('.')[0] === siteSlug) matchesByHost.push(host);
+    }
   }
   const uniqueHosts = [...new Set(matchesByHost)];
-  if (uniqueHosts.length !== 1) throw new Error(`SITE_SLUG matched ${uniqueHosts.length} unique site hosts; refusing to enter a site.`);
+  if (uniqueHosts.length !== 1) throw new Error(`SITE_SLUG matched ${uniqueHosts.length} unique site hosts; refusing to enter a site. Observed public host candidates: ${[...observedHosts].join(', ') || '(none)'}.`);
   config.siteDomain = uniqueHosts[0];
   const siteHost = normalizeSiteHost(config.siteDomain);
   session.page = (await openEditor(session.page, config)).page;
