@@ -66,6 +66,9 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
       if (!layers?.includes(layer)) continue;
     }
     let selectedMethod = method;
+    if (layer === 'settings' && args.config?.batchSave && typeof module?.runBatchSettingsLayer === 'function') {
+      selectedMethod = 'runBatchSettingsLayer';
+    }
     if (layer === 'settings' && args.config?.frontOnly) {
       if (typeof module?.runFrontEffectsLayer === 'function') selectedMethod = 'runFrontEffectsLayer';
       else if (['block-color-scheme', 'module-width'].includes(id)) selectedMethod = 'runSettingsLayer';
@@ -206,6 +209,7 @@ async function main() {
   // env TARGET_PAGE / TARGET_PAGE_KIND override it for one-off runs.
   config.resolvedTarget = resolveTargetPage(config, profile);
   const startedAt = new Date().toISOString();
+  const startedMonotonic = performance.now();
   const timestamp = startedAt.replace(/[:.]/g, '-');
   const safeBlockId = String(config.blockId).replace(/[^a-zA-Z0-9_-]/g, '_');
   const runId = `${safeBlockId}-${timestamp}`;
@@ -230,6 +234,7 @@ async function main() {
       accountConfigured: Boolean(config.account),
       storageStateConfigured: Boolean(config.storageState),
       proxyConfigured: Boolean(config.httpsProxy),
+      batchSave: config.batchSave,
     },
     added: null,
     baseline: null,
@@ -244,6 +249,7 @@ async function main() {
     artifactErrors: [],
     failure: null,
   };
+  if (config.batchSave) report.batchSave = { enabled: true, capabilities: [] };
   let session;
   let previewPage;
   let canvas;
@@ -318,6 +324,7 @@ async function main() {
     baseline = baselineDocument.steps;
     if (baselineDocument.fixtureRefs) profile.fixture = baselineDocument.fixtureRefs;
     if (profile) profile.baseline = baseline; // Runtime-only bridge; profiles remain site-independent.
+    config.verifyBatchBaseline = async () => guardBaseline({ page: session?.page, canvas, config, baseline });
     config.recoverEnvironment = async (reason, recoveryOptions = {}) => {
       const existingEvent = [...environmentEvents].reverse().find((event) => event.status === reason && !event.recoveryStartedAt);
       if (existingEvent) existingEvent.recoveryStartedAt = new Date().toISOString();
@@ -516,6 +523,20 @@ async function main() {
           expected: '全部字段勾选状态应恢复运行前快照、保存，并经新会话回读一致。' });
       }
     }
+    if (config.batchSaveUsed && typeof config.verifyBatchBaseline === 'function' && session?.page && !session.page.isClosed()) {
+      const started = performance.now();
+      try {
+        const check = await config.verifyBatchBaseline();
+        report.batchSave ||= { enabled: true, capabilities: [] };
+        report.batchSave.finalBaselineCheck = { status: check.residue ? 'restored-and-verified' : 'clean', ...check,
+          durationMs: performance.now() - started };
+      } catch (error) {
+        report.batchSave ||= { enabled: true, capabilities: [] };
+        report.batchSave.finalBaselineCheck = { status: 'fail', error: error.message,
+          durationMs: performance.now() - started };
+        report.failure ||= { stage: 'batch-save-final-baseline-check', message: error.message };
+      }
+    }
     pauseDetector.stop();
     watchdog.stop();
     // Preserve both views on success and best-effort failure evidence. If
@@ -551,6 +572,8 @@ async function main() {
     report.summary[status] = Math.max(report.summary[status], environmentEvents.filter((event) => event.status === status).length);
   }
   report.finishedAt = new Date().toISOString();
+  report.timing = { startedAt, finishedAt: report.finishedAt, durationMs: performance.now() - startedMonotonic,
+    saveMode: config.batchSave ? 'batch' : 'individual' };
   report.status = report.failure || report.summary.fail || report.summary['env-paused'] || report.summary['env-timeout'] || report.artifactErrors.length ? 'failed' : 'passed';
   const safeReport = redact(report, config);
   await writeFile(reportPath, `${JSON.stringify(safeReport, null, 2)}\n`, 'utf8');

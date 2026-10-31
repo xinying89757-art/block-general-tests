@@ -90,6 +90,7 @@ export function loadConfig() {
     // page (re-apply the profile baseline to a block already in place).
     applyBaseline: parseBoolean((firstDefined(process.env.APPLY_BASELINE) || '').trim() || 'false', 'APPLY_BASELINE'),
     deferFront: parseBoolean((firstDefined(process.env.DEFER_FRONT) || '').trim() || 'false', 'DEFER_FRONT'),
+    batchSave: parseBoolean((firstDefined(process.env.BATCH_SAVE) || '').trim() || 'false', 'BATCH_SAVE'),
     frontOnly: parseBoolean((firstDefined(process.env.FRONT_ONLY) || '').trim() || 'false', 'FRONT_ONLY'),
     reportDir: firstDefined(process.env.REPORT_DIR, 'reports').trim(),
     screenshotDir: firstDefined(process.env.SCREENSHOT_DIR, 'screenshots').trim(),
