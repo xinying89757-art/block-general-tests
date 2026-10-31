@@ -5,19 +5,33 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../../src/config.mjs';
 import { launchSession } from '../../src/browser.mjs';
-import { openEditor, listFreshEditorPages } from '../../src/editor.mjs';
+import { openEditor, listFreshEditorPages, SITE_LIST_URL, discoverPublicBaseUrl } from '../../src/editor.mjs';
 import { normalizeSiteHost } from '../../src/site-baseline.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const targetName = String(process.env.FRESH_PAGE_NAME || '').trim();
 const pageKind = String(process.env.FRESH_PAGE_KIND || 'system').trim().toLowerCase();
+const siteSlug = String(process.env.SITE_SLUG || '').trim().toLowerCase();
 if (!targetName) throw new Error('FRESH_PAGE_NAME must identify the page for this read-only discovery.');
 if (!['system', 'custom'].includes(pageKind)) throw new Error('FRESH_PAGE_KIND must be system or custom.');
+if (!siteSlug) throw new Error('SITE_SLUG is required to select one attached test site from the account site list.');
 const config = loadConfig();
-if (!config.siteDomain) throw new Error('SITE_DOMAIN is required.');
-const siteHost = normalizeSiteHost(config.siteDomain);
 const session = await launchSession(config);
 try {
+  await session.page.goto(SITE_LIST_URL, { waitUntil: 'domcontentloaded' });
+  const cards = session.page.locator('.mySiteBox');
+  await cards.first().waitFor({ state: 'attached', timeout: 30_000 });
+  const matchesByHost = [];
+  for (let index = 0; index < await cards.count(); index += 1) {
+    const base = await discoverPublicBaseUrl(cards.nth(index));
+    if (!base) continue;
+    const host = new URL(base).host.toLowerCase();
+    if (host.split('.')[0] === siteSlug) matchesByHost.push(host);
+  }
+  const uniqueHosts = [...new Set(matchesByHost)];
+  if (uniqueHosts.length !== 1) throw new Error(`SITE_SLUG matched ${uniqueHosts.length} unique site hosts; refusing to enter a site.`);
+  config.siteDomain = uniqueHosts[0];
+  const siteHost = normalizeSiteHost(config.siteDomain);
   session.page = (await openEditor(session.page, config)).page;
   const editorUrl = session.page.url();
   const items = await listFreshEditorPages(session.page, pageKind);
