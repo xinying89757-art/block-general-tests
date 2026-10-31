@@ -22,6 +22,20 @@ const outcomeResult = (id, outcome) => result(id, outcome.status, outcome.detail
 const fieldsOf = (controls) => controls.filter((item) => item.type === 'checkbox'
   && item.value && item.value !== 'on' && item.label !== '全选');
 
+export function assessAllProducts({ fixtureNames, actualNames, pagination, quantity }) {
+  const counts = Object.fromEntries(fixtureNames.map((name) => [name,
+    actualNames.filter((actual) => actual === name).length]));
+  const limit = Number(quantity);
+  return {
+    fixtureCounts: counts,
+    allFixturesPresent: fixtureNames.length > 0 && fixtureNames.every((name) => counts[name] > 0),
+    countWithinQuantity: Number.isFinite(limit) && actualNames.length <= limit,
+    actualCount: actualNames.length,
+    quantity: limit,
+    quantityMeaning: pagination ? '每页产品数量' : '显示产品总数量',
+  };
+}
+
 // Open a throwaway preview tab, run fn on its content frame, then close
 // the tab. Same pattern as block-color-scheme / module-width.
 async function withPreview(page, context, fn) {
@@ -637,7 +651,9 @@ async function sourceEffect(args, layer, kind) {
       products: oracle?.specifiedProducts, category: oracle?.onShelf }[kind];
     if (!Array.isArray(fixture)) unavailable(`画像没有“${labels[kind]}”的完整产品名单夹具，暂不编造结果。`);
     if (['filter', 'products'].includes(kind) && oracle?.configuredSource !== kind) unavailable(`画像尚未确认“${labels[kind]}”已有条件或产品清单，条件编辑和选产品操作留待后续探查。`);
-    tx.expected(`来源设为“${labels[kind]}”后，产品列表应恰好为 ${fixture.length} 件：${sentenceList(fixture)}。`);
+    tx.expected(kind === 'all'
+      ? `来源设为“所有产品”后应包含全部 ${fixture.length} 件 AUTOTEST 产品；其余站点产品允许出现，可见数量遵守分页/数量上限。`
+      : `来源设为“${labels[kind]}”后，产品列表中的 AUTOTEST 名单应恰好为 ${fixture.length} 件：${sentenceList(fixture)}。`);
     if (kind === 'category') rememberCategoryState(tx, session, items, 'selectProdType');
     await tx.set(source, true); await tx.save();
     if (kind === 'category') {
@@ -647,8 +663,9 @@ async function sourceEffect(args, layer, kind) {
       for (const cat of cats) await tx.set(cat, cat.label.trim() === oracle.category);
       await tx.save();
     }
-    // Disable pagination and raise the total limit only when the entire fixture
-    // fits. The check compares the COMPLETE set, never just the first page.
+    // Inspect all site products without comparing the whole site list to the
+    // AUTOTEST fixture. For this scoped assertion, use the largest supported
+    // quantity and no pagination so all fixture products can be visible.
     if (fixture.length > 100) unavailable('完整名单超过数量设置允许范围，需补齐整表读取方案后再测。');
     const current = await tx.controls();
     const pagination = current.filter((item) => item.type === 'radio' && item.name === 'pagination' && item.label === '否');
@@ -658,7 +675,17 @@ async function sourceEffect(args, layer, kind) {
     await tx.save();
     const actual = await inspectProducts(tx, args, layer);
     tx.evidence.products = { wanted: fixture, actual: actual.names };
-    tx.assert(kind === 'all' ? actual.names.some(name => fixture.includes(name)) : sameSet(actual.names.filter(name => name.startsWith('AUTOTEST-')), fixture), `来源为“${labels[kind]}”，应显示 ${sentenceList(fixture)}，实际显示 ${sentenceList(actual.names)}，已逐项核对完整产品名单。`);
+    if (kind === 'all') {
+      const assessment = assessAllProducts({ fixtureNames: fixture, actualNames: actual.names,
+        pagination: false, quantity: 100 });
+      tx.evidence.products.assessment = assessment;
+      tx.assert(assessment.allFixturesPresent,
+        `来源为“所有产品”时，3 件 AUTOTEST 产品均应在可见列表中；实际命中 ${Object.entries(assessment.fixtureCounts).filter(([, count]) => count > 0).map(([name]) => name).join('、') || '无'}。`);
+      tx.assert(assessment.countWithinQuantity,
+        `当前测试设置为不分页、显示产品总数量 ${assessment.quantity}，可见产品数 ${assessment.actualCount} 不得超过该数量；站点其他产品不参与精确名单比较。`);
+    } else {
+      tx.assert(sameSet(actual.names.filter(name => name.startsWith('AUTOTEST-')), fixture), `来源为“${labels[kind]}”，应显示 ${sentenceList(fixture)}，实际显示 ${sentenceList(actual.names)}，已逐项核对完整产品名单。`);
+    }
   } });
 }
 
