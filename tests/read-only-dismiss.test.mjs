@@ -14,6 +14,18 @@ test('read-only popover dismissal uses Escape and neutral click without a save a
   assert.equal(events.includes('save'), false);
 });
 
+test('read-only popover can be dismissed by toggling its toolbar trigger without saving', async () => {
+  const events = [];
+  let visible = true;
+  await dismissReadOnlyPopover({
+    isVisible: async () => visible,
+    pressEscape: async () => { events.push('escape'); },
+    neutralClick: async () => { events.push('neutral'); },
+    toggleTrigger: async () => { events.push('toggle'); visible = false; },
+  });
+  assert.deepEqual(events, ['escape', 'neutral', 'toggle']);
+});
+
 test('read-only popover fails clearly when it cannot close without saving', async () => {
   let saves = 0;
   await assert.rejects(dismissReadOnlyPopover({

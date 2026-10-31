@@ -122,6 +122,7 @@ export async function readButtonPopover({ page, canvas, config }) {
       isVisible: () => session.root.isVisible().catch(() => false),
       pressEscape: async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(300); },
       neutralClick: async () => { await page.mouse.click(1, 1); await page.waitForTimeout(300); },
+      toggleTrigger: async () => { await clickSettings(canvas, config, 'phoenix_blocks_button'); await page.waitForTimeout(300); },
     });
   }
 }
