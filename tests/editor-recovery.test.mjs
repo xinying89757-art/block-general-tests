@@ -1,6 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveEditorSiteHosts } from '../src/editor.mjs';
+import { assertCurrentPageLabel, resolveCurrentPageLabel, resolveEditorSiteHosts } from '../src/editor.mjs';
+
+test('current page identity uses the one active page label instead of page-menu contents', () => {
+  const snapshot = { toolbarText: '页面: 保存  Products Product Detail Product Category News', activeItems: [
+    { label: 'Products', active: true }, { label: 'Product Detail', active: false },
+    { label: 'Product Category', active: false }, { label: 'News', active: false },
+  ] };
+  assert.equal(resolveCurrentPageLabel(snapshot), 'Products');
+  assert.equal(assertCurrentPageLabel(snapshot, 'Products'), 'Products');
+});
+
+test('current page identity fails closed when the active page differs from the requested page', () => {
+  const snapshot = { toolbarText: '页面: 保存 Products Product Detail', activeItems: [
+    { label: 'Product Detail', active: true }, { label: 'Products', active: false },
+  ] };
+  assert.throws(() => assertCurrentPageLabel(snapshot, 'Products'), /当前活动页为「Product Detail」/);
+});
 
 test('editor host identity is read from the canvas frame and ignores platform frames', () => {
   assert.deepEqual(resolveEditorSiteHosts({

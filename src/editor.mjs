@@ -6,6 +6,41 @@ const CANVAS = 'iframe.backstage-pc-proview';
 const PANEL = '.backstage-addmodules-chooseWrapper';
 const PAGE_LABELS = { products: 'Products' };
 
+export function resolveCurrentPageLabel({ activeItems = [], toolbarText = '' } = {}) {
+  const active = activeItems.filter((item) => item.active && String(item.label || '').trim());
+  if (active.length === 1) return String(active[0].label).replace(/\s+/g, ' ').trim();
+  const normalized = String(toolbarText || '').replace(/\s+/g, ' ').trim();
+  const match = normalized.match(/页面:\s*(.*?)\s+(?:智能优化当前页面\s+)?保存(?:\s|$)/);
+  return match?.[1]?.trim() || '';
+}
+
+export function assertCurrentPageLabel(snapshot, expected) {
+  const actual = typeof snapshot === 'string' ? snapshot : resolveCurrentPageLabel(snapshot);
+  if (!actual) throw new Error('刷新编辑器后无法读取当前页面自己的活动标签。');
+  if (actual !== expected) throw new Error(`刷新后目标页核对失败：应为「${expected}」，当前活动页为「${actual}」。`);
+  return actual;
+}
+
+async function readCurrentPageLabel(page) {
+  const snapshot = await page.evaluate(() => {
+    const toolbar = document.querySelector('.backstage-topToolbar');
+    const pageBox = toolbar?.querySelector('.backstage-topToolbar-pageBox');
+    const activeItems = pageBox ? [...pageBox.querySelectorAll('a[data-href]')].map((anchor) => {
+      const chain = [anchor, anchor.closest('li, dt, dd'), anchor.parentElement].filter(Boolean);
+      const active = chain.some((node) => {
+        const attrs = ['aria-current', 'aria-selected', 'data-active'].map((key) => node.getAttribute?.(key) || '');
+        const classes = typeof node.className === 'string' ? node.className : node.className?.baseVal || '';
+        return attrs.some((value) => value && value !== 'false') || /(?:^|\s)(?:active|current|selected)(?:\s|$)/i.test(classes);
+      });
+      return { label: (anchor.textContent || '').replace(/\s+/g, ' ').trim(), active };
+    }) : [];
+    const clone = toolbar?.cloneNode(true);
+    clone?.querySelector('.backstage-topToolbar-pageBox')?.remove();
+    return { activeItems, toolbarText: (clone?.innerText || '').replace(/\s+/g, ' ').trim() };
+  });
+  return resolveCurrentPageLabel(snapshot);
+}
+
 function blockSelector(blockId) {
   // Quote an attribute value rather than assuming BLOCK_ID is numeric.
   return `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(blockId))}]`;
@@ -274,22 +309,14 @@ async function waitForEditorReady(page) {
 // CMS field changes become visible after an editor reload; no publishing.
 // Without config preserve the current page; fixture preparation supplies config.
 export async function reloadEditor(page, config) {
-  const currentPageName = () => page.evaluate(() => {
-    const text = (document.querySelector('.backstage-topToolbar')?.innerText || '').replace(/\s+/g, ' ').trim();
-    return text.match(/页面:\s*(.*?)\s+(?:智能优化当前页面\s+)?保存(?:\s|$)/)?.[1] || '';
-  });
+  const currentPageName = () => readCurrentPageLabel(page);
   const before = await currentPageName();
   const target = config?.resolvedTarget;
-  const wanted = target ? (PAGE_LABELS[target.page.toLowerCase()] || target.page) : before;
+  const wanted = target ? target.page : before;
   if (!wanted) throw new Error('刷新编辑器前无法确定目标页。');
   await page.reload({ waitUntil: 'domcontentloaded', timeout: Number(config?.navigationTimeoutMs) || 60_000 });
   await waitForEditorReady(page);
-  if (await currentPageName() !== wanted) {
-    if (!config) throw new Error(`刷新编辑器后未停留在目标页「${wanted}」，请提供目标页配置。`);
-    await ensureTargetPage(page, config);
-  }
-  const actual = await currentPageName();
-  if (actual !== wanted) throw new Error(`刷新后目标页核对失败：应为「${wanted}」，顶栏读到「${actual}」。`);
+  assertCurrentPageLabel(await currentPageName(), wanted);
   return { frame: page.frameLocator(CANVAS) };
 }
 

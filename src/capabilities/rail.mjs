@@ -5,7 +5,8 @@
 // an icon opens a flyout panel to its left; again only the selected
 // block's copy is visible.
 import { TIMEOUT, poll } from './shared.mjs';
-import { waitForControlsReady, retryTransient, saveAndWait } from '../ui-waits.mjs';
+import { waitForControlsReady, retryTransient, retryWithFreshControl,
+  waitForEditorLoadingToClear, saveAndWait } from '../ui-waits.mjs';
 
 export const RAIL = {
   wrap: (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`,
@@ -52,6 +53,7 @@ export async function visibleRailIndex(canvas) {
 }
 
 export async function openRailPanel(canvas, blockId, iconSelector, panelSelector) {
+  await waitForEditorLoadingToClear(canvas);
   // If the panel is already open, do not click its icon again: the icon
   // toggles, and a second click closes the panel (2026-10-26: the color
   // flip's reopen waited 10s on a panel its own icon click had just
@@ -60,15 +62,25 @@ export async function openRailPanel(canvas, blockId, iconSelector, panelSelector
   const alreadyOpen = canvas.locator(`${panelSelector}:visible`).first();
   if (await alreadyOpen.isVisible().catch(() => false)) {
     const index = await visibleRailIndex(canvas);
+    await waitForEditorLoadingToClear(canvas);
     await retryTransient(() => waitForControlsReady(alreadyOpen));
     return { rail: canvas.locator(RAIL.rail).nth(index), panel: alreadyOpen, index };
   }
-  await selectBlock(canvas, blockId);
-  const index = await visibleRailIndex(canvas);
-  const rail = canvas.locator(RAIL.rail).nth(index);
-  const icon = rail.locator(iconSelector).first();
-  await icon.scrollIntoViewIfNeeded();
-  await icon.click({ timeout: TIMEOUT });
+  const { index, rail } = await retryWithFreshControl({
+    attempts: 3,
+    ready: () => waitForEditorLoadingToClear(canvas),
+    resolve: async () => {
+      await selectBlock(canvas, blockId);
+      await waitForEditorLoadingToClear(canvas);
+      const currentIndex = await visibleRailIndex(canvas);
+      return { index: currentIndex, rail: canvas.locator(RAIL.rail).nth(currentIndex),
+        icon: canvas.locator(RAIL.rail).nth(currentIndex).locator(iconSelector).first() };
+    },
+    act: async ({ icon }) => {
+      await icon.scrollIntoViewIfNeeded();
+      await icon.click({ timeout: TIMEOUT });
+    },
+  });
   // Several panel copies exist (one per block); only the selected block's
   // copy is visible.
   const panel = canvas.locator(`${panelSelector}:visible`).first();
@@ -80,6 +92,7 @@ export async function openRailPanel(canvas, blockId, iconSelector, panelSelector
     await icon.click({ timeout: TIMEOUT });
     await panel.waitFor({ state: 'visible', timeout: TIMEOUT });
   }
+  await waitForEditorLoadingToClear(canvas);
   await retryTransient(() => waitForControlsReady(panel));
   return { rail, panel, index };
 }

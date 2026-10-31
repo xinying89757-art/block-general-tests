@@ -1,5 +1,6 @@
 import { savePage } from '../editor.mjs';
-import { waitForControlsReady, retryTransient, saveAndWait, readBackWithRetry, uiWaitConfig, waitForDialogState } from '../ui-waits.mjs';
+import { waitForControlsReady, retryTransient, retryWithFreshControl, waitForEditorLoadingToClear,
+  saveAndWait, readBackWithRetry, uiWaitConfig, waitForDialogState } from '../ui-waits.mjs';
 export { readBackWithRetry } from '../ui-waits.mjs';
 
 export const TIMEOUT = 10_000;
@@ -168,11 +169,18 @@ export async function poll(read, accepts) {
 export async function clickSettings(canvas, config, type, wrapIndex = 0) {
   // Several sub-regions can share one type (另一样本区块 has two gallery wraps:
   // category at 0, list at 1). wrapIndex picks the nth wrap of that type.
-  const button = canvas.locator(blockSelector(config.blockId)).first()
-    .locator(`.backstage-blocksEditor-wrap[data-blockseditor-type=${JSON.stringify(type)}]`).nth(wrapIndex)
-    .locator('a.backstage-widgettool-btns[id^="editorBtn-"]').first();
-  await button.waitFor({ state: 'attached', timeout: TIMEOUT });
-  await button.evaluate((node) => node.click());
+  await retryWithFreshControl({
+    attempts: 3,
+    ready: () => waitForEditorLoadingToClear(canvas),
+    resolve: async () => {
+      const button = canvas.locator(blockSelector(config.blockId)).first()
+        .locator(`.backstage-blocksEditor-wrap[data-blockseditor-type=${JSON.stringify(type)}]`).nth(wrapIndex)
+        .locator('a.backstage-widgettool-btns[id^="editorBtn-"]').first();
+      await button.waitFor({ state: 'attached', timeout: TIMEOUT });
+      return button;
+    },
+    act: (button) => button.evaluate((node) => node.click()),
+  });
 }
 
 // Browser-side snapshot; keep every radio, including unidentified/unchecked groups.

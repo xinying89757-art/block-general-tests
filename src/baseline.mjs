@@ -20,7 +20,7 @@ import { clickSettings, controlValue, probeControls, widgetSession, TIMEOUT } fr
 import { savePage } from './editor.mjs';
 import { readButtonPopover, writeButtonPopover } from './capabilities/button-link.mjs';
 import { matchControl, matchingControls, normalizeControlIdentity } from './baseline-identity.mjs';
-import { uiWaitConfig, waitForStable } from './ui-waits.mjs';
+import { uiWaitConfig, waitForStable, waitForEditorLoadingToClear } from './ui-waits.mjs';
 import { makeFixtureSelectionRule, fixtureSelectionDiff } from './site-baseline.mjs';
 import { retryClosedRestoreStep } from './baseline-recovery.mjs';
 
@@ -87,6 +87,7 @@ async function readDialogTitle(dialog) {
 }
 
 export async function inventorySettings({ page, canvas, config, blockId, onProgress }) {
+  await waitForEditorLoadingToClear(canvas);
   const wrapLocator = canvas.locator(
     `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(blockId))}] .backstage-blocksEditor-wrap`);
   if (!await wrapLocator.count()) throw new Error(`区块 ${blockId} 不在当前页。`);
@@ -102,6 +103,7 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
   const readOrder = [...regions].sort((left, right) =>
     Number(left.type === 'phoenix_blocks_button') - Number(right.type === 'phoenix_blocks_button'));
   for (const [index, { type, wrapIndex }] of readOrder.entries()) {
+    await waitForEditorLoadingToClear(canvas);
     onProgress?.({ index: index + 1, total: regions.length, type, wrapIndex });
     if (type === 'phoenix_blocks_button') {
       const region = { type, wrapIndex, title: null, kind: 'button-popover', controls: [] };
