@@ -126,6 +126,7 @@ export async function writeFreshDefaultsSnapshot(file, snapshot) {
 
 export function buildFreshReport({ runId, siteHost, blockId, page, instance, capabilities = [],
   defaults, batch, currentValues, publishedReadback = null, editorLink, frontLink, publishedAt,
+  editorPublishSucceeded = false, frontVerification = null,
   deletedSettingIds = [], moduleLibraryPreflight = null, flowErrors = [] }) {
   const failures = batch.results.filter((item) => item.status === 'fail').map((item) => ({
     checkId: item.id,
@@ -150,6 +151,10 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
     timing: batch.timing, settingsMode: 'BATCH_SAVE / retain-tested-values', flowErrors,
     publishedReadback,
     links: { editor: editorLink || null, front: frontLink || null },
+    editorPublishSucceeded: Boolean(editorPublishSucceeded),
+    frontVerification,
+    publishedConfirmed: Boolean(publishedAt),
+    confirmationSource: publishedAt ? 'editor-and-runner-front' : null,
     publishedAt,
   };
 }
@@ -473,7 +478,10 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   const report = buildFreshReport({ runId, siteHost: config.siteHost, blockId: config.blockId,
     page: config.page, instance: fresh, capabilities: capabilitiesToReport, defaults, batch,
     currentValues: values, editorLink: opened.editorLink || adapter.editorLink?.(),
-    publishedReadback, frontLink: published?.frontLink || opened.frontLink, publishedAt: published?.publishedAt || null,
+    publishedReadback, frontLink: publishAttempt?.frontLink || opened.frontLink,
+    frontVerification: publishAttempt?.frontVerification || null,
+    editorPublishSucceeded: publishAttempt?.publishSignal?.status === 'confirmed',
+    publishedAt: published?.publishedAt || null,
     deletedSettingIds, moduleLibraryPreflight: config.moduleLibraryPreflight || null, flowErrors });
   await adapter.writeReport?.(report);
   await onProgress({ stage: 'report-written' });

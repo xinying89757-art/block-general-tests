@@ -736,6 +736,23 @@ test('fresh flow never reports publication when publish and front confirmation a
   assert.ok(report.flowErrors.some(({ stage }) => stage === 'publish-confirmation'));
 });
 
+test('editor success remains distinct from an unreachable runner front path', async () => {
+  const adapter = fakeAdapter();
+  adapter.publishPage = async () => ({ frontLink: 'http://site.example/products.html', confirmed: false,
+    publishSignal: { status: 'confirmed', signal: '发布成功' },
+    frontVerification: { status: 'front-unreachable-from-runner', reachability: {
+      targetFailures: [{ status: 500, server: 'Pingora' }],
+      rootProbe: { status: 500, server: 'Pingora', empty: true },
+    } } });
+  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  assert.equal(report.editorPublishSucceeded, true);
+  assert.equal(report.publishedConfirmed, false);
+  assert.equal(report.publishedAt, null);
+  assert.equal(report.confirmationSource, null);
+  assert.equal(report.frontVerification.status, 'front-unreachable-from-runner');
+  assert.equal(report.frontVerification.reachability.rootProbe.server, 'Pingora');
+});
+
 test('publish timeout diagnostics are preserved in the partial report without page values', async () => {
   const adapter = fakeAdapter();
   const diagnostics = { stage: 'wait-confirm-dialog', chooserVisibleCount: 0,

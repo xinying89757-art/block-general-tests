@@ -297,7 +297,8 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
         const frontVerification = frontLink && settingId !== undefined
           ? await verifyFrontInstance({ url: frontLink, blockId: config.blockId, settingId: settingId || null,
             attempts: Number(config.frontVerifyAttempts) || 6, delayMs: Number(config.frontVerifyDelayMs) || 10_000,
-            fetchText: async (url) => { const r = await page.context().request.get(url, { timeout: 30_000 }); return { status: r.status(), text: await r.text() }; } })
+            fetchText: async (url) => { const r = await page.context().request.get(url, { timeout: 30_000 }); return {
+              status: r.status(), text: await r.text(), headers: r.headers() }; } })
           : { status: 'skipped' };
         return { frontLink, publishedAt: new Date().toISOString(), publishSignal, frontVerification,
           confirmed: publishSignal.status === 'confirmed' && frontVerification.status === 'present' };

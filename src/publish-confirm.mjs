@@ -35,15 +35,32 @@ export async function verifyFrontInstance({ fetchText, url, blockId, settingId, 
     const target = cacheBustedUrl(url, now());
     let result;
     try {
-      const { status, text } = await fetchText(target);
+      const { status, text, headers = {} } = await fetchText(target);
       result = { url: target, status, ...frontHasInstance(text || '', { blockId, settingId }) };
-    } catch (error) { result = { url: target, error: error.message }; }
+      if (headers.server) result.server = String(headers.server);
+    } catch (error) { result = { url: target, error: String(error?.name || 'network-error') }; }
     tries.push(result);
     if (result.hasBlock && result.hasSetting !== false) return { status: 'present', tries };
     if (i < attempts - 1) await sleep(delayMs);
   }
-  const reachable = tries.some((t) => t.status === 200);
-  return { status: reachable ? 'absent' : 'unreachable', tries };
+  const reachable = tries.some((t) => t.status >= 200 && t.status < 500 && !t.error);
+  const targetFailures = tries.map((item) => ({ status: item.status ?? null,
+    server: item.server || null, error: item.error || null }));
+  let rootProbe = null;
+  try {
+    const rootUrl = cacheBustedUrl(new URL('/', url).href, now());
+    const { status, text, headers = {} } = await fetchText(rootUrl);
+    rootProbe = { url: rootUrl, status, server: headers.server ? String(headers.server) : null,
+      empty: !String(text || '').trim() };
+  } catch (error) {
+    rootProbe = { url: cacheBustedUrl(new URL('/', url).href, now()), status: null,
+      server: null, empty: true, error: String(error?.name || 'network-error') };
+  }
+  const rootUnavailable = Boolean(rootProbe.error || rootProbe.empty || rootProbe.status >= 500);
+  if (rootUnavailable) return { status: 'front-unreachable-from-runner', tries,
+    reachability: { targetFailures, rootProbe } };
+  return { status: reachable ? 'absent' : 'unreachable', tries,
+    reachability: { targetFailures, rootProbe } };
 }
 
 function defaultSleep(ms) { return new Promise((r) => setTimeout(r, ms)); }

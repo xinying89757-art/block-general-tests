@@ -71,6 +71,30 @@ HTTP 预览兼容：默认 `HTTPS_UPGRADE=1`，浏览器 context 会把指定的
 
 运行 `npm run ci` 可在本机或 GitHub Actions 执行离线检查：校验 `src/`、`scripts/`、`tests/` 下的 `.mjs` 语法、相对导入、区块画像结构与夹具，再运行 `tests/` 中的 Node 测试。GitHub CI 只做这些离线检查，不访问站点、不安装浏览器；实站回归仍在本机通过 `npm run test:block` 运行。
 
+## 外部前台核验
+
+盒子运行器会分别核验目标前台页面和站点根路径。如果目标页不可读且根路径也返回 5xx、空响应或网络错误，报告会标记 `front-unreachable-from-runner`；这代表运行器的网络路径无法确认前台，不代表编辑器发布失败。报告会把编辑器的“发布成功”信号记在 `editorPublishSucceeded`，而 `publishedConfirmed` 仍为 `false`。
+
+在可访问前台的外部机器上完成核验后，可将外部检查结果写回同一份报告。结果 JSON 结构如下：
+
+```json
+{
+  "url": "http://example.test/products.html?t=123",
+  "httpStatus": 200,
+  "blockFound": true,
+  "settingIdFound": true,
+  "checkedAt": "2026-11-01T00:00:00.000Z"
+}
+```
+
+运行：
+
+```sh
+node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<run>.json /path/to/external-check.json
+```
+
+脚本会追加 `externalFrontVerification`。只有 HTTP 2xx 且 `blockFound` 与 `settingIdFound` 都为 `true` 时，才将 `publishedConfirmed` 设为 `true`，来源记为 `external-front-check`。外部检查器应确认目标报告中的区块号和本次新 `settingId`；脚本会移除 URL 中的凭证、非缓存查询参数和片段，避免把令牌写进报告。
+
 ## 安全和恢复的底线
 
 - `.env` 里有你的账号密码，永远不提交、不分享、不打印。仓库里只有 `.env.example`。

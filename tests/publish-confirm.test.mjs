@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { waitForPublishSignal, verifyFrontInstance, cacheBustedUrl, frontHasInstance,
   publishStageDiagnostics } from '../src/publish-confirm.mjs';
+import { applyExternalFrontVerification } from '../src/external-front-verification.mjs';
 
 const fakeClock = () => { let t = 0; return { now: () => t, sleep: async (ms) => { t += ms; } }; };
 
@@ -31,8 +32,52 @@ test('verifyFrontInstance: absent after retries, present when it appears, unreac
   let k = 0;
   const present = await verifyFrontInstance({ fetchText: async () => ({ status: 200, text: ++k > 1 ? mine : other }), url: 'http://a.example/p.html', blockId: '111', settingId: 'AbC', attempts: 3, ...fakeClock() });
   assert.equal(present.status, 'present');
-  const down = await verifyFrontInstance({ fetchText: async () => ({ status: 403, text: '' }), url: 'http://a.example/p.html', blockId: '111', settingId: 'AbC', attempts: 2, ...fakeClock() });
-  assert.equal(down.status, 'unreachable');
+  const down = await verifyFrontInstance({ fetchText: async (url) => url.includes('/p.html?')
+    ? ({ status: 500, text: '', headers: { server: 'Pingora' } })
+    : ({ status: 500, text: '', headers: { server: 'Pingora' } }),
+  url: 'http://a.example/p.html', blockId: '111', settingId: 'AbC', attempts: 2, ...fakeClock() });
+  assert.equal(down.status, 'front-unreachable-from-runner');
+  assert.equal(down.reachability.rootProbe.status, 500);
+  assert.equal(down.reachability.rootProbe.server, 'Pingora');
+  assert.equal(down.reachability.targetFailures[0].status, 500);
+});
+
+test('target verification failure is not classified as runner-unreachable when site root responds', async () => {
+  const result = await verifyFrontInstance({ fetchText: async (url) => url.includes('/p.html?')
+    ? { status: 500, text: '' } : { status: 200, text: '<html>site</html>' },
+  url: 'http://a.example/p.html', blockId: '111', settingId: 'AbC', attempts: 1, ...fakeClock() });
+  assert.equal(result.status, 'unreachable');
+  assert.equal(result.reachability.rootProbe.status, 200);
+  assert.equal(result.reachability.rootProbe.empty, false);
+});
+
+test('external front result confirms only when HTTP succeeds and both target identifiers are found', () => {
+  const base = { blockId: '111', block: { settingId: 'AbC' }, publishedConfirmed: false,
+    confirmationSource: null };
+  const good = applyExternalFrontVerification(base, { url: 'http://a.example/p.html?t=4&token=secret',
+    httpStatus: 200, blockFound: true, settingIdFound: true, checkedAt: '2026-11-01T00:00:00Z' });
+  assert.equal(good.publishedConfirmed, true);
+  assert.equal(good.confirmationSource, 'external-front-check');
+  assert.equal(good.externalFrontVerification.confirmed, true);
+  assert.equal(good.externalFrontVerification.url, 'http://a.example/p.html?t=4');
+  assert.equal(JSON.stringify(good).includes('secret'), false);
+  for (const values of [
+    { httpStatus: 200, blockFound: true, settingIdFound: false },
+    { httpStatus: 200, blockFound: false, settingIdFound: true },
+    { httpStatus: 500, blockFound: true, settingIdFound: true },
+  ]) {
+    const result = applyExternalFrontVerification(base, { url: 'https://a.example/p.html', ...values,
+      checkedAt: '2026-11-01T00:00:00Z' });
+    assert.equal(result.publishedConfirmed, false);
+    assert.equal(result.externalFrontVerification.confirmed, false);
+  }
+});
+
+test('external front result rejects malformed data and incomplete reports', () => {
+  assert.throws(() => applyExternalFrontVerification({}, {}));
+  assert.throws(() => applyExternalFrontVerification({ blockId: '1', block: { settingId: 'x' } }, {
+    url: 'file:///tmp/x', httpStatus: 200, blockFound: true, settingIdFound: true,
+    checkedAt: '2026-11-01T00:00:00Z' }));
 });
 
 test('fresh flow fails the run when the adapter cannot confirm the publish', async () => {
