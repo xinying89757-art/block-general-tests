@@ -3,7 +3,7 @@ import { launchSession } from './browser.mjs';
 import { openEditor, ensureTargetPage } from './editor.mjs';
 import { baselineRestoreTarget, widgetSession } from './capabilities/shared.mjs';
 import { readButtonPopover } from './capabilities/button-link.mjs';
-import { assertOccurrencesUnambiguous, matchControl, withOccurrences, normalizeControlIdentity } from './baseline-identity.mjs';
+import { assertOccurrencesUnambiguous, matchControl, matchingControls, withOccurrences, normalizeControlIdentity } from './baseline-identity.mjs';
 import { uiWaitConfig, waitForStable } from './ui-waits.mjs';
 import { makeFixtureSelectionRule, fixtureSelectionDiff } from './site-baseline.mjs';
 
@@ -29,11 +29,11 @@ export function baselineControlsReady(controls, wants) {
   return (wants || []).every((wanted) => Boolean(matchControl(controls, wanted)));
 }
 
-function baselineDefinitionReady(controls, definition) {
+export function baselineDefinitionReady(controls, definition) {
   if (!baselineControlsReady(controls, definition.want)) return false;
-  return (definition.fixtureSelection?.items || []).every((wanted) => Boolean(matchControl(controls, {
-    label: wanted.label, type: 'checkbox', ...(wanted.value ? { value: wanted.value } : {}),
-  })));
+  return (definition.fixtureSelection?.items || []).every((wanted) => matchingControls(controls, {
+    label: wanted.label, type: 'checkbox',
+  }).length > 0);
 }
 
 function assertBaselineClean(baseline) {
@@ -151,6 +151,9 @@ export async function readCurrentState({ page, canvas, config, baseline }) {
         const missing = (definition.want || []).filter((wanted) => {
           try { return !matchControl(observed, wanted); } catch { return true; }
         }).map((wanted) => wanted.label);
+        for (const wanted of definition.fixtureSelection?.items || []) {
+          if (!matchingControls(observed, { label: wanted.label, type: 'checkbox' }).length) missing.push(wanted.label);
+        }
         throw new Error(`基线“${definition.title}”控件集未稳定：读到 ${observed.length} 个控件，缺少 ${missing.length}/${definition.want?.length || 0}${missing.length ? `（${missing.slice(0, 12).join('、')}）` : ''}；${error.message}`);
       }
       const want = withOccurrences(controls, serialize);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { baselineControlsReady, baselineRestoreTarget, diffAgainstBaseline } from '../src/baseline-guard.mjs';
+import { baselineControlsReady, baselineDefinitionReady, baselineRestoreTarget, diffAgainstBaseline } from '../src/baseline-guard.mjs';
 
 const step = (want) => [{ title: '设置', type: 'widget', wrapIndex: 0, want }];
 const item = (label, to, type = 'text') => ({ label, type, to });
@@ -17,6 +17,17 @@ test('baseline readiness waits for every recorded control identity', () => {
     { label: '标题', type: 'text', value: '默认' },
     { label: '启用', type: 'checkbox', value: 'on', checked: true },
   ], wants), true);
+});
+
+test('dynamic fixture readiness accepts repeated editor clones by name', () => {
+  const definition = { want: [], fixtureSelection: { items: [
+    { label: 'AUTOTEST-field', type: 'checkbox', selected: true },
+  ] } };
+  assert.equal(baselineDefinitionReady([
+    { label: 'AUTOTEST-field', type: 'checkbox', checked: true },
+    { label: 'AUTOTEST-field', type: 'checkbox', checked: true },
+  ], definition), true);
+  assert.equal(baselineDefinitionReady([], definition), false);
 });
 
 test('baseline diff reports changed values', () => {
