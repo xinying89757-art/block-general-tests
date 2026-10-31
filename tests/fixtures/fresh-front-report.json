@@ -1,0 +1,1 @@
+{"blockId":"sample","runId":"front-1","checks":[{"id":"style-color","status":"pass"},{"id":"persist-width","status":"fail"},{"id":"front-only","status":"record"}]}

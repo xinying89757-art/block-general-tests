@@ -1,4 +1,4 @@
-import { saveAndWait } from './ui-waits.mjs';
+import { retryEnvironmentTimeout, saveAndWait } from './ui-waits.mjs';
 import { selectedBlockInstance, waitForCanvasRender } from './block-render.mjs';
 import { waitForUniquePageSaveControl } from './page-save-control.mjs';
 
@@ -110,7 +110,8 @@ export async function enterSiteFromList(page, config) {
   if (await cards.count() === 0) {
     if (config.editSiteUrl) {
       console.warn('[editor] 站点列表未找到 .mySiteBox，退回备选 EDIT_SITE_URL。');
-      await page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded' });
+      await retryEnvironmentTimeout(() => page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded',
+        timeout: Number(config.navigationTimeoutMs) || 60_000 }), { stage: 'navigation' });
       await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
       return page;
     }
@@ -188,7 +189,9 @@ export async function enterSiteFromList(page, config) {
 }
 
 export async function openEditor(page, config) {
-  await page.goto(SITE_LIST_URL, { waitUntil: 'domcontentloaded', timeout: Number(config.navigationTimeoutMs) || 60_000 });
+  await retryEnvironmentTimeout(() => page.goto(SITE_LIST_URL,
+    { waitUntil: 'domcontentloaded', timeout: Number(config.navigationTimeoutMs) || 60_000 }),
+  { stage: 'navigation' });
   const siteList = await waitForSiteList(page, { timeoutMs: Number(config.siteListTimeoutMs) || DEFAULT_SITE_LIST_TIMEOUT_MS,
     maxAttempts: Number(config.siteListAttempts) || DEFAULT_SITE_LIST_ATTEMPTS });
   if (siteList.status === 'logged-out') {
@@ -198,7 +201,9 @@ export async function openEditor(page, config) {
     if (!config.editSiteUrl) {
       throw entryError('ENV_SITE_LIST_TIMEOUT', `等待站点列表卡片超时（${siteList.attempts} 次有界尝试，${safeLocation(page.url())}）；检查网络、登录态或站点列表加载状态。`);
     }
-    await page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded', timeout: Number(config.navigationTimeoutMs) || 60_000 });
+    await retryEnvironmentTimeout(() => page.goto(config.editSiteUrl,
+      { waitUntil: 'domcontentloaded', timeout: Number(config.navigationTimeoutMs) || 60_000 }),
+    { stage: 'navigation' });
     if (await isLoggedOutPage(page)) {
       throw entryError('ENV_LOGIN_REQUIRED', `备选编辑器入口检测到登录态失效（${safeLocation(page.url())}）；请运行 scripts/explore-login.mjs --force-login。`);
     }
@@ -209,7 +214,8 @@ export async function openEditor(page, config) {
   } catch (error) {
     if (!config.editSiteUrl || !String(error.message).includes('未找到 .mySiteBox')) throw error;
     console.warn('[editor] 站点列表结构变化，退回备选 EDIT_SITE_URL。');
-    await page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded' });
+    await retryEnvironmentTimeout(() => page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded',
+      timeout: Number(config.navigationTimeoutMs) || 60_000 }), { stage: 'navigation' });
     editorPage = page;
   }
   if (!editorPage.url().includes('/phoenix/pagebuilder')) {
@@ -257,7 +263,9 @@ async function waitForEditorReady(page) {
   const know = page.getByText('我知道了', { exact: true }).first();
   if (await know.isVisible()) await know.click();
   try {
-    await page.getByText('页面:', { exact: true }).first().waitFor({ state: 'visible', timeout: 60_000 });
+    await retryEnvironmentTimeout(() => page.getByText('页面:', { exact: true }).first()
+      .waitFor({ state: 'visible', timeout: Number(process.env.EDITOR_READY_TIMEOUT_MS) || 60_000 }),
+    { stage: 'editor-load' });
   } catch (error) {
     throw new Error(`编辑器未显示“页面:”，登录态可能已过期或编辑器未完成加载：${error.message}`);
   }

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../src/config.mjs';
 import { launchSession } from '../src/browser.mjs';
 import { openEditor, gotoTargetPage } from '../src/editor.mjs';
-import { waitForStable } from '../src/ui-waits.mjs';
+import { retryEnvironmentTimeout, waitForStable } from '../src/ui-waits.mjs';
 import { summarizeLibraryInventory } from '../src/module-library-inventory.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -67,7 +67,8 @@ try {
   await addButtons.first().click({ timeout: config.actionTimeoutMs });
   stage = 'library-open';
   panel = session.page.locator('.backstage-addmodules-chooseWrapper');
-  await panel.waitFor({ state: 'visible', timeout: config.actionTimeoutMs });
+  await retryEnvironmentTimeout(() => panel.waitFor({ state: 'visible', timeout: config.actionTimeoutMs }),
+    { stage: 'library-load' });
 
   const readEntries = async () => panel.locator('.btn.add[appid]').evaluateAll((nodes) => nodes.map((button) => {
     let row = button;
