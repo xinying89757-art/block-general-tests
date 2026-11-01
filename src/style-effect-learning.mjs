@@ -11,6 +11,8 @@ function cssValueKind(value, typeHints = []) {
   const hints = typeHints.filter((value) => value !== null && value !== undefined).map(String).join(' ').toLowerCase();
   if (/font[\s_-]*size|fontsize/.test(hints)) return 'font-size';
   if (/\bcolor\b/.test(hints)) return 'color';
+  const declaredCssProperty = typeHints.slice(-2).filter(Boolean).map(String).join(' ').toLowerCase();
+  if (declaredCssProperty && !/font[\s_-]*size|fontsize|color/.test(declaredCssProperty)) return null;
   if (typeof value === 'number' && /font[\s_-]*size|fontsize/.test(hints)) return 'font-size';
   const text = typeof value === 'string' ? value.trim() : '';
   if (/^(?:#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})|(?:rgb|hsl|hwb|lab|lch|oklab|oklch|color)\s*\(|transparent\b|currentcolor\b)/i.test(text)) return 'color';
