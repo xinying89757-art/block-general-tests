@@ -107,7 +107,11 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 
 汇总同时列出 `summary.rawFail`（按 check id 去重后的失败明细数）和 `summary.dedupedFail`（沿失败 `dependsOn` 链归到根因后的数量）；`summary.fail` 保持等于后者。每条失败仍保留，`rootFailureIds` 与 `failureDeduplication` 说明它被计入哪个根失败。字号、字重、行高分别比较，失败文字与 `reason.mismatchedProperties` 指明实际不符的属性。
 
+同一规格原文、检查类型、范围依赖、差异属性和期望值在 PC/移动端重复失败时，只计一个根失败，仍保留两条明细；`failureDeduplication.rootFailures[].viewports` 列出涉及的视口。不同属性或不同期望值不会被合并。
+
 状态练习对实例内可安全切换的控件先做 `force:false` trial，再点击；actionability 超时时可回退为经过实例/非导航安全校验的 DOM click。它观察被控或相邻面板的 mutation 与动画后尺寸，扫描后恢复原状态。候选的 tag/class/rect、真实点击目标、点击方式与恢复结果只写 JSON/debug 诊断，不进入人类摘要。
+
+点击候选必须有 disclosure 证据（ARIA、隐藏/折叠面板、相邻列表箭头等），reset/clear/submit/导航控件被排除；SVG/path 归到实际动作祖先，滚动后确认在屏幕内，再观察约 1.5 秒的 class/ARIA/display/height/rect 变化。实例结构由 `src/front-structure.mjs` 统一盘点：嵌套 ul/ol/div 层级、lazy 图片和内容卡片背景图、选项控件；查不到或未呈现时保留具体机器原因，不借用其他区块的结构。
 
 `scripts/front-style-only.mjs` 的 JSON 报告在每条非 `pass` 检查上附 `reason`：`stage` 是 `locate`、`read` 或 `compare`；`locator` 和 `matchedElementCount` 说明实例内定位及命中数；`property`、`expected`、`actual` 用规范化样式值描述比较项；`viewport` 记录视口。颜色等受区块设置控制的期望值可用 `--run-report reports/fresh-block-<id>-<run>.json` 从本轮的 `block.currentValues` 解析；只有本轮确实写入时才作为本轮期望。默认色检查遇到本轮不同颜色会记为 `na`（机器原因 `palette-default-overridden-this-run`），本轮写入色由独立的写入色检查验证。失败原因中的 `expectedSource` 会注明来源。`skip`/`na`/`deferred` 还带 `applicability`，异常会带已脱敏的 `error.class` / `error.message`。有失败截图时，`reason.screenshot` 指向对应视口截图；移动端超框还会列出 offending element 的 CSS 路径。原因里不保存页面正文、Cookie 或带令牌的 URL。外层浏览器/导航错误会作为 `status: "error"` 的逐项 harness 记录，不改写断言结果。
 

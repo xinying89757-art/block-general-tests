@@ -46,7 +46,8 @@ export function attachFrontStyleInstance(checks, settingId) {
 
 /** Final report boundary: dedupe the complete mixed check list, then recount its summary. */
 export function finalizeFrontStyleReport(report) {
-  const checks = dedupeChecksById(report?.checks || []).map((check) => {
+  const inputChecks = report?.checks || [];
+  const checks = dedupeChecksById(inputChecks).map((check) => {
     if (!['na', 'fail'].includes(check.status)) return check;
     const reason = check.reason && typeof check.reason === 'object' && !Array.isArray(check.reason)
       ? { ...check.reason } : {};
@@ -66,7 +67,31 @@ export function finalizeFrontStyleReport(report) {
   });
   const count = (status) => checks.filter((check) => check.status === status).length;
   const failed = new Map(checks.filter((check) => check.status === 'fail').map((check) => [String(check.id), check]));
+  const stable = (value) => Array.isArray(value) ? value.map(stable) : value && typeof value === 'object'
+    ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])) : value;
+  const viewportFor = (check) => check.reason?.viewport?.label || check.viewport?.label || (typeof check.viewport === 'string' ? check.viewport : null)
+    || (/(?:^|-)mobile$/.test(check.id) ? 'mobile' : /(?:^|-)pc$/.test(check.id) ? 'pc' : null);
+  const groups = new Map();
+  for (const check of inputChecks.filter((item) => item?.status === 'fail' && failed.has(String(item.id)))) {
+    if (!check.id.startsWith('design-') || !check.sourceText || !viewportFor(check)) continue;
+    const comparison = check.reason?.mismatches?.length ? check.reason.mismatches.map(({ property, expected }) => ({ property, expected }))
+      .sort((a, b) => a.property.localeCompare(b.property)) : { expected: check.expected,
+        properties: check.reason?.mismatchedProperties || check.reason?.propertiesChecked || check.reason?.property || [] };
+    const key = JSON.stringify(stable({ sourceText: check.sourceText, checkType: check.reason?.checkType,
+      dependsOn: [...(check.dependsOn || [])].sort(), comparison }));
+    groups.set(key, [...(groups.get(key) || []), check]);
+  }
+  const canonical = new Map([...failed.keys()].map((id) => [id, id]));
+  const viewportGroups = [];
+  for (const rows of groups.values()) {
+    const viewports = [...new Set(rows.map(viewportFor))];
+    if (viewports.length < 2) continue;
+    const leader = rows.map((check) => check.id).sort()[0];
+    rows.forEach((check) => canonical.set(check.id, leader));
+    viewportGroups.push({ rootFailureId: leader, checkIds: [...new Set(rows.map((check) => check.id))], viewports });
+  }
   const rootsFor = (id, path = []) => {
+    id = canonical.get(id) || id;
     if (path.includes(id)) return [[...path.slice(path.indexOf(id))].sort()[0]];
     const dependencies = (failed.get(id)?.dependsOn || []).map(String).filter((dependency) => failed.has(dependency) && dependency !== id);
     return dependencies.length ? [...new Set(dependencies.flatMap((dependency) => rootsFor(dependency, [...path, id])))] : [id];
@@ -74,11 +99,18 @@ export function finalizeFrontStyleReport(report) {
   const failures = [...failed.keys()].map((id) => ({ checkId: id,
     dependsOn: failed.get(id).dependsOn || [], rootFailureIds: rootsFor(id) }));
   const rootIds = [...new Set(failures.flatMap((item) => item.rootFailureIds))];
+  const rootFailures = rootIds.map((id) => {
+    const rows = failures.filter((item) => item.rootFailureIds.includes(id)).map((item) => failed.get(item.checkId));
+    const ids = new Set(rows.map((check) => check.id));
+    const observations = inputChecks.filter((check) => check?.status === 'fail' && ids.has(check.id));
+    return { checkId: id, checkIds: [...ids], viewports: [...new Set(observations.map(viewportFor).filter(Boolean))] };
+  });
   const byId = new Map(failures.map((item) => [item.checkId, item.rootFailureIds]));
   return { ...report, checks: checks.map((check) => check.status === 'fail'
     ? { ...check, rootFailureIds: byId.get(String(check.id)) } : check),
-    failureDeduplication: { rule: 'Each failed check id is one raw failure; failed dependsOn chains count once per root. All rows remain in checks.',
-      rawFailCount: failed.size, dedupedFailCount: rootIds.length, rootFailureIds: rootIds, failures },
+    failureDeduplication: { rule: 'Each failed check id is one raw failure; failed dependsOn chains and the same spec/property/expectation across viewports count once per root. All rows remain in checks.',
+      rawFailCount: failed.size, rawFailureObservationCount: inputChecks.filter((check) => check?.status === 'fail').length,
+      dedupedFailCount: rootIds.length, rootFailureIds: rootIds, rootFailures, viewportGroups, failures },
     summary: { pass: count('pass'), fail: rootIds.length, rawFail: failed.size, dedupedFail: rootIds.length, na: count('na') + count('skip'),
       other: checks.filter((check) => !['pass', 'fail', 'na', 'skip'].includes(check.status)).length } };
 }

@@ -16,6 +16,7 @@
 import { checkReportText } from './shared.mjs';
 import { markUniqueFrontInstance } from '../front-instance-root.mjs';
 import { chooseSelectorCandidate } from '../style-effect-learning.mjs';
+import { readInstanceStructure } from '../front-structure.mjs';
 import { extractWrittenColorValues, runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../design-spec-checklist.mjs';
 
 const SUITE = 'capability:block-style-spec';
@@ -141,7 +142,9 @@ export function isPaginationContainerMetadata({ tagName = '', role = '', ariaLab
 
 // Read the elements one styleSpec item needs, inside the block root.
 async function readItem(frame, rootSel, item) {
-  return frame.evaluate(({ rootSel, item }) => {
+  const structure = ['nav-parent', 'nav-leaf'].includes(item.kind) || item.id === 'filter-option'
+    ? await frame.evaluate(readInstanceStructure, { rootSelector: rootSel }) : null;
+  return frame.evaluate(({ rootSel, item, structure }) => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const root = document.querySelector(rootSel);
     if (!root) return { error: '预览里没有找到按实例身份圈定的区块根节点', matchedCount: 0 };
@@ -238,61 +241,29 @@ async function readItem(frame, rootSel, item) {
         break;
       }
       case 'sample': {
-        const found = scopedSelect(item.selector).filter(vis);
+        let found = item.selector ? scopedSelect(item.selector).filter(vis) : [];
+        if (!found.length && item.id === 'filter-option') {
+          found = (structure?.options || []).filter((entry) => entry.visible).flatMap((entry) => {
+            try { const node = root.querySelector(entry.path); return node ? [node] : []; } catch { return []; }
+          });
+          out.candidateSource = 'instance-root-structural-options';
+        }
         out.matchedCount = found.length;
         const els = found.slice(0, item.sample ?? 2);
         els.forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
         break;
       }
-      case 'nav-parent': {
-        let links = scopedSelect(item.selector || '.pf-cate-wrap a').filter(vis);
-        let parents;
-        if (!links.length) {
-          // Generic fallback: derive candidate links from the selected
-          // instance's own list hierarchy; never search page-wide or guess a
-          // block-specific class. If the hierarchy has no semantic evidence,
-          // the existing zero-match result remains a skip/na.
-          links = [...selectionRoot.querySelectorAll('a, [role="link"]')].filter(vis);
-          out.candidateSource = 'instance-root-semantic-hierarchy';
-          out.derivedCandidateCount = links.length;
-          if (!links.length) {
-            parents = [...selectionRoot.querySelectorAll('li,[role="treeitem"],[aria-level]')].filter((node) => vis(node)
-              && (node.querySelector('ul,ol,[role="group"]') || Number(node.getAttribute('aria-level') || 0) === 1));
-          }
-        }
-        parents ||= links.filter((a) => {
-          const li = a.closest('li');
-          return li && li.parentElement?.closest('li') == null && li.querySelector('ul');
-        });
-        if (!parents.length) parents = [...selectionRoot.querySelectorAll('li,[role="treeitem"],[aria-level]')].filter((node) => vis(node)
-          && (node.querySelector('ul,ol,[role="group"]') || Number(node.getAttribute('aria-level') || 0) === 1));
-        out.matchedCount = parents.length;
-        parents.slice(0, 2).forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
-        break;
-      }
+      case 'nav-parent':
       case 'nav-leaf': {
-        let links = scopedSelect(item.selector || '.pf-cate-wrap a').filter(vis);
-        let leaves;
-        if (!links.length) {
-          links = [...selectionRoot.querySelectorAll('a, [role="link"]')].filter(vis);
-          out.candidateSource = 'instance-root-semantic-hierarchy';
-          out.derivedCandidateCount = links.length;
-          if (!links.length) leaves = [...selectionRoot.querySelectorAll('li,[role="treeitem"],[aria-level]')].filter((node) => {
-            if (!vis(node) || node.querySelector('ul,ol,[role="group"]')) return false;
-            const level = Number(node.getAttribute('aria-level') || 0);
-            return level > 1 || Boolean(node.closest('ul,ol')?.parentElement?.closest('li'));
-          });
-        }
-        leaves ||= links.filter((a) => {
-          const li = a.closest('li');
-          return li && li.parentElement?.closest('li') && !li.querySelector('ul');
+        const entries = (structure?.hierarchy || []).filter((entry) => item.kind === 'nav-parent'
+          ? entry.level === 1 && entry.hasChildren : entry.level > 1 && !entry.hasChildren);
+        out.candidateSource = 'instance-root-structural-hierarchy';
+        out.structuralCandidateCount = entries.length;
+        const nodes = entries.filter((entry) => entry.visible).flatMap((entry) => {
+          try { const node = root.querySelector(entry.labelPath || entry.path); return node && vis(node) ? [node] : []; } catch { return []; }
         });
-        if (!leaves.length) leaves = [...selectionRoot.querySelectorAll('li,[role="treeitem"],[aria-level]')].filter((node) => {
-          if (!vis(node) || node.querySelector('ul,ol,[role="group"]')) return false;
-          return Number(node.getAttribute('aria-level') || 0) > 1 || Boolean(node.closest('ul,ol')?.parentElement?.closest('li'));
-        });
-        out.matchedCount = leaves.length;
-        leaves.slice(0, 2).forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
+        out.matchedCount = nodes.length;
+        nodes.slice(0, item.sample ?? 2).forEach((node) => push(node, norm(node.innerText).slice(0, 24)));
         break;
       }
       case 'presence': {
@@ -319,7 +290,7 @@ async function readItem(frame, rootSel, item) {
         out.error = `未知 styleSpec kind: ${item.kind}`;
     }
     return out;
-  }, { rootSel, item: { ...item, paginationContainerPattern: PAGINATION_CONTAINER_PATTERN } });
+  }, { rootSel, item: { ...item, paginationContainerPattern: PAGINATION_CONTAINER_PATTERN }, structure });
 }
 
 // Breakage checks (no design frame needed): horizontal overflow, elements
@@ -588,12 +559,12 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability, onProg
           try { return selector === ':scope' ? 1 : root.querySelectorAll(selector).length; } catch { return 0; }
         }), candidates); } catch {}
         const selected = chooseSelectorCandidate(candidates, counts);
-        if (selected.status !== 'resolved') {
+        if (selected.status !== 'resolved' && !['nav-parent', 'nav-leaf'].includes(item.kind) && item.id !== 'filter-option') {
           checks.push(result(checkId, 'na', '未应用该样式检查。', { machineReason: {
             code: selected.reason, attemptedCandidateCount: selected.attemptedCount } }));
           continue;
         }
-        item.selector = candidates[selected.index];
+        if (selected.status === 'resolved') item.selector = candidates[selected.index];
       }
       const applicability = resolveItemApplicability(item, config.settingsReport);
       if (!applicability.applicable) {
@@ -608,17 +579,6 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability, onProg
           notSetProperties, expectedValueSource: 'run report contains no successful write for this setting',
         }, { name: item.name || NAMES[checkId] }));
         continue;
-      }
-      // Leaf nav links live in collapsed submenus by default; expand the
-      // first parent before reading them (the arrow toggles the submenu,
-      // it does not navigate).
-      if (item.kind === 'nav-leaf') {
-        await frame.evaluate((rootSel) => {
-          const root = document.querySelector(rootSel);
-          const arrow = root?.querySelector('.pf-cate-wrap .slight-submenu-button');
-          arrow?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        }, rootSel);
-        await frame.waitForTimeout(1200);
       }
       if (item.kind === 'presence') {
         const read = await readItem(frame, rootSel, item);
@@ -651,7 +611,9 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability, onProg
         const navigation = ['nav-parent', 'nav-leaf'].includes(item.kind);
         checks.push(result(checkId, navigation ? 'na' : 'skip', '在区块实例范围内没有找到符合画像候选特征的元素。',
           { matchedCount: read.matchedCount ?? 0, candidateSource: read.candidateSource || 'profile-candidates',
-            machineReason: navigation ? 'no-semantic-link-hierarchy-in-instance' : 'no-profile-candidate-match' }));
+            structuralCandidateCount: read.structuralCandidateCount || 0,
+            machineReason: navigation ? read.structuralCandidateCount > 0 ? 'structural-hierarchy-not-rendered'
+              : 'no-semantic-link-hierarchy-in-instance' : 'no-profile-candidate-match' }));
         continue;
       }
       const diffs = [];

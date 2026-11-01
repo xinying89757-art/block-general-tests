@@ -1,4 +1,5 @@
 import { markUniqueFrontInstance } from './front-instance-root.mjs';
+import { readInstanceStructure } from './front-structure.mjs';
 
 export const DESIGN_CHECK_TYPES = Object.freeze([
   'color-default', 'color-scope', 'typography', 'module-width', 'height-fit',
@@ -287,7 +288,7 @@ function mappedFrontCheck(requirement, frontChecks) {
       const rows = rowsFromFrontCheck(item);
       return rows.some((row) => {
         const label = String(row.label || row.text || row.accessibleName || '').toLowerCase();
-        return tokens.length && tokens.some((token) => label.includes(token));
+        return tokens.length && tokens.every((token) => label.includes(token));
       });
     });
     if (matches.length === 1) found = matches;
@@ -845,21 +846,18 @@ async function readTypographyByFeatures(page, rootSelector, requirement, profile
   const featureRequirement = { ...requirement, params: { ...requirement.params,
     selectorCandidates: [...new Set([...(requirement.params?.selectorCandidates || []), ...learnedSelectors])] } };
   const hierarchy = typographyHierarchySelection(requirement, profile);
-  return page.evaluate(({ rootSelector, requirement, tokens, hierarchy }) => {
+  const structure = hierarchy ? await page.evaluate(readInstanceStructure, { rootSelector }) : null;
+  return page.evaluate(({ rootSelector, requirement, tokens, hierarchy, structure }) => {
     const root = document.querySelector(rootSelector);
     if (!root) return [];
     const params = requirement.params || {};
     const selectors = [...new Set([params.selector, params.learnedSelector, ...(params.selectorCandidates || [])].filter(Boolean))];
     let nodes = [];
-    const levelOf = (node) => {
-      const aria = node.closest('[aria-level]');
-      if (aria && root.contains(aria) && Number(aria.getAttribute('aria-level')) > 0) return Number(aria.getAttribute('aria-level'));
-      let level = 0;
-      for (let current = node; current && current !== root; current = current.parentElement) {
-        if (current.matches('li,[role="treeitem"],details')) level += 1;
-      }
-      return level || null;
-    };
+    const hierarchyNodes = (structure?.hierarchy || []).flatMap((item) => {
+      try { const node = root.querySelector(item.path); return node ? [{ node, level: item.level }] : []; } catch { return []; }
+    });
+    const levelOf = (node) => hierarchyNodes.filter((item) => item.node === node || item.node.contains(node))
+      .sort((a, b) => b.level - a.level)[0]?.level || null;
     const matchesLevel = (node) => !hierarchy || (hierarchy.level ? levelOf(node) === hierarchy.level : levelOf(node) >= hierarchy.minLevel);
     for (const selector of selectors) {
       try { nodes.push(...root.querySelectorAll(selector)); } catch {}
@@ -894,7 +892,7 @@ async function readTypographyByFeatures(page, rootSelector, requirement, profile
       lineHeight: getComputedStyle(node).lineHeight,
       ...(hierarchy ? { hierarchyLevel: levelOf(node) } : {}),
     }));
-  }, { rootSelector, requirement: featureRequirement, tokens, hierarchy });
+  }, { rootSelector, requirement: featureRequirement, tokens, hierarchy, structure });
 }
 
 function requirementResult(requirement, status, expected, actual, reasonCode, detail) {
@@ -939,48 +937,9 @@ async function checkImageRatio(requirement, page, rootSelector) {
   const expectedRatio = Number(parts[1]) / Number(parts[2]);
   const selectorCandidates = [...new Set([requirement.params?.selector, ...(requirement.params?.selectorCandidates || [])].filter(Boolean))];
   const backgroundImages = requirement.params?.imageKind === 'background';
-  const actual = await page.evaluate(({ rootSelector, selectorCandidates, backgroundImages, contentContainerSelector }) => {
-    const root = document.querySelector(rootSelector);
-    if (!root) return { rootFound: false, images: [] };
-    let images = [];
-    for (const selector of selectorCandidates) { try { images.push(...root.querySelectorAll(selector)); } catch {} }
-    if (!selectorCandidates.length) images = [...root.querySelectorAll(backgroundImages ? '*' : 'img,picture')];
-    const candidates = [...new Set(images.flatMap((node) => node.tagName?.toLowerCase() === 'picture'
-      ? [node, ...node.querySelectorAll('img')] : [node]))];
-    return { rootFound: true, images: candidates.flatMap((node) => {
-      const r = node.getBoundingClientRect(), s = getComputedStyle(node);
-      const tag = node.tagName?.toLowerCase();
-      const img = tag === 'picture' ? node.querySelector('img') : tag === 'img' ? node : null;
-      let card = null;
-      if (contentContainerSelector) {
-        try { card = node.closest(contentContainerSelector); } catch {}
-      } else for (let parent = node.parentElement; parent && parent !== root; parent = parent.parentElement) {
-        const descriptor = `${parent.id} ${typeof parent.className === 'string' ? parent.className : ''}`;
-        if (['LI', 'ARTICLE'].includes(parent.tagName) || parent.getAttribute('role') === 'listitem'
-          || /(?:^|[\s_-])(?:card|item|product)(?:[\s_-]|$)/i.test(descriptor)) { card = parent; break; }
-      }
-      if (!backgroundImages && (!img || !card || card === root || !root.contains(card))) return [];
-      const lazySource = img?.getAttribute('data-src') || img?.getAttribute('data-srcset')
-        || img?.getAttribute('srcset') || img?.getAttribute('src') || img?.currentSrc || null;
-      const hasBackground = Boolean(s.backgroundImage && s.backgroundImage !== 'none');
-      const visible = r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'
-        && Number(s.opacity || 1) > 0;
-      const hasImage = backgroundImages ? hasBackground : tag === 'picture' || (tag === 'img' && (img.complete && img.naturalWidth > 0
-        || Boolean(lazySource)));
-      if (!visible || !hasImage) return [];
-      const width = img?.naturalWidth || r.width, height = img?.naturalHeight || r.height;
-      const imageStyle = img ? getComputedStyle(img) : s;
-      const position = backgroundImages ? s.backgroundPosition : imageStyle.objectPosition;
-      const positionParts = String(position || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-      const centered = /\bcenter\b/.test(positionParts.join(' '))
-        || (positionParts.length >= 2 && /^50(?:\.0+)?%$/.test(positionParts[0])
-          && /^50(?:\.0+)?%$/.test(positionParts[1]));
-      return [{ ratio: width / height, objectPosition: imageStyle.objectPosition, backgroundPosition: s.backgroundPosition,
-        positionSource: backgroundImages ? 'background-position' : 'object-position', centered,
-        sourceKind: tag === 'picture' ? 'picture' : tag === 'img' ? 'img' : 'background-image',
-        hasLazySource: Boolean(lazySource), hasBackgroundImage: hasBackground }];
-    }) };
-  }, { rootSelector, selectorCandidates, backgroundImages, contentContainerSelector: requirement.params?.contentContainerSelector });
+  const actual = await page.evaluate(readInstanceStructure, { rootSelector,
+    imageMode: backgroundImages ? 'background' : 'content', imageSelectors: selectorCandidates,
+    contentContainerSelector: requirement.params?.contentContainerSelector });
   if (!actual.rootFound || !actual.images.length) return requirementResult(requirement, 'na', requirement.expected, actual,
     'image-ratio-elements-unresolved', '实例中没有可测量的图片，需人工复核。');
   const tolerance = Number(requirement.params?.ratioTolerance ?? 0);
@@ -1001,27 +960,7 @@ async function checkDefaultExpand(requirement, page, rootSelector) {
   if (!Number.isInteger(level) || level < 1) return requirementResult(requirement, 'na', requirement.expected, null,
     'default-expand-level-unavailable', '清单没有提供有效的默认展开层级，需人工复核。');
   const selectorCandidates = [...new Set([requirement.params?.selector, ...(requirement.params?.selectorCandidates || [])].filter(Boolean))];
-  const actual = await page.evaluate(({ rootSelector, selectorCandidates }) => {
-    const root = document.querySelector(rootSelector);
-    if (!root) return { rootFound: false, levels: [], collapsedLevels: [] };
-    let nodes = [];
-    for (const selector of selectorCandidates) { try { nodes.push(...root.querySelectorAll(selector)); } catch {} }
-    if (!nodes.length) nodes = [...root.querySelectorAll('[aria-level],[aria-expanded],details')];
-    nodes = [...new Set(nodes)].filter((node) => { const r = node.getBoundingClientRect(), s = getComputedStyle(node);
-      return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'; });
-    const levelOf = (node) => {
-      const raw = node.getAttribute('aria-level');
-      if (raw) return Number(raw);
-      let depth = 1, parent = node.parentElement;
-      while (parent && parent !== root) { if (parent.matches('[role="treeitem"],li,details')) depth += 1; parent = parent.parentElement; }
-      return depth;
-    };
-    const levels = nodes.map(levelOf).filter(Number.isFinite);
-    const collapsedLevels = nodes.filter((node) => node.getAttribute('aria-expanded') === 'false'
-      || (node.tagName.toLowerCase() === 'details' && !node.open)).map(levelOf).filter(Number.isFinite);
-    return { rootFound: true, levels, maxVisibleLevel: levels.length ? Math.max(...levels) : null,
-      collapsedLevels, collapsedLevelCount: collapsedLevels.length };
-  }, { rootSelector, selectorCandidates });
+  const actual = await page.evaluate(readInstanceStructure, { rootSelector, hierarchySelectors: selectorCandidates });
   if (!actual.rootFound || actual.maxVisibleLevel === null) return requirementResult(requirement, 'na', requirement.expected, actual,
     'default-expand-hierarchy-unresolved', '实例中没有可读取的层级结构，需人工复核。');
   const collapsedLevel = Number(requirement.expected?.collapsedLevel);
@@ -1070,23 +1009,9 @@ async function checkNavHierarchyLevels(requirement, page, rootSelector) {
   if (!expectedLevels?.length && (!Number.isInteger(expectedMax) || expectedMax < 1)) return requirementResult(requirement,
     'na', requirement.expected, null, 'nav-hierarchy-expected-unavailable', '清单没有提供 levels 或 maxLevel。');
   const itemSelector = requirement.params?.itemSelector;
-  const actual = await page.evaluate(({ rootSelector, itemSelector }) => {
-    const root = document.querySelector(rootSelector);
-    if (!root) return { rootFound: false, levels: [] };
-    let nodes = [];
-    if (itemSelector) { try { nodes = [...root.querySelectorAll(itemSelector)]; } catch {} }
-    else nodes = [...root.querySelectorAll('[aria-level],[role="treeitem"],li,details')];
-    const depth = (node) => {
-      const ariaLevel = Number(node.getAttribute('aria-level'));
-      if (Number.isInteger(ariaLevel) && ariaLevel > 0) return ariaLevel;
-      let level = 1;
-      for (let parent = node.parentElement; parent && parent !== root; parent = parent.parentElement) {
-        if (parent.matches('[role="treeitem"],li,details')) level += 1;
-      }
-      return level;
-    };
-    return { rootFound: true, levels: [...new Set(nodes.map(depth))].sort((a, b) => a - b), itemCount: nodes.length };
-  }, { rootSelector, itemSelector });
+  const structure = await page.evaluate(readInstanceStructure, { rootSelector, hierarchySelectors: itemSelector ? [itemSelector] : [] });
+  const actual = { rootFound: structure.rootFound, levels: structure.allLevels || structure.levels || [],
+    itemCount: structure.hierarchy?.length ?? structure.itemCount ?? 0 };
   if (!actual.rootFound || !actual.levels.length) return requirementResult(requirement, 'na', requirement.expected, actual,
     'nav-hierarchy-elements-unresolved', '实例中没有可测量的导航层级结构。');
   const pass = expectedLevels ? JSON.stringify(actual.levels) === JSON.stringify([...new Set(expectedLevels)].sort((a, b) => a - b))
@@ -1416,10 +1341,10 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
 }
 
 export function isSafeStateExerciseTarget(info = {}) {
-  return info.visible === true && info.tag !== 'a' && info.hasHref !== true
+  return info.visible === true && (info.tag !== 'a' || info.nonNavigatingAnchor === true) && info.hasHref !== true
     && info.navigationAncestor !== true
     && info.insideForm !== true && info.submitControl !== true
-    && Boolean(info.hasExplicitToggle || info.semantic || info.nativeButton || info.pointerAction || info.hasClickHandler);
+    && Boolean(info.hasExplicitToggle || info.hasDisclosure || info.hiddenSiblingIndexes?.length || info.isTab);
 }
 
 export function isVisibleHoverStateTarget(info = {}) {
@@ -1438,7 +1363,7 @@ export function readStateControlDom(element, rootSelector) {
     .filter((node) => node && (!root || node === root || root.contains(node)));
   const nodes = [...new Set(scopes.flatMap((node) => [node, ...node.querySelectorAll('*')]))];
   return JSON.stringify(nodes.map((node) => ({
-    tag: node.tagName, class: node.getAttribute('class'), expanded: node.getAttribute('aria-expanded'),
+    tag: node.tagName, class: String(node.getAttribute('class') || '').trim().split(/\s+/).filter(Boolean).sort().join(' '), expanded: node.getAttribute('aria-expanded'),
     selected: node.getAttribute('aria-selected'), hidden: node.hidden, ariaHidden: node.getAttribute('aria-hidden'),
     display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility,
     width: Math.round(node.getBoundingClientRect().width * 10) / 10,
@@ -1543,7 +1468,9 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
       diagnostic[restoring ? 'restoreTrial' : 'trial'] = { status: 'timeout', errorClass: error?.name || 'Error' };
       const clicked = await action(`${prefix}-toggle-dom-fallback`, () => target.evaluate((element, rootSelector) => {
         const root = document.querySelector(rootSelector);
-        if (!root?.contains(element) || element.closest('a[href],area[href],form') || element.form
+        const link = element.closest('a[href],area[href]');
+        const navigates = link && !/^\s*(?:javascript:\s*void\s*\(\s*0\s*\)\s*;?)?\s*$/i.test(link.getAttribute('href') || '');
+        if (!root?.contains(element) || navigates || element.closest('form') || element.form
           || /^(submit|reset|image)$/i.test(element.getAttribute('type') || '')) return false;
         element.click(); return true;
       }, rootSelector), { recoverable: true });
@@ -1624,12 +1551,15 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
   // Open only controls rooted in this instance. Never activate links, submit
   // controls, or anything inside a form. Pointer-only elements are eligible
   // only when they cannot navigate or submit.
+  const structure = timedOut() ? null : await action('find-disclosures', () => page.evaluate(readInstanceStructure, { rootSelector }));
+  const discovered = Array.isArray(structure?.disclosures) ? structure.disclosures : null;
   const stateControls = root.locator('*');
-  const stateCount = timedOut() ? 0 : Math.min(await action('count-state-controls', () => stateControls.count()), maxElements);
+  const stateCount = timedOut() ? 0 : discovered ? Math.min(discovered.length, maxElements)
+    : Math.min(await action('count-state-controls', () => stateControls.count()), maxElements);
   const selectedTabs = [];
   const exercisedTargets = new Set();
   for (let index = 0; index < stateCount && !timedOut(); index += 1) {
-    let control = stateControls.nth(index);
+    let control = discovered ? root.locator(discovered[index].path) : stateControls.nth(index);
     let info;
     try { info = await action('inspect-toggle', () => control.evaluate((element, { rootSelector, targetToken }) => {
       const root = document.querySelector(rootSelector);
@@ -1651,7 +1581,7 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
       const type = element.getAttribute('type');
       const insideForm = Boolean(element.closest('form') || element.form);
       const isTab = role === 'tab';
-      const hasExplicitToggle = element.hasAttribute('aria-expanded') || element.hasAttribute('aria-haspopup');
+      const hasExplicitToggle = element.hasAttribute('aria-expanded') || element.hasAttribute('aria-controls');
       const semantic = ['button', 'tab', 'combobox'].includes(role);
       const nativeButton = tag === 'button' && !['submit', 'reset'].includes(type) && !insideForm;
       const pointerAction = getComputedStyle(element).cursor === 'pointer';
@@ -1664,6 +1594,8 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
           || siblingStyle.display === 'none' || siblingStyle.visibility === 'hidden';
       }).map(({ index }) => index);
       const submitControl = (tag === 'button' || tag === 'input') && ['submit', 'reset', 'image'].includes(type);
+      const link = element.closest('a[href],area[href]');
+      const navigatingLink = Boolean(link && !/^\s*(?:javascript:\s*void\s*\(\s*0\s*\)\s*;?)?\s*$/i.test(link.getAttribute('href') || ''));
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
       const visible = element.getClientRects().length > 0 && rect.width > 0 && rect.height > 0 && style.display !== 'none'
@@ -1671,13 +1603,15 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
       if (root?.contains(element)) element.setAttribute('data-front-state-click-target', targetToken);
       return { tag, visible: visible && Boolean(root?.contains(element)), targetPath: `:scope > ${path.join(' > ')}`,
         targetToken, candidate, clickTarget: describe(element),
-        hasHref: element.hasAttribute('href'), navigationAncestor: Boolean(element.closest('a[href],area[href]')),
+        nonNavigatingAnchor: tag === 'a' && !navigatingLink,
+        hasHref: navigatingLink, navigationAncestor: navigatingLink,
         insideForm, submitControl,
         hasExplicitToggle, semantic, nativeButton, hasClickHandler, hiddenSiblingIndexes, isTab, isSelect: tag === 'select',
         isDetails: tag === 'details' || tag === 'summary', pointerAction,
         expanded: element.getAttribute('aria-expanded'), hasPopup: element.hasAttribute('aria-haspopup'),
         selected: element.getAttribute('aria-selected'), type };
     }, { rootSelector, targetToken: `state-${Date.now()}-${index}` })); } catch { continue; }
+    info.hasDisclosure = Boolean(discovered?.[index]?.evidence?.length);
     info.safe = isSafeStateExerciseTarget(info);
     if (!info.safe) continue;
     if (info.targetPath) {
@@ -1685,9 +1619,21 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
       exercisedTargets.add(info.targetPath);
       control = root.locator(info.targetToken ? `[data-front-state-click-target="${info.targetToken}"]` : info.targetPath);
     }
+    try {
+      if (control.scrollIntoViewIfNeeded) await action('disclosure-scroll-into-view', () => control.scrollIntoViewIfNeeded({ timeout: actionTimeoutMs }), { recoverable: true });
+      const current = await action('disclosure-onscreen', () => control.evaluate((element) => {
+        const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
+        return { onScreen: rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.left >= 0
+          && rect.bottom <= innerHeight && rect.right <= innerWidth && style.visibility !== 'hidden'
+          && style.display !== 'none' && Number(style.opacity || 1) > 0,
+        rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } };
+      }));
+      if (current?.onScreen === false) { notExercised.push({ state: 'category-expanded', status: 'not-exercised', reason: { code: 'disclosure-offscreen-after-scroll' } }); continue; }
+      if (current?.rect && info.clickTarget) info.clickTarget.rect = current.rect;
+    } catch { notExercised.push({ state: 'category-expanded', status: 'not-exercised', reason: { code: 'disclosure-scroll-or-visibility-unavailable' } }); continue; }
     exerciseCounts.eligibleCandidates += 1;
     const diagnostic = { candidate: info.candidate || { tag: info.tag }, clickTarget: info.clickTarget || { tag: info.tag },
-      status: 'not-exercised' };
+      status: 'not-exercised', disclosureEvidence: discovered?.[index]?.evidence || [] };
     candidateDiagnostics.push(diagnostic);
     onProgress?.(`state-candidate ${JSON.stringify({ candidate: diagnostic.candidate, clickTarget: diagnostic.clickTarget })}`);
     if (info.isSelect || info.isDetails) continue; // handled without choosing/changing a value below
@@ -1700,7 +1646,7 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
         await action('observe-tab', () => control.evaluate(beginStateControlObservation, rootSelector));
         await activate(control, diagnostic);
         await action('settle-tab-animation', () => control.evaluate(finishStateControlObservation, {
-          animationWaitMs: Math.min(250, actionTimeoutMs / 4), maxWaitMs: Math.min(1000, actionTimeoutMs * 0.75) }));
+          animationWaitMs: Math.min(1500, actionTimeoutMs / 2), maxWaitMs: Math.min(1800, actionTimeoutMs * 0.8) }));
         const after = await action('read-tab-dom-change', () => control.evaluate(readStateControlDom, rootSelector));
         if (JSON.stringify(before) !== JSON.stringify(after)) {
           diagnostic.status = 'opened'; exerciseCounts.opened += 1;
@@ -1719,7 +1665,7 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
       await action('observe-toggle', () => control.evaluate(beginStateControlObservation, rootSelector));
       await activate(control, diagnostic);
       const observation = await action('settle-toggle-animation', () => control.evaluate(finishStateControlObservation, {
-        animationWaitMs: Math.min(250, actionTimeoutMs / 4), maxWaitMs: Math.min(1000, actionTimeoutMs * 0.75) }));
+        animationWaitMs: Math.min(1500, actionTimeoutMs / 2), maxWaitMs: Math.min(1800, actionTimeoutMs * 0.8) }));
       diagnostic.observation = { mutationCount: observation?.mutationCount || 0, waitedMs: observation?.waitedMs || 0,
         settled: observation?.settled === true };
       const after = await action('read-toggle-dom-change', () => control.evaluate(readStateControlDom, rootSelector));
@@ -1743,7 +1689,7 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
         await action('observe-toggle-restore', () => control.evaluate(beginStateControlObservation, rootSelector));
         await activate(control, diagnostic, true);
         await action('settle-toggle-restore', () => control.evaluate(finishStateControlObservation, {
-          animationWaitMs: Math.min(250, actionTimeoutMs / 4), maxWaitMs: Math.min(1000, actionTimeoutMs * 0.75) }));
+          animationWaitMs: Math.min(1500, actionTimeoutMs / 2), maxWaitMs: Math.min(1800, actionTimeoutMs * 0.8) }));
         const restored = await action('read-restored-dom', () => control.evaluate(readStateControlDom, rootSelector));
         diagnostic.restored = JSON.stringify(restored) === JSON.stringify(before);
         if (diagnostic.restored) exerciseCounts.restored += 1;

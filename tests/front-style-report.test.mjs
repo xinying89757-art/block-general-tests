@@ -26,3 +26,21 @@ test('summary exposes raw failures and roots while retaining transitive dependen
   assert.deepEqual(report.failureDeduplication.failures[1].dependsOn, ['root']);
   assert.equal(report.checks.length, 4);
 });
+
+test('same spec/property/expected failure across PC and mobile is one root with both viewports', () => {
+  const row = (id, viewport, wanted = 28, property = 'lineHeight') => ({ id, status: 'fail', sourceText: 'Label typography',
+    expected: { [property]: wanted }, reason: { checkType: 'typography', code: 'design-typography-mismatch',
+      viewport: { label: viewport }, mismatches: [{ property, expected: wanted, actual: [14] }] } });
+  const report = finalizeFrontStyleReport({ checks: [row('design-pc-font', 'pc'), row('design-mobile-font', 'mobile')] });
+  assert.equal(report.checks.length, 2);
+  assert.equal(report.summary.rawFail, 2);
+  assert.equal(report.summary.dedupedFail, 1);
+  assert.deepEqual(report.failureDeduplication.rootFailures[0].viewports, ['pc', 'mobile']);
+  assert.deepEqual(report.checks[0].rootFailureIds, report.checks[1].rootFailureIds);
+  const sameId = finalizeFrontStyleReport({ checks: [row('design-same', 'pc'), row('design-same', 'mobile')] });
+  assert.equal(sameId.checks.length, 1);
+  assert.deepEqual(sameId.failureDeduplication.rootFailures[0].viewports, ['pc', 'mobile']);
+  assert.equal(sameId.failureDeduplication.rawFailureObservationCount, 2);
+  assert.equal(finalizeFrontStyleReport({ checks: [row('design-pc', 'pc'), row('design-mobile', 'mobile', 32)] }).summary.fail, 2);
+  assert.equal(finalizeFrontStyleReport({ checks: [row('design-pc', 'pc'), row('design-mobile', 'mobile', 28, 'fontSize')] }).summary.fail, 2);
+});

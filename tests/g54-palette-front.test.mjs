@@ -311,13 +311,15 @@ test('state exercise opens only safe instance controls and records attempted/ope
 test('interactive state target safety excludes navigation, form submission and hidden elements', () => {
   const base = { visible: true, tag: 'div', hasHref: false, insideForm: false, submitControl: false,
     hasExplicitToggle: false, semantic: false, nativeButton: false, pointerAction: true };
-  assert.equal(isSafeStateExerciseTarget(base), true);
+  assert.equal(isSafeStateExerciseTarget(base), false, 'pointer affordance alone is not disclosure evidence');
+  assert.equal(isSafeStateExerciseTarget({ ...base, hasDisclosure: true }), true);
+  assert.equal(isSafeStateExerciseTarget({ ...base, tag: 'a', hasDisclosure: true, nonNavigatingAnchor: true }), true);
   assert.equal(isSafeStateExerciseTarget({ ...base, tag: 'a', hasHref: true }), false);
   assert.equal(isSafeStateExerciseTarget({ ...base, tag: 'span', navigationAncestor: true }), false);
   assert.equal(isSafeStateExerciseTarget({ ...base, insideForm: true }), false);
   assert.equal(isSafeStateExerciseTarget({ ...base, submitControl: true }), false);
   assert.equal(isSafeStateExerciseTarget({ ...base, visible: false }), false);
-  assert.equal(isSafeStateExerciseTarget({ ...base, pointerAction: false, hasClickHandler: true }), true);
+  assert.equal(isSafeStateExerciseTarget({ ...base, pointerAction: false, hasClickHandler: true }), false, 'an arbitrary click handler is not a disclosure');
   assert.equal(isSafeStateExerciseTarget({ ...base, pointerAction: false, hasClickHandler: true,
     tag: 'a', hasHref: false }), false);
 });
@@ -403,6 +405,7 @@ test('every written-color miss records states exercised and stylesheet scan diag
   const page = {
     locator: () => ({ locator: () => emptyLocator }),
     evaluate: async (_fn, arg) => {
+      if (_fn.name === 'readInstanceStructure') return { rootFound: true, disclosures: [] };
       if (arg?.declarations) return [];
       if (!arg) return undefined;
       call += 1;

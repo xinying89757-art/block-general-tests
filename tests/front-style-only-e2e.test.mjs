@@ -20,6 +20,7 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     response.end(`<!doctype html><html><head><link rel="stylesheet" href="http://127.0.0.1:${cssServer.address().port}/fixture.css"></head><body>
       <div data-appid="90001" data-id="siteblocks-setting-wrap-setting-smoke" class="fixture" style="width:320px;position:relative">
         <div class="sample">Style sample</div><div class="palette">palette</div>
+        <label style="font-size:14px;font-weight:400;line-height:21px"><input type="checkbox">Option label</label>
         <a href="/away" style="cursor:pointer"><span>Do not follow this nested link</span></a>
         <button type="button" class="hover-color" style="cursor:pointer">Hover for palette</button>
         <div class="typography-wrapper" style="font-size:12px">Exact leaf label <span style="font-size:16px;font-weight:600;line-height:20px">Exact leaf label</span></div>
@@ -73,6 +74,7 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
         { id: 'sample-color', kind: 'first', selector: '.sample', props: { color: '#000000' } },
         { id: 'category-parent', kind: 'nav-parent', selector: '.missing-parent', props: {} },
         { id: 'category-leaf', kind: 'nav-leaf', selector: '.missing-leaf', props: {} },
+        { id: 'filter-option', kind: 'sample', selectorCandidates: ['.missing-options'], props: { fontSize: 14, fontWeight: 400, lineHeight: 21 } },
         { id: 'button-bg', kind: 'first', selectorCandidates: ['.live-button'], learnedSelectorRequired: true,
           props: { backgroundColor: '#ff0000' } },
         { id: 'pagination-current', kind: 'text', text: '1', selectorCandidates: ['.paging-current'], learnedSelectorRequired: true,
@@ -182,6 +184,7 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
       .every((image) => image.positionSource === 'object-position'));
     assert.ok(report.checks.find((row) => row.id === 'bss-category-parent')?.evidence.matchedCount >= 1);
     assert.ok(report.checks.find((row) => row.id === 'bss-category-leaf')?.evidence.matchedCount >= 1);
+    assert.equal(report.checks.find((row) => row.id === 'bss-filter-option')?.status, 'pass');
     assert.doesNotMatch(JSON.stringify(report.checks.find((row) => row.id === 'bss-breakage-mobile')?.evidence?.overlaps || []), /compare-bar/);
     assert.match(result.stdout, /stage=style-check-start id=bss-sample-color/);
   } finally {

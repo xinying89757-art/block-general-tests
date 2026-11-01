@@ -125,8 +125,8 @@ test('partial report preserves completed checks when execution is interrupted', 
 
 test('navigation fallback derives link candidates only from the uniquely scoped instance root', () => {
   const source = fs.readFileSync(new URL('../src/capabilities/block-style-spec.mjs', import.meta.url), 'utf8');
-  assert.match(source, /links = \[\.\.\.selectionRoot\.querySelectorAll\('a, \[role="link"\]'\)\]/);
-  assert.match(source, /candidateSource = 'instance-root-semantic-hierarchy'/);
+  assert.match(source, /frame\.evaluate\(readInstanceStructure, \{ rootSelector: rootSel \}\)/);
+  assert.match(source, /candidateSource = 'instance-root-structural-hierarchy'/);
   assert.doesNotMatch(source, /document\.querySelectorAll\('a, \[role="link"\]'\)/);
   assert.match(source, /navigation \? 'na' : 'skip'/);
   assert.match(source, /no-semantic-link-hierarchy-in-instance/);
