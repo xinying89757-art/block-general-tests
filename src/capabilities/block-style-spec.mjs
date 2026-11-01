@@ -74,7 +74,7 @@ export async function runFreshStyleChecks(args) {
       config: { ...config, rootSelector, settingId: instance?.settingId, settingsReport },
       capability: { ...capability, designSpec: profile?.designSpec } });
     const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector, frontChecks: styleChecks,
-      settingsReport, viewport: { label: 'pc', width: 1440, height: 900 } });
+      settingsReport, imageLoadTimeoutMs: config.imageLoadTimeoutMs, viewport: { label: 'pc', width: 1440, height: 900 } });
     const writtenColorChecks = extractWrittenColorValues(settingsReport).length
       ? await runWrittenColorFrontChecks({ page, rootSelector, settingsReport }) : [];
     return [...styleChecks, ...designChecks.filter(Boolean), ...writtenColorChecks];
@@ -714,7 +714,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability, onProg
         }
         const responsiveChecklistChecks = await runDesignSpecFrontChecks({ designSpec: capability.designSpec, capabilities: [capability] }, {
           page: frame, rootSelector: rootSel, frontChecks: mobileStyleChecks, viewport: { label: 'mobile', width: viewports.mobile, height: 667 },
-          settingsReport: config.settingsReport,
+          settingsReport: config.settingsReport, imageLoadTimeoutMs: config.imageLoadTimeoutMs,
         });
         checks.push(...responsiveChecklistChecks.filter(Boolean));
       }

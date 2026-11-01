@@ -40,7 +40,7 @@
             },
             "additionalProperties": false
           },
-          "params": { "type": "object" }
+          "params": { "type": "object", "properties": { "ratioSource": { "enum": ["natural", "rendered-content", "rendered-element", "both"] } } }
         },
         "allOf": [{
           "if": { "required": ["state"] },

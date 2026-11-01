@@ -1,6 +1,8 @@
 import { readSpecTargetState, specScopeMapping, validateSpecState } from './spec-target-state.mjs';
 import { markUniqueFrontInstance } from './front-instance-root.mjs';
 import { readInstanceStructure } from './front-structure.mjs';
+import { preparePrimaryImages } from './image-readiness.mjs';
+import { resolveImageRatioSource } from './image-geometry.mjs';
 
 export const DESIGN_CHECK_TYPES = Object.freeze([
   'color-default', 'color-scope', 'typography', 'module-width', 'height-fit',
@@ -161,6 +163,7 @@ export function validateDesignSpec(spec, profileId = '(unknown)') {
       if (typeof item.sourceText !== 'string' || !item.sourceText.trim()) add(`${path}.sourceText`, 'must be non-empty verbatim source text');
       if (!['editor', 'front', 'both'].includes(item.checkStage)) add(`${path}.checkStage`, 'must be editor, front, or both');
       if (!item.params || typeof item.params !== 'object' || Array.isArray(item.params)) add(`${path}.params`, 'must be an object');
+      if (item.checkType === 'image-ratio' && !resolveImageRatioSource(item).source) add(`${path}.params.ratioSource`, 'must be natural, rendered-content, rendered-element or both');
       if (item.expected && typeof item.expected === 'object' && (Object.hasOwn(item.expected, 'lineHeight') || Object.hasOwn(item.expected, 'line-height'))) {
         add(`${path}.expected.lineHeight`, 'line-height is informational only and cannot be a checklist assertion');
       }
@@ -945,26 +948,44 @@ async function checkTextTruncation(requirement, page, rootSelector) {
     pass ? 'text-truncation-matched' : 'text-truncation-mismatch', pass ? '文本行数限制符合清单。' : '文本行数限制与清单不一致。');
 }
 
-async function checkImageRatio(requirement, page, rootSelector) {
-  const ratioText = String(requirement.expected?.ratio || '');
-  const parts = ratioText.match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/);
-  if (!parts) return requirementResult(requirement, 'na', requirement.expected, null,
+async function checkImageRatio(requirement, page, rootSelector, imageLoadTimeoutMs) {
+  const parts = String(requirement.expected?.ratio || '').match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/);
+  if (!parts || Number(parts[1]) <= 0 || Number(parts[2]) <= 0) return requirementResult(requirement, 'na', requirement.expected, null,
     'image-ratio-expected-unavailable', '清单没有提供可解析的宽高比，需人工复核。');
+  const source = resolveImageRatioSource(requirement);
+  if (!source.source) return requirementResult(requirement, 'na', requirement.expected, null,
+    source.code, '清单声明的图片比例测量来源不受支持。');
   const expectedRatio = Number(parts[1]) / Number(parts[2]);
   const selectorCandidates = [...new Set([requirement.params?.selector, ...(requirement.params?.selectorCandidates || [])].filter(Boolean))];
-  const backgroundImages = requirement.params?.imageKind === 'background';
-  const actual = await page.evaluate(readInstanceStructure, { rootSelector,
-    imageMode: backgroundImages ? 'background' : 'content', imageSelectors: selectorCandidates,
-    contentContainerSelector: requirement.params?.contentContainerSelector });
+  const { structure, metrics, loading } = await preparePrimaryImages({ page, rootSelector, timeoutMs: imageLoadTimeoutMs,
+    structureOptions: { imageMode: requirement.params?.imageKind === 'background' ? 'background' : 'content',
+      imageSelectors: selectorCandidates, contentContainerSelector: requirement.params?.contentContainerSelector } });
+  const actual = { ...structure, imageLoad: loading, measurementSource: source,
+    images: (structure?.images || []).map((image) => {
+      const metric = metrics.find((row) => row.path === image.path);
+      // Background-image checks retain their existing rendered-box oracle;
+      // explicit natural-size requirements cannot infer a background resource's size.
+      const effectiveSource = metric?.kind === 'background-image' && source.origin === 'legacy-natural-default'
+        ? 'rendered-element' : source.source;
+      const ratios = !metric?.loaded ? [] : effectiveSource === 'both'
+        ? [metric.natural?.ratio, metric.rendered?.ratio] : [effectiveSource === 'natural' ? metric.natural?.ratio
+          : effectiveSource === 'rendered-element' ? metric.elementBox?.ratio : metric.rendered?.ratio];
+      return { ...image, metrics: metric || null, decidingSource: effectiveSource,
+        decidingRatios: ratios, centered: metric?.rendered?.centered ?? null,
+        measured: ratios.length > 0 && ratios.every((value) => Number.isFinite(value) && value > 0) };
+    }) };
+  if (loading.code === 'image-load-scroll-restore-failed') return requirementResult(requirement, 'fail', requirement.expected, actual,
+    loading.code, '图片检查后无法恢复原滚动位置。');
   if (!actual.rootFound || !actual.images.length) return requirementResult(requirement, 'na', requirement.expected, actual,
     actual.imageSelection?.ambiguousCards?.length ? 'primary-media-choice-ambiguous' : 'image-ratio-elements-unresolved', '实例中没有可唯一测量的主图片。');
   const tolerance = Number(requirement.params?.ratioTolerance ?? 0);
-  const measured = actual.images.filter((image) => image.measurementStatus !== 'unavailable' && Number.isFinite(image.ratio));
-  const mismatches = measured.filter((image) => Math.abs(image.ratio - expectedRatio) > tolerance
-    || requirement.expected.centered && !image.centered);
+  const measured = actual.images.filter((image) => image.measured);
+  const mismatches = measured.filter((image) => image.decidingRatios.some((ratio) => Math.abs(ratio - expectedRatio) > tolerance)
+    || requirement.expected.centered && image.centered === false);
   if (mismatches.length) return requirementResult(requirement, 'fail', requirement.expected, actual,
     'image-ratio-mismatch', '主图片比例或对齐与清单不一致。');
-  if (measured.length !== actual.images.length || actual.imageSelection?.ambiguousCards?.length) return requirementResult(requirement, 'na', requirement.expected, actual,
+  if (measured.length !== actual.images.length || actual.imageSelection?.ambiguousCards?.length
+    || requirement.expected.centered && measured.some((image) => image.centered === null)) return requirementResult(requirement, 'na', requirement.expected, actual,
     actual.imageSelection?.ambiguousCards?.length ? 'primary-media-choice-ambiguous' : 'primary-image-dimensions-unavailable',
     '已定位主图片，但图片资源或尺寸不可读，不能用替代文字小框判定图片比例。');
   return requirementResult(requirement, 'pass', requirement.expected, actual, 'image-ratio-matched', '主图片比例与清单一致。');
@@ -1088,7 +1109,7 @@ async function checkMobileLayout(requirement, page, rootSelector) {
     pass ? 'mobile-layout-matched' : 'mobile-layout-mismatch', pass ? '移动端布局符合清单。' : '移动端布局与清单不一致。');
 }
 
-export async function checkDesignRequirementFront(requirement, { profile, page, rootSelector, frontChecks = [], settingsReport = null } = {}) {
+export async function checkDesignRequirementFront(requirement, { profile, page, rootSelector, frontChecks = [], settingsReport = null, imageLoadTimeoutMs } = {}) {
   const override = overrideFor(profile?.designSpec, requirement.id);
   if (override) return checkResult(requirement, 'na', { classification: 'known-exception',
     detail: `已知例外：${override.reason}`, reason: { code: 'waived', reason: override.reason } });
@@ -1236,7 +1257,7 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
   }
   if (!page || !rootSelector) return checkResult(requirement, 'na', { detail: '目标区块实例根节点不可用。', reason: { code: 'instance-root-unavailable' } });
   if (requirement.checkType === 'text-truncation') return checkTextTruncation(requirement, page, rootSelector);
-  if (requirement.checkType === 'image-ratio') return checkImageRatio(requirement, page, rootSelector);
+  if (requirement.checkType === 'image-ratio') return checkImageRatio(requirement, page, rootSelector, imageLoadTimeoutMs);
   if (requirement.checkType === 'default-expand') return checkDefaultExpand(requirement, page, rootSelector);
   if (requirement.checkType === 'overflow-threshold') return checkOverflowThreshold(requirement, page, rootSelector);
   if (requirement.checkType === 'nav-hierarchy-levels') return checkNavHierarchyLevels(requirement, page, rootSelector);

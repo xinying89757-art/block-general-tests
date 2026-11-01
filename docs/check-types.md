@@ -108,3 +108,47 @@ The retired CLI options `--exercise-states`, `--state-timeout-ms` and
 `--state-action-timeout-ms` print one notice and are ignored. No generic state
 scan or related report fields remain. G68 capture and structural finder
 diagnostics (hierarchy, images, navigation and options) remain available.
+
+## Image loading and ratio measurement
+
+Before `image-ratio` measures selected primary media, it scrolls the instance in
+viewport-sized steps and exposes images in nested scroll containers. The page's
+own lazy loader must load them: the checker only **observes** `data-src`,
+`data-original`, `srcset` and other source attributes, and never copies them into
+`src`/`srcset`. It waits for `complete && naturalWidth > 0 && naturalHeight > 0`.
+Original page and nested-container scroll positions are restored in `finally`.
+There is no generic hover/toggle scan.
+
+The total budget (selection, scrolling, waiting, measurements, restoration) is
+8000 ms per requirement per viewport, **not per image**. The front CLI accepts
+`--image-load-timeout 12000`; both the regular and fresh runners accept
+`IMAGE_LOAD_TIMEOUT_MS=12000`. Values must be positive integer milliseconds.
+The CLI option takes precedence over the environment variable. PC and mobile use
+the same configured budget. This wait cannot make a failed image pass: after the
+budget, an unloaded primary image retains `na` /
+`primary-image-dimensions-unavailable`, with `actual.imageLoad.loaded/total`,
+`timedOut`, `timeoutMs`, `elapsedMs` and restoration evidence. A known ratio
+mismatch still fails even if peer images are unavailable.
+
+The checklist can specify `params.ratioSource`:
+
+| Source | Ratio that decides the verdict |
+| --- | --- |
+| `natural` | Loaded resource's intrinsic width / height |
+| `rendered-content` | Visible graphic inside the CSS content box, accounting for `object-fit`, `object-position`, padding, borders and cropping |
+| `rendered-element` | Rendered element border box (the declared image frame) |
+| `both` | Both natural and visible-content ratios must match |
+
+Explicit original-image wording selects natural size; explicit frame wording
+selects the element box; explicit displayed/cropped-image wording selects visible
+content. Otherwise the existing natural-size oracle is retained; the tool never
+selects whichever source happens to pass. Existing background-image requirements
+retain their rendered-box oracle; an explicit natural-size background requirement
+is `na` when its intrinsic size cannot be read. No existing spec ratio is changed.
+
+JSON stores both natural and rendered measurements, content/element boxes,
+object fit/position, whether cropped, the deciding source and its provenance.
+A `cover` crop may therefore be square while its original is rectangular; a
+`contain` image retains its original visible ratio within a square frame.
+Unloaded foreground images cannot pass using the frame dimensions alone.
+Source evidence records attribute names/presence/length, never source URL values.

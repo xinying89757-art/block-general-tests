@@ -1,3 +1,4 @@
+import { measuredImagePage } from './helpers/image-page.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { checkDesignRequirementEditor, checkDesignRequirementFront, extractWrittenColorValues,
@@ -129,10 +130,10 @@ test('image position recognizes centered object-position and background-position
   const item = { id: 'image-center', checkType: 'image-ratio', sourceText: 'Centered image',
     expected: { ratio: '1:1', centered: true }, checkStage: 'front', params: {} };
   const result = await checkDesignRequirementFront(item, { profile: profile([item]), rootSelector: '.root',
-    page: { evaluate: async () => ({ rootFound: true, images: [
+    page: measuredImagePage([
       { ratio: 1, centered: true, objectPosition: '50% 50%', positionSource: 'object-position' },
       { ratio: 1, centered: true, backgroundPosition: '50% 50%', positionSource: 'background-position' },
-    ] }) } });
+    ]) });
   assert.equal(result.status, 'pass');
 });
 
@@ -271,7 +272,7 @@ test('text truncation, image ratio, and default expand use checklist parameters 
   const ratio = { id: 'ratio', checkType: 'image-ratio', sourceText: 'Image 1:1', expected: { ratio: '1:1', centered: true },
     checkStage: 'front', params: {} };
   assert.equal((await checkDesignRequirementFront(ratio, { profile: profile([ratio]),
-    page: pageReturning({ rootFound: true, images: [{ ratio: 1, centered: true }] }), rootSelector: '.i' })).status, 'pass');
+    page: measuredImagePage([{ ratio: 1, centered: true }]), rootSelector: '.i' })).status, 'pass');
   const expand = { id: 'expand', checkType: 'default-expand', sourceText: 'Default level', expected: { level: 1 },
     checkStage: 'front', params: {} };
   assert.equal((await checkDesignRequirementFront(expand, { profile: profile([expand]),
@@ -293,7 +294,7 @@ test('text truncation, image ratio, and default expand use checklist parameters 
   const truncationNa = await checkDesignRequirementFront({ ...truncation, expected: {} }, { profile: profile([truncation]), page: pageReturning({}), rootSelector: '.i' });
   assert.equal(truncationNa.status, 'na');
   const ratioFail = await checkDesignRequirementFront(ratio, { profile: profile([ratio]),
-    page: pageReturning({ rootFound: true, images: [{ ratio: 1.5, centered: false }] }), rootSelector: '.i' });
+    page: measuredImagePage([{ ratio: 1.5, centered: false }]), rootSelector: '.i' });
   assert.equal(ratioFail.status, 'fail');
   const ratioNa = await checkDesignRequirementFront({ ...ratio, expected: { ratio: '?' } }, { profile: profile([ratio]), page: pageReturning({}), rootSelector: '.i' });
   assert.equal(ratioNa.status, 'na');

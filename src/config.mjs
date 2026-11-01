@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { imageLoadTimeout } from './image-readiness.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,6 +94,7 @@ export function loadConfig() {
     frontOnly: parseBoolean((firstDefined(process.env.FRONT_ONLY) || '').trim() || 'false', 'FRONT_ONLY'),
     reportDir: firstDefined(process.env.REPORT_DIR, 'reports').trim(),
     screenshotDir: firstDefined(process.env.SCREENSHOT_DIR, 'screenshots').trim(),
+    imageLoadTimeoutMs: imageLoadTimeout(process.env.IMAGE_LOAD_TIMEOUT_MS),
     actionTimeoutMs: Math.max(1_000, Number(firstDefined(process.env.PLAYWRIGHT_ACTION_TIMEOUT_MS, '30000'))),
     navigationTimeoutMs: Math.max(1_000, Number(firstDefined(process.env.PLAYWRIGHT_NAVIGATION_TIMEOUT_MS, '60000'))),
     siteListTimeoutMs: Math.max(1_000, Number(firstDefined(process.env.SITE_LIST_TIMEOUT_MS, '30000'))),

@@ -12,9 +12,9 @@ test('shared instance finder covers lazy/content/background images, linkless ul/
       <ul><li><span>Parent list</span><ul style="display:none"><li>Child list</li></ul></li></ul>
       <div><div><span>Parent div</span><div hidden><div><span>Child div</span></div></div></div></div>
       <label><input type="checkbox"><span>Option</span></label><div role="listbox"><div role="option">Choice</div></div>
-      <section><div><img width="80" height="80" data-src="/lazy-one.png" style="display:block;width:80px;height:80px;object-position:50% 50%"><span>Card one</span>
+      <section><div><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E" width="80" height="80" data-src="/lazy-one.png" style="display:block;width:80px;height:80px;object-position:50% 50%"><span>Card one</span>
         <div style="width:40px;height:40px;background-image:url('/lazy-bg.png');background-position:50% 50%"></div></div>
-      <div><img width="80" height="80" data-lazy-src="/lazy-two.png" style="display:block;width:80px;height:80px;object-position:50% 50%"><span>Card two</span></div></section>
+      <div><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E" width="80" height="80" data-lazy-src="/lazy-two.png" style="display:block;width:80px;height:80px;object-position:50% 50%"><span>Card two</span></div></section>
       <section><div><div style="width:80px;height:80px;background-image:url('/background-one.png');background-position:center"></div><span>Background card one</span></div>
       <div><div style="width:80px;height:80px;background-image:url('/background-two.png');background-position:center"></div><span>Background card two</span></div></section>
       <img data-src="/banner.png" style="width:360px;height:40px"><div style="width:360px;height:40px;background-image:url('/banner-bg.png')"></div>

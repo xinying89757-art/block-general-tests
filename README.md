@@ -139,3 +139,13 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 - `docs/REUSE_MANUAL.md`：复用手册，全部的规则和教训都在这里。
 - `scripts/`：探针与工具（含登录、Figma 抽取、报告页面生成）。
 - `AGENTS.md`：智能体操作指令；`SKILL.md`：skill 入口。
+
+### Lazy-loaded content images
+
+Front image-ratio checks scroll the instance and wait for the page's lazy loader
+without rewriting image attributes, then restore scroll. The total default is
+8 seconds per requirement/viewport. Use `--image-load-timeout 12000` with
+`scripts/front-style-only.mjs`, or `IMAGE_LOAD_TIMEOUT_MS=12000` with the normal /
+fresh runner. Unloaded images stay `na` with loaded/total evidence. The checklist
+may declare whether original size, visible `object-fit` content, or the image
+frame governs; see [image ratio measurement](docs/check-types.md#image-loading-and-ratio-measurement).

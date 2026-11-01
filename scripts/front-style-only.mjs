@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { imageLoadTimeout } from '../src/image-readiness.mjs';
 // Front-only runner for the block-style-spec capability: opens a PUBLIC
 // front page (no login, no editor), finds the block by number and runs the
 // profile's existing styleSpec assertions (runFrontLayer). Generic: site,
@@ -7,7 +8,7 @@
 // TLS errors ignored by default like IGNORE_HTTPS_ERRORS=true in config.mjs; --strict-tls 1 to enforce.
 // Usage: node scripts/front-style-only.mjs --block <id> --url <frontUrl>
 //          [--profile profiles/<id>.json] [--run-report reports/run.json] [--out reports/x.json]
-//          [--setting-id <id>] [--channel chrome] [--capture-instance <dir>]
+//          [--image-load-timeout <ms>] [--setting-id <id>] [--channel chrome] [--capture-instance <dir>]
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
@@ -53,7 +54,7 @@ const stamp = Date.now();
 const out = args.out || `reports/front-style-${blockId}-${stamp}.json`;
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.mkdirSync('screenshots', { recursive: true });
-const config = { blockId, actionTimeoutMs: 30000, navigationTimeoutMs: 60000, settingsReport };
+const config = { blockId, imageLoadTimeoutMs: imageLoadTimeout(args['image-load-timeout'] ?? process.env.IMAGE_LOAD_TIMEOUT_MS), actionTimeoutMs: 30000, navigationTimeoutMs: 60000, settingsReport };
 
 const report = { flow: 'front-style-only', blockId, url: sanitizeFrontStyleUrl(args.url),
   settingId: args['setting-id'] || settingsReport?.block?.settingId || null,
@@ -136,7 +137,7 @@ try {
     progress(`style-checks-complete count=${styleChecks.length}`);
     stage = 'design-spec-checks'; progress(stage);
     const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector: config.rootSelector,
-      frontChecks: styleChecks, settingsReport, viewport: { label: 'pc', width: 1440, height: 900 },
+      imageLoadTimeoutMs: config.imageLoadTimeoutMs, frontChecks: styleChecks, settingsReport, viewport: { label: 'pc', width: 1440, height: 900 },
       onProgress: progress, onCheck: (check) => {
         report.checks = attachFrontStyleInstance([...styleChecks, ...report.checks.filter((row) => row.id.startsWith('design-')),
           ...(check ? [check] : [])], report.settingId);

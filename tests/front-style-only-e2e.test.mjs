@@ -26,8 +26,8 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
         <ul class="category-tree"><li style="font-weight:700;line-height:45px">Parent category<ul><li style="font-weight:400;line-height:20px"><span>Nested category</span></li></ul></li></ul>
         <div class="clamped" style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">A long text block for line clamp verification</div>
         <div class="scroll-container" style="height:40px;overflow-y:auto"><div class="scroll-row" style="height:30px">one</div><div class="scroll-row" style="height:30px">two</div><div class="scroll-row" style="height:30px">three</div></div>
-        <article class="item-card"><img class="lazy-image" width="80" height="80" data-src="/lazy.png" style="display:block;width:80px;height:80px;object-position:50% 50%;background-position:0% 0%">
-        <picture style="display:block;width:100px;height:100px"><img width="100" height="100" data-srcset="/picture.png 1x" style="width:100%;height:100%"></picture></article>
+        <article class="item-card"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E" class="lazy-image" width="80" height="80" data-src="/lazy.png" style="display:block;width:80px;height:80px;object-position:50% 50%;background-position:0% 0%">
+        <picture style="display:block;width:100px;height:100px"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E" width="100" height="100" data-srcset="/picture.png 1x" style="width:100%;height:100%"></picture></article>
         <img class="banner" data-src="/banner.png" style="width:320px;height:40px">
         <div class="background-image" style="width:320px;height:40px;background-image:url('/background.png');background-position:0% 0%"></div>
         <button class="live-button" style="background-color:#ff0000;line-height:24px;font-size:16px">Actual style</button>
@@ -95,6 +95,8 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
           expected: { value: '#1c4587' }, checkStage: 'front', params: { styleCheckIds: ['pagination-current'] } },
         { id: 'image-ratio-fixture', checkType: 'image-ratio', sourceText: 'Images square', expected: { ratio: '1:1', centered: true },
           checkStage: 'front', params: {} },
+        { id: 'image-ratio-mobile-fixture', checkType: 'image-ratio', sourceText: 'Images square on mobile', expected: { ratio: '1:1', centered: true },
+          checkStage: 'front', params: { viewport: 'mobile' } },
         { id: 'hierarchy-fixture', checkType: 'nav-hierarchy-levels', sourceText: 'Navigation has two levels',
           expected: { levels: [1, 2] }, checkStage: 'front', params: { itemSelector: '.category-tree li' } },
         { id: 'scroll-threshold-fixture', checkType: 'overflow-threshold', sourceText: 'Scroll after two items',
@@ -119,7 +121,7 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     const result = await new Promise((resolve, reject) => {
       const child = spawn(process.execPath, ['scripts/front-style-only.mjs', '--block', '90001', '--url',
         `http://127.0.0.1:${address.port}/products.html`, '--profile', profilePath, '--run-report', runPath,
-        '--out', outputPath, '--channel', 'chrome', '--exercise-states', '1', '--state-timeout-ms', '10', '--state-action-timeout-ms', '10',
+        '--image-load-timeout', '1200', '--out', outputPath, '--channel', 'chrome', '--exercise-states', '1', '--state-timeout-ms', '10', '--state-action-timeout-ms', '10',
         '--capture-instance', path.join(temp, 'capture')], { cwd: repo });
       let stdout = '', stderr = '';
       const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('front-style-only fixture child timed out')); }, 45000);
@@ -176,6 +178,9 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
       functionalChecks: [{ label: 'Exact leaf label', role: 'span', fontSize: '16px', fontWeight: '600' }],
     });
     assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.status, 'pass');
+    assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture').actual.imageLoad.timeoutMs, 1200);
+    assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-mobile-fixture').status, 'pass');
+    assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-mobile-fixture').actual.imageLoad.timeoutMs, 1200);
     assert.equal(report.checks.find((row) => row.id === 'design-hierarchy-fixture')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-scroll-threshold-fixture')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-truncation-fixture')?.status, 'pass');

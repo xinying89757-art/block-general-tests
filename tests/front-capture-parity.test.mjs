@@ -26,7 +26,7 @@ for (const block of ['47498', '47748']) for (const viewport of ['pc', 'mobile'])
     assert.equal(structure.rootCount, 1);
     assert.equal(structure.hierarchy.length, 0);
     assert.equal(structure.options.length, block === '47498' ? 22 : 0, 'must equal LIVE report, not G70 replay count');
-    const result = await checkDesignRequirementFront(requirement, { page, rootSelector });
+    const result = await checkDesignRequirementFront(requirement, { page, rootSelector, imageLoadTimeoutMs: 2400 });
     assert.equal(result.status, 'na');
     if (block === '47748') {
       const raw = await page.locator('img').evaluateAll((images) => images.map((image) => ({ naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight })));
@@ -72,11 +72,11 @@ test('capture-based main-image ranking chooses largest primary-slot media, not f
   assert.equal(first.ratio, 1);
   assert.equal(first.measurementStatus, 'measured');
   assert.ok(structure.finderDebug.finders.image.reasonCounts['secondary-card-media'] >= 2);
-  const pending = await checkDesignRequirementFront(requirement, { page, rootSelector });
+  const pending = await checkDesignRequirementFront(requirement, { page, rootSelector, imageLoadTimeoutMs: 2400 });
   assert.equal(pending.status, 'na', 'one loaded square must not hide the 19 unknown main images');
   await page.locator('#main-image').evaluate((image) => { image.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='100'/%3E"; });
   await page.waitForFunction(() => document.querySelector('#main-image').naturalHeight === 100, undefined, { timeout: 3000 });
-  const failure = await checkDesignRequirementFront(requirement, { page, rootSelector });
+  const failure = await checkDesignRequirementFront(requirement, { page, rootSelector, imageLoadTimeoutMs: 2400 });
   assert.equal(failure.status, 'fail', 'a real measurable mismatch still fails even with unavailable peers');
   assert.equal(failure.reason.code, 'image-ratio-mismatch');
 }));
@@ -86,7 +86,7 @@ test('equal main-image evidence is not resolved by DOM order or counted as a pas
     const original = document.querySelector('[data-capture-node="56"]');
     original.parentElement.append(original.cloneNode());
   });
-  const result = await checkDesignRequirementFront(requirement, { page, rootSelector });
+  const result = await checkDesignRequirementFront(requirement, { page, rootSelector, imageLoadTimeoutMs: 2400 });
   assert.equal(result.status, 'na'); assert.equal(result.reason.code, 'primary-media-choice-ambiguous');
   assert.equal(result.actual.imageSelection.ambiguousCards.length, 1);
 }));
