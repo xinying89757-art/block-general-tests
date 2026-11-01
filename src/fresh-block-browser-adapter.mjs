@@ -158,7 +158,8 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       await waitForEditorLoadingToClear(frame, options);
       await frame.locator('body').waitFor({ state: 'visible', timeout: options.timeoutMs });
     },
-    async prepareSettings() {
+    async prepareSettings(instance) {
+      config.freshSettingId = instance?.settingId || null;
       const args = { page, canvas: frame, frame, config };
       const inventory = await readFreshInventory();
       if (discoverAndPrepareSettings) {

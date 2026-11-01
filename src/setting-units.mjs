@@ -34,6 +34,13 @@ export function createSettingUnit(input) {
     if (typeof unit[key] !== 'function') throw new Error(`Setting unit ${unit.id} requires ${key}().`);
   }
   if (unit.frontCheck != null && typeof unit.frontCheck !== 'function') throw new Error(`Setting unit ${unit.id} frontCheck must be a function when declared.`);
+  if (unit.styleEffect != null) {
+    if (!Array.isArray(unit.styleEffect.properties) || !unit.styleEffect.properties.length
+      || !unit.styleEffect.properties.every((property) => /^[a-z][a-zA-Z0-9]*$/.test(property))) {
+      throw new Error(`Setting unit ${unit.id} styleEffect requires a non-empty CSS property list.`);
+    }
+    if (!Array.isArray(unit.styleEffect.checks)) throw new Error(`Setting unit ${unit.id} styleEffect requires checks array.`);
+  }
   if (!Array.isArray(unit.frontRequires)) throw new Error(`Setting unit ${unit.id} requires frontRequires array.`);
   return Object.freeze(unit);
 }
@@ -84,6 +91,7 @@ export function adaptCapabilityDefinitions({ capability, created, profile, metad
       editorCheck: setting.check,
       frontCheck: setting.frontCheck || null,
       frontRequires: setting.frontRequires || [],
+      ...(requirement?.styleEffect ? { styleEffect: structuredClone(requirement.styleEffect) } : {}),
       restore: setting.restore,
     });
   });

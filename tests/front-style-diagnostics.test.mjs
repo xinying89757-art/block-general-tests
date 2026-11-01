@@ -16,7 +16,7 @@ test('failed style comparisons include generic locator, match count, normalized 
   { capability, blockId: '777', viewports: capability.styleSpec.viewports });
   assert.equal(check.status, 'fail');
   assert.deepEqual(check.reason, {
-    stage: 'compare', locator: '.siteblocks-setting-wrap[data-appid="777"] → a.action',
+    stage: 'compare', locator: 'unique block instance root',
     matchedElementCount: 1, property: ['backgroundColor', 'borderRadius'],
     expected: { backgroundColor: '#1c4587', borderRadius: 3 },
     actual: [{ backgroundColor: '#000000', borderRadius: 4 }],
@@ -49,7 +49,7 @@ test('breakage checks report the root locator, viewport, and count-valued expect
   assert.equal(check.reason.actual.documentWidth, 390);
 });
 
-test('navigation diagnostic locators are CSS selectors with explicit hierarchy filters', () => {
+test('navigation diagnostics do not expose which profile selector candidate was used', () => {
   const navCapability = { styleSpec: { items: [
     { id: 'nav-parent', kind: 'nav-parent', selector: '.categories a', props: { fontWeight: 700 } },
     { id: 'nav-leaf', kind: 'nav-leaf', selector: '.categories a', props: { fontWeight: 400 } },
@@ -58,8 +58,9 @@ test('navigation diagnostic locators are CSS selectors with explicit hierarchy f
     { id: 'bss-nav-parent', status: 'skip', detail: 'No visible match', evidence: { matchedCount: 0 } },
     { id: 'bss-nav-leaf', status: 'fail', detail: 'weight mismatch', evidence: { matchedCount: 1, elements: [{ fontWeight: 700 }] } },
   ], { capability: navCapability, blockId: '777' });
-  assert.match(parent.reason.locator, /\.categories a \(top-level items with child list\)/);
-  assert.match(leaf.reason.locator, /\.categories a \(nested list items without child list\)/);
+  assert.match(parent.reason.locator, /unique block instance root/);
+  assert.match(leaf.reason.locator, /unique block instance root/);
+  assert.doesNotMatch(parent.reason.locator, /\.categories/);
   assert.equal(leaf.status, 'fail');
 });
 
@@ -109,6 +110,21 @@ test('run-written style values override defaults only when their setting check r
   assert.match(dynamic.reason.expectedSource.backgroundColor, /^run-report:block\.currentValues\[/);
   assert.deepEqual(fallback.reason.expected, { notSetThisRun: ['color'] });
   assert.equal(fallback.detail, 'not set this run');
+});
+
+test('editor-learned instance-relative selector and value override profile candidates without exposing a matched selector', () => {
+  const source = { styleSpec: { items: [{ id: 'button-bg', kind: 'first', learnedSelectorRequired: true,
+    selectorCandidates: ['a.profile-candidate'], learnedSelectors: { backgroundColor: [{ selector: ':scope > a.action',
+      expectedValue: 'rgb(255, 0, 0)' }] }, props: { backgroundColor: '#000000' } }] } };
+  const resolved = resolveFrontStyleCapability(source, { styleScopeLearning: [{ status: 'learned', expectedValues: {
+    'bss-button-bg': { backgroundColor: 'rgb(255, 0, 0)' },
+  } }] });
+  const item = resolved.styleSpec.items[0];
+  assert.equal(item.props.backgroundColor, '#ff0000');
+  assert.equal(item.resolvedExpectedSources.backgroundColor, 'run-written-editor-style-effect');
+  assert.equal(item.selector, ':scope > a.action');
+  assert.equal(item.selectorLearningUnavailable, false);
+  assert.doesNotMatch(JSON.stringify(resolved.styleSpec.resolvedExpectedSources), /selector/);
 });
 
 test('ambiguous or unwritten setting values do not fall back to profile defaults with a run report', () => {
@@ -199,7 +215,7 @@ test('profile button style shares the CSS target without requiring stale button 
   const text = items.find((entry) => entry.id === 'button-text');
   const background = items.find((entry) => entry.id === 'button-bg');
   assert.equal(text.kind, 'first');
-  assert.equal(text.selector, background.selector);
+  assert.deepEqual(text.selectorCandidates, background.selectorCandidates);
   assert.equal(text.text, undefined);
   assert.deepEqual(text.props, { color: '#ffffff', fontSize: 18, fontWeight: 700 });
 });

@@ -13,7 +13,9 @@
 // Two assertion kinds: computed values (fontSize/color/...) and geometry
 // (e.g. text centered in its box — lineHeight/textAlign are NOT compared
 // when flex does the centering, per the 另一样本区块 button/pagination lesson).
-import { previewSelector, checkReportText } from './shared.mjs';
+import { checkReportText } from './shared.mjs';
+import { markUniqueFrontInstance } from '../front-instance-root.mjs';
+import { chooseSelectorCandidate } from '../style-effect-learning.mjs';
 
 const SUITE = 'capability:block-style-spec';
 export const freshSettings = Object.freeze({ status: 'check-only', runPostPublish: runFreshStyleChecks });
@@ -45,24 +47,27 @@ const NAMES = {
 };
 
 export async function runFreshStyleChecks(args) {
-  const { session, capability, config, frontLink, published, settingsReport } = args;
+  const { session, capability, config, frontLink, published, settingsReport, instance } = args;
   const front = frontLink || published?.frontLink;
   if (!front || !session?.context?.newPage) {
     return unavailableStyleResults(capability, '发布后无法从当前执行环境打开前台页面；需前台机器运行此能力的既有样式断言。');
   }
   let page;
+  let markedRoot;
   try {
     page = await session.context.newPage();
     const url = /^https?:\/\//i.test(front) ? front : new URL(front, `https://${config.siteDomain}`).href;
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });
-    const rootSelector = config.rootSelector || previewSelector(config.blockId);
+    markedRoot = await markUniqueFrontInstance(page, { blockId: config.blockId, settingId: instance?.settingId });
+    const rootSelector = markedRoot.selector;
     await page.locator(rootSelector).waitFor({ state: 'attached', timeout: config.actionTimeoutMs });
     return await runFrontLayer({ frame: page, previewPage: page,
-      config: { ...config, rootSelector, settingsReport }, capability });
+      config: { ...config, rootSelector, settingId: instance?.settingId, settingsReport }, capability });
   } catch (error) {
     return unavailableStyleResults(capability,
       `发布后前台样式断言当前不可达（${error.message}）；需前台机器运行此能力的既有样式断言。`);
   } finally {
+    try { await markedRoot?.clear(); } catch {}
     if (page && !page.isClosed()) await page.close().catch(() => {});
   }
 }
@@ -108,17 +113,20 @@ function compareProps(expected, actual, tolPx) {
   return diffs;
 }
 
-function cssSelectorForItem(item) {
-  return item?.selector || (item?.kind === 'nav-parent' || item?.kind === 'nav-leaf'
-    ? '.pf-cate-wrap a' : item?.kind === 'presence' ? 'a, button, span' : null);
-}
-
 // Read the elements one styleSpec item needs, inside the block root.
 async function readItem(frame, rootSel, item) {
   return frame.evaluate(({ rootSel, item }) => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const root = document.querySelector(rootSel);
-    if (!root) return { error: `预览里没有找到区块根节点 ${rootSel}`, matchedCount: 0 };
+    if (!root) return { error: '预览里没有找到按实例身份圈定的区块根节点', matchedCount: 0 };
+    const select = (selector) => selector === ':scope' ? [root] : [...root.querySelectorAll(selector)];
+    if (Array.isArray(item.selectorCandidates)) {
+      const candidates = [...new Set([item.selector, ...item.selectorCandidates].filter(Boolean))];
+      for (const candidate of candidates) {
+        try { if (root.querySelectorAll(candidate).length) { item.selector = candidate; break; } } catch {}
+      }
+    }
+    item.selector ||= item.selectorCandidates?.[0] || null;
     const cs = (el) => getComputedStyle(el);
     const num = (el, prop) => { const n = parseFloat(cs(el)[prop]); return Number.isFinite(n) ? n : null; };
     const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && cs(el).visibility !== 'hidden'; };
@@ -174,21 +182,21 @@ async function readItem(frame, rootSel, item) {
         break;
       }
       case 'first': {
-        const matches = [...root.querySelectorAll(item.selector)];
+        const matches = select(item.selector);
         out.matchedCount = matches.length;
         const el = matches[0];
-        if (el) push(el, item.selector);
+        if (el) push(el, item.name || item.kind || 'matched element');
         break;
       }
       case 'sample': {
-        const found = [...root.querySelectorAll(item.selector)].filter(vis);
+        const found = select(item.selector).filter(vis);
         out.matchedCount = found.length;
         const els = found.slice(0, item.sample ?? 2);
         els.forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
         break;
       }
       case 'nav-parent': {
-        const links = [...root.querySelectorAll(item.selector || '.pf-cate-wrap a')].filter(vis);
+        const links = select(item.selector || '.pf-cate-wrap a').filter(vis);
         const parents = links.filter((a) => {
           const li = a.closest('li');
           return li && li.parentElement?.closest('li') == null && li.querySelector('ul');
@@ -198,7 +206,7 @@ async function readItem(frame, rootSel, item) {
         break;
       }
       case 'nav-leaf': {
-        const links = [...root.querySelectorAll(item.selector || '.pf-cate-wrap a')].filter(vis);
+        const links = select(item.selector || '.pf-cate-wrap a').filter(vis);
         const leaves = links.filter((a) => {
           const li = a.closest('li');
           return li && li.parentElement?.closest('li') && !li.querySelector('ul');
@@ -210,7 +218,7 @@ async function readItem(frame, rootSel, item) {
       case 'presence': {
         const selector = item.selector || 'a, button, span';
         const needle = String(item.text || '').trim().toLowerCase();
-        const found = [...root.querySelectorAll(selector)].filter((el) => {
+        const found = select(selector).filter((el) => {
           const candidates = [el.innerText, el.getAttribute('aria-label'), el.getAttribute('title')]
             .map((value) => norm(value).toLowerCase()).filter(Boolean);
           return candidates.includes(needle) && vis(el);
@@ -375,7 +383,8 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
   const tolPx = spec.tolerances?.px ?? 0.6;
   const viewports = spec.viewports || { pc: 1440, pad: 768, mobile: 375 };
   const checks = [];
-  const rootSel = config.rootSelector || previewSelector(config.blockId);
+  const rootSel = config.rootSelector;
+  if (!rootSel) return skipAll('无法按区块编号与 settingId 唯一圈定实例根节点。');
   const shots = [];
   const shot = async (name) => {
     if (!previewPage) return;
@@ -399,8 +408,28 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
       const checkId = `bss-${item.id}`;
       if (!NAMES[checkId]) { checks.push(result(checkId, 'skip', `未知检查 ${item.id}`)); continue; }
       if (item.notApplicableReason) {
-        checks.push(result(checkId, 'na', item.notApplicableReason, { matchedCount: 0, selectorEvidence: 'none' }));
+        checks.push(result(checkId, 'na', '未应用该样式检查。', { machineReason: {
+          code: 'profile-selector-not-resolvable', details: String(item.notApplicableReason).slice(0, 240) } }));
         continue;
+      }
+      if (item.learnedSelectorRequired && item.selectorLearningUnavailable) {
+        checks.push(result(checkId, 'na', '未应用该样式检查。', { machineReason: {
+          code: 'no-style-effect-learned', fallbackCandidateCount: item.selectorCandidates?.length || 0 } }));
+        continue;
+      }
+      if (Array.isArray(item.selectorCandidates) && item.selectorCandidates.length) {
+        const candidates = [...new Set([item.selector, ...item.selectorCandidates].filter(Boolean))];
+        let counts = [];
+        try { counts = await frame.locator(rootSel).evaluate((root, selectors) => selectors.map((selector) => {
+          try { return selector === ':scope' ? 1 : root.querySelectorAll(selector).length; } catch { return 0; }
+        }), candidates); } catch {}
+        const selected = chooseSelectorCandidate(candidates, counts);
+        if (selected.status !== 'resolved') {
+          checks.push(result(checkId, 'na', '未应用该样式检查。', { machineReason: {
+            code: selected.reason, attemptedCandidateCount: selected.attemptedCount } }));
+          continue;
+        }
+        item.selector = candidates[selected.index];
       }
       const applicability = resolveItemApplicability(item, config.settingsReport);
       if (!applicability.applicable) {
@@ -441,13 +470,13 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
         const found = read.matchedCount > 0;
         checks.push(result(checkId, found ? 'pass' : 'fail', found
           ? `区块内找到预期文本“${item.text}”。` : `区块内没有找到预期文本“${item.text}”。`,
-        { matchedCount: read.matchedCount, expectedText: item.text, selector: item.selector || 'block subtree text nodes' },
+        { matchedCount: read.matchedCount, expectedText: item.text, locator: 'within the uniquely identified block instance' },
         { name: item.name || NAMES[checkId] }));
         continue;
       }
       const read = await readItem(frame, rootSel, item);
       if (read.error) { checks.push(result(checkId, 'skip', read.error, { matchedCount: read.matchedCount ?? 0 })); continue; }
-      if (!read.elements.length) { checks.push(result(checkId, 'skip', `预览里没有找到 ${item.selector || item.kind} 对应的元素。`,
+      if (!read.elements.length) { checks.push(result(checkId, 'skip', '在区块实例范围内没有找到符合画像候选特征的元素。',
         { matchedCount: read.matchedCount ?? 0 })); continue; }
       const diffs = [];
       const evidence = { matchedCount: read.matchedCount ?? read.elements.length,
@@ -587,10 +616,54 @@ export function resolveFrontStyleCapability(capability, settingsReport = null) {
   const items = (spec.items || []).map((item) => ({ ...item, props: { ...(item.props || {}) }, resolvedExpectedSources: {} }));
   const itemById = new Map(items.map((item) => [item.id, item]));
   const resolvedExpectedSources = {};
+  const learnedByCheck = new Map();
+  for (const event of settingsReport?.styleScopeLearning || []) {
+    if (event.status !== 'learned') continue;
+    for (const [checkId, properties] of Object.entries(event.expectedValues || {})) {
+      learnedByCheck.set(checkId, { ...(learnedByCheck.get(checkId) || {}), ...properties });
+    }
+  }
+  for (const item of items) {
+    const learned = item.learnedSelectors || {};
+    for (const [property, entries] of Object.entries(learned)) {
+      const latest = (entries || []).at(-1);
+      if (latest && Object.hasOwn(latest, 'expectedValue')) {
+        learnedByCheck.set(`bss-${item.id}`, { ...(learnedByCheck.get(`bss-${item.id}`) || {}), [property]: latest.expectedValue });
+      }
+    }
+  }
+  for (const item of items) {
+    const runCheckId = `bss-${item.id}`;
+    const currentLearning = (settingsReport?.styleScopeLearning || []).some((event) => event.status === 'learned'
+      && Object.hasOwn(event.expectedValues || {}, runCheckId));
+    const learned = (item.learnedSelectorRequired && settingsReport && !currentLearning)
+      ? [] : Object.values(item.learnedSelectors || {}).flat();
+    if (learned.length) {
+      item.selector = [...new Set(learned.map((entry) => entry.selector).filter(Boolean))].join(', ');
+      item.selectorLearningUnavailable = false;
+    } else if (item.learnedSelectorRequired) {
+      // Keep the profile's ordered candidates for machine diagnostics/fallback
+      // inventory, but do not assert without an effect scope learned this run.
+      item.selector = item.selectorCandidates?.[0] || item.selector || null;
+      item.selectorLearningUnavailable = true;
+    } else if (!item.selector && item.selectorCandidates?.length) item.selector = item.selectorCandidates[0];
+    const runExpected = learnedByCheck.get(`bss-${item.id}`);
+    if (runExpected) {
+      for (const [property, value] of Object.entries(runExpected)) {
+        item.props[property] = ['color', 'backgroundColor', 'borderColor'].includes(property)
+          ? normColor(String(value)) : value;
+        const sourceKey = `${item.id}.${property}`;
+        item.resolvedExpectedSources[property] = 'run-written-editor-style-effect';
+        resolvedExpectedSources[sourceKey] = 'run-written-editor-style-effect';
+      }
+    }
+  }
   for (const [key, binding] of Object.entries(spec.expectedValueSources || {})) {
     const [itemId, property] = key.split('.', 2);
     const item = itemById.get(itemId);
     if (!item || !property) continue;
+    const learnedRunValue = learnedByCheck.get(`bss-${itemId}`)?.[property];
+    if (learnedRunValue !== undefined) continue;
     const candidates = binding.control ? values.filter((entry) =>
       (binding.control.region === undefined || entry.region === binding.control.region)
       && (binding.control.label === undefined || entry.label === binding.control.label)
@@ -652,11 +725,8 @@ export function addStyleFailureReasons(checks, { capability, blockId, rootSelect
     if (check.status === 'pass') return check;
     const item = styleItemForCheck(check.id, items);
     const isBreakage = check.id.startsWith('bss-breakage-');
-    const selector = isBreakage ? 'block subtree layout invariants'
-      : item?.kind === 'nav-parent' ? `${cssSelectorForItem(item)} (top-level items with child list)`
-        : item?.kind === 'nav-leaf' ? `${cssSelectorForItem(item)} (nested list items without child list)`
-          : cssSelectorForItem(item) || item?.kind || 'styleSpec item';
-    const locator = `${rootSelector || previewSelector(String(blockId ?? ''))} → ${selector}`;
+    const locator = isBreakage ? 'block subtree layout invariants'
+      : rootSelector ? 'unique block instance root / profile selector candidates' : 'unique block instance root';
     const evidence = check.evidence || {};
     const matchedElementCount = Number.isInteger(evidence.matchedCount) ? evidence.matchedCount
       : Number.isInteger(evidence.found) ? evidence.found

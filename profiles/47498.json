@@ -27,7 +27,7 @@
             "id": "inventory-btn-text",
             "name": "按钮文字（已盘点值）",
             "kind": "text-content",
-            "selector": "*",
+            "selectorCandidates": ["*"],
             "text": "分类按钮",
             "valueSource": "onboarding.matched[btn-text].evidence[按钮文本]",
             "note": "Exact persisted inventory value is checked as visible text within the target block; uses no block-specific class selector."

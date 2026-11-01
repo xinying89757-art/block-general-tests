@@ -127,7 +127,7 @@ export async function writeFreshDefaultsSnapshot(file, snapshot) {
 export function buildFreshReport({ runId, siteHost, blockId, page, instance, capabilities = [],
   defaults, batch, currentValues, publishedReadback = null, editorLink, frontLink, publishedAt,
   editorPublishSucceeded = false, frontVerification = null,
-  deletedSettingIds = [], moduleLibraryPreflight = null, flowErrors = [] }) {
+  deletedSettingIds = [], moduleLibraryPreflight = null, flowErrors = [], styleScopeLearning = [] }) {
   const failures = batch.results.filter((item) => item.status === 'fail').map((item) => ({
     checkId: item.id,
     setting: item.setting || item.id,
@@ -149,6 +149,11 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
     defaults, capabilities, batches: batch.batches, checks: batch.results, failures,
     retainedFailures: batch.timing.retainedFailures || { selectedIds: [], suppressed: [] },
     timing: batch.timing, settingsMode: 'BATCH_SAVE / retain-tested-values', flowErrors,
+    // Diagnostics intentionally omit matched selector paths; the profile owns
+    // those paths and human-facing summaries never display selector matching.
+    styleScopeLearning: (styleScopeLearning || []).map(({ settingId, capability, status, reason,
+      changedElementCount, mappedCheckCount, fallbackCandidateCount, expectedValues, phase }) => ({ settingId, capability,
+      status, reason, changedElementCount, mappedCheckCount, fallbackCandidateCount, expectedValues: expectedValues || {}, phase })),
     publishedReadback,
     links: { editor: editorLink || null, front: frontLink || null },
     editorPublishSucceeded: Boolean(editorPublishSucceeded),
@@ -285,7 +290,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
 
   // Definitions must be bound to the newly added instance. Preparing these
   // before deletion would capture controls from the old block being replaced.
-  const prepared = await adapter.prepareSettings?.();
+  const prepared = await adapter.prepareSettings?.(fresh);
   const settingsToRun = prepared?.settings || settings;
   const metadataToUse = prepared?.metadata || metadata;
   const capabilitiesToReport = prepared?.capabilityResults || capabilities;
@@ -485,7 +490,8 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     frontVerification: publishAttempt?.frontVerification || null,
     editorPublishSucceeded: publishAttempt?.publishSignal?.status === 'confirmed',
     publishedAt: published?.publishedAt || null,
-    deletedSettingIds, moduleLibraryPreflight: config.moduleLibraryPreflight || null, flowErrors });
+    deletedSettingIds, moduleLibraryPreflight: config.moduleLibraryPreflight || null, flowErrors,
+    styleScopeLearning: prepared?.styleScopeDiagnostics || [] });
   await adapter.writeReport?.(report);
   await onProgress({ stage: 'report-written' });
   return report;

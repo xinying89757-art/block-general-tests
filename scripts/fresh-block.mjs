@@ -57,7 +57,12 @@ try {
   const settingsAdapter = await createFreshSettingsAdapter({
     capabilities: profile.capabilities || [],
     context: { config, session, page, profile, siteHost, blockId: config.blockId,
-      save: () => savePage(session.page) },
+      save: () => savePage(session.page),
+      persistProfile: async (nextProfile) => {
+        const temporary = `${profilePath}.${process.pid}.tmp`;
+        await fs.writeFile(temporary, `${JSON.stringify(nextProfile, null, 2)}\n`, { mode: 0o600 });
+        await fs.rename(temporary, profilePath);
+      } },
     loadCapability: async (id) => import(pathToFileURL(path.join(root, 'src', 'capabilities', `${id}.mjs`)).href),
   });
   const adapter = createFreshBlockBrowserAdapter({ config, session,

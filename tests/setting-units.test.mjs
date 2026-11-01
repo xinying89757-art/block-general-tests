@@ -20,6 +20,7 @@ test('setting-unit contract accepts complete units and fails closed on missing c
   assert.throws(() => createSettingUnit(unitInput({ restore: null })), /requires restore/);
   assert.throws(() => createSettingUnit(unitInput({ locate: { source: 'hardcoded-selector', id: 'setting-a' } })), /requirement profile/);
   assert.throws(() => createSettingUnit(unitInput({ lifecycleSurface: 'unknown' })), /unsupported lifecycle/);
+  assert.throws(() => createSettingUnit(unitInput({ styleEffect: { properties: [], checks: [] } })), /styleEffect requires/);
 });
 
 test('six adapted capability wrappers expose the existing callback definitions as setting units', async () => {
@@ -64,6 +65,15 @@ test('real 47748 profile requirement ids anchor every migrated capability unit',
       created: { settings, persistedControls: [] } });
     assert.deepEqual(mapped.settings.map((unit) => unit.requirementId), requirements, capability);
   }
+});
+
+test('profile style-effect metadata is lifted onto the existing color setting unit', () => {
+  const requirement = profile47748.requirements.capabilities.find((item) => item.id === 'color-scheme');
+  const output = adaptCapabilityDefinitions({ capability: 'block-color-scheme', profile: profile47748,
+    created: { settings: [{ id: 'bcs-color-persist', key: 'scheme-color', initialValue: '#111111', value: '#ff0000',
+      apply: async () => {}, check: async () => ({ status: 'pass' }), restore: async () => {} }], persistedControls: [] } });
+  assert.deepEqual(output.settings[0].styleEffect, requirement.styleEffect);
+  assert.equal(output.settings[0].styleEffect.checks[0].checkId, 'button-bg');
 });
 
 test('whole-list definitions are represented as one unit and keep existing callbacks unchanged', () => {

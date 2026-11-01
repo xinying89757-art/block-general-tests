@@ -95,6 +95,19 @@ export function validateProfile(profile, template, { capabilities } = {}) {
           if (item.params.dialogTitle !== undefined && typeof item.params.dialogTitle !== 'string') errors.push(`${label}.params.dialogTitle 必须是字符串`);
           if (item.params.wrapIndex !== undefined && (!Number.isInteger(item.params.wrapIndex) || item.params.wrapIndex < 0)) errors.push(`${label}.params.wrapIndex 必须是非负整数`);
         }
+        if (item?.styleEffect !== undefined) {
+          const effect = item.styleEffect;
+          if (!effect || typeof effect !== 'object' || !Array.isArray(effect.properties) || !effect.properties.length
+            || !effect.properties.every((property) => typeof property === 'string' && /^[a-z][a-zA-Z0-9]*$/.test(property))) {
+            errors.push(`${label}.styleEffect.properties 必须是非空 CSS 属性名数组`);
+          }
+          if (!Array.isArray(effect?.checks) || effect.checks.some((check) => !check || typeof check.checkId !== 'string'
+            || !effect.properties.includes(check.property))) errors.push(`${label}.styleEffect.checks 必须引用已声明属性与 styleSpec 检查 id`);
+          if (effect?.candidateSelectors !== undefined && (!Array.isArray(effect.candidateSelectors)
+            || !effect.candidateSelectors.every((selector) => typeof selector === 'string' && selector.trim()))) {
+            errors.push(`${label}.styleEffect.candidateSelectors 必须是非空选择器字符串数组`);
+          }
+        }
       });
     }
   }
@@ -115,6 +128,23 @@ export function validateProfile(profile, template, { capabilities } = {}) {
       }
       if (ids.has(capability.id)) errors.push(`能力 id 重复：${capability.id}`);
       ids.add(capability.id);
+      if (capability.styleSpec) {
+        const checkIds = new Set((capability.styleSpec.items || []).map((item) => item.id));
+        for (const requirement of profile.requirements?.capabilities || []) {
+          for (const check of requirement.styleEffect?.checks || []) {
+            if (!checkIds.has(check.checkId)) errors.push(`${location}.styleSpec 缺少 styleEffect 检查项 ${check.checkId}`);
+          }
+        }
+        for (const [itemIndex, item] of (capability.styleSpec.items || []).entries()) {
+          if (!Array.isArray(item.selectorCandidates) || !item.selectorCandidates.length
+            || !item.selectorCandidates.every((selector) => typeof selector === 'string' && selector.trim())) {
+            errors.push(`${location}.styleSpec.items[${itemIndex}].selectorCandidates 必须是非空候选数组`);
+          }
+          if ((item.selectorCandidates || []).some((selector) => /blockCon\d+/i.test(selector))) {
+            errors.push(`${location}.styleSpec.items[${itemIndex}] 不得使用生成的区块编号 class`);
+          }
+        }
+      }
       if (capabilities && !capabilities.has(capability.id)) {
         errors.push(`未知能力 ${capability.id}：src/capabilities/${capability.id}.mjs 不存在`);
       }
