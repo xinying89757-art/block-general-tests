@@ -366,6 +366,10 @@ test('style dimensions use configurable two-pixel default tolerance while colors
     { fontSize: 15.99, width: 29.99, color: '#fffffe' }, { px: 0.6, sizePx: 2 }), ['文字颜色设计为 #ffffff，实测为 #fffffe']);
   assert.deepEqual(compareProps({ fontSize: 14 }, { fontSize: 16.01 }, { sizePx: 2 }), ['字号设计为 14px，实测为 16.01px']);
   assert.deepEqual(compareProps({ width: 28 }, { width: 30 }, { sizePx: 2 }), ['宽设计为 28px，实测为 30px']);
+  assert.deepEqual(compareProps({ lineHeight: 28 }, { lineHeight: 14 }), [], 'line-height is never asserted');
+  const profile = JSON.parse(fs.readFileSync(new URL('../profiles/47748.json', import.meta.url), 'utf8'));
+  const spec = profile.capabilities.find((capability) => capability.id === 'block-style-spec').styleSpec;
+  assert.ok(spec.items.every((item) => !Object.hasOwn(item.props || {}, 'lineHeight')));
 });
 
 test('pagination semantic scope requires a pagination container inside the instance root', () => {

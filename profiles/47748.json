@@ -77,7 +77,7 @@
             },
             "id": "button-text",
             "kind": "first",
-            "note": "行高 54 与居中对齐由 flex 实现，不直接比 lineHeight/textAlign；注意：设计稿图层名是编辑器 DOM 的类名（backstage-component-btn），前台实际类名是 blocks-button，映射须按前台实测为准。",
+            "note": "行高只作信息记录且不参与判定，居中由 flex 实现，不直接比 textAlign；注意：设计稿图层名是编辑器 DOM 的类名（backstage-component-btn），前台实际类名是 blocks-button，映射须按前台实测为准。",
             "props": {
               "color": "#ffffff",
               "fontSize": 18,
@@ -105,8 +105,7 @@
             "kind": "nav-parent",
             "props": {
               "fontSize": 16,
-              "fontWeight": 700,
-              "lineHeight": 45
+              "fontWeight": 700
             },
             "selectorCandidates": [
               ".pf-cate-wrap a"
@@ -115,11 +114,10 @@
           {
             "id": "nav-leaf",
             "kind": "nav-leaf",
-            "note": "设计稿里带子级的二级链接行高 40（仅一例），只对叶子链接断言 44.8",
+            "note": "设计稿记录过二级链接行高 40；按当前政策行高不参与断言。",
             "props": {
               "fontSize": 16,
-              "fontWeight": 400,
-              "lineHeight": 44.8
+              "fontWeight": 400
             },
             "selectorCandidates": [
               ".pf-cate-wrap a"
@@ -131,8 +129,7 @@
             "props": {
               "color": "#232323",
               "fontSize": 14,
-              "fontWeight": 600,
-              "lineHeight": 21
+              "fontWeight": 600
             },
             "recordProps": {
               "letterSpacing": -0.15
@@ -147,8 +144,7 @@
             "kind": "sample",
             "props": {
               "fontSize": 14,
-              "fontWeight": 400,
-              "lineHeight": 21
+              "fontWeight": 400
             },
             "sample": 2,
             "selectorCandidates": [
@@ -163,7 +159,6 @@
               "color": "#222222",
               "fontSize": 16,
               "fontWeight": 400,
-              "lineHeight": 20,
               "textAlign": "center"
             },
             "sample": 2,
@@ -528,8 +523,7 @@
         "sourceText": "按钮 New Machine",
         "expected": {
           "fontSize": "18px",
-          "fontWeight": "Poppins Bold",
-          "lineHeight": "54px"
+          "fontWeight": "Poppins Bold"
         },
         "checkStage": "front",
         "params": {
@@ -546,7 +540,6 @@
         "expected": {
           "fontSize": "16px",
           "fontWeight": "PingFang SC Bold",
-          "lineHeight": "45px",
           "color": "#222"
         },
         "checkStage": "front",
@@ -564,7 +557,6 @@
         "expected": {
           "fontSize": "16px",
           "fontWeight": "Poppins Regular",
-          "lineHeight": "40px/44.8px",
           "color": "#222"
         },
         "checkStage": "front",
@@ -582,7 +574,6 @@
         "expected": {
           "fontSize": "16px",
           "fontWeight": "Poppins Regular",
-          "lineHeight": "44.8px",
           "color": "#1c4587"
         },
         "checkStage": "front",
@@ -599,7 +590,6 @@
         "expected": {
           "fontSize": "14px",
           "fontWeight": "PingFang SC Semibold",
-          "lineHeight": "21px",
           "color": "#232323"
         },
         "checkStage": "front",
@@ -617,7 +607,6 @@
         "expected": {
           "fontSize": "14px",
           "fontWeight": "PingFang SC Regular",
-          "lineHeight": "21px",
           "color": "#232323"
         },
         "checkStage": "front",
@@ -667,7 +656,6 @@
         "expected": {
           "fontSize": "16px",
           "fontWeight": "Poppins Regular",
-          "lineHeight": "20px",
           "color": "#222"
         },
         "checkStage": "front",
@@ -685,7 +673,6 @@
         "expected": {
           "fontSize": "14px",
           "fontWeight": "Poppins Regular",
-          "lineHeight": "28px",
           "color": "非当前 #898989"
         },
         "checkStage": "front",
@@ -702,8 +689,7 @@
         "sourceText": "按钮 New Machine",
         "expected": {
           "fontSize": "18px",
-          "fontWeight": "Poppins Bold",
-          "lineHeight": "54px"
+          "fontWeight": "Poppins Bold"
         },
         "checkStage": "front",
         "params": {
@@ -720,7 +706,6 @@
         "expected": {
           "fontSize": "16px",
           "fontWeight": "PingFang SC Bold",
-          "lineHeight": "45px",
           "color": "#222"
         },
         "checkStage": "front",
@@ -738,7 +723,6 @@
         "expected": {
           "fontSize": "14px",
           "fontWeight": "PingFang SC Semibold",
-          "lineHeight": "21px",
           "color": "#232323"
         },
         "checkStage": "front",
@@ -756,7 +740,6 @@
         "expected": {
           "fontSize": "20px",
           "fontWeight": "Poppins Bold",
-          "lineHeight": "45px",
           "color": "#333"
         },
         "checkStage": "front",
@@ -773,7 +756,6 @@
         "expected": {
           "fontSize": "16px",
           "fontWeight": "Poppins Regular",
-          "lineHeight": "20px",
           "color": "#222"
         },
         "checkStage": "front",
@@ -791,7 +773,6 @@
         "expected": {
           "fontSize": "14px",
           "fontWeight": "Poppins Regular",
-          "lineHeight": "28px",
           "color": "非当前 #898989"
         },
         "checkStage": "front",

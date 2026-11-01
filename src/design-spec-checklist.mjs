@@ -160,6 +160,9 @@ export function validateDesignSpec(spec, profileId = '(unknown)') {
       if (typeof item.sourceText !== 'string' || !item.sourceText.trim()) add(`${path}.sourceText`, 'must be non-empty verbatim source text');
       if (!['editor', 'front', 'both'].includes(item.checkStage)) add(`${path}.checkStage`, 'must be editor, front, or both');
       if (!item.params || typeof item.params !== 'object' || Array.isArray(item.params)) add(`${path}.params`, 'must be an object');
+      if (item.expected && typeof item.expected === 'object' && (Object.hasOwn(item.expected, 'lineHeight') || Object.hasOwn(item.expected, 'line-height'))) {
+        add(`${path}.expected.lineHeight`, 'line-height is informational only and cannot be a checklist assertion');
+      }
       if (Object.keys(item).some((key) => !['id', 'checkType', 'sourceText', 'expected', 'checkStage', 'params'].includes(key))) add(path, 'contains an unknown property');
     });
   }
@@ -268,7 +271,7 @@ function rowsFromFrontCheck(check) {
   const add = (value) => {
     if (Array.isArray(value)) { for (const item of value) add(item); return; }
     if (!value || typeof value !== 'object') return;
-    if (['fontSize', 'fontWeight', 'lineHeight', 'color', 'backgroundColor', 'borderColor'].some((key) => value[key] !== undefined)) rows.push(value);
+    if (['fontSize', 'fontWeight', 'color', 'backgroundColor', 'borderColor'].some((key) => value[key] !== undefined)) rows.push(value);
     for (const key of ['actual', 'elements', 'records', 'matchedElements', 'functionalChecks']) if (value[key] !== undefined) add(value[key]);
   };
   add(check?.actual); add(check?.reason?.actual); add(check?.evidence); add(check?.reason?.evidence);
@@ -736,7 +739,7 @@ export function countInstanceColorMatches(snapshot, expected) {
         .some((color) => normalizeDesignColor(color) === expectedColor)))).length;
 }
 
-const TYPOGRAPHY_PROPERTIES = Object.freeze(['fontSize', 'fontWeight', 'lineHeight']);
+const TYPOGRAPHY_PROPERTIES = Object.freeze(['fontSize', 'fontWeight']);
 
 function normalizedTypographyValue(property, value) {
   if (property === 'fontWeight') {
@@ -772,14 +775,18 @@ function compareTypographyRequirement(expectedInput, mappedActual) {
         expected: normalizedTypographyValue(property, expected[property]),
         actual: values.map((value) => normalizedTypographyValue(property, value)) });
   }
+  const ignoredProperties = Object.hasOwn(expectedInput || {}, 'lineHeight') || Object.hasOwn(expectedInput || {}, 'line-height')
+    ? ['lineHeight'] : [];
   if (mismatches.length) return { status: 'fail', expected, actual,
     reason: { code: 'design-typography-mismatch', propertiesChecked: Object.keys(expected), mismatches,
-      mismatchedProperties: mismatches.map((item) => item.property) } };
+      mismatchedProperties: mismatches.map((item) => item.property), ignoredProperties } };
+  if (!Object.keys(expected).length && ignoredProperties.length) return { status: 'record', expected, actual,
+    reason: { code: 'line-height-policy-informational', propertiesChecked: [], ignoredProperties } };
   if (!Object.keys(expected).length || missingProperties.length) return { status: 'na', expected, actual,
     reason: { code: 'design-typography-properties-unavailable', missingProperties,
-      propertiesChecked: Object.keys(actual).filter((key) => actual[key].length) } };
+      propertiesChecked: Object.keys(actual).filter((key) => actual[key].length), ignoredProperties } };
   return { status: 'pass', expected, actual,
-    reason: { code: 'design-typography-matched', propertiesChecked: Object.keys(expected) } };
+    reason: { code: 'design-typography-matched', propertiesChecked: Object.keys(expected), ignoredProperties } };
 }
 
 function typographyPropertiesMissing(expectedInput, mappedActual) {
@@ -889,7 +896,6 @@ async function readTypographyByFeatures(page, rootSelector, requirement, profile
       role: node.getAttribute('role') || node.tagName.toLowerCase(),
       fontSize: getComputedStyle(node).fontSize,
       fontWeight: getComputedStyle(node).fontWeight,
-      lineHeight: getComputedStyle(node).lineHeight,
       ...(hierarchy ? { hierarchyLevel: levelOf(node) } : {}),
     }));
   }, { rootSelector, requirement: featureRequirement, tokens, hierarchy, structure });
@@ -1023,8 +1029,13 @@ async function checkNavHierarchyLevels(requirement, page, rootSelector) {
 
 async function checkMobileLayout(requirement, page, rootSelector) {
   const expected = requirement.expected || {};
-  const supported = ['visible', 'display', 'flexDirection', 'columns', 'width', 'maxWidth', 'fontSize', 'fontWeight', 'lineHeight']
-    .filter((key) => expected[key] !== undefined);
+  const { lineHeight: informationalLineHeight, 'line-height': _ignoredCssLineHeight, ...checkableExpected } = expected;
+  const hasInformationalLineHeight = Object.hasOwn(expected, 'lineHeight') || Object.hasOwn(expected, 'line-height');
+  if (!Object.keys(checkableExpected).length && hasInformationalLineHeight) return requirementResult(requirement, 'record', {},
+    { informational: { lineHeight: informationalLineHeight ?? expected['line-height'] } }, 'line-height-policy-informational',
+    '行高只作信息记录，不参与移动端符合性判定。');
+  const supported = ['visible', 'display', 'flexDirection', 'columns', 'width', 'maxWidth', 'fontSize', 'fontWeight']
+    .filter((key) => checkableExpected[key] !== undefined);
   if (!supported.length) return requirementResult(requirement, 'na', expected, null,
     'mobile-layout-expected-unstructured', '移动端要求没有可比较的结构化值，需人工复核。');
   const params = requirement.params || {};
@@ -1046,7 +1057,7 @@ async function checkMobileLayout(requirement, page, rootSelector) {
         display: style.display, flexDirection: style.flexDirection,
         columns: style.display.includes('grid') ? style.gridTemplateColumns.split(/\\s+/).length : null,
         width: rect.width, maxWidth: style.maxWidth, fontSize: style.fontSize, fontWeight: style.fontWeight,
-        lineHeight: style.lineHeight };
+      };
     }) };
   }, { rootSelector, selectorCandidates, params });
   if (!actual.rootFound || !actual.elements.length) return requirementResult(requirement, 'na', expected, actual,
@@ -1056,10 +1067,9 @@ async function checkMobileLayout(requirement, page, rootSelector) {
     if (key === 'width' || key === 'maxWidth') return normalizedTypographyValue('fontSize', row[key]) === normalizedTypographyValue('fontSize', expected[key]);
     if (key === 'fontWeight') return normalizedTypographyValue(key, row[key]) === normalizedTypographyValue(key, expected[key]);
     if (key === 'fontSize') return normalizedTypographyValue(key, row[key]) === normalizedTypographyValue(key, expected[key]);
-    if (key === 'lineHeight') return normalizedTypographyValue(key, row[key]) === normalizedTypographyValue(key, expected[key]);
     return String(row[key]) === String(expected[key]);
   }));
-  return requirementResult(requirement, pass ? 'pass' : 'fail', expected, actual,
+  return requirementResult(requirement, pass ? 'pass' : 'fail', checkableExpected, actual,
     pass ? 'mobile-layout-matched' : 'mobile-layout-mismatch', pass ? '移动端布局符合清单。' : '移动端布局与清单不一致。');
 }
 
@@ -1069,6 +1079,14 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
     detail: `已知例外：${override.reason}`, reason: { code: 'waived', reason: override.reason } });
   if (!['front', 'both'].includes(requirement.checkStage)) return null;
   if (requirement.checkType === 'color-scope' || requirement.checkType === 'typography') {
+    if (requirement.checkType === 'typography'
+      && !TYPOGRAPHY_PROPERTIES.some((property) => requirement.expected?.[property] !== undefined)
+      && (Object.hasOwn(requirement.expected || {}, 'lineHeight') || Object.hasOwn(requirement.expected || {}, 'line-height'))) {
+      return checkResult(requirement, 'record', { expected: {}, actual: { informational: {
+        lineHeight: requirement.expected.lineHeight ?? requirement.expected['line-height'] } },
+        detail: '行高只作信息记录，不参与设计符合性判定。',
+        reason: { code: 'line-height-policy-informational', ignoredProperties: ['lineHeight'] } });
+    }
     const scopeOverride = requirement.checkType === 'color-scope' ? scopeOverrideFor(profile?.designSpec, requirement.id) : null;
     let mapped = mappedFrontCheck(requirement, frontChecks);
     const hierarchy = requirement.checkType === 'typography' ? typographyHierarchySelection(requirement, profile) : null;
@@ -1139,8 +1157,9 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
     return checkResult(requirement, status, { displayName: scopeOverride?.resolvedScope, expected,
       detail: status === 'na'
       ? '本区块没有可执行的对应样式结果，需人工复核。' : requirement.checkType === 'typography'
-        ? status === 'pass' ? '前台文字属性符合设计规范。' : (reason.mismatches || []).map(({ property, expected: wanted, actual: got }) =>
-          `${({ fontSize: '字号', fontWeight: '字重', lineHeight: '行高' })[property] || property}（${property}）设计为 ${wanted}，实测为 ${[...new Set(got)].join(' / ')}`).join('；')
+        ? status === 'record' ? '行高只作信息记录，不参与设计符合性判定。'
+          : status === 'pass' ? '前台文字属性符合设计规范。' : (reason.mismatches || []).map(({ property, expected: wanted, actual: got }) =>
+            `${({ fontSize: '字号', fontWeight: '字重' })[property] || property}（${property}）设计为 ${wanted}，实测为 ${[...new Set(got)].join(' / ')}`).join('；')
         : '按本区块画像中映射的功能样式检查执行。',
       actual, dependsOn: dependencyCheckIds(requirement, frontChecks),
       reason: { ...reason, ...(scopeOverride ? { resolvedScope: scopeOverride.resolvedScope,

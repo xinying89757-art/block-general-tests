@@ -44,9 +44,25 @@ export function attachFrontStyleInstance(checks, settingId) {
   return (checks || []).map((check) => ({ ...check, settingId: settingId || null }));
 }
 
+function informationalLineHeightResult(check) {
+  if (check?.status !== 'fail') return check;
+  const reason = check.reason && typeof check.reason === 'object' ? check.reason : {};
+  const properties = Array.isArray(reason.mismatchedProperties) && reason.mismatchedProperties.length
+    ? reason.mismatchedProperties : Array.isArray(reason.mismatches) ? reason.mismatches.map((item) => item.property) : null;
+  const expectedKeys = check.expected && typeof check.expected === 'object' ? Object.keys(check.expected) : [];
+  const explicitlyLineHeightOnly = Array.isArray(properties) && properties.length > 0
+    && properties.every((property) => property === 'lineHeight' || property === 'line-height');
+  const legacyExpectedOnly = expectedKeys.length > 0
+    && expectedKeys.every((property) => property === 'lineHeight' || property === 'line-height')
+    && /typography|pagination|button/i.test(`${reason.checkType || ''} ${check.id || ''}`);
+  if (!explicitlyLineHeightOnly && !legacyExpectedOnly) return check;
+  return { ...check, status: 'record', classification: 'informational', detail: '行高差异仅作信息记录，不计为缺陷。',
+    reason: { ...reason, code: 'line-height-policy-informational', ignoredProperties: ['lineHeight'] } };
+}
+
 /** Final report boundary: dedupe the complete mixed check list, then recount its summary. */
 export function finalizeFrontStyleReport(report) {
-  const inputChecks = report?.checks || [];
+  const inputChecks = (report?.checks || []).map(informationalLineHeightResult);
   const checks = dedupeChecksById(inputChecks).map((check) => {
     if (!['na', 'fail'].includes(check.status)) return check;
     const reason = check.reason && typeof check.reason === 'object' && !Array.isArray(check.reason)
@@ -112,7 +128,8 @@ export function finalizeFrontStyleReport(report) {
       rawFailCount: failed.size, rawFailureObservationCount: inputChecks.filter((check) => check?.status === 'fail').length,
       dedupedFailCount: rootIds.length, rootFailureIds: rootIds, rootFailures, viewportGroups, failures },
     summary: { pass: count('pass'), fail: rootIds.length, rawFail: failed.size, dedupedFail: rootIds.length, na: count('na') + count('skip'),
-      other: checks.filter((check) => !['pass', 'fail', 'na', 'skip'].includes(check.status)).length } };
+      other: checks.filter((check) => !['pass', 'fail', 'na', 'skip'].includes(check.status)
+        && check.reason?.code !== 'line-height-policy-informational').length } };
 }
 
 export function preservePartialFrontStyleReport(report, { stage, error } = {}) {

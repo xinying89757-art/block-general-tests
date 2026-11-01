@@ -28,7 +28,7 @@ test('summary exposes raw failures and roots while retaining transitive dependen
 });
 
 test('same spec/property/expected failure across PC and mobile is one root with both viewports', () => {
-  const row = (id, viewport, wanted = 28, property = 'lineHeight') => ({ id, status: 'fail', sourceText: 'Label typography',
+  const row = (id, viewport, wanted = 400, property = 'fontWeight') => ({ id, status: 'fail', sourceText: 'Label typography',
     expected: { [property]: wanted }, reason: { checkType: 'typography', code: 'design-typography-mismatch',
       viewport: { label: viewport }, mismatches: [{ property, expected: wanted, actual: [14] }] } });
   const report = finalizeFrontStyleReport({ checks: [row('design-pc-font', 'pc'), row('design-mobile-font', 'mobile')] });
@@ -43,4 +43,15 @@ test('same spec/property/expected failure across PC and mobile is one root with 
   assert.equal(sameId.failureDeduplication.rawFailureObservationCount, 2);
   assert.equal(finalizeFrontStyleReport({ checks: [row('design-pc', 'pc'), row('design-mobile', 'mobile', 32)] }).summary.fail, 2);
   assert.equal(finalizeFrontStyleReport({ checks: [row('design-pc', 'pc'), row('design-mobile', 'mobile', 28, 'fontSize')] }).summary.fail, 2);
+});
+
+test('legacy line-height-only failures become informational and do not enter failure totals', () => {
+  const report = finalizeFrontStyleReport({ checks: [{ id: 'design-button-line-height', status: 'fail',
+    checkType: 'typography', expected: { lineHeight: '28px' },
+    reason: { code: 'design-typography-mismatch', mismatchedProperties: ['lineHeight'],
+      mismatches: [{ property: 'lineHeight', expected: 28, actual: [14] }] } }] });
+  assert.equal(report.checks[0].status, 'record');
+  assert.equal(report.checks[0].reason.code, 'line-height-policy-informational');
+  assert.equal(report.summary.fail, 0);
+  assert.equal(report.summary.other, 0);
 });

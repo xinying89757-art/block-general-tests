@@ -30,7 +30,8 @@ function requirementsFromSpec(spec) {
     const expected = {};
     if (type.fontSize && type.fontSize !== '见备注') expected.fontSize = type.fontSize;
     if (type.fontWeight) expected.fontWeight = type.fontWeight;
-    if (type.lineHeight && type.lineHeight !== 'normal') expected.lineHeight = type.lineHeight;
+    // Line-height is excluded by policy: preserve it in raw source data only,
+    // never emit it as a checklist expectation.
     if (type.color != null) expected.color = type.color;
     requirements.push({ id: `typography-${index + 1}-${slug(type.element)}-${type.viewport || 'default'}`,
       checkType: 'typography', sourceText: String(type.element), expected, checkStage: 'front',

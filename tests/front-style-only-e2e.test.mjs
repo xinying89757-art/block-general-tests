@@ -168,8 +168,8 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     assert.equal(report.checks.find((row) => row.id === 'design-current-color-scope')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-button-color-scope')?.reason.expectedSource, 'run-report:setting-check-value');
     assert.deepEqual(report.checks.find((row) => row.id === 'design-leaf-typography')?.actual, {
-      fontSize: ['16px'], fontWeight: ['600'], lineHeight: ['20px'],
-      functionalChecks: [{ label: 'Exact leaf label', role: 'span', fontSize: '16px', fontWeight: '600', lineHeight: '20px' }],
+      fontSize: ['16px'], fontWeight: ['600'],
+      functionalChecks: [{ label: 'Exact leaf label', role: 'span', fontSize: '16px', fontWeight: '600' }],
     });
     assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-hierarchy-fixture')?.status, 'pass');

@@ -9,7 +9,7 @@
 - 设置层：设置项存在、选项与默认值对不对、改了保存后还在不在。
 - 效果层：保存后前台是不是真的变了（筛选、分类、配色、宽度、产品对比、样式）。
 - 数据层：前台列表和内容管理后台算出来的结果对不对得上（oracle）。
-- 样式：按 Figma 设计稿逐项比对（字号、颜色、行高、圆角），Pad 和移动端只查有没有错乱。
+- 样式：按 Figma 设计稿逐项比对（字号、字重、颜色、圆角），Pad 和移动端只查有没有错乱。行高差异不判缺陷。
 - 通用检查：区块存在、图片 alt、链接、指针样式、字体跟随、轮播。
 
 能力是按设置项复用的：一个区块声明自己有哪些能力，套件就自动组合跑。
@@ -105,7 +105,7 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 
 ### 前台样式失败原因
 
-汇总同时列出 `summary.rawFail`（按 check id 去重后的失败明细数）和 `summary.dedupedFail`（沿失败 `dependsOn` 链归到根因后的数量）；`summary.fail` 保持等于后者。每条失败仍保留，`rootFailureIds` 与 `failureDeduplication` 说明它被计入哪个根失败。字号、字重、行高分别比较，失败文字与 `reason.mismatchedProperties` 指明实际不符的属性。
+汇总同时列出 `summary.rawFail`（按 check id 去重后的失败明细数）和 `summary.dedupedFail`（沿失败 `dependsOn` 链归到根因后的数量）；`summary.fail` 保持等于后者。每条失败仍保留，`rootFailureIds` 与 `failureDeduplication` 说明它被计入哪个根失败。字号和字重参与文字样式判定，行高仅作信息记录，永远不导致失败或缺陷计数。
 
 同一规格原文、检查类型、范围依赖、差异属性和期望值在 PC/移动端重复失败时，只计一个根失败，仍保留两条明细；`failureDeduplication.rootFailures[].viewports` 列出涉及的视口。不同属性或不同期望值不会被合并。
 
@@ -115,7 +115,7 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 
 `scripts/front-style-only.mjs` 的 JSON 报告在每条非 `pass` 检查上附 `reason`：`stage` 是 `locate`、`read` 或 `compare`；`locator` 和 `matchedElementCount` 说明实例内定位及命中数；`property`、`expected`、`actual` 用规范化样式值描述比较项；`viewport` 记录视口。颜色等受区块设置控制的期望值可用 `--run-report reports/fresh-block-<id>-<run>.json` 从本轮的 `block.currentValues` 解析；只有本轮确实写入时才作为本轮期望。默认色检查遇到本轮不同颜色会记为 `na`（机器原因 `palette-default-overridden-this-run`），本轮写入色由独立的写入色检查验证。失败原因中的 `expectedSource` 会注明来源。`skip`/`na`/`deferred` 还带 `applicability`，异常会带已脱敏的 `error.class` / `error.message`。有失败截图时，`reason.screenshot` 指向对应视口截图；移动端超框还会列出 offending element 的 CSS 路径。原因里不保存页面正文、Cookie 或带令牌的 URL。外层浏览器/导航错误会作为 `status: "error"` 的逐项 harness 记录，不改写断言结果。
 
-设计清单中的 typography 仅检查该条规范明确提供的 `fontSize`、`fontWeight`、`lineHeight`；不把颜色、盒子尺寸或能力画像的其他属性混入。分页颜色范围按画像映射到当前页；非当前页颜色继续按它自己的设计条目判定。候选选择器在画像候选未命中时，样式检查可在唯一实例根节点内按链接/列表层级推导候选；没有结构证据时保留 `na`，不猜测。
+设计清单中的 typography 仅检查该条规范明确提供的 `fontSize`、`fontWeight`；`lineHeight` 不生成断言，旧的行高单项只作 `record` 信息。Schema 会拒绝 checklist 的 `expected.lineHeight`。不把颜色、盒子尺寸或能力画像的其他属性混入。分页颜色范围按画像映射到当前页；非当前页颜色继续按它自己的设计条目判定。候选选择器在画像候选未命中时，样式检查可在唯一实例根节点内按链接/列表层级推导候选；没有结构证据时保留 `na`，不猜测。
 
 `block-style-spec` 画像中若只有 `recordOnly` 库存项，会按 `record` 输出这些待人工建立前台映射的能力，并继续执行通用视口布局检查。不要把设置库存标签当作前台 DOM 选择器。
 

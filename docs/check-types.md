@@ -48,9 +48,12 @@ run did overwrite it, the default row is `na` with
 IDs. The profile can map an ambiguous scope in `scopeOverrides`; a `分页文字`
 scope refers to current-page text unless the source explicitly says otherwise.
 
-Typography compares only properties stated in the checklist among
-`fontSize`, `fontWeight`, and `lineHeight`. It does not mix palette color or
-profile geometry into the verdict. Missing observations remain `na`.
+Typography compares only `fontSize` and `fontWeight` when stated in the
+checklist. `lineHeight` is never asserted in typography, pagination, button,
+editor, or front checks; a legacy line-height-only requirement is informational
+(`record`) and never contributes a pass/fail count. Checklist generation and
+the schema reject `expected.lineHeight`. Typography does not mix palette color
+or profile geometry into the verdict. Missing observations remain `na`.
 `image-ratio` only uses content images inside item/card containers; banners and
 full-width backgrounds are excluded unless a checklist explicitly declares a
 background-image requirement. `mobile-layout` compares checklist requirements

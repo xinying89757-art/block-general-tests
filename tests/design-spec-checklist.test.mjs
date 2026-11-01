@@ -16,6 +16,8 @@ const profile = (requirements, extra = {}) => ({ designSpec: { source: { fileKey
 test('design checklist validation accepts catalog entries and rejects malformed / unknown entries', () => {
   const valid = { source: { fileKey: 'file_1', nodeId: '1:2' }, requirements: [requirement()], overrides: [] };
   assert.deepEqual(validateDesignSpec(valid), []);
+  assert.ok(validateDesignSpec({ ...valid, requirements: [{ ...requirement(), checkType: 'typography',
+    expected: { fontSize: '14px', lineHeight: '28px' } }] }).some((item) => item.path.endsWith('.expected.lineHeight')));
   assert.ok(validateDesignSpec({ ...valid, requirements: [{ ...requirement(), checkType: 'guess-selector' }] })
     .some((item) => item.path.endsWith('.checkType')));
   assert.ok(validateDesignSpec({ ...valid, source: { fileKey: 'https://figma.com/file/token', nodeId: 'bad' } }).length >= 2);
@@ -25,8 +27,11 @@ test('design checklist validation accepts catalog entries and rejects malformed 
 
 test('design-spec importer stores only the Figma file key and node id from a URL', () => {
   const target = importExtractedDesignSpec({}, { file: 'https://www.figma.com/design/fileKey_1/name?node-id=1-2&t=private-token',
-    colors: [{ name: 'Primary', default: '#123456', sourceNodeId: '1:2' }] });
+    colors: [{ name: 'Primary', default: '#123456', sourceNodeId: '1:2' }],
+    typography: [{ element: 'Button', fontSize: '14px', fontWeight: 600, lineHeight: '28px', sourceNodeId: '1:2' }] });
   assert.deepEqual(target.designSpec.source, { fileKey: 'fileKey_1', nodeId: '1:2' });
+  assert.deepEqual(target.designSpec.requirements.find((item) => item.checkType === 'typography').expected,
+    { fontSize: '14px', fontWeight: 600 });
   assert.doesNotMatch(JSON.stringify(target), /private-token|figma\.com/);
 });
 
@@ -382,7 +387,7 @@ test('final front-report assembly guarantees string machine reason codes for eve
   assert.ok(report.checks.every((check) => typeof check.reason.code === 'string' && check.reason.code.length));
 });
 
-test('typography design checks compare only spec font properties, excluding palette color and profile geometry', async () => {
+test('typography checks compare only font size and weight; line-height, color and geometry are informational or ignored', async () => {
   const item = { id: 'pagination', checkType: 'typography', sourceText: 'Pagination',
     expected: { fontSize: '14px', fontWeight: 'Poppins Regular', lineHeight: '28px', color: '#898989', width: '28px' },
     checkStage: 'front', params: { styleCheckId: 'pagination-other' } };
@@ -391,9 +396,10 @@ test('typography design checks compare only spec font properties, excluding pale
     reason: { expected: { color: '#ff0000', fontSize: 14, width: 28 },
       actual: [{ color: '#4d4f53', fontSize: 14, width: 30, fontWeight: 400, lineHeight: '28px' }] } }] });
   assert.equal(result.status, 'pass');
-  assert.deepEqual(result.expected, { fontSize: '14px', fontWeight: 'Poppins Regular', lineHeight: '28px' });
-  assert.deepEqual(result.reason.propertiesChecked, ['fontSize', 'fontWeight', 'lineHeight']);
-  assert.deepEqual(Object.keys(result.actual).filter((key) => key !== 'functionalChecks'), ['fontSize', 'fontWeight', 'lineHeight']);
+  assert.deepEqual(result.expected, { fontSize: '14px', fontWeight: 'Poppins Regular' });
+  assert.deepEqual(result.reason.propertiesChecked, ['fontSize', 'fontWeight']);
+  assert.deepEqual(result.reason.ignoredProperties, ['lineHeight']);
+  assert.deepEqual(Object.keys(result.actual).filter((key) => key !== 'functionalChecks'), ['fontSize', 'fontWeight']);
   const mismatch = await checkDesignRequirementFront(item, { profile: p, frontChecks: [{ id: 'pagination-other', status: 'fail',
     reason: { actual: [{ fontSize: 16, fontWeight: 400, lineHeight: '28px' }] } }] });
   assert.equal(mismatch.status, 'fail');
@@ -409,18 +415,33 @@ test('typography design checks compare only spec font properties, excluding pale
   assert.equal(combined.summary.fail, 1, 'PC/mobile typography dependent observations must not recount their root failure');
 });
 
-test('typography failure names only the properties that differ and survives style diagnostic assembly', async () => {
-  const item = { id: 'line-height', checkType: 'typography', sourceText: 'Typography',
-    expected: { fontSize: '14px', fontWeight: 400, lineHeight: '28px' }, checkStage: 'front', params: { styleCheckId: 'label' } };
+test('line-height-only typography is informational and cannot fail or count as a defect', async () => {
+  const lineHeightOnly = { id: 'line-height', checkType: 'typography', sourceText: 'Typography',
+    expected: { lineHeight: '28px' }, checkStage: 'front', params: { styleCheckId: 'label' } };
+  const info = await checkDesignRequirementFront(lineHeightOnly, { profile: profile([lineHeightOnly]), frontChecks: [
+    { id: 'bss-label', status: 'fail', actual: [{ lineHeight: 14 }] },
+  ] });
+  assert.equal(info.status, 'record');
+  assert.equal(info.reason.code, 'line-height-policy-informational');
+  assert.deepEqual(info.reason.ignoredProperties, ['lineHeight']);
+  const item = { ...lineHeightOnly, id: 'font-weight', expected: { fontWeight: 400, lineHeight: '28px' } };
   const check = await checkDesignRequirementFront(item, { profile: profile([item]), frontChecks: [
-    { id: 'bss-label', status: 'pass', actual: [{ fontSize: 14, fontWeight: 400, lineHeight: 14 }] },
+    { id: 'bss-label', status: 'pass', actual: [{ fontSize: 14, fontWeight: 700, lineHeight: 14 }] },
   ] });
   assert.equal(check.status, 'fail');
-  assert.match(check.detail, /行高（lineHeight）/);
-  assert.doesNotMatch(check.detail, /字号/);
-  assert.deepEqual(check.reason.mismatchedProperties, ['lineHeight']);
+  assert.match(check.detail, /字重（fontWeight）/);
+  assert.doesNotMatch(check.detail, /行高（lineHeight）/);
+  assert.deepEqual(check.reason.mismatchedProperties, ['fontWeight']);
   const [diagnosed] = addStyleFailureReasons([check], { capability: { styleSpec: { items: [] } } });
   assert.deepEqual(diagnosed.reason.mismatches, check.reason.mismatches);
+});
+
+test('mobile layout ignores line-height and records a line-height-only legacy item as informational', async () => {
+  const item = { id: 'mobile-line-height', checkType: 'mobile-layout', sourceText: 'Mobile text',
+    expected: { lineHeight: '18px' }, checkStage: 'front', params: {} };
+  const result = await checkDesignRequirementFront(item, { profile: profile([item]), page: {}, rootSelector: '.instance' });
+  assert.equal(result.status, 'record');
+  assert.equal(result.reason.code, 'line-height-policy-informational');
 });
 
 test('a child-level typography requirement never substitutes an observed parent row', async () => {

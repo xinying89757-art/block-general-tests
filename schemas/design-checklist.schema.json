@@ -23,7 +23,12 @@
           "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
           "checkType": { "enum": ["color-default", "color-scope", "typography", "module-width", "height-fit", "text-truncation", "image-ratio", "overflow-threshold", "nav-hierarchy-levels", "search-box-per-field", "default-expand", "selected-tag-behaviour", "mobile-layout", "manual"] },
           "sourceText": { "type": "string", "minLength": 1 },
-          "expected": {},
+          "expected": {
+            "not": { "anyOf": [
+              { "required": ["lineHeight"] },
+              { "required": ["line-height"] }
+            ] }
+          },
           "checkStage": { "enum": ["editor", "front", "both"] },
           "params": { "type": "object" }
         },
