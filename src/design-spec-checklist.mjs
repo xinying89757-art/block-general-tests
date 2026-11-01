@@ -432,7 +432,7 @@ function cssRuleEntries(cssText) {
   const entries = [];
   // Retain selectors nested in conditional at-rules (media/supports/layer).
   // This is intentionally a lightweight CSS rule reader, not a CSS evaluator.
-  const visit = (text) => {
+  const visit = (text, conditions = []) => {
     let cursor = 0;
     while (cursor < text.length) {
       const open = text.indexOf('{', cursor);
@@ -446,12 +446,13 @@ function cssRuleEntries(cssText) {
       }
       if (depth) break;
       const body = text.slice(open + 1, close - 1);
-      if (head.startsWith('@')) visit(body);
-      else if (head) entries.push({ selector: head, body });
+      if (head.startsWith('@')) visit(body, [...conditions, head]);
+      else if (head) entries.push({ selector: head, body, conditions });
       cursor = close;
     }
   };
   const source = String(cssText || '').replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/@(?:charset|namespace)\s+[^;]+;/gi, '')
     .replace(/@import\s+(?:url\(\s*)?(?:['"][^'"]+['"]|[^\s;)]+)\s*\)?[^;]*;/gi, '');
   visit(source);
   return entries;
@@ -584,9 +585,9 @@ async function scopedCssMatches(page, rootSelector, declarations) {
   }, { rootSelector, declarations });
 }
 
-export async function scanWrittenColorStylesheets({ page, rootSelector, settingsReport, fetchStylesheet, fetchNode } = {}) {
+export async function scanWrittenColorStylesheets({ page, rootSelector, settingsReport, fetchStylesheet, fetchNode, captureRules = false } = {}) {
   const values = extractWrittenColorValues(settingsReport);
-  if (!page || !rootSelector || !values.length) return { evidenceById: {}, sheetCount: 0, ruleCount: 0, fetchFailureCount: 0,
+  if (!page || !rootSelector || (!values.length && !captureRules)) return { evidenceById: {}, sheetCount: 0, ruleCount: 0, fetchFailureCount: 0,
     fetchFailures: [], recoveredFetches: [], unreadableSheets: [], excludedSheets: [] };
   const inventory = await page.evaluate(({ rootSelector }) => {
     const links = [...document.querySelectorAll('link[rel~="stylesheet"][href]')].map((item) => item.href);
@@ -706,7 +707,10 @@ export async function scanWrittenColorStylesheets({ page, rootSelector, settings
       fetchFailures, recoveredFetches, unreadableSheetCount: unreadableSheets.length, unreadableSheets, excludedSheets,
       matchCount: scoped.length, rules: serializedRules };
   }
-  return { evidenceById, sheetCount: externalSheets.length,
+  const matchingRules = captureRules ? await scopedCssMatches(page, rootSelector, sheets.flatMap((sheet) =>
+    cssRuleEntries(sheet.text).map((rule) => ({ ...rule, selectors: splitCssSelectorList(rule.selector),
+      sheetUrl: sheet.url, source: sheet.source })))) : undefined;
+  return { evidenceById, ...(captureRules ? { matchingRules } : {}), sheetCount: externalSheets.length,
     ruleCount: externalRuleCount, inlineStyleRuleCount, inlineAttributeRuleCount,
     fetchFailureCount: fetchFailures.length, recoveredFetchCount: recoveredFetches.length,
     fetchFailures, recoveredFetches, unreadableSheets, excludedSheets,
@@ -1334,6 +1338,8 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
         ...(cssEvidence.matchCount ? { rules: cssEvidence.rules } : {}) },
       stateExercise: { enabled: Boolean(stateExercise), states: stateEvidence.states,
         candidateDiagnostics: stateEvidence.candidateDiagnostics || [],
+        ...(stateEvidence.finderDebug ? { finderDebug: stateEvidence.finderDebug } : {}),
+        rejectedCandidates: stateEvidence.rejectedCandidates || [],
         notExercised: stateEvidence.notExercised || [], timedOut: Boolean(stateEvidence.timedOut),
         candidateCount: stateEvidence.candidateCount, disclosureCount: stateEvidence.disclosureCount,
         exerciseCounts: stateEvidence.exerciseCounts || { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0,
@@ -1472,6 +1478,11 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
   const revealed = {};
   const states = new Set();
   const candidateDiagnostics = [];
+  const rejectedCandidates = [];
+  const rejectCandidate = (stage, info, reason) => {
+    if (rejectedCandidates.length < 80) rejectedCandidates.push({ stage, tag: info?.tag || null,
+      rect: info?.rect || info?.candidate?.rect || null, reason });
+  };
   const notExercised = [];
   const activate = async (target, diagnostic, restoring = false) => {
     const prefix = restoring ? 'restore' : 'activate';
@@ -1531,7 +1542,8 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
       }));
       hoverEligible = isVisibleHoverStateTarget(hoverInfo);
     } catch {}
-    if (!hoverEligible) continue;
+    if (!hoverEligible) { rejectCandidate('hover', hoverInfo, !hoverInfo ? 'hover-metadata-unreadable'
+      : !hoverInfo.visible ? 'hover-target-not-visible' : 'no-hover-affordance'); continue; }
     try {
       // Playwright's locator.hover waits for full actionability and may wait on
       // scroll/animation indefinitely in complex front-end widgets. Move the
@@ -1632,9 +1644,11 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
     }, { rootSelector, targetToken: `state-${Date.now()}-${index}` })); } catch { continue; }
     info.hasDisclosure = Boolean(discovered?.[index]?.evidence?.length);
     info.safe = isSafeStateExerciseTarget(info);
-    if (!info.safe) continue;
+    if (!info.safe) { rejectCandidate('disclosure', info, info.hasHref || info.navigationAncestor ? 'navigation-link'
+      : info.insideForm || info.submitControl ? 'form-or-submit-control' : !info.visible ? 'click-owner-not-visible'
+        : 'no-safe-disclosure-semantics'); continue; }
     if (info.targetPath) {
-      if (exercisedTargets.has(info.targetPath)) continue;
+      if (exercisedTargets.has(info.targetPath)) { rejectCandidate('disclosure', info, 'duplicate-click-owner'); continue; }
       exercisedTargets.add(info.targetPath);
       control = root.locator(info.targetToken ? `[data-front-state-click-target="${info.targetToken}"]` : info.targetPath);
     }
@@ -1746,6 +1760,7 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
       node.removeAttribute('data-front-state-click-target'); }
   })); } catch {}
   return { states: [...states], candidateCount: count, disclosureCount: detailsCount, exerciseCounts, revealed, candidateDiagnostics,
+    ...(structure?.finderDebug ? { finderDebug: structure.finderDebug } : {}), rejectedCandidates,
     ...(timedOut() ? { timedOut: true } : {}),
     notExercised: [...notExercised, ...(timedOut() ? [{ state: 'remaining-states', status: 'not-exercised', reason: {
       code: timedOut().action === 'overall-timeout' ? 'state-exercise-overall-timeout' : 'state-exercise-action-timeout', ...timedOut() } }] : [])] };

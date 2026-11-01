@@ -253,7 +253,8 @@ test('optional state exercise records attempted states and the first state revea
   assert.deepEqual(result, { states: ['hover', 'focus'], candidateCount: 1, disclosureCount: 0,
     exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
       tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 },
-    revealed: { 'color-a': { state: 'hover', matches: 1 } }, candidateDiagnostics: [], notExercised: [] });
+    revealed: { 'color-a': { state: 'hover', matches: 1 } }, candidateDiagnostics: [], notExercised: [],
+    rejectedCandidates: [{ stage: 'disclosure', tag: 'div', rect: null, reason: 'no-safe-disclosure-semantics' }] });
 });
 
 test('a state toggle whose click never resolves is bounded and recorded as not-exercised', async () => {
@@ -416,6 +417,7 @@ test('every written-color miss records states exercised and stylesheet scan diag
   const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '.target', settingsReport, stateExercise: true });
   assert.equal(row.classification, 'absent');
   assert.deepEqual(row.actual.stateExercise, { enabled: true, states: [], candidateCount: 0, candidateDiagnostics: [],
+    rejectedCandidates: [],
     disclosureCount: 0, exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
       tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null, notExercised: [], timedOut: false });
   assert.equal(row.actual.stylesheetEvidence.sheetCount, 0);
@@ -448,6 +450,7 @@ test('cross-origin linked CSS fetched through context request becomes scoped CSS
   assert.equal(row.actual.stylesheetEvidence.matchCount, 1);
   assert.equal(row.actual.stylesheetEvidence.rules[0].properties[0], 'background-image');
   assert.deepEqual(row.actual.stateExercise, { enabled: false, states: [], candidateCount: 0, candidateDiagnostics: [],
+    rejectedCandidates: [],
     disclosureCount: 0, exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
       tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null, notExercised: [], timedOut: false });
 });

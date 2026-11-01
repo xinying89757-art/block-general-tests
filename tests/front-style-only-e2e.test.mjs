@@ -122,7 +122,8 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     const result = await new Promise((resolve, reject) => {
       const child = spawn(process.execPath, ['scripts/front-style-only.mjs', '--block', '90001', '--url',
         `http://127.0.0.1:${address.port}/products.html`, '--profile', profilePath, '--run-report', runPath,
-        '--out', outputPath, '--channel', 'chrome', '--exercise-states', '1'], { cwd: repo });
+        '--out', outputPath, '--channel', 'chrome', '--exercise-states', '1',
+        '--capture-instance', path.join(temp, 'capture')], { cwd: repo });
       let stdout = '', stderr = '';
       const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('front-style-only fixture child timed out')); }, 45000);
       child.stdout.setEncoding('utf8').on('data', (chunk) => { stdout += chunk; });
@@ -136,6 +137,18 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
       typeof row.reason?.code === 'string' && row.reason.code && row.reason.code !== '[object Object]'
         && row.reason.code !== 'na-reason-unavailable'), 'all read/locate/compare non-pass checks need a specific string reason');
     assert.equal(report.error, null);
+    assert.equal(report.instanceCaptures.length, 2);
+    for (const capture of report.instanceCaptures) {
+      assert.ok(fs.existsSync(capture.jsonPath), 'real CLI writes per-viewport capture JSON');
+      assert.ok(fs.existsSync(capture.htmlPath));
+      assert.ok(fs.existsSync(capture.cssPath));
+      assert.ok(capture.elementCount > 0);
+    }
+    for (const viewport of ['pc', 'mobile']) {
+      assert.equal(report.finderDebug[viewport].rootCount, 1);
+      assert.ok(report.finderDebug[viewport].finders.interaction.decisions.every((row) => row.reason));
+      assert.ok(report.finderDebug[viewport].finders.image.decisions.length <= 80);
+    }
     assert.equal(new URL(report.finalUrl).pathname, '/products.html', 'nested link children must never be activated');
     assert.equal(report.checks.find((row) => row.id === 'design-mobile-sample')?.status, 'pass');
     const color = report.checks.find((row) => row.id === 'written-color-1');

@@ -7,7 +7,7 @@
 // TLS errors ignored by default like IGNORE_HTTPS_ERRORS=true in config.mjs; --strict-tls 1 to enforce.
 // Usage: node scripts/front-style-only.mjs --block <id> --url <frontUrl>
 //          [--profile profiles/<id>.json] [--run-report reports/run.json] [--out reports/x.json]
-//          [--setting-id <id>] [--channel chrome]
+//          [--setting-id <id>] [--channel chrome] [--capture-instance <dir>]
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
@@ -16,6 +16,8 @@ import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, finalizeFront
   sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 import { markUniqueFrontInstance } from '../src/front-instance-root.mjs';
 import { buildDesignHumanReview, runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../src/design-spec-checklist.mjs';
+import { captureFrontInstance } from '../src/instance-capture.mjs';
+import { readInstanceStructure } from '../src/front-structure.mjs';
 
 const args = {};
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -24,7 +26,7 @@ for (let i = 2; i < process.argv.length; i += 1) {
   args[k.slice(2)] = process.argv[i + 1]; i += 1;
 }
 if (!args.block || !args.url) {
-  console.error('用法：node scripts/front-style-only.mjs --block <id> --url <前台URL> [--profile <json>] [--run-report <json>] [--out <json>]');
+  console.error('用法：node scripts/front-style-only.mjs --block <id> --url <前台URL> [--profile <json>] [--run-report <json>] [--out <json>] [--capture-instance <dir>]');
   process.exit(2);
 }
 const blockId = String(args.block);
@@ -100,6 +102,30 @@ try {
   progress('style-checks');
   report.expectedValueSourceReport = args['run-report'] || null;
   try {
+    // Diagnostic snapshots run before any state exercise, while the unique
+    // instance marker is alive. Only viewport size changes; restore it below.
+    report.finderDebug = {};
+    const originalViewport = page.viewportSize();
+    try {
+      for (const viewport of [{ label: 'pc', width: resolvedCapability?.styleSpec?.viewports?.pc || 1440, height: 900 },
+        { label: 'mobile', width: resolvedCapability?.styleSpec?.viewports?.mobile || 375, height: 667 }]) {
+        stage = `instance-diagnostics-${viewport.label}`; progress(stage);
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.waitForFunction(() => document.readyState !== 'loading', undefined, { timeout: config.actionTimeoutMs });
+        try {
+          const structure = await page.evaluate(readInstanceStructure, { rootSelector: config.rootSelector, imageMode: 'content' });
+          report.finderDebug[viewport.label] = { viewport, rootCount: structure.rootCount, ...structure.finderDebug };
+        } catch (error) { report.finderDebug[viewport.label] = { viewport, code: 'finder-debug-unavailable', error: sanitizeFrontStyleError(error) }; }
+        if (args['capture-instance']) {
+          stage = `capture-instance-${viewport.label}`; progress(stage);
+          report.instanceCaptures ||= [];
+          try { report.instanceCaptures.push(await captureFrontInstance({ page, rootSelector: config.rootSelector,
+            directory: args['capture-instance'], viewport, identity: { blockId, settingId: report.settingId } })); }
+          catch (error) { report.instanceCaptures.push({ viewport, status: 'capture-error', error: sanitizeFrontStyleError(error) }); }
+        }
+      }
+    } finally { if (originalViewport) await page.setViewportSize(originalViewport); }
+    stage = 'read-style';
     const incrementalStyleChecks = new Map();
     const styleChecks = capability && (capability.styleSpec?.items?.length || capability.styleSpec?.recordOnly?.length)
       ? await runFrontLayer({ frame: page, previewPage: page, config,

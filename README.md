@@ -4,6 +4,8 @@
 跑测试的是智能体（Codex、Claude Code、Muse 或其他），不是人敲命令，也不是网页服务。
 你对智能体说一句话，它问你要的东西、跑测试、出报告。
 
+前台 finder 的真实标记取证：在 Mac 前台命令加 `--capture-instance <dir>`，生成 PC/mobile 的脱敏实例 HTML、JSON 树、事件元数据和匹配 CSS；再用 `node scripts/fixture-from-capture.mjs <dir> <fixture-dir>` 生成离线页面。默认关闭捕获，排除原因保留在报告 JSON 的 `finderDebug`，用法与限制见 [实例捕获说明](docs/INSTANCE_CAPTURE.md)。
+
 ## 它测什么
 
 - 设置层：设置项存在、选项与默认值对不对、改了保存后还在不在。
