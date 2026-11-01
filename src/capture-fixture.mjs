@@ -26,7 +26,8 @@ export function fixtureFromCapture(capture, { cssFile = 'fixture.css' } = {}) {
     visiting.add(row.nodeIndex);
     const attributes = [];
     for (const [name, raw] of Object.entries(row.attributes || {})) {
-      if (!/^[a-z_:][a-z0-9_.:-]*$/i.test(name) || /^data-capture-node$/i.test(name)) continue;
+      if (!/^[a-z_:][a-z0-9_.:-]*$/i.test(name) || /^data-capture-node$/i.test(name)
+        || /^data-(?:setting-base64|storage|auto_uuid|relate-appid|blockseditor-type)$/i.test(name)) continue;
       let value = sanitizeCaptureAttribute(name, raw);
       if (value === null) continue;
       if (/^(href|action|formaction|ping)$/i.test(name)) value = name === 'href' ? '#' : '';

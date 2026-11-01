@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { fixtureFromCapture } from '../src/capture-fixture.mjs';
 
@@ -13,11 +14,12 @@ export async function writeCaptureFixtures(capturePath, outputDirectory) {
   await fs.mkdir(destination, { recursive: true });
   const outputs = [];
   for (const file of files) {
-    const capture = JSON.parse(await fs.readFile(file, 'utf8'));
+    const input = await fs.readFile(file, 'utf8');
+    const capture = JSON.parse(input);
     const label = capture.viewport?.label === 'mobile' ? 'mobile' : 'pc';
     const result = fixtureFromCapture(capture, { cssFile: `${label}.css` });
     await Promise.all([fs.writeFile(path.join(destination, `${label}.html`), result.html), fs.writeFile(path.join(destination, `${label}.css`), result.css)]);
-    outputs.push({ viewport: result.viewport, html: `${label}.html`, css: `${label}.css`, elementCount: result.elementCount, limitations: result.limitations });
+    outputs.push({ sourceCapture: path.basename(file), sourceSha256: createHash('sha256').update(input).digest('hex'), viewport: result.viewport, html: `${label}.html`, css: `${label}.css`, elementCount: result.elementCount, limitations: result.limitations });
   }
   await fs.writeFile(path.join(destination, 'manifest.json'), JSON.stringify({ source: path.basename(source), outputs }, null, 2));
   return outputs;

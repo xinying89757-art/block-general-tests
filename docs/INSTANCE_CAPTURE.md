@@ -71,3 +71,22 @@ hierarchy, parent/leaf navigation and filter options. Relevant shaped elements
 are retained before generic non-candidates when a list reaches its cap. These
 paths/classes/decisions are machine/debug data only; human summaries do not show
 selector matching. Capture and diagnostics do not change pass/fail rules.
+
+## Capture-backed finder regression
+
+`tests/fixtures/captures/` contains sanitized PC/mobile pages generated from
+real captures. Manifest entries carry the source JSON SHA-256. Finder tests use
+these unchanged pages plus explicit variants cloned from their real nodes;
+fixture placeholder geometry is not evidence of image-ratio conformity.
+The generator also omits editor-only serialized setting/storage metadata.
+
+Content images are recognized within repeated media-and-label cards or semantic
+content items. Natural dimensions take precedence over numeric width/height
+attributes, then rendered dimensions. Pictures count once. Gradients, text-link
+backgrounds, sprite offsets, ancillary icons and banners outside content are
+excluded with rejection reasons. A block with no content images remains `na`.
+Hierarchy requires nested levels or numeric/consistent sibling indentation
+signals; a lone category arrow, pagination and filter controls do not invent
+levels. Options include native labels and non-navigating, text-bearing JS-bound
+links/labels, without executing their handlers. Empty results expose machine
+absence reasons; selector details stay out of human summaries.

@@ -180,8 +180,8 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     assert.equal(report.checks.find((row) => row.id === 'design-scroll-threshold-fixture')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-truncation-fixture')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-default-expand-fixture')?.status, 'pass');
-    assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.actual.images.length, 3,
-      'only the content image and picture sources participate; banners and full-width backgrounds do not');
+    assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.actual.images.length, 2,
+      'each content image/picture participates once; banners and full-width backgrounds do not');
     assert.ok(report.humanReview.some((item) => item.id === 'manual-requirement'
       && item.sourceText === 'Exact unsupported source sentence'), 'unsupported source text must remain visible in humanReview');
     assert.ok(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.actual.images

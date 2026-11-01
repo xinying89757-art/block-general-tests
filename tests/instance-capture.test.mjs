@@ -15,7 +15,7 @@ import { readInstanceStructure } from '../src/front-structure.mjs';
 const execute = promisify(execFile);
 const minimal = () => ({ version: 1, sanitized: true, rootIndex: 0, viewport: { label: 'pc', width: 1440, height: 900 },
   outerHTML: '<script>UNTRUSTED</script>', elements: [{ nodeIndex: 0, tag: 'div', parentIndex: null,
-    attributes: { 'data-appid': '90002', onclick: 'UNTRUSTED', 'data-token': 'UNTRUSTED' }, children: ['Safe label', 1] },
+    attributes: { 'data-appid': '90002', onclick: 'UNTRUSTED', 'data-token': 'UNTRUSTED', 'data-setting-base64': 'EDITOR-PAYLOAD', 'data-storage': 'EDITOR-PAYLOAD' }, children: ['Safe label', 1] },
   { nodeIndex: 1, tag: 'script', parentIndex: 0, attributes: {}, children: ['UNTRUSTED'] }], cssRules: [] });
 
 test('capture sanitization removes sensitive names, inline code, URL credentials and oversized attribute values', () => {
@@ -28,7 +28,7 @@ test('capture sanitization removes sensitive names, inline code, URL credentials
 
 test('fixture generation reconstructs the sanitized tree, excludes code and network requests, and fails closed on malformed input', () => {
   const result = fixtureFromCapture(minimal());
-  assert.doesNotMatch(result.html, /UNTRUSTED|onclick|data-token|<script/);
+  assert.doesNotMatch(result.html, /UNTRUSTED|EDITOR-PAYLOAD|onclick|data-token|data-setting-base64|data-storage|<script/);
   assert.match(result.html, /Safe label/);
   assert.match(result.html, /script-src 'none'/);
   assert.throws(() => fixtureFromCapture({ ...minimal(), sanitized: false }), /unsanitized/);

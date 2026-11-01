@@ -1,0 +1,37 @@
+{
+  "source": "capture-47498-1793538189",
+  "outputs": [
+    {
+      "sourceCapture": "mobile.json",
+      "sourceSha256": "ade8903a2d2b496899e435397e9e283bc5359f6fe82387d54ecb956eb29b9286",
+      "viewport": {
+        "label": "mobile",
+        "width": 375,
+        "height": 667
+      },
+      "html": "mobile.html",
+      "css": "mobile.css",
+      "elementCount": 294,
+      "limitations": [
+        "Original scripts and event handler bodies are excluded. Listener metadata is in the capture JSON; interaction behavior is not replayed.",
+        "Remote resources use inert image placeholders. Rule targets are remapped to captured node identities, so outside-instance ancestors are not required."
+      ]
+    },
+    {
+      "sourceCapture": "pc.json",
+      "sourceSha256": "f8f82ef643ddf3b2c5fbb531d4d112e1fdccf9d42a4927a669273349a68511cf",
+      "viewport": {
+        "label": "pc",
+        "width": 1440,
+        "height": 900
+      },
+      "html": "pc.html",
+      "css": "pc.css",
+      "elementCount": 294,
+      "limitations": [
+        "Original scripts and event handler bodies are excluded. Listener metadata is in the capture JSON; interaction behavior is not replayed.",
+        "Remote resources use inert image placeholders. Rule targets are remapped to captured node identities, so outside-instance ancestors are not required."
+      ]
+    }
+  ]
+}
