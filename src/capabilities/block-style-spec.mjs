@@ -1004,6 +1004,12 @@ export function addStyleFailureReasons(checks, { capability, blockId, rootSelect
     const { expected, actual } = diagnosticValues(check, item);
     const configuredViewport = styleViewport(check.id, { ...spec, ...(viewports ? { viewports } : {}) });
     if (Number.isInteger(evidence.viewportWidth)) configuredViewport.width = evidence.viewportWidth;
+    const suppliedCode = machineReasonCode(check.reason?.code) !== 'reason-code-unavailable'
+      ? machineReasonCode(check.reason.code) : machineReasonCode(evidence.machineReason);
+    const reasonCode = suppliedCode !== 'reason-code-unavailable' ? suppliedCode
+      : check.errorDiagnostic ? `front-${String(check.errorDiagnostic.stage || 'read')}-error`
+        : matchedElementCount === 0 || (Array.isArray(actual) && actual.length === 0) ? 'no-matched-elements'
+          : check.status === 'fail' ? 'style-assertion-mismatch' : `style-${stage}-not-applicable`;
     return { ...check, name: check.name || item?.name || NAMES[check.id] || check.id, reason: {
       stage, locator, matchedElementCount,
       property: isBreakage ? ['horizontalOverflow', 'stickingOut', 'overlaps', 'textClipped', 'imgDistorted']
@@ -1019,7 +1025,7 @@ export function addStyleFailureReasons(checks, { capability, blockId, rootSelect
       } } : {}),
       ...(check.status === 'na' || check.status === 'skip' || check.status === 'deferred'
         ? { applicability: String(check.detail || check.status).slice(0, 240) } : {}),
-      ...(evidence.machineReason ? { code: machineReasonCode(evidence.machineReason) } : {}),
+      code: reasonCode,
       ...(evidence.candidateSource ? { candidateSource: String(evidence.candidateSource) } : {}),
     } };
   });

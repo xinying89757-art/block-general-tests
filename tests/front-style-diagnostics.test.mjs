@@ -19,6 +19,7 @@ test('failed style comparisons include generic locator, match count, normalized 
   assert.equal(check.status, 'fail');
   assert.deepEqual(check.reason, {
     stage: 'compare', locator: 'unique block instance root',
+    code: 'style-assertion-mismatch',
     matchedElementCount: 1, property: ['backgroundColor', 'borderRadius'],
     expected: { backgroundColor: '#1c4587', borderRadius: 3 },
     actual: [{ backgroundColor: '#000000', borderRadius: 4 }],

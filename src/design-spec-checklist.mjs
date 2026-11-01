@@ -25,7 +25,8 @@ export function normalizeDesignColor(value) {
     rgba = [0, 2, 4].map((index) => Number.parseInt(digits.slice(index, index + 2), 16))
       .concat(digits.length === 8 ? Number.parseInt(digits.slice(6, 8), 16) / 255 : 1);
   } else if (rgb) {
-    const parts = rgb[1].split(/[,/]/).map((part) => part.trim());
+    // CSS Color 4 allows comma-separated and modern space/slash syntax.
+    const parts = rgb[1].replace(/\s*\/\s*/, ',').split(/[,\s]+/).map((part) => part.trim()).filter(Boolean);
     if (parts.length < 3) return text.replace(/\s+/g, '');
     const channels = parts.slice(0, 3).map((part) => part.endsWith('%')
       ? Math.round(Number.parseFloat(part) * 2.55) : Math.round(Number.parseFloat(part)));
@@ -34,6 +35,15 @@ export function normalizeDesignColor(value) {
       ? Number.parseFloat(alphaText) / 100 : Number.parseFloat(alphaText);
     if (![...channels, alpha].every(Number.isFinite)) return text.replace(/\s+/g, '');
     rgba = [...channels, alpha];
+  } else if (/^hsla?\(/i.test(text)) {
+    const color = opaqueColorKey(text);
+    const body = text.match(/^hsla?\(([^)]+)\)$/i)?.[1] || '';
+    const parts = body.replace(/\s*\/\s*/, ',').split(/[,\s]+/).filter(Boolean);
+    const alphaPart = parts[3];
+    const alpha = alphaPart === undefined ? 1 : alphaPart.endsWith('%')
+      ? Number.parseFloat(alphaPart) / 100 : Number.parseFloat(alphaPart);
+    if (!color || !Number.isFinite(alpha) || alpha < 0 || alpha > 1) return text.replace(/\s+/g, '');
+    rgba = [0, 2, 4].map((index) => Number.parseInt(color.slice(index, index + 2), 16)).concat(alpha);
   } else return text.replace(/\s+/g, '');
   return `rgba(${rgba.slice(0, 3).join(',')},${Number(rgba[3].toFixed(4))})`;
 }
@@ -95,7 +105,7 @@ export function validateDesignProfiles(profiles) {
   return profiles.flatMap(({ id, profile }) => profile.designSpec ? validateDesignSpec(profile.designSpec, id) : []);
 }
 
-function checkResult(requirement, status, { detail, actual, reason, classification, displayName, expected } = {}) {
+function checkResult(requirement, status, { detail, actual, reason, classification, displayName, expected, dependsOn } = {}) {
   const waived = classification === 'known-exception';
   const machineCode = typeof reason?.code === 'string' && reason.code.trim() ? reason.code.trim()
     : status === 'na' ? 'design-check-not-applicable' : 'design-check-result';
@@ -105,7 +115,7 @@ function checkResult(requirement, status, { detail, actual, reason, classificati
   return { id: `design-${requirement.id}`, name: waived ? '已知例外' : displayName || requirement.sourceText,
     status, classification: classification || null,
     sourceText: requirement.sourceText, expected: expected ?? requirement.expected,
-    ...(actual === undefined ? {} : { actual }), detail,
+    ...(actual === undefined ? {} : { actual }), ...(dependsOn?.length ? { dependsOn: [...new Set(dependsOn.map(String))] } : {}), detail,
     reason: { stage: requirement.checkStage, checkType: requirement.checkType, ...reason, code: machineCode,
       ...(humanReviewRequired ? { humanReviewRequired: true } : {}),
       ...(status === 'na' && reason?.code === undefined ? { machineReason: 'No applicable automated oracle was available.' } : {}) } };
@@ -162,7 +172,7 @@ function rowsFromFrontCheck(check) {
     if (Array.isArray(value)) { for (const item of value) add(item); return; }
     if (!value || typeof value !== 'object') return;
     if (['fontSize', 'fontWeight', 'lineHeight', 'color', 'backgroundColor', 'borderColor'].some((key) => value[key] !== undefined)) rows.push(value);
-    for (const key of ['actual', 'elements', 'records', 'matchedElements']) if (value[key] !== undefined) add(value[key]);
+    for (const key of ['actual', 'elements', 'records', 'matchedElements', 'functionalChecks']) if (value[key] !== undefined) add(value[key]);
   };
   add(check?.actual); add(check?.reason?.actual); add(check?.evidence); add(check?.reason?.evidence);
   return rows;
@@ -661,6 +671,40 @@ function compareTypographyRequirement(expectedInput, mappedActual) {
     reason: { code: 'design-typography-matched', propertiesChecked: Object.keys(expected) } };
 }
 
+function typographyPropertiesMissing(expectedInput, mappedActual) {
+  const rows = rowsFromFrontCheck({ actual: mappedActual });
+  return TYPOGRAPHY_PROPERTIES.filter((property) => expectedInput?.[property] !== undefined
+    && !rows.some((row) => row?.[property] !== undefined && row?.[property] !== null));
+}
+
+function writtenColorForScope(requirement, settingsReport) {
+  const ids = new Set((requirement.params?.styleCheckIds || (requirement.params?.styleCheckId
+    ? [requirement.params.styleCheckId] : [])).flatMap((id) => [String(id), `bss-${id}`]));
+  const direct = (settingsReport?.checks || []).filter((check) => ids.has(String(check.id))
+    && ['pass', 'fail', 'record'].includes(check.status) && typeof check.value === 'string')
+    .map((check) => check.value).filter(isColorValue);
+  const uniqueDirect = [...new Map(direct.map((value) => [normalizeDesignColor(value), value])).values()];
+  if (uniqueDirect.length === 1) return { value: uniqueDirect[0], source: 'run-report:setting-check-value' };
+  const palette = extractWrittenColorValues(settingsReport);
+  return palette.length === 1 ? { value: palette[0].value, source: 'run-report:currentValues' } : null;
+}
+
+function isColorValue(value) {
+  return typeof value === 'string' && /^(?:#[0-9a-f]{3,8}(?:\s*@\s*\d+(?:\.\d+)?%)?|rgba?\([^)]*\)|hsla?\([^)]*\))$/i.test(value.trim());
+}
+
+function colorFieldsInRows(rows) {
+  return rows.flatMap((row) => ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'outlineColor']
+    .filter((property) => row?.[property] !== undefined && row?.[property] !== null)
+    .map((property) => ({ property, value: row[property], id: row.id })));
+}
+
+function dependencyCheckIds(requirement, frontChecks = []) {
+  const ids = requirement.params?.styleCheckIds || (requirement.params?.styleCheckId ? [requirement.params.styleCheckId] : []);
+  return ids.map((id) => frontChecks.some((check) => String(check.id) === String(id)) ? String(id)
+    : frontChecks.some((check) => String(check.id) === `bss-${id}`) ? `bss-${id}` : String(id));
+}
+
 async function readTypographyByFeatures(page, rootSelector, requirement, profile) {
   if (!page || !rootSelector) return [];
   const tokens = sourceTextTokens(requirement.sourceText);
@@ -772,7 +816,13 @@ async function checkImageRatio(requirement, page, rootSelector) {
         || Boolean(lazySource))) || hasBackground;
       if (!visible || !hasImage) return [];
       const width = img?.naturalWidth || r.width, height = img?.naturalHeight || r.height;
-      return [{ ratio: width / height, objectPosition: s.objectPosition, centered: /center/i.test(s.objectPosition),
+      const position = tag === 'img' || tag === 'picture' ? s.objectPosition : s.backgroundPosition;
+      const positionParts = String(position || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const centered = /\bcenter\b/.test(positionParts.join(' '))
+        || (positionParts.length >= 2 && /^50(?:\.0+)?%$/.test(positionParts[0])
+          && /^50(?:\.0+)?%$/.test(positionParts[1]));
+      return [{ ratio: width / height, objectPosition: s.objectPosition, backgroundPosition: s.backgroundPosition,
+        positionSource: tag === 'img' || tag === 'picture' ? 'object-position' : 'background-position', centered,
         sourceKind: tag === 'picture' ? 'picture' : tag === 'img' ? 'img' : 'background-image',
         hasLazySource: Boolean(lazySource), hasBackgroundImage: hasBackground }];
     }) };
@@ -784,6 +834,12 @@ async function checkImageRatio(requirement, page, rootSelector) {
     && (!requirement.expected.centered || image.centered));
   return requirementResult(requirement, pass ? 'pass' : 'fail', requirement.expected, actual,
     pass ? 'image-ratio-matched' : 'image-ratio-mismatch', pass ? '图片比例与清单一致。' : '图片比例或对齐与清单不一致。');
+}
+
+export function isCenteredImagePosition(value) {
+  const parts = String(value ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return /\bcenter\b/.test(parts.join(' '))
+    || (parts.length >= 2 && /^50(?:\.0+)?%$/.test(parts[0]) && /^50(?:\.0+)?%$/.test(parts[1]));
 }
 
 async function checkDefaultExpand(requirement, page, rootSelector) {
@@ -871,16 +927,45 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
   if (requirement.checkType === 'color-scope' || requirement.checkType === 'typography') {
     const scopeOverride = requirement.checkType === 'color-scope' ? scopeOverrideFor(profile?.designSpec, requirement.id) : null;
     let mapped = mappedFrontCheck(requirement, frontChecks);
-    if (requirement.checkType === 'color-scope' && paletteScopeWasOverwritten(requirement, settingsReport)) return checkResult(requirement, 'na', {
-      detail: '本次运行改写了该配色；本项设计默认范围已被本次写入覆盖。',
-      reason: { code: 'palette-scope-superseded-by-write', expectedSource: 'run-report.checks.value',
-        mappedCheckIds: requirement.params?.styleCheckIds || [], writtenCheckStatus: mapped?.status || 'unmapped' },
+    const writtenScopeColor = requirement.checkType === 'color-scope' ? writtenColorForScope(requirement, settingsReport) : null;
+    if (requirement.checkType === 'color-scope' && writtenScopeColor && mapped) {
+      const rows = rowsFromFrontCheck({ actual: mapped.actual });
+      const colorFields = colorFieldsInRows(rows);
+      const expectedColor = normalizeDesignColor(writtenScopeColor.value);
+      const matching = colorFields.filter((entry) => normalizeDesignColor(entry.value) === expectedColor);
+      const status = matching.length ? 'pass' : colorFields.length ? 'fail' : 'na';
+      const dependencies = dependencyCheckIds(requirement, frontChecks);
+      return checkResult(requirement, status, { displayName: scopeOverride?.resolvedScope,
+        expected: { ...requirement.expected, value: writtenScopeColor.value }, actual: { rows, colorFields, matching },
+        dependsOn: dependencies,
+        detail: status === 'pass' ? '目标功能范围呈现本次写入的配色值。'
+          : status === 'fail' ? '目标功能范围的颜色与本次写入值不一致。' : '目标功能检查没有可比较的颜色属性。',
+        reason: { code: status === 'pass' ? 'written-scope-color-matched'
+          : status === 'fail' ? 'written-scope-color-mismatch' : 'written-scope-color-unreadable',
+        expectedSource: writtenScopeColor.source, propertiesChecked: [...new Set(colorFields.map((entry) => entry.property))],
+        mappedCheck: mapped.reason, ...(scopeOverride ? { resolvedScope: scopeOverride.resolvedScope,
+          mappingReason: scopeOverride.reason } : {}) } });
+    }
+    if (requirement.checkType === 'color-scope' && writtenScopeColor && !mapped) return checkResult(requirement, 'na', {
+      displayName: scopeOverride?.resolvedScope, detail: '本次运行改写了该配色，但没有可用的目标功能观测。',
+      dependsOn: dependencyCheckIds(requirement, frontChecks),
+      reason: { code: 'written-scope-observation-unavailable', expectedSource: writtenScopeColor.source,
+        mappedCheckIds: requirement.params?.styleCheckIds || [] },
     });
-    const mappedHasTypography = mapped?.actual?.some?.((row) => TYPOGRAPHY_PROPERTIES.some((property) => row?.[property] != null));
-    if (requirement.checkType === 'typography' && (!mapped || mapped.status === 'na' || !mappedHasTypography) && page && rootSelector) {
+    if (requirement.checkType === 'color-scope' && !writtenScopeColor
+      && paletteScopeWasOverwritten(requirement, settingsReport)) return checkResult(requirement, 'na', {
+      displayName: scopeOverride?.resolvedScope,
+      detail: '本次运行改写了配色，但无法唯一对应此范围的写入颜色。',
+      dependsOn: dependencyCheckIds(requirement, frontChecks),
+      reason: { code: 'written-scope-color-not-unique', expectedSource: 'run-report.currentValues',
+        mappedCheckIds: requirement.params?.styleCheckIds || [] },
+    });
+    const mappedMissingTypography = typographyPropertiesMissing(requirement.expected, mapped?.actual);
+    if (requirement.checkType === 'typography' && (!mapped || mapped.status === 'na' || mappedMissingTypography.length) && page && rootSelector) {
       const observations = await readTypographyByFeatures(page, rootSelector, requirement, profile).catch(() => []);
-      if (observations.length) mapped = { status: 'pass', actual: observations,
-        reason: { code: 'instance-text-role-or-learned-scope', matchedCount: observations.length } };
+      if (observations.length) mapped = { status: mapped?.status || 'pass', actual: [...(mapped?.actual || []), ...observations],
+        reason: { code: 'instance-text-role-or-learned-scope', matchedCount: observations.length,
+          ...(mapped?.reason ? { dependsOn: mapped.reason } : {}) } };
     }
     if (!mapped) return checkResult(requirement, 'na', { displayName: scopeOverride?.resolvedScope,
       detail: '规范范围尚未映射到本区块的功能检查。',
@@ -903,7 +988,8 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
       ? '本区块没有可执行的对应样式结果，需人工复核。' : requirement.checkType === 'typography' && requirement.expected?.fontSize
         ? status === 'pass' ? '前台字体大小符合设计规范。' : '前台字体大小与设计规范不一致。'
         : '按本区块画像中映射的功能样式检查执行。',
-    actual, reason: { ...reason, ...(scopeOverride ? { resolvedScope: scopeOverride.resolvedScope,
+      actual, dependsOn: requirement.checkType === 'color-scope' ? dependencyCheckIds(requirement, frontChecks) : undefined,
+      reason: { ...reason, ...(scopeOverride ? { resolvedScope: scopeOverride.resolvedScope,
       mappingReason: scopeOverride.reason } : {}) } });
   }
   if (requirement.checkType === 'color-default') {
@@ -1103,6 +1189,12 @@ export function isSafeStateExerciseTarget(info = {}) {
     && Boolean(info.hasExplicitToggle || info.semantic || info.nativeButton || info.pointerAction || info.hasClickHandler);
 }
 
+export function isVisibleHoverStateTarget(info = {}) {
+  return info.visible === true && info.withinInstance !== false
+    && Boolean(info.hoverAffordance || info.pointerAction || info.hasClickHandler || info.hasExplicitToggle
+      || info.semantic || info.nativeButton);
+}
+
 export async function exerciseWrittenColorStates(page, rootSelector, values, { maxElements = 200,
   actionTimeoutMs = 1500, overallTimeoutMs = 45000 } = {}) {
   let timer;
@@ -1159,21 +1251,45 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
   };
   for (let index = 0; index < count && !timedOut(); index += 1) {
     const candidate = candidates.nth(index);
-    let hoverEligible = true;
+    let hoverEligible = false;
+    let hoverInfo;
     try {
-      const info = await action('inspect-hover-target', () => candidate.evaluate((element) => {
+      hoverInfo = await action('inspect-hover-target', () => candidate.evaluate((element) => {
         const tag = element.tagName?.toLowerCase();
         const style = getComputedStyle(element);
-        return { tag, role: element.getAttribute('role'), pointer: style.cursor === 'pointer',
-          clickHandler: typeof element.onclick === 'function' || element.hasAttribute('onclick'),
-          tabIndex: element.tabIndex >= 0, explicit: element.hasAttribute('aria-expanded') || element.hasAttribute('aria-haspopup') };
+        const rect = element.getBoundingClientRect();
+        const visible = element.getClientRects().length > 0 && rect.width > 0 && rect.height > 0
+          && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0;
+        const role = element.getAttribute('role');
+        const explicit = element.hasAttribute('aria-expanded') || element.hasAttribute('aria-haspopup');
+        const parentCursor = element.parentElement ? getComputedStyle(element.parentElement).cursor : '';
+        const pointerAction = style.cursor === 'pointer' && (element.style.cursor === 'pointer' || parentCursor !== 'pointer');
+        const clickHandler = typeof element.onclick === 'function' || element.hasAttribute('onclick');
+        const semantic = ['button', 'tab', 'option', 'combobox'].includes(role);
+        const nativeButton = ['button', 'select', 'summary'].includes(tag);
+        return { tag, role, visible, withinInstance: true, pointerAction, clickHandler,
+          hoverAffordance: pointerAction || explicit || semantic || nativeButton || clickHandler,
+          nativeButton, focusable: element.tabIndex >= 0,
+          tabIndex: element.tabIndex >= 0, explicit, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } };
       }));
-      hoverEligible = !info || typeof info !== 'object' || ['a', 'button', 'select', 'summary'].includes(info.tag)
-        || ['button', 'tab', 'option', 'combobox'].includes(info.role) || info.pointer || info.clickHandler || info.tabIndex || info.explicit;
+      hoverEligible = isVisibleHoverStateTarget(hoverInfo);
     } catch {}
     if (!hoverEligible) continue;
-    try { await action('hover', () => candidate.hover({ timeout: actionTimeoutMs })); states.add('hover'); await scan('hover'); } catch {}
-    try { await action('focus', () => candidate.focus({ timeout: actionTimeoutMs })); states.add('focus'); await scan('focus'); } catch {}
+    try {
+      // Playwright's locator.hover waits for full actionability and may wait on
+      // scroll/animation indefinitely in complex front-end widgets. Move the
+      // pointer directly after a bounded scroll instead; this does not wait for
+      // navigation and still produces the real CSS :hover state.
+      await action('hover-scroll', () => candidate.scrollIntoViewIfNeeded({ timeout: actionTimeoutMs }));
+      const box = await action('hover-bounds', () => candidate.boundingBox());
+      if (box && page.mouse?.move) {
+        await action('hover-pointer-move', () => page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 2 }));
+        states.add('hover'); await scan('hover');
+      }
+    } catch {}
+    if (hoverInfo?.focusable) try {
+      await action('focus', () => candidate.focus({ timeout: actionTimeoutMs })); states.add('focus'); await scan('focus');
+    } catch {}
     try {
       const tagName = await action('read-control-type', () => candidate.evaluate((element) => element.tagName));
       if (String(tagName).toUpperCase() === 'SELECT') {

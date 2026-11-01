@@ -4,8 +4,8 @@ import { checkDesignRequirementEditor, checkDesignRequirementFront, extractWritt
   countInstanceColorMatches, normalizeDesignColor, runWrittenColorFrontChecks, validateDesignSpec } from '../src/design-spec-checklist.mjs';
 import { importExtractedDesignSpec } from '../scripts/import-design-spec.mjs';
 import { finalizeFrontStyleReport } from '../src/front-style-report.mjs';
-import { breakageFindings, isMobileInstanceOverlap, mobileChecklistMode } from '../src/capabilities/block-style-spec.mjs';
-import { runDesignSpecFrontChecks } from '../src/design-spec-checklist.mjs';
+import { addStyleFailureReasons, breakageFindings, isMobileInstanceOverlap, mobileChecklistMode } from '../src/capabilities/block-style-spec.mjs';
+import { isCenteredImagePosition, isVisibleHoverStateTarget, runDesignSpecFrontChecks } from '../src/design-spec-checklist.mjs';
 
 const requirement = (overrides = {}) => ({ id: 'req-color', checkType: 'color-default', sourceText: 'A color',
   expected: { value: '#1c4587' }, checkStage: 'front', params: {}, ...overrides });
@@ -81,6 +81,74 @@ test('spec color matches any element in the instance and fails when none match',
   assert.equal(countInstanceColorMatches({ styles: [{ color: 'rgba(4,79,159,0.07)' }] }, '#044F9F @7%'), 1);
 });
 
+test('color-scope compares nested functional observations with the written palette value and normalizes CSS colors', async () => {
+  const item = requirement({ id: 'button-scope', checkType: 'color-scope', sourceText: 'Button background',
+    expected: { value: '#1c4587' }, params: { styleCheckIds: ['button-bg'] } });
+  const p = profile([item]);
+  const settingsReport = { block: { currentValues: [
+    { section: '区块配色', type: 'color', value: 'rgb(255 0 0 / 100%)' },
+  ] }, checks: [{ id: 'button-bg', status: 'fail', expected: '#1c4587', value: 'rgb(255, 0, 0)' }] };
+  const result = await checkDesignRequirementFront(item, { profile: p, settingsReport, frontChecks: [
+    { id: 'bss-button-bg', status: 'fail', actual: [{ backgroundColor: 'rgba(255,0,0,1)' }] },
+  ] });
+  assert.equal(result.status, 'pass');
+  assert.equal(result.expected.value, 'rgb(255, 0, 0)');
+  assert.deepEqual(result.dependsOn, ['bss-button-bg']);
+  assert.equal(result.reason.code, 'written-scope-color-matched');
+  assert.equal(normalizeDesignColor('rgb(255 0 0 / 100%)'), normalizeDesignColor('#ff0000'));
+  assert.equal(normalizeDesignColor('hsl(0 100% 50% / 100%)'), normalizeDesignColor('#ff0000'));
+  const mismatch = await checkDesignRequirementFront(item, { profile: p, settingsReport, frontChecks: [
+    { id: 'bss-button-bg', status: 'fail', actual: [{ backgroundColor: 'rgb(0, 0, 0)' }] },
+  ] });
+  assert.equal(mismatch.status, 'fail');
+});
+
+test('image position recognizes centered object-position and background-position values', async () => {
+  assert.equal(isCenteredImagePosition('50% 50%'), true);
+  assert.equal(isCenteredImagePosition('50.0% 50%'), true);
+  assert.equal(isCenteredImagePosition('center center'), true);
+  assert.equal(isCenteredImagePosition('left top'), false);
+  const item = { id: 'image-center', checkType: 'image-ratio', sourceText: 'Centered image',
+    expected: { ratio: '1:1', centered: true }, checkStage: 'front', params: {} };
+  const result = await checkDesignRequirementFront(item, { profile: profile([item]), rootSelector: '.root',
+    page: { evaluate: async () => ({ rootFound: true, images: [
+      { ratio: 1, centered: true, objectPosition: '50% 50%', positionSource: 'object-position' },
+      { ratio: 1, centered: true, backgroundPosition: '50% 50%', positionSource: 'background-position' },
+    ] }) } });
+  assert.equal(result.status, 'pass');
+});
+
+test('hover candidates must be visible instance descendants with an interaction or hover affordance', () => {
+  assert.equal(isVisibleHoverStateTarget({ visible: true, withinInstance: true, hoverAffordance: true }), true);
+  assert.equal(isVisibleHoverStateTarget({ visible: false, withinInstance: true, hoverAffordance: true }), false);
+  assert.equal(isVisibleHoverStateTarget({ visible: true, withinInstance: false, hoverAffordance: true }), false);
+  assert.equal(isVisibleHoverStateTarget({ visible: true, withinInstance: true }), false);
+});
+
+test('read, locate and compare check paths always receive specific string failure reasons', () => {
+  const source = [
+    { id: 'read-empty', status: 'na', actual: [], evidence: { matchedCount: 0 } },
+    { id: 'locate-empty', status: 'na', actual: [], errorDiagnostic: { stage: 'locate', class: 'TimeoutError' } },
+    { id: 'compare-failed', status: 'fail', actual: [{ value: 'different' }], evidence: { matchedCount: 1,
+      elements: [{ color: '#000000' }] } },
+  ];
+  const withReasons = addStyleFailureReasons(source, { capability: { styleSpec: { items: [] } } });
+  const finalized = finalizeFrontStyleReport({ checks: withReasons }).checks;
+  assert.deepEqual(finalized.map((check) => check.reason.code), ['no-matched-elements', 'front-locate-error', 'style-assertion-mismatch']);
+  assert.ok(finalized.every((check) => ['na', 'fail'].includes(check.status)
+    ? typeof check.reason.code === 'string' && check.reason.code && check.reason.code !== '[object Object]'
+      && check.reason.code !== 'na-reason-unavailable' : true));
+});
+
+test('dependent failures are linked and counted once at their root', () => {
+  const report = finalizeFrontStyleReport({ checks: [
+    { id: 'functional-color', status: 'fail', reason: { code: 'color-mismatch' } },
+    { id: 'design-scope-color', status: 'fail', dependsOn: ['functional-color'], reason: { code: 'written-scope-color-mismatch' } },
+  ] });
+  assert.deepEqual(report.checks[1].dependsOn, ['functional-color']);
+  assert.deepEqual(report.summary, { pass: 0, fail: 1, na: 0, other: 0 });
+});
+
 test('written color search includes SVG paint, outline, shadows, gradients and pseudo-elements', () => {
   const snapshot = { styles: [
     { fill: 'rgb(208, 182, 71)' },
@@ -131,11 +199,12 @@ test('overwritten palette scope does not compare against its stale design defaul
   const report = { checks: [{ id: 'button-bg', status: 'pass', expected: '#1c4587', value: '#ff0000' }] };
   const result = await checkDesignRequirementFront(item, { profile: profile([item]), frontChecks: [], settingsReport: report });
   assert.equal(result.status, 'na');
-  assert.equal(result.reason.code, 'palette-scope-superseded-by-write');
+  assert.equal(result.reason.code, 'written-scope-observation-unavailable');
   const runValueCheck = await checkDesignRequirementFront(item, { profile: profile([item]), settingsReport: report,
-    frontChecks: [{ id: 'bss-button-bg', status: 'pass', expected: '#ff0000', actual: [{ backgroundColor: '#ff0000' }] }] });
-  assert.equal(runValueCheck.status, 'na');
-  assert.equal(runValueCheck.reason.code, 'palette-scope-superseded-by-write');
+    frontChecks: [{ id: 'bss-button-bg', status: 'fail', expected: '#ff0000', actual: [{ backgroundColor: '#ff0000' }] }] });
+  assert.equal(runValueCheck.status, 'pass');
+  assert.equal(runValueCheck.reason.code, 'written-scope-color-matched');
+  assert.deepEqual(runValueCheck.dependsOn, ['bss-button-bg']);
 });
 
 test('color normalization handles design opacity and CSS rgba consistently', () => {

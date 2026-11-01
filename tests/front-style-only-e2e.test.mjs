@@ -13,18 +13,19 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
   const server = http.createServer((request, response) => {
     if (request.url === '/fixture.css') {
       response.writeHead(200, { 'content-type': 'text/css' });
-      response.end('@media print { [data-appid="90001"] .palette { color: #d0b647; } }');
+      response.end('@media print { [data-appid="90001"] .palette { color: #d0b647; } }\n.hover-color:hover { color: #12ab34; }');
       return;
     }
     response.writeHead(200, { 'content-type': 'text/html' });
     response.end(`<!doctype html><html><head><link rel="stylesheet" href="/fixture.css"></head><body>
       <div data-appid="90001" data-id="siteblocks-setting-wrap-setting-smoke" class="fixture" style="width:320px;position:relative">
         <div class="sample">Style sample</div><div class="palette">palette</div>
-        <div class="typography-wrapper" style="font-size:12px">Exact leaf label <span style="font-size:16px">Exact leaf label</span></div>
+        <button type="button" class="hover-color" style="cursor:pointer">Hover for palette</button>
+        <div class="typography-wrapper" style="font-size:12px">Exact leaf label <span style="font-size:16px;font-weight:600;line-height:20px">Exact leaf label</span></div>
         <ul class="category-tree"><li>Parent category<ul><li>Nested category</li></ul></li></ul>
         <img class="lazy-image" data-src="/lazy.png" style="display:block;width:100px;height:100px">
         <picture style="display:block;width:100px;height:100px"><img data-srcset="/picture.png 1x" style="width:100%;height:100%"></picture>
-        <div class="background-image" style="width:100px;height:100px;background-image:url('/background.png')"></div>
+        <div class="background-image" style="width:100px;height:100px;background-image:url('/background.png');background-position:50% 50%"></div>
         <div class="toggle-wrap"><button type="button" onclick="document.querySelector('.toggle-panel').hidden = !document.querySelector('.toggle-panel').hidden">Toggle</button>
           <div class="toggle-panel" hidden>Disclosure panel</div></div>
         <div class="clipper" style="position:relative;width:320px;overflow:hidden">
@@ -68,14 +69,15 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
       designSpec: { source: { fileKey: 'fixture', nodeId: '1:1' }, overrides: [], requirements: [
         { id: 'mobile-sample', checkType: 'mobile-layout', sourceText: 'sample display',
           expected: { display: 'block' }, checkStage: 'front', params: { viewport: 'mobile', selector: '.sample' } },
-        { id: 'leaf-typography', checkType: 'typography', sourceText: 'Exact leaf label', expected: { fontSize: '16px' },
+        { id: 'leaf-typography', checkType: 'typography', sourceText: 'Exact leaf label', expected: { fontSize: '16px', fontWeight: '600', lineHeight: '20px' },
           checkStage: 'front', params: {} },
-        { id: 'image-ratio-fixture', checkType: 'image-ratio', sourceText: 'Images square', expected: { ratio: '1:1' },
+        { id: 'image-ratio-fixture', checkType: 'image-ratio', sourceText: 'Images square', expected: { ratio: '1:1', centered: true },
           checkStage: 'front', params: {} },
       ] },
     }));
     fs.writeFileSync(runPath, JSON.stringify({ blockId: '90001', block: { settingId: 'setting-smoke', currentValues: [
       { section: '区块配色', region: 'right-rail-color', type: 'color', value: '#d0b647' },
+      { section: '区块配色', region: 'right-rail-color', type: 'color', value: '#12ab34' },
     ] } }));
     const result = await new Promise((resolve, reject) => {
       const child = spawn(process.execPath, ['scripts/front-style-only.mjs', '--block', '90001', '--url',
@@ -90,6 +92,9 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     });
     const report = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
     assert.equal(result.code, 0, `${result.stdout}\n${result.stderr}\n${JSON.stringify(report.checks.map(({ id, status, classification, detail }) => ({ id, status, classification, detail })))}`);
+    assert.ok(report.checks.filter((row) => ['na', 'fail'].includes(row.status)).every((row) =>
+      typeof row.reason?.code === 'string' && row.reason.code && row.reason.code !== '[object Object]'
+        && row.reason.code !== 'na-reason-unavailable'), 'all read/locate/compare non-pass checks need a specific string reason');
     assert.equal(report.error, null);
     assert.equal(report.checks.find((row) => row.id === 'design-mobile-sample')?.status, 'pass');
     const color = report.checks.find((row) => row.id === 'written-color-1');
@@ -99,10 +104,17 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     assert.ok(color?.actual.stateExercise.exerciseCounts.attempted > 0);
     assert.ok(color?.actual.stateExercise.exerciseCounts.opened > 0);
     assert.ok(color?.actual.stateExercise.exerciseCounts.restored > 0);
+    const hoverColor = report.checks.find((row) => row.id === 'written-color-2');
+    assert.equal(hoverColor?.status, 'pass', 'a visible instance-local hover target reveals the written color');
+    assert.equal(hoverColor?.classification, 'found-on-element');
+    assert.equal(hoverColor?.actual.stateExercise.revealedBy, 'hover');
     assert.equal(report.checks.find((row) => row.id === 'bss-breakage-mobile')?.status, 'pass',
       'overlapping text clipped by an overflow-hidden ancestor is not a visible mobile overlap');
     assert.equal(report.checks.find((row) => row.id === 'design-leaf-typography')?.status, 'pass');
-    assert.deepEqual(report.checks.find((row) => row.id === 'design-leaf-typography')?.actual.fontSize, ['16px']);
+    assert.deepEqual(report.checks.find((row) => row.id === 'design-leaf-typography')?.actual, {
+      fontSize: ['16px'], fontWeight: ['600'], lineHeight: ['20px'],
+      functionalChecks: [{ label: 'Exact leaf label', role: 'span', fontSize: '16px', fontWeight: '600', lineHeight: '20px' }],
+    });
     assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.status, 'pass');
     assert.ok(report.checks.find((row) => row.id === 'bss-category-parent')?.evidence.matchedCount >= 1);
     assert.ok(report.checks.find((row) => row.id === 'bss-category-leaf')?.evidence.matchedCount >= 1);

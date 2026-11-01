@@ -55,14 +55,25 @@ export function finalizeFrontStyleReport(report) {
       reason.machineReason = original === undefined ? 'No machine reason was supplied.'
         : original && typeof original === 'object' && typeof original.code === 'string' ? original.code
           : typeof original === 'string' ? original : 'Non-string machine reason was normalized.';
-      reason.code = 'na-reason-unavailable';
+      const actual = check.actual ?? reason.actual;
+      const emptyActual = Array.isArray(actual) && actual.length === 0;
+      reason.code = emptyActual ? 'no-matched-elements'
+        : reason.stage === 'locate' ? 'instance-locator-unresolved'
+          : reason.stage === 'compare' || check.status === 'fail' ? 'assertion-mismatch'
+            : `front-${String(reason.stage || check.status || 'read')}-result`;
     }
     return { ...check, reason };
   });
   const count = (status) => checks.filter((check) => check.status === status).length;
+  const failedIds = new Set(checks.filter((check) => check.status === 'fail').map((check) => String(check.id)));
+  // A dependent checklist row can repeat the same underlying failure. Keep all
+  // rows for diagnosis but count only the leaf/root verdict in the summary.
+  const rootFailureCount = checks.filter((check) => check.status === 'fail'
+    && !(check.dependsOn || []).some((dependency) => failedIds.has(String(dependency))
+      && String(dependency) !== String(check.id))).length;
   return { ...report, checks,
-    summary: { pass: count('pass'), fail: count('fail'), na: count('na') + count('skip'),
-      other: checks.length - count('pass') - count('fail') - count('na') - count('skip') } };
+    summary: { pass: count('pass'), fail: rootFailureCount, na: count('na') + count('skip'),
+      other: checks.filter((check) => !['pass', 'fail', 'na', 'skip'].includes(check.status)).length } };
 }
 
 export function preservePartialFrontStyleReport(report, { stage, error } = {}) {

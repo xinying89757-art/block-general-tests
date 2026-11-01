@@ -233,16 +233,21 @@ test('standalone stylesheet evidence is scoped to the instance and is not a pass
 
 test('optional state exercise records attempted states and the first state revealing a written color', async () => {
   let state = '';
-  let evaluateCount = 0;
-  const locator = { count: async () => 1, nth: () => ({ hover: async () => { state = 'hover'; }, focus: async () => { state = 'focus'; },
-    evaluate: async () => ++evaluateCount <= 2 ? 'DIV' : ({ safe: false }), click: async () => {}, getAttribute: async () => null }) };
+  const element = { count: async () => 1, nth: () => ({ scrollIntoViewIfNeeded: async () => {},
+    boundingBox: async () => ({ x: 10, y: 10, width: 30, height: 20 }),
+    focus: async () => { state = 'focus'; },
+    evaluate: async () => ({ tag: 'div', visible: true, withinInstance: true, pointerAction: false,
+      hoverAffordance: true, focusable: true, hasHref: false, insideForm: false, submitControl: false,
+      hasExplicitToggle: false, semantic: false, nativeButton: false, hasClickHandler: false,
+      isTab: false, isSelect: false, isDetails: false, expanded: null }),
+    click: async () => {}, getAttribute: async () => null }) };
+  const locator = { locator: () => element, count: async () => 1, nth: element.nth };
   const page = {
-    locator: () => ({ locator: (selector) => selector === 'details' ? { count: async () => 0 }
-      : selector.includes('aria-expanded') ? { count: async () => 0 } : locator }),
+    locator: () => ({ locator: (selector) => selector === 'details' ? { count: async () => 0 } : locator }),
     evaluate: async (_fn, arg) => arg?.rootSelector
       ? { rootCount: 1, styles: state === 'hover' ? [{ color: '#d0b647' }] : [{ color: 'transparent' }] }
       : undefined,
-    mouse: { move: async () => { state = ''; } },
+    mouse: { move: async () => { state = 'hover'; } },
   };
   const result = await exerciseWrittenColorStates(page, '.target', [{ id: 'color-a', value: '#d0b647' }]);
   assert.deepEqual(result, { states: ['hover', 'focus'], candidateCount: 1, disclosureCount: 0,
