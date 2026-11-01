@@ -19,6 +19,14 @@
 4. **判断与恢复**：只在判断点问人；恢复写 finally 里并用新会话读值确认
    （`AGENTS.md` 第 4、5 节）。
 
+## Design spec → checklist
+
+把 AI 提取的逐区块要求写入 profile 的 `designSpec.requirements`；复用的只有
+`docs/check-types.md` 中固定的检查类型目录，具体参数与期望仍由各自 profile 声明。
+没有可靠 oracle 的要求保留为带机器原因的 `na`，并标记人工复核，不要强行映射。
+若清单包含移动端要求，在对应移动视口按该清单比对；没有移动端样式要求时，只检查目标实例内部溢出、裁切、重叠和超框，页面其他区域的溢出只记录。
+提交前运行 `npm run check:design-spec`。
+
 ## 关键文件
 
 - `AGENTS.md`：全部规程（首次设置、接入流程、判断规则、恢复与安全）。

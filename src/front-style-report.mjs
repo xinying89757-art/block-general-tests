@@ -46,7 +46,16 @@ export function attachFrontStyleInstance(checks, settingId) {
 
 /** Final report boundary: dedupe the complete mixed check list, then recount its summary. */
 export function finalizeFrontStyleReport(report) {
-  const checks = dedupeChecksById(report?.checks || []);
+  const checks = dedupeChecksById(report?.checks || []).map((check) => {
+    if (check.status !== 'na') return check;
+    const reason = check.reason && typeof check.reason === 'object' && !Array.isArray(check.reason)
+      ? { ...check.reason } : {};
+    if (typeof reason.code !== 'string' || !reason.code.trim()) {
+      reason.machineReason = reason.code === undefined ? 'No machine reason was supplied.' : reason.code;
+      reason.code = 'na-reason-unavailable';
+    }
+    return { ...check, reason };
+  });
   const count = (status) => checks.filter((check) => check.status === status).length;
   return { ...report, checks,
     summary: { pass: count('pass'), fail: count('fail'), na: count('na') + count('skip'),

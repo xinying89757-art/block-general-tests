@@ -95,11 +95,18 @@ export function validateDesignProfiles(profiles) {
 
 function checkResult(requirement, status, { detail, actual, reason, classification, displayName, expected } = {}) {
   const waived = classification === 'known-exception';
+  const machineCode = typeof reason?.code === 'string' && reason.code.trim() ? reason.code.trim()
+    : status === 'na' ? 'design-check-not-applicable' : 'design-check-result';
+  const humanReviewRequired = reason?.humanReviewRequired === true
+    || ['scope-unmapped', 'front-checker-unavailable', 'unsupported-requirement-human-review',
+      'design-typography-properties-unavailable', 'mapped-style-check-unavailable'].includes(machineCode);
   return { id: `design-${requirement.id}`, name: waived ? '已知例外' : displayName || requirement.sourceText,
     status, classification: classification || null,
     sourceText: requirement.sourceText, expected: expected ?? requirement.expected,
     ...(actual === undefined ? {} : { actual }), detail,
-    reason: { stage: requirement.checkStage, checkType: requirement.checkType, ...reason } };
+    reason: { stage: requirement.checkStage, checkType: requirement.checkType, ...reason, code: machineCode,
+      ...(humanReviewRequired ? { humanReviewRequired: true } : {}),
+      ...(status === 'na' && reason?.code === undefined ? { machineReason: 'No applicable automated oracle was available.' } : {}) } };
 }
 
 function overrideFor(spec, id) { return (spec?.overrides || []).find((entry) => entry.requirementId === id && entry.status === 'waived'); }
@@ -140,17 +147,58 @@ export function checkDesignRequirementEditor(requirement, { profile, inventory =
   });
 }
 
+function sourceTextTokens(text = '') {
+  const normalized = String(text).toLowerCase().replace(/\s+/g, ' ').trim();
+  const semanticRemainder = normalized.replace(/产品名称|筛选标题|下拉占位|数值输入|选中项|产品分类|产品|分类|一级|子级|标题|按钮|筛选|文字|样式|分页/g, ' ');
+  const tokens = new Set(semanticRemainder.match(/[a-z][a-z0-9_-]*|\d+(?:[/:.-]\d+)*|[\u3400-\u9fff]{2,}/g) || []);
+  return [...tokens].filter((token) => token.length >= 2);
+}
+
+function rowsFromFrontCheck(check) {
+  const rows = [];
+  const add = (value) => {
+    if (Array.isArray(value)) { for (const item of value) add(item); return; }
+    if (!value || typeof value !== 'object') return;
+    if (['fontSize', 'fontWeight', 'lineHeight', 'color', 'backgroundColor', 'borderColor'].some((key) => value[key] !== undefined)) rows.push(value);
+    for (const key of ['actual', 'elements', 'records', 'matchedElements']) if (value[key] !== undefined) add(value[key]);
+  };
+  add(check?.actual); add(check?.reason?.actual); add(check?.evidence); add(check?.reason?.evidence);
+  return rows;
+}
+
 function mappedFrontCheck(requirement, frontChecks) {
   const ids = requirement.params?.styleCheckIds || (requirement.params?.styleCheckId ? [requirement.params.styleCheckId] : []);
-  if (!ids.length) return null;
-  const found = ids.map((id) => frontChecks.find((item) => item.id === id || item.id === `bss-${id}`)).filter(Boolean);
-  if (!found.length) return { status: 'na', reason: { code: 'mapped-style-check-unavailable', mappedCount: ids.length, resultCount: 0 } };
+  let found = ids.length
+    ? ids.map((id) => frontChecks.find((item) => item.id === id || item.id === `bss-${id}`)).filter(Boolean) : [];
+  if (!found.length) {
+    // Reuse existing functional style observations by their visible text and
+    // semantic role/structure evidence. The profile still owns explicit IDs
+    // when available; this fallback never borrows another block's selectors.
+    const tokens = sourceTextTokens(requirement.sourceText);
+    const matches = frontChecks.filter((item) => {
+      const rows = rowsFromFrontCheck(item);
+      return rows.some((row) => {
+        const label = String(row.label || row.text || row.accessibleName || '').toLowerCase();
+        return tokens.length && tokens.some((token) => label.includes(token));
+      });
+    });
+    if (matches.length === 1) found = matches;
+  }
+  if (!found.length && requirement.checkType === 'typography' && requirement.params?.styleCheckId) {
+    const id = requirement.params.styleCheckId;
+    found = frontChecks.filter((item) => item.id === id || item.id === `bss-${id}`);
+  }
+  if (!found.length) return null;
   const judged = found.filter((item) => ['pass', 'fail'].includes(item.status));
   if (!judged.length) return { status: 'na', reason: { code: 'mapped-style-check-not-asserted', statuses: found.map((item) => item.status) } };
+  const observations = judged.flatMap((item) => {
+    const rows = rowsFromFrontCheck(item);
+    return rows.length ? rows.map((row) => ({ ...row, id: item.id, status: item.status }))
+      : [{ id: item.id, status: item.status, expected: item.reason?.expected ?? item.expected,
+        actual: item.reason?.actual ?? item.actual ?? item.evidence?.elements }];
+  });
   return { status: judged.every((item) => item.status === 'pass') ? 'pass' : 'fail',
-    actual: judged.map((item) => ({ id: item.id, status: item.status,
-      expected: item.reason?.expected ?? item.expected,
-      actual: item.reason?.actual ?? item.actual ?? item.evidence?.elements })),
+    actual: observations,
     reason: { code: 'profile-mapped-style-check', mappedCheckCount: ids.length, assertedCheckCount: judged.length } };
 }
 
@@ -519,7 +567,8 @@ function compareTypographyRequirement(expectedInput, mappedActual) {
     .filter((property) => expectedInput?.[property] !== undefined)
     .map((property) => [property, expectedInput[property]]));
   const actualRows = (mappedActual || []).flatMap((entry) => Array.isArray(entry.actual)
-    ? entry.actual : entry.actual && typeof entry.actual === 'object' ? [entry.actual] : []);
+    ? entry.actual : entry.actual && typeof entry.actual === 'object' ? [entry.actual]
+      : TYPOGRAPHY_PROPERTIES.some((property) => entry?.[property] !== undefined) ? [entry] : []);
   const actual = {};
   const missingProperties = [];
   let mismatch = false;
@@ -539,6 +588,190 @@ function compareTypographyRequirement(expectedInput, mappedActual) {
     reason: { code: 'design-typography-matched', propertiesChecked: Object.keys(expected) } };
 }
 
+async function readTypographyByFeatures(page, rootSelector, requirement, profile) {
+  if (!page || !rootSelector) return [];
+  const tokens = sourceTextTokens(requirement.sourceText);
+  const declaredIds = requirement.params?.styleCheckIds || (requirement.params?.styleCheckId ? [requirement.params.styleCheckId] : []);
+  const learnedSelectors = (profile?.capabilities || []).flatMap((capability) => capability.styleSpec?.items || [])
+    .filter((item) => declaredIds.includes(item.id) || declaredIds.includes(`bss-${item.id}`))
+    .flatMap((item) => Object.values(item.learnedSelectors || {}).flatMap((entries) =>
+      (Array.isArray(entries) ? entries : []).map((entry) => entry?.selector).filter(Boolean)));
+  const featureRequirement = { ...requirement, params: { ...requirement.params,
+    selectorCandidates: [...new Set([...(requirement.params?.selectorCandidates || []), ...learnedSelectors])] } };
+  return page.evaluate(({ rootSelector, requirement, tokens }) => {
+    const root = document.querySelector(rootSelector);
+    if (!root) return [];
+    const params = requirement.params || {};
+    const selectors = [...new Set([params.selector, params.learnedSelector, ...(params.selectorCandidates || [])].filter(Boolean))];
+    let nodes = [];
+    for (const selector of selectors) {
+      try { nodes.push(...root.querySelectorAll(selector)); } catch {}
+    }
+    const semantic = /当前|选中|selected|current/i.test(requirement.sourceText || '');
+    if (!selectors.length) nodes = [...root.querySelectorAll('*')].filter((node) => {
+      const style = getComputedStyle(node), rect = node.getBoundingClientRect();
+      if (!rect.width || !rect.height || style.display === 'none' || style.visibility === 'hidden') return false;
+      const text = [node.innerText, node.value, node.getAttribute('placeholder'), node.getAttribute('aria-label'), node.title]
+        .filter(Boolean).join(' ').toLowerCase().replace(/\s+/g, ' ').trim();
+      const textMatch = tokens.some((token) => text.includes(token));
+      const roleMatch = params.role && (node.getAttribute('role') === params.role || node.tagName.toLowerCase() === params.role);
+      const structureMatch = (params.structureTags || []).includes(node.tagName.toLowerCase());
+      const stateMatch = semantic && (node.getAttribute('aria-current') === 'page'
+        || node.getAttribute('aria-selected') === 'true' || node.getAttribute('aria-checked') === 'true');
+      return textMatch || roleMatch || structureMatch || stateMatch;
+    });
+    return [...new Set(nodes)].filter((node) => {
+      const rect = node.getBoundingClientRect(), style = getComputedStyle(node);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    }).slice(0, 100).map((node) => ({
+      label: String(node.innerText || node.value || node.getAttribute('aria-label') || node.title || '').trim().slice(0, 80),
+      role: node.getAttribute('role') || node.tagName.toLowerCase(),
+      fontSize: getComputedStyle(node).fontSize,
+      fontWeight: getComputedStyle(node).fontWeight,
+      lineHeight: getComputedStyle(node).lineHeight,
+    }));
+  }, { rootSelector, requirement: featureRequirement, tokens });
+}
+
+function requirementResult(requirement, status, expected, actual, reasonCode, detail) {
+  return checkResult(requirement, status, { expected, actual, detail,
+    reason: { code: reasonCode, ...(status === 'na' ? { humanReviewRequired: true } : {}) } });
+}
+
+async function checkTextTruncation(requirement, page, rootSelector) {
+  const selectorCandidates = [...new Set([requirement.params?.selector, ...(requirement.params?.selectorCandidates || [])].filter(Boolean))];
+  const expectedLines = Number(requirement.expected?.maxLines);
+  if (!Number.isFinite(expectedLines) || expectedLines < 1) return requirementResult(requirement, 'na', requirement.expected, null,
+    'text-truncation-expected-lines-unavailable', '清单没有提供有效的最大行数，需人工复核。');
+  const actual = await page.evaluate(({ rootSelector, selectorCandidates }) => {
+    const root = document.querySelector(rootSelector);
+    if (!root) return { rootFound: false, elements: [] };
+    let nodes = [];
+    for (const selector of selectorCandidates) { try { nodes.push(...root.querySelectorAll(selector)); } catch {} }
+    if (!selectorCandidates.length) nodes = [...root.querySelectorAll('*')].filter((node) => {
+      const s = getComputedStyle(node);
+      return Number.parseInt(s.webkitLineClamp, 10) > 0 || (s.overflow === 'hidden' && node.scrollHeight > node.clientHeight);
+    });
+    return { rootFound: true, elements: [...new Set(nodes)].filter((node) => {
+      const r = node.getBoundingClientRect(), s = getComputedStyle(node);
+      return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
+    }).map((node) => { const s = getComputedStyle(node); const lineClamp = Number.parseInt(s.webkitLineClamp, 10) || null; return { lineClamp,
+      overflow: s.textOverflow, ellipsized: lineClamp > 0 || s.textOverflow === 'ellipsis', display: s.display, overflowY: s.overflowY,
+      clipped: node.scrollHeight > node.clientHeight, clientHeight: node.clientHeight, scrollHeight: node.scrollHeight }; }) };
+  }, { rootSelector, selectorCandidates });
+  if (!actual.rootFound || !actual.elements.length) return requirementResult(requirement, 'na', requirement.expected, actual,
+    'text-truncation-elements-unresolved', '目标文本元素无法从实例内可靠识别，需人工复核。');
+  const pass = actual.elements.every((item) => item.lineClamp === expectedLines
+    && (requirement.expected?.overflow !== 'ellipsis' || item.ellipsized));
+  return requirementResult(requirement, pass ? 'pass' : 'fail', requirement.expected, actual,
+    pass ? 'text-truncation-matched' : 'text-truncation-mismatch', pass ? '文本行数限制符合清单。' : '文本行数限制与清单不一致。');
+}
+
+async function checkImageRatio(requirement, page, rootSelector) {
+  const ratioText = String(requirement.expected?.ratio || '');
+  const parts = ratioText.match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/);
+  if (!parts) return requirementResult(requirement, 'na', requirement.expected, null,
+    'image-ratio-expected-unavailable', '清单没有提供可解析的宽高比，需人工复核。');
+  const expectedRatio = Number(parts[1]) / Number(parts[2]);
+  const selectorCandidates = [...new Set([requirement.params?.selector, ...(requirement.params?.selectorCandidates || [])].filter(Boolean))];
+  const actual = await page.evaluate(({ rootSelector, selectorCandidates }) => {
+    const root = document.querySelector(rootSelector);
+    if (!root) return { rootFound: false, images: [] };
+    let images = [];
+    for (const selector of selectorCandidates) { try { images.push(...root.querySelectorAll(selector)); } catch {} }
+    if (!selectorCandidates.length) images = [...root.querySelectorAll('img')];
+    return { rootFound: true, images: [...new Set(images)].filter((img) => {
+      const r = img.getBoundingClientRect(); return r.width > 0 && r.height > 0 && img.complete && img.naturalWidth > 0;
+    }).map((img) => { const r = img.getBoundingClientRect(), s = getComputedStyle(img); return {
+      ratio: r.width / r.height, objectPosition: s.objectPosition, centered: /center/i.test(s.objectPosition),
+    }; }) };
+  }, { rootSelector, selectorCandidates });
+  if (!actual.rootFound || !actual.images.length) return requirementResult(requirement, 'na', requirement.expected, actual,
+    'image-ratio-elements-unresolved', '实例中没有可测量的图片，需人工复核。');
+  const tolerance = Number(requirement.params?.ratioTolerance ?? 0);
+  const pass = actual.images.every((image) => Math.abs(image.ratio - expectedRatio) <= tolerance
+    && (!requirement.expected.centered || image.centered));
+  return requirementResult(requirement, pass ? 'pass' : 'fail', requirement.expected, actual,
+    pass ? 'image-ratio-matched' : 'image-ratio-mismatch', pass ? '图片比例与清单一致。' : '图片比例或对齐与清单不一致。');
+}
+
+async function checkDefaultExpand(requirement, page, rootSelector) {
+  const level = Number(requirement.expected?.level);
+  if (!Number.isInteger(level) || level < 1) return requirementResult(requirement, 'na', requirement.expected, null,
+    'default-expand-level-unavailable', '清单没有提供有效的默认展开层级，需人工复核。');
+  const selectorCandidates = [...new Set([requirement.params?.selector, ...(requirement.params?.selectorCandidates || [])].filter(Boolean))];
+  const actual = await page.evaluate(({ rootSelector, selectorCandidates }) => {
+    const root = document.querySelector(rootSelector);
+    if (!root) return { rootFound: false, levels: [], collapsedLevels: [] };
+    let nodes = [];
+    for (const selector of selectorCandidates) { try { nodes.push(...root.querySelectorAll(selector)); } catch {} }
+    if (!nodes.length) nodes = [...root.querySelectorAll('[aria-level],[aria-expanded],details')];
+    nodes = [...new Set(nodes)].filter((node) => { const r = node.getBoundingClientRect(), s = getComputedStyle(node);
+      return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'; });
+    const levelOf = (node) => {
+      const raw = node.getAttribute('aria-level');
+      if (raw) return Number(raw);
+      let depth = 1, parent = node.parentElement;
+      while (parent && parent !== root) { if (parent.matches('[role="treeitem"],li,details')) depth += 1; parent = parent.parentElement; }
+      return depth;
+    };
+    const levels = nodes.map(levelOf).filter(Number.isFinite);
+    const collapsedLevels = nodes.filter((node) => node.getAttribute('aria-expanded') === 'false'
+      || (node.tagName.toLowerCase() === 'details' && !node.open)).map(levelOf).filter(Number.isFinite);
+    return { rootFound: true, levels, maxVisibleLevel: levels.length ? Math.max(...levels) : null,
+      collapsedLevels, collapsedLevelCount: collapsedLevels.length };
+  }, { rootSelector, selectorCandidates });
+  if (!actual.rootFound || actual.maxVisibleLevel === null) return requirementResult(requirement, 'na', requirement.expected, actual,
+    'default-expand-hierarchy-unresolved', '实例中没有可读取的层级结构，需人工复核。');
+  const collapsedLevel = Number(requirement.expected?.collapsedLevel);
+  const collapsedMatches = !Number.isInteger(collapsedLevel) || actual.collapsedLevels?.includes(collapsedLevel);
+  const pass = actual.maxVisibleLevel === level && collapsedMatches;
+  return requirementResult(requirement, pass ? 'pass' : 'fail', requirement.expected, actual,
+    pass ? 'default-expand-level-matched' : 'default-expand-level-mismatch', pass ? '默认展开层级符合清单。' : '默认展开层级与清单不一致。');
+}
+
+async function checkMobileLayout(requirement, page, rootSelector) {
+  const expected = requirement.expected || {};
+  const supported = ['visible', 'display', 'flexDirection', 'columns', 'width', 'maxWidth', 'fontSize', 'fontWeight', 'lineHeight']
+    .filter((key) => expected[key] !== undefined);
+  if (!supported.length) return requirementResult(requirement, 'na', expected, null,
+    'mobile-layout-expected-unstructured', '移动端要求没有可比较的结构化值，需人工复核。');
+  const params = requirement.params || {};
+  const selectorCandidates = [...new Set([params.selector, ...(params.selectorCandidates || [])].filter(Boolean))];
+  const actual = await page.evaluate(({ rootSelector, selectorCandidates, params }) => {
+    const root = document.querySelector(rootSelector);
+    if (!root) return { rootFound: false, elements: [] };
+    let nodes = [];
+    for (const selector of selectorCandidates) { try { nodes.push(...root.querySelectorAll(selector)); } catch {} }
+    if (!nodes.length && params.role) {
+      try { nodes = [...root.querySelectorAll(`[role="${CSS.escape(params.role)}"]`)]; } catch {}
+    }
+    if (!nodes.length && params.structureTags?.length) {
+      for (const tag of params.structureTags) { try { nodes.push(...root.querySelectorAll(tag)); } catch {} }
+    }
+    return { rootFound: true, elements: [...new Set(nodes)].map((node) => {
+      const style = getComputedStyle(node), rect = node.getBoundingClientRect();
+      return { visible: rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden',
+        display: style.display, flexDirection: style.flexDirection,
+        columns: style.display.includes('grid') ? style.gridTemplateColumns.split(/\\s+/).length : null,
+        width: rect.width, maxWidth: style.maxWidth, fontSize: style.fontSize, fontWeight: style.fontWeight,
+        lineHeight: style.lineHeight };
+    }) };
+  }, { rootSelector, selectorCandidates, params });
+  if (!actual.rootFound || !actual.elements.length) return requirementResult(requirement, 'na', expected, actual,
+    'mobile-layout-scope-unresolved', '无法在目标实例内唯一建立清单要求的移动端范围，需人工复核。');
+  const pass = actual.elements.every((row) => supported.every((key) => {
+    if (key === 'columns') return row.columns === Number(expected.columns);
+    if (key === 'width' || key === 'maxWidth') return normalizedTypographyValue('fontSize', row[key]) === normalizedTypographyValue('fontSize', expected[key]);
+    if (key === 'fontWeight') return normalizedTypographyValue(key, row[key]) === normalizedTypographyValue(key, expected[key]);
+    if (key === 'fontSize') return normalizedTypographyValue(key, row[key]) === normalizedTypographyValue(key, expected[key]);
+    if (key === 'lineHeight') return normalizedTypographyValue(key, row[key]) === normalizedTypographyValue(key, expected[key]);
+    return String(row[key]) === String(expected[key]);
+  }));
+  return requirementResult(requirement, pass ? 'pass' : 'fail', expected, actual,
+    pass ? 'mobile-layout-matched' : 'mobile-layout-mismatch', pass ? '移动端布局符合清单。' : '移动端布局与清单不一致。');
+}
+
 export async function checkDesignRequirementFront(requirement, { profile, page, rootSelector, frontChecks = [], settingsReport = null } = {}) {
   const override = overrideFor(profile?.designSpec, requirement.id);
   if (override) return checkResult(requirement, 'na', { classification: 'known-exception',
@@ -546,7 +779,13 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
   if (!['front', 'both'].includes(requirement.checkStage)) return null;
   if (requirement.checkType === 'color-scope' || requirement.checkType === 'typography') {
     const scopeOverride = requirement.checkType === 'color-scope' ? scopeOverrideFor(profile?.designSpec, requirement.id) : null;
-    const mapped = mappedFrontCheck(requirement, frontChecks);
+    let mapped = mappedFrontCheck(requirement, frontChecks);
+    const mappedHasTypography = mapped?.actual?.some?.((row) => TYPOGRAPHY_PROPERTIES.some((property) => row?.[property] != null));
+    if (requirement.checkType === 'typography' && (!mapped || mapped.status === 'na' || !mappedHasTypography) && page && rootSelector) {
+      const observations = await readTypographyByFeatures(page, rootSelector, requirement, profile).catch(() => []);
+      if (observations.length) mapped = { status: 'pass', actual: observations,
+        reason: { code: 'instance-text-role-or-learned-scope', matchedCount: observations.length } };
+    }
     if (!mapped) return checkResult(requirement, 'na', { displayName: scopeOverride?.resolvedScope,
       detail: '规范范围尚未映射到本区块的功能检查。',
       reason: { code: 'scope-unmapped', ...(scopeOverride ? { resolvedScope: scopeOverride.resolvedScope,
@@ -565,7 +804,7 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
     }
     return checkResult(requirement, status, { displayName: scopeOverride?.resolvedScope, expected,
       detail: status === 'na'
-      ? '本区块没有可执行的对应样式结果。' : requirement.checkType === 'typography' && requirement.expected?.fontSize
+      ? '本区块没有可执行的对应样式结果，需人工复核。' : requirement.checkType === 'typography' && requirement.expected?.fontSize
         ? status === 'pass' ? '前台字体大小符合设计规范。' : '前台字体大小与设计规范不一致。'
         : '按本区块画像中映射的功能样式检查执行。',
     actual, reason: { ...reason, ...(scopeOverride ? { resolvedScope: scopeOverride.resolvedScope,
@@ -592,8 +831,12 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
       expectedSource: 'designSpec.requirement.expected.value', propertiesChecked: ['color', 'backgroundColor', 'borderColor'] } });
   }
   if (!page || !rootSelector) return checkResult(requirement, 'na', { detail: '目标区块实例根节点不可用。', reason: { code: 'instance-root-unavailable' } });
+  if (requirement.checkType === 'text-truncation') return checkTextTruncation(requirement, page, rootSelector);
+  if (requirement.checkType === 'image-ratio') return checkImageRatio(requirement, page, rootSelector);
+  if (requirement.checkType === 'default-expand') return checkDefaultExpand(requirement, page, rootSelector);
+  if (requirement.checkType === 'mobile-layout') return checkMobileLayout(requirement, page, rootSelector);
   return checkResult(requirement, 'na', { detail: '该检查类型尚无安全的自动化 oracle。',
-    reason: { code: 'front-checker-unavailable', checkType: requirement.checkType } });
+    reason: { code: 'unsupported-requirement-human-review', checkType: requirement.checkType, humanReviewRequired: true } });
 }
 
 export function extractWrittenColorValues(settingsReport) {
@@ -798,6 +1041,11 @@ export async function runDesignSpecEditorChecks(profile, inventory) {
 }
 
 export async function runDesignSpecFrontChecks(profile, context) {
-  return Promise.all((profile?.designSpec?.requirements || []).map((requirement) =>
-    checkDesignRequirementFront(requirement, { ...context, profile })));
+  const viewportLabel = context?.viewport?.label;
+  const requirements = (profile?.designSpec?.requirements || []).filter((requirement) => {
+    const declared = requirement.params?.viewport;
+    if (requirement.checkType === 'mobile-layout' && viewportLabel && viewportLabel !== 'mobile') return false;
+    return !declared || !viewportLabel || declared === viewportLabel;
+  });
+  return Promise.all(requirements.map((requirement) => checkDesignRequirementFront(requirement, { ...context, profile })));
 }

@@ -80,10 +80,13 @@ test('profile style-effect overrides stay intact and automatic checks cover othe
   assert.equal(output.settings[0].styleEffect.checks.length, 11);
   assert.equal(output.settings[0].styleEffect.checks[0].checkId, 'button-bg');
   assert.ok(profile.capabilities.find((entry) => entry.id === 'block-style-spec').styleSpec.items
-    .some((item) => item.autoLearned && item.settingUnitId === 'bcs-color-persist'));
+    .some((item) => item.id === 'button-bg' && item.props.backgroundColor));
+  assert.equal(profile.capabilities.find((entry) => entry.id === 'block-style-spec').styleSpec.items
+    .some((item) => item.autoLearned && Object.keys(item.props || {}).some((key) => /color|fill|stroke/i.test(key))
+      && Object.values(item.props || {}).every((value) => value == null)), false);
 });
 
-test('color and font-size setting values automatically receive generic style effects and pending profile checks', () => {
+test('color and font-size values receive generic effects without null color placeholders', () => {
   const profile = { requirements: { capabilities: [{ id: 'color-control' }, { id: 'size-control' }] }, capabilities: [] };
   const settings = [
     { id: 'color-setting', key: 'color-control', type: 'text', initialValue: '#000000', value: '#ff0000',
@@ -97,8 +100,8 @@ test('color and font-size setting values automatically receive generic style eff
     'textDecorationColor', 'accentColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke']);
   assert.deepEqual(output.settings[1].styleEffect.properties, ['fontSize']);
   const items = profile.capabilities.find((entry) => entry.id === 'block-style-spec').styleSpec.items;
-  assert.deepEqual(items.map((entry) => entry.settingUnitId), ['color-setting', 'color-setting', 'color-setting', 'color-setting',
-    'color-setting', 'color-setting', 'color-setting', 'color-setting', 'color-setting', 'color-setting', 'size-setting']);
+  assert.deepEqual(items.map((entry) => entry.settingUnitId), ['size-setting']);
+  assert.equal(items[0].styleProperty, 'fontSize');
   assert.ok(items.every((entry) => entry.selectorLearningPending && entry.learnedSelectorRequired));
   assert.ok(items.every((entry) => !Object.hasOwn(entry, 'selector')));
 });

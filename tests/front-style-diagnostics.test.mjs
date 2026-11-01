@@ -50,15 +50,30 @@ test('breakage checks report the root locator, viewport, and count-valued expect
   assert.equal(check.reason.actual.documentWidth, 390);
 });
 
-test('mobile page-level overflow is informational; instance overflow or overlap remains a failure', () => {
+test('mobile page-level overflow is informational; internal clipping, overflow, or overlap remains a failure', () => {
   const pageOnly = { horizontalOverflow: true, docScrollWidth: 505, viewportWidth: 375,
     blockOverflow: false, stickingOut: [], overlaps: [], textClipped: [{ text: 'not used for mobile verdict' }], imgDistorted: [{ fit: 'fill' }] };
-  assert.deepEqual(breakageFindings(pageOnly, { mobile: true }), []);
-  assert.deepEqual(breakageFindings({ ...pageOnly, blockOverflow: true }, { mobile: true }), ['目标区块实例内部横向溢出']);
-  assert.deepEqual(breakageFindings({ ...pageOnly, overlaps: [{ a: 'left', b: 'right' }] }, { mobile: true }), ['重叠 1 处：「left」压「right」']);
+  assert.deepEqual(breakageFindings(pageOnly, { mobile: true }), ['实例内文字裁切 1 处：not used for mobile verdict']);
+  assert.deepEqual(breakageFindings({ ...pageOnly, textClipped: [] }, { mobile: true }), []);
+  assert.deepEqual(breakageFindings({ ...pageOnly, blockOverflow: true }, { mobile: true }), [
+    '目标区块实例内部横向溢出', '实例内文字裁切 1 处：not used for mobile verdict',
+  ]);
+  assert.deepEqual(breakageFindings({ ...pageOnly, overlaps: [{ a: 'left', b: 'right' }] }, { mobile: true }), [
+    '重叠 1 处：「left」压「right」', '实例内文字裁切 1 处：not used for mobile verdict',
+  ]);
   const [check] = addStyleFailureReasons([{ id: 'bss-breakage-mobile', status: 'fail', detail: 'instance defect',
     evidence: { ...pageOnly, blockOverflow: true, pageLevelFinding: 'page-level overflow only' } }], { capability, blockId: '777' });
   assert.equal(check.reason.actual.pageLevelFinding, 'page-level overflow only');
+});
+
+test('auto-learned null-property placeholders are omitted from style descriptors', () => {
+  const cap = { styleSpec: { items: [
+    { id: 'written-palette-color', autoLearned: true, props: { color: null, backgroundColor: null } },
+    { id: 'reviewed-color', autoLearned: true, props: { color: '#123456' } },
+  ] } };
+  const ids = styleCheckDescriptors(cap).map((item) => item.id);
+  assert.equal(ids.includes('bss-written-palette-color'), false);
+  assert.equal(ids.includes('bss-reviewed-color'), true);
 });
 
 test('navigation diagnostics do not expose which profile selector candidate was used', () => {

@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { checkDesignRequirementEditor, checkDesignRequirementFront, extractWrittenColorValues,
   countInstanceColorMatches, normalizeDesignColor, runWrittenColorFrontChecks, validateDesignSpec } from '../src/design-spec-checklist.mjs';
 import { importExtractedDesignSpec } from '../scripts/import-design-spec.mjs';
+import { finalizeFrontStyleReport } from '../src/front-style-report.mjs';
+import { breakageFindings, mobileChecklistMode } from '../src/capabilities/block-style-spec.mjs';
+import { runDesignSpecFrontChecks } from '../src/design-spec-checklist.mjs';
 
 const requirement = (overrides = {}) => ({ id: 'req-color', checkType: 'color-default', sourceText: 'A color',
   expected: { value: '#1c4587' }, checkStage: 'front', params: {}, ...overrides });
@@ -145,6 +148,82 @@ test('mapped spec typography delegates to the profile-owned functional oracle; u
   const unmapped = await checkDesignRequirementFront({ ...mapped, params: {} }, { profile: p, frontChecks: [] });
   assert.equal(unmapped.status, 'na');
   assert.equal(unmapped.reason.code, 'scope-unmapped');
+});
+
+test('typography can map by visible text or semantic role/learned profile scope when ids are absent', async () => {
+  const item = { id: 'title', checkType: 'typography', sourceText: '按钮 New Machine',
+    expected: { fontSize: '18px' }, checkStage: 'front', params: {} };
+  const p = profile([item]);
+  const byText = await checkDesignRequirementFront(item, { profile: p, page: { evaluate: async () => [
+    { label: 'New Machine', role: 'a', fontSize: '18px', fontWeight: '700', lineHeight: 'normal' },
+  ] }, rootSelector: '.instance' });
+  assert.equal(byText.status, 'pass');
+  assert.equal(byText.reason.code, 'design-typography-matched');
+  const byRole = await checkDesignRequirementFront({ ...item, sourceText: '主要标题', params: { role: 'heading' } }, {
+    profile: p, page: { evaluate: async () => [
+      { label: 'Heading', role: 'heading', fontSize: '18px', fontWeight: '400', lineHeight: 'normal' },
+    ] }, rootSelector: '.instance' });
+  assert.equal(byRole.status, 'pass');
+  assert.equal(byRole.reason.mappedCheck.code, 'instance-text-role-or-learned-scope');
+});
+
+test('text truncation, image ratio, and default expand use checklist parameters and fail closed without evidence', async () => {
+  const pageReturning = (value) => ({ evaluate: async () => value });
+  const truncation = { id: 'truncate', checkType: 'text-truncation', sourceText: 'Text capped',
+    expected: { maxLines: 2, overflow: 'ellipsis' }, checkStage: 'front', params: {} };
+  assert.equal((await checkDesignRequirementFront(truncation, { profile: profile([truncation]),
+    page: pageReturning({ rootFound: true, elements: [{ lineClamp: 2, ellipsized: true }] }), rootSelector: '.i' })).status, 'pass');
+  assert.equal((await checkDesignRequirementFront(truncation, { profile: profile([truncation]),
+    page: pageReturning({ rootFound: true, elements: [{ lineClamp: 1, ellipsized: true }] }), rootSelector: '.i' })).status, 'fail');
+  const ratio = { id: 'ratio', checkType: 'image-ratio', sourceText: 'Image 1:1', expected: { ratio: '1:1', centered: true },
+    checkStage: 'front', params: {} };
+  assert.equal((await checkDesignRequirementFront(ratio, { profile: profile([ratio]),
+    page: pageReturning({ rootFound: true, images: [{ ratio: 1, centered: true }] }), rootSelector: '.i' })).status, 'pass');
+  const expand = { id: 'expand', checkType: 'default-expand', sourceText: 'Default level', expected: { level: 1 },
+    checkStage: 'front', params: {} };
+  assert.equal((await checkDesignRequirementFront(expand, { profile: profile([expand]),
+    page: pageReturning({ rootFound: true, maxVisibleLevel: 1, levels: [1] }), rootSelector: '.i' })).status, 'pass');
+  const fullExpand = { ...expand, expected: { level: 1, collapsedLevel: 2 } };
+  assert.equal((await checkDesignRequirementFront(fullExpand, { profile: profile([fullExpand]),
+    page: pageReturning({ rootFound: true, maxVisibleLevel: 1, levels: [1], collapsedLevels: [2] }), rootSelector: '.i' })).status, 'pass');
+  assert.equal((await checkDesignRequirementFront(fullExpand, { profile: profile([fullExpand]),
+    page: pageReturning({ rootFound: true, maxVisibleLevel: 1, levels: [1], collapsedLevels: [] }), rootSelector: '.i' })).status, 'fail');
+  const mobile = { id: 'mobile', checkType: 'mobile-layout', sourceText: 'One column',
+    expected: { columns: 1, visible: true }, checkStage: 'front', params: { selector: '.target' } };
+  assert.equal((await checkDesignRequirementFront(mobile, { profile: profile([mobile]),
+    page: pageReturning({ rootFound: true, elements: [{ columns: 1, visible: true }] }), rootSelector: '.i' })).status, 'pass');
+  const unresolved = await checkDesignRequirementFront({ ...ratio, expected: { ratio: 'unknown' } }, {
+    profile: profile([ratio]), page: pageReturning({}), rootSelector: '.i' });
+  assert.equal(unresolved.status, 'na');
+  assert.equal(unresolved.reason.humanReviewRequired, true);
+  assert.equal(typeof unresolved.reason.code, 'string');
+});
+
+test('mobile checklist selects spec comparison when mobile items exist; otherwise checks instance integrity only', () => {
+  assert.equal(mobileChecklistMode([{ checkType: 'typography', params: { viewport: 'mobile' } }]), 'design-spec');
+  assert.equal(mobileChecklistMode([{ checkType: 'mobile-layout' }]), 'design-spec');
+  assert.equal(mobileChecklistMode([{ checkType: 'typography', params: { viewport: 'pc' } }]), 'instance-integrity');
+  assert.equal(mobileChecklistMode([]), 'instance-integrity');
+  assert.deepEqual(breakageFindings({ blockOverflow: false, stickingOut: [], overlaps: [],
+    textClipped: [{ text: 'inside' }], imgDistorted: [] }, { mobile: true }), ['实例内文字裁切 1 处：inside']);
+  assert.deepEqual(breakageFindings({ blockOverflow: false, horizontalOverflow: true,
+    stickingOut: [], overlaps: [], textClipped: [] }, { mobile: true }), []);
+});
+
+test('responsive checklist requirements run only at their declared viewport', async () => {
+  const pc = { ...requirement({ id: 'pc-typo', checkType: 'typography', params: { viewport: 'pc' } }) };
+  const mobile = { ...requirement({ id: 'mobile-typo', checkType: 'typography', params: { viewport: 'mobile' } }) };
+  const p = profile([pc, mobile]);
+  assert.deepEqual((await runDesignSpecFrontChecks(p, { viewport: { label: 'pc' }, frontChecks: [] })).map((item) => item.id), ['design-pc-typo']);
+  assert.deepEqual((await runDesignSpecFrontChecks(p, { viewport: { label: 'mobile' }, frontChecks: [] })).map((item) => item.id), ['design-mobile-typo']);
+});
+
+test('final front-report assembly guarantees string machine reason codes for every na result', () => {
+  const report = finalizeFrontStyleReport({ checks: [
+    { id: 'missing-code', status: 'na', reason: { code: { code: 'nested' } } },
+    { id: 'missing-reason', status: 'na' },
+  ] });
+  assert.ok(report.checks.every((check) => typeof check.reason.code === 'string' && check.reason.code.length));
 });
 
 test('typography design checks compare only spec font properties, excluding palette color and profile geometry', async () => {

@@ -72,9 +72,10 @@ try {
   report.expectedValueSourceReport = args['run-report'] || null;
   try {
     const styleChecks = capability && (capability.styleSpec?.items?.length || capability.styleSpec?.recordOnly?.length)
-      ? await runFrontLayer({ frame: page, previewPage: page, config, capability: resolvedCapability }) : [];
+      ? await runFrontLayer({ frame: page, previewPage: page, config,
+        capability: { ...resolvedCapability, designSpec: profile.designSpec } }) : [];
     const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector: config.rootSelector,
-      frontChecks: styleChecks, settingsReport, viewport: { width: 1440, height: 900 } });
+      frontChecks: styleChecks, settingsReport, viewport: { label: 'pc', width: 1440, height: 900 } });
     const writtenColors = await runWrittenColorFrontChecks({ page, rootSelector: config.rootSelector, settingsReport,
       includeStylesheets: args['include-stylesheets'] !== '0', stateExercise: args['exercise-states'] === '1' });
     report.checks = attachFrontStyleInstance([...styleChecks, ...designChecks.filter(Boolean), ...writtenColors], report.settingId);

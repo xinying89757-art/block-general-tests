@@ -21,6 +21,8 @@ import { extractWrittenColorValues, runDesignSpecFrontChecks, runWrittenColorFro
 const SUITE = 'capability:block-style-spec';
 export const freshSettings = Object.freeze({ status: 'check-only', runPostPublish: runFreshStyleChecks });
 let styleExpectations = {};
+const isNullColorPlaceholder = (item) => item?.autoLearned && item.props && Object.keys(item.props).some((property) => /color|fill|stroke/i.test(property))
+  && Object.values(item.props).length && Object.values(item.props).every((value) => value === null || value === undefined);
 
 function result(id, status, detail, evidence, textFields = {}) {
   return {
@@ -68,8 +70,10 @@ export async function runFreshStyleChecks(args) {
     const rootSelector = markedRoot.selector;
     await page.locator(rootSelector).waitFor({ state: 'attached', timeout: config.actionTimeoutMs });
     const styleChecks = await runFrontLayer({ frame: page, previewPage: page,
-      config: { ...config, rootSelector, settingId: instance?.settingId, settingsReport }, capability });
-    const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector, frontChecks: styleChecks, settingsReport });
+      config: { ...config, rootSelector, settingId: instance?.settingId, settingsReport },
+      capability: { ...capability, designSpec: profile?.designSpec } });
+    const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector, frontChecks: styleChecks,
+      settingsReport, viewport: { label: 'pc', width: 1440, height: 900 } });
     const writtenColorChecks = extractWrittenColorValues(settingsReport).length
       ? await runWrittenColorFrontChecks({ page, rootSelector, settingsReport }) : [];
     return [...styleChecks, ...designChecks.filter(Boolean), ...writtenColorChecks];
@@ -410,14 +414,19 @@ export function breakageFindings(b, { mobile = false } = {}) {
   // Document overflow is reported as page-level information, not attributed to
   // this block. Mobile block failures require evidence inside the instance.
   if (b.blockOverflow) f.push('目标区块实例内部横向溢出');
-  if (mobile && !b.blockOverflow && !b.stickingOut?.length && !b.overlaps?.length) return f;
   if (b.stickingOut?.length) f.push(`超框 ${b.stickingOut.length} 处：${b.stickingOut.map((x) => x.text || x.tag).join('、')}`);
   if (b.overlaps?.length) f.push(`重叠 ${b.overlaps.length} 处：${b.overlaps.map((x) => `「${x.a}」压「${x.b}」`).join('、')}`);
+  if (mobile && b.textClipped?.length) f.push(`实例内文字裁切 ${b.textClipped.length} 处：${b.textClipped.map((x) => x.text || x.selector || x.tag).join('、')}`);
   if (!mobile) {
     if (b.textClipped?.length) f.push(`文字被截 ${b.textClipped.length} 处：${b.textClipped.map((x) => x.text).join('、')}`);
     if (b.imgDistorted?.length) f.push(`图片失真 ${b.imgDistorted.length} 处`);
   }
   return f;
+}
+
+export function mobileChecklistMode(requirements = []) {
+  return requirements.some((requirement) => requirement.params?.viewport === 'mobile'
+    || requirement.checkType === 'mobile-layout') ? 'design-spec' : 'instance-integrity';
 }
 
 function pageOverflowFinding(b) {
@@ -432,6 +441,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
     backgroundColor: '背景色', borderColor: '边框色', borderRadius: '圆角', textAlign: '对齐方式',
     letterSpacing: '字距', width: '宽', height: '高' };
   for (const item of spec?.items || []) {
+    if (isNullColorPlaceholder(item)) continue;
     const id = `bss-${item.id}`;
     if (item.kind === 'presence') styleExpectations[id] = `每张产品卡下都应有“${item.text}”链接。`;
     else if (item.geometry?.centered) {
@@ -481,6 +491,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
       await frame.waitForTimeout(2500);
     }
     for (const item of spec.items || []) {
+      if (isNullColorPlaceholder(item)) continue;
       const checkId = `bss-${item.id}`;
       if (item.notApplicableReason) {
         checks.push(result(checkId, 'na', '未应用该样式检查。', { machineReason: {
@@ -619,17 +630,38 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
         'PC 端目标实例无超框、重叠、截断与图片失真。', pcPageInfo,
       ].filter(Boolean).join(' '), { ...pcBreak, pageLevelFinding: pcPageInfo }));
     if (pcFailed || pcFindings.length) await shot('pc');
-    // Pad / Mobile: no design frames -> breakage only.
+    // The fixed checklist catalogue is shared; mobile-specific expectations
+    // stay in each profile. When present, evaluate those requirements at the
+    // mobile viewport in addition to the instance-integrity check.
     for (const vp of ['pad', 'mobile']) {
       if (!previewPage) { checks.push(result(`bss-breakage-${vp}`, 'skip', '未提供 previewPage，无法切换视口。')); continue; }
       await previewPage.setViewportSize({ width: viewports[vp], height: vp === 'pad' ? 1024 : 667 });
       await frame.waitForTimeout(2500);
+      const mobileMode = mobileChecklistMode(capability?.designSpec?.requirements || []);
+      if (vp === 'mobile' && mobileMode === 'design-spec') {
+        const mobileStyleChecks = [];
+        for (const item of spec?.items || []) {
+          if (isNullColorPlaceholder(item)) continue;
+          const read = await readItem(frame, rootSel, item);
+          const actual = read.elements || [];
+          const diffs = actual.flatMap((element) => compareProps(item.props || {}, element, tolerances));
+          mobileStyleChecks.push(result(`bss-${item.id}`, read.error || !actual.length ? 'na' : diffs.length ? 'fail' : 'pass',
+            read.error || (diffs.length ? diffs.join('；') : `移动视口下与清单一致（${actual.length} 个元素）。`),
+            { ...read, viewport: 'mobile' }));
+        }
+        const responsiveChecklistChecks = await runDesignSpecFrontChecks({ designSpec: capability.designSpec }, {
+          page: frame, rootSelector, frontChecks: mobileStyleChecks, viewport: { label: 'mobile', width: viewports.mobile, height: 667 },
+        });
+        checks.push(...responsiveChecklistChecks.filter(Boolean));
+      }
       const b = await breakage(frame, rootSel);
       const findings = breakageFindings(b, { mobile: vp === 'mobile' });
       const pageInfo = pageOverflowFinding(b);
       checks.push(result(`bss-breakage-${vp}`, findings.length ? 'fail' : 'pass',
         findings.length ? findings.join('；') : [
-          `设计稿无${vp === 'pad' ? 'Pad' : '移动'}端画板；目标实例内无溢出或重叠。`, pageInfo,
+        vp === 'mobile' && mobileChecklistMode(capability?.designSpec?.requirements || []) === 'design-spec'
+          ? '移动端按清单逐项比较，并检查实例内部结构完整性。'
+          : `清单无${vp === 'pad' ? 'Pad' : '移动'}端样式要求；只检查目标实例内部溢出、超框、重叠和裁切。`, pageInfo,
         ].filter(Boolean).join(' '), { ...b, pageLevelFinding: pageInfo }));
       if (findings.length) await shot(vp);
     }
@@ -920,7 +952,7 @@ export function addStyleFailureReasons(checks, { capability, blockId, rootSelect
 }
 
 export function styleCheckDescriptors(capability) {
-  const items = capability?.styleSpec?.items || [];
+  const items = (capability?.styleSpec?.items || []).filter((item) => !isNullColorPlaceholder(item));
   const recordOnly = capability?.styleSpec?.recordOnly || [];
   if (!items.length && !recordOnly.length) return Object.keys(NAMES).map((id) => ({ id, name: NAMES[id], itemId: null }));
   const descriptors = items.map((item) => ({ id: `bss-${item.id}`, name: item.name || NAMES[`bss-${item.id}`] || item.id,

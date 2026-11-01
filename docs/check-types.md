@@ -12,13 +12,13 @@ only and are not copied into the human summary.
 | `typography` | Typography stated in the design source | Front: compare only stated `fontSize`, `fontWeight`, and `lineHeight` properties against values observed by a profile-local functional check. Color and geometry are excluded; missing typography observations return `na`, observed mismatches fail. Unmapped scopes return `na`. Font-size controls are not discovered or written. |
 | `module-width` | Full-row expansion setting exists with the stated default | Editor: inspect the module-width inventory; absence or wrong default fails unless waived. |
 | `height-fit` | Height adapts to content | `na` until a profile supplies a repeatable content-growth oracle. |
-| `text-truncation` | Text is limited to a stated number of lines | `na` until a block-local functional check is mapped. |
-| `image-ratio` | Image ratio and alignment | `na` until a block-local image scope is mapped. |
+| `text-truncation` | Text is limited to a stated number of lines | Front: profile selectors when supplied, otherwise instance elements with a rendered line clamp; compares the stated maximum and ellipsis behavior. No evidence is `na` for human review. |
+| `image-ratio` | Image ratio and alignment | Front: profile selectors when supplied, otherwise measurable images inside the instance; compares the stated ratio and optional centering. |
 | `overflow-threshold` | Overflow appears beyond a stated count | `na` until a profile supplies the relevant list and threshold. |
 | `search-box-per-field` | Each field has a search control | `na` until a profile maps the field and search scopes. |
-| `default-expand` | Default expanded level/state | `na` until a profile maps the hierarchy and state oracle. |
+| `default-expand` | Default expanded level/state | Front: reads accessible hierarchy levels and disclosure state inside the instance; compares the stated default level. No readable hierarchy is `na` for human review. |
 | `selected-tag-behaviour` | Selected-tag display/removal behavior | `na` until a profile maps the selected-tag interaction. |
-| `mobile-layout` | Stated mobile-specific difference/layout | `na` until a profile maps both viewport scopes. |
+| `mobile-layout` | Stated mobile-specific difference/layout | Structured checklist values (visibility, display/flex direction, columns, dimensions, typography) are compared inside the instance at mobile width. If there are no mobile checklist items, only instance-integrity checks run: internal overflow, clipped text, overlap, and elements spilling outside their boxes. Page-level overflow is informational only. |
 | `manual` | Written requirement without a safe automatic oracle | Always `na` with a machine reason; values are never inferred. |
 
 Supported results are `pass`, `fail`, and `na`. Waived requirements use
@@ -32,3 +32,9 @@ unique block-number + `settingId` instance root passes. No element selector is
 required for this presence check. If a profile candidate has no match, the
 runner can derive link candidates from semantic list hierarchy inside the
 unique instance root. No evidence means `na`, not a guessed selector.
+
+Auto-learned per-property placeholders with null expected values are not emitted
+as front checks. The written-color presence check is the applicable oracle for
+those palette writes. Requirements without a safe oracle remain `na` with a
+string machine reason code and `humanReviewRequired: true`; they remain visible
+for human review and are never coerced into a pass.

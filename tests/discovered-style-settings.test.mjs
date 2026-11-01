@@ -68,7 +68,8 @@ test('color control shapes are discovered without labels and become writable lea
     'each discovered color control is a keyed batch setting');
   assert.deepEqual(prepared.settings.map((unit) => unit.styleEffect.properties.includes('color')), [true, true, true]);
   assert.equal(profile.requirements.capabilities.length, 3);
-  assert.equal(profile.capabilities.find((item) => item.id === 'block-style-spec').styleSpec.items.length, 30);
+  assert.equal(profile.capabilities.find((item) => item.id === 'block-style-spec').styleSpec.items.length, 0,
+    'null expected-value placeholders are not emitted as independent checks');
   assert.equal(profile.onboarding.pendingStyleEffects[0].settingUnitId, prepared.settings[1].id);
   assert.ok(profile.onboarding.pendingStyleEffects[0].checkIds.includes(`auto-style-${prepared.settings[1].id}-color`));
   for (const unit of prepared.settings) {

@@ -69,6 +69,11 @@ export function ensureStyleEffectProfileEntries(profile, setting, styleEffect) {
   capability.styleSpec.items ||= [];
   const created = [];
   for (const target of styleEffect.checks || []) {
+    // These are discovery placeholders, not independent design oracles. The
+    // written-color presence check already verifies palette effects, so a
+    // null expected property must not create a misleading per-property `na`.
+    if ((styleEffect.generated || target.generated) && COLOR_PROPERTIES.includes(target.property)
+      && (styleEffect.expectedValues?.[target.property] == null)) continue;
     if (!styleEffect.generated && !target.generated) continue;
     let item = capability.styleSpec.items.find((entry) => entry.id === target.checkId);
     if (!item) {
