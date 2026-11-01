@@ -38,3 +38,24 @@ as front checks. The written-color presence check is the applicable oracle for
 those palette writes. Requirements without a safe oracle remain `na` with a
 string machine reason code and `humanReviewRequired: true`; they remain visible
 for human review and are never coerced into a pass.
+
+## Diagnostic evidence for written colors and mobile integrity
+
+The written-color JSON evidence separates terminal `fetchFailures` from
+`recoveredFetches`; `fetchFailureCount` equals the terminal failure array
+length. Readable stylesheets with no selector matching the selected instance
+are listed in `excludedSheets`, as are recognizable font-only resources.
+Unreadable resources make a color result `inconclusive-stylesheet-unavailable`
+only while their contents could still include a rule for the instance. If all
+potentially relevant sheets were read and the color is absent from rendered
+styles, the result remains `absent` (fail).
+
+State exercise is restricted to the selected instance. It can inspect
+accessible disclosure/toggle/tab/combobox controls, native selects and
+`details`, plus pointer controls that cannot navigate or submit. It records
+attempted, opened and restored counts; it never follows links or submits forms.
+On mobile without mobile-specific checklist requirements, overlap pairs count
+only when both visible elements are inside the instance bounds and neither is
+fixed/sticky. Instance-internal overflow and clipping remain findings; page-only
+overflow is informational. Overlap selector identifiers in diagnostic JSON
+are serialized as readable strings.

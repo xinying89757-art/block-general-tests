@@ -308,8 +308,8 @@ async function readItem(frame, rootSel, item) {
 // Breakage checks (no design frame needed): horizontal overflow, elements
 // sticking out of the block wrap, overlapping leaf text, clipped text,
 // distorted images. Returns findings; empty means clean.
-async function breakage(frame, rootSel) {
-  return frame.evaluate((rootSel) => {
+async function breakage(frame, rootSel, { mobile = false } = {}) {
+  return frame.evaluate(({ rootSel, mobile }) => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const root = document.querySelector(rootSel);
     if (!root) return { error: 'no root' };
@@ -343,6 +343,14 @@ async function breakage(frame, rootSel) {
     for (const el of root.querySelectorAll('*')) {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) continue;
+      const style = getComputedStyle(el);
+      const visible = style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0;
+      let overlayPosition = false;
+      for (let current = el; current && current !== root; current = current.parentElement) {
+        const position = getComputedStyle(current).position;
+        if (position === 'fixed' || position === 'sticky') { overlayPosition = true; break; }
+      }
+      if (!visible || (mobile && overlayPosition)) continue;
       if (r.right > wrapBox.right + 1.5 || r.left < wrapBox.left - 1.5) {
         const t = norm(el.innerText).slice(0, 30);
         if (t || el.tagName === 'IMG') sticking.push({ tag: el.tagName, selector: selectorPath(el), text: t, overRight: Math.round(r.right - wrapBox.right), overLeft: Math.round(wrapBox.left - r.left) });
@@ -360,8 +368,15 @@ async function breakage(frame, rootSel) {
       const r = node.getBoundingClientRect();
       if (!r.width || !r.height) continue;
       const s = getComputedStyle(node);
-      if (s.visibility === 'hidden' || s.display === 'none') continue;
-      leaves.push({ text: norm(node.innerText).slice(0, 24), box: r, element: node });
+      if (s.visibility === 'hidden' || s.display === 'none' || Number(s.opacity || 1) === 0) continue;
+      const withinRoot = r.left >= wrapBox.left - 1 && r.right <= wrapBox.right + 1
+        && r.top >= wrapBox.top - 1 && r.bottom <= wrapBox.bottom + 1;
+      let overlayPosition = false;
+      for (let current = node; current && current !== root; current = current.parentElement) {
+        const position = getComputedStyle(current).position;
+        if (position === 'fixed' || position === 'sticky') { overlayPosition = true; break; }
+      }
+      leaves.push({ text: norm(node.innerText).slice(0, 24), box: r, element: node, withinRoot, overlayPosition });
     }
     const overlaps = [];
     for (let i = 0; i < leaves.length; i++) {
@@ -372,9 +387,14 @@ async function breakage(frame, rootSel) {
         const inter = ix * iy;
         const smaller = Math.min(a.width * a.height, b.width * b.height);
         if (smaller > 0 && inter / smaller > 0.3) {
+          const withinInstance = leaves[i].withinRoot && leaves[j].withinRoot;
+          const pageOrOverlay = leaves[i].overlayPosition || leaves[j].overlayPosition;
+          if (mobile && (!withinInstance || pageOrOverlay)) continue;
           overlaps.push({ a: leaves[i].text, b: leaves[j].text,
             aSelector: selectorPath(leaves[i].element), bSelector: selectorPath(leaves[j].element),
-            ratio: +(inter / smaller).toFixed(2) });
+            ratio: +(inter / smaller).toFixed(2), withinInstance, pageOrOverlay,
+            aPosition: getComputedStyle(leaves[i].element).position,
+            bPosition: getComputedStyle(leaves[j].element).position });
           if (overlaps.length >= 10) break;
         }
       }
@@ -385,7 +405,9 @@ async function breakage(frame, rootSel) {
     for (const el of root.querySelectorAll('*')) {
       if (el.scrollWidth > el.clientWidth + 1) {
         const s = getComputedStyle(el);
-        if (s.overflowX === 'hidden' || s.overflowX === 'clip' || s.textOverflow === 'ellipsis') {
+        if (s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity || 1) > 0
+          && (!mobile || !['fixed', 'sticky'].includes(s.position))
+          && (s.overflowX === 'hidden' || s.overflowX === 'clip' || s.textOverflow === 'ellipsis')) {
           clipped.push({ tag: el.tagName, selector: selectorPath(el), text: norm(el.innerText).slice(0, 30) });
           if (clipped.length >= 10) break;
         }
@@ -406,7 +428,13 @@ async function breakage(frame, rootSel) {
     }
     res.imgDistorted = imgs;
     return res;
-  }, rootSel);
+  }, { rootSel, mobile });
+}
+
+export function isMobileInstanceOverlap(overlap) {
+  // Legacy/modelled report rows without attribution are retained; live DOM
+  // evidence always carries these flags and is filtered before serialization.
+  return overlap?.withinInstance !== false && overlap?.pageOrOverlay !== true;
 }
 
 export function breakageFindings(b, { mobile = false } = {}) {
@@ -415,8 +443,9 @@ export function breakageFindings(b, { mobile = false } = {}) {
   // this block. Mobile block failures require evidence inside the instance.
   if (b.blockOverflow) f.push('目标区块实例内部横向溢出');
   if (b.stickingOut?.length) f.push(`超框 ${b.stickingOut.length} 处：${b.stickingOut.map((x) => x.text || x.tag).join('、')}`);
-  if (b.overlaps?.length) f.push(`重叠 ${b.overlaps.length} 处：${b.overlaps.map((x) => `「${x.a}」压「${x.b}」`).join('、')}`);
-  if (mobile && b.textClipped?.length) f.push(`实例内文字裁切 ${b.textClipped.length} 处：${b.textClipped.map((x) => x.text || x.selector || x.tag).join('、')}`);
+  const overlaps = (b.overlaps || []).filter((overlap) => !mobile || isMobileInstanceOverlap(overlap));
+  if (overlaps.length) f.push(`重叠 ${overlaps.length} 处：${overlaps.map((x) => `「${x.a}」压「${x.b}」`).join('、')}`);
+  if (mobile && b.textClipped?.length) f.push(`实例内有 ${b.textClipped.length} 处可见文字被裁切：${b.textClipped.map((x) => x.text || x.selector || x.tag).join('、')}`);
   if (!mobile) {
     if (b.textClipped?.length) f.push(`文字被截 ${b.textClipped.length} 处：${b.textClipped.map((x) => x.text).join('、')}`);
     if (b.imgDistorted?.length) f.push(`图片失真 ${b.imgDistorted.length} 处`);
@@ -654,7 +683,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
         });
         checks.push(...responsiveChecklistChecks.filter(Boolean));
       }
-      const b = await breakage(frame, rootSel);
+      const b = await breakage(frame, rootSel, { mobile: vp === 'mobile' });
       const findings = breakageFindings(b, { mobile: vp === 'mobile' });
       const pageInfo = pageOverflowFinding(b);
       checks.push(result(`bss-breakage-${vp}`, findings.length ? 'fail' : 'pass',
@@ -722,7 +751,8 @@ function diagnosticValues(check, item) {
               : evidence.horizontalOverflow ? 'page-level-outside-instance' : 'none' },
         blockRoot: evidence.blockRoot || null,
         offendingElementSelectors: (evidence.stickingOut || []).map((entry) => entry.selector).filter(Boolean),
-        overlapElementSelectors: (evidence.overlaps || []).map((entry) => [entry.aSelector, entry.bSelector].filter(Boolean)),
+        overlapElementSelectors: (evidence.overlaps || []).map((entry) => [entry.aSelector, entry.bSelector]
+          .filter(Boolean).join(' ↔ ')).filter(Boolean),
         clippedElementSelectors: (evidence.textClipped || []).map((entry) => entry.selector).filter(Boolean) },
     };
   }

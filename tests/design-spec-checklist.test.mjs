@@ -4,7 +4,7 @@ import { checkDesignRequirementEditor, checkDesignRequirementFront, extractWritt
   countInstanceColorMatches, normalizeDesignColor, runWrittenColorFrontChecks, validateDesignSpec } from '../src/design-spec-checklist.mjs';
 import { importExtractedDesignSpec } from '../scripts/import-design-spec.mjs';
 import { finalizeFrontStyleReport } from '../src/front-style-report.mjs';
-import { breakageFindings, mobileChecklistMode } from '../src/capabilities/block-style-spec.mjs';
+import { breakageFindings, isMobileInstanceOverlap, mobileChecklistMode } from '../src/capabilities/block-style-spec.mjs';
 import { runDesignSpecFrontChecks } from '../src/design-spec-checklist.mjs';
 
 const requirement = (overrides = {}) => ({ id: 'req-color', checkType: 'color-default', sourceText: 'A color',
@@ -205,9 +205,25 @@ test('mobile checklist selects spec comparison when mobile items exist; otherwis
   assert.equal(mobileChecklistMode([{ checkType: 'typography', params: { viewport: 'pc' } }]), 'instance-integrity');
   assert.equal(mobileChecklistMode([]), 'instance-integrity');
   assert.deepEqual(breakageFindings({ blockOverflow: false, stickingOut: [], overlaps: [],
-    textClipped: [{ text: 'inside' }], imgDistorted: [] }, { mobile: true }), ['实例内文字裁切 1 处：inside']);
+    textClipped: [{ text: 'inside' }], imgDistorted: [] }, { mobile: true }), ['实例内有 1 处可见文字被裁切：inside']);
   assert.deepEqual(breakageFindings({ blockOverflow: false, horizontalOverflow: true,
     stickingOut: [], overlaps: [], textClipped: [] }, { mobile: true }), []);
+});
+
+test('mobile overlap attribution excludes fixed, sticky, and out-of-instance pairs while preserving in-instance pairs', () => {
+  const reportOverlaps = [
+    { a: '0 Products have been sel', b: 'Remove All', aSelector: 'selection-count', bSelector: 'remove-all' },
+    { a: 'Compare Now', b: 'Remove All', aSelector: 'compare-now', bSelector: 'remove-all' },
+  ];
+  // G59 47498 Mac evidence is the regression fixture. Its pairs are descendants
+  // of the instance; absent position/geometry metadata is conservatively kept.
+  assert.deepEqual(reportOverlaps.map(isMobileInstanceOverlap), [true, true]);
+  assert.equal(isMobileInstanceOverlap({ ...reportOverlaps[0], withinInstance: false }), false);
+  assert.equal(isMobileInstanceOverlap({ ...reportOverlaps[1], pageOrOverlay: true }), false);
+  assert.deepEqual(breakageFindings({ overlaps: [
+    { ...reportOverlaps[0], withinInstance: true, pageOrOverlay: true },
+    { ...reportOverlaps[1], withinInstance: true, pageOrOverlay: false },
+  ] }, { mobile: true }), ['重叠 1 处：「Compare Now」压「Remove All」']);
 });
 
 test('responsive checklist requirements run only at their declared viewport', async () => {

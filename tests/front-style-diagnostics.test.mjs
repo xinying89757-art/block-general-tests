@@ -52,14 +52,14 @@ test('breakage checks report the root locator, viewport, and count-valued expect
 
 test('mobile page-level overflow is informational; internal clipping, overflow, or overlap remains a failure', () => {
   const pageOnly = { horizontalOverflow: true, docScrollWidth: 505, viewportWidth: 375,
-    blockOverflow: false, stickingOut: [], overlaps: [], textClipped: [{ text: 'not used for mobile verdict' }], imgDistorted: [{ fit: 'fill' }] };
-  assert.deepEqual(breakageFindings(pageOnly, { mobile: true }), ['实例内文字裁切 1 处：not used for mobile verdict']);
+    blockOverflow: false, stickingOut: [], overlaps: [], textClipped: [{ text: 'description' }], imgDistorted: [{ fit: 'fill' }] };
+  assert.deepEqual(breakageFindings(pageOnly, { mobile: true }), ['实例内有 1 处可见文字被裁切：description']);
   assert.deepEqual(breakageFindings({ ...pageOnly, textClipped: [] }, { mobile: true }), []);
   assert.deepEqual(breakageFindings({ ...pageOnly, blockOverflow: true }, { mobile: true }), [
-    '目标区块实例内部横向溢出', '实例内文字裁切 1 处：not used for mobile verdict',
+    '目标区块实例内部横向溢出', '实例内有 1 处可见文字被裁切：description',
   ]);
   assert.deepEqual(breakageFindings({ ...pageOnly, overlaps: [{ a: 'left', b: 'right' }] }, { mobile: true }), [
-    '重叠 1 处：「left」压「right」', '实例内文字裁切 1 处：not used for mobile verdict',
+    '重叠 1 处：「left」压「right」', '实例内有 1 处可见文字被裁切：description',
   ]);
   const [check] = addStyleFailureReasons([{ id: 'bss-breakage-mobile', status: 'fail', detail: 'instance defect',
     evidence: { ...pageOnly, blockOverflow: true, pageLevelFinding: 'page-level overflow only' } }], { capability, blockId: '777' });
@@ -127,7 +127,7 @@ test('mobile reason distinguishes page overflow and lists overflow, overlap and 
   assert.equal(check.reason.actual.overflowScope, 'page-wide');
   assert.deepEqual(check.reason.actual.overflowAttribution, { pageLevel: true, instance: true, source: 'page-and-instance' });
   assert.equal(check.reason.actual.blockRoot, '[data-front-style-target="selected"]');
-  assert.deepEqual(check.reason.actual.overlapElementSelectors, [['.selection-count', '.remove-all']]);
+  assert.deepEqual(check.reason.actual.overlapElementSelectors, ['.selection-count ↔ .remove-all']);
   assert.deepEqual(check.reason.actual.clippedElementSelectors, ['.summary > span']);
 });
 

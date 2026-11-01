@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { paletteWriteReadback } from '../src/capabilities/rail.mjs';
 import { countCssColorMatches, runWrittenColorFrontChecks, runWrittenColorStylesheetSearch,
-  exerciseWrittenColorStates } from '../src/design-spec-checklist.mjs';
+  exerciseWrittenColorStates, isSafeStateExerciseTarget } from '../src/design-spec-checklist.mjs';
 import { dedupeChecksById } from '../src/front-check-utils.mjs';
 
 test('palette write readback compares the actual input value with the value set', () => {
@@ -84,7 +84,7 @@ test('G54-style external cross-origin instance rule is scoped by the settingId r
     { section: '区块配色', type: 'color', value: '#d0b647' },
   ] } };
   const rootSelector = '#siteblocks-setting-wrap-instance-rAfbpBFNQHvy';
-  const css = '.blockCon47648 .pf-btn-wrap a.blocks-button { background-color: #d0b647; }';
+  const css = '@media (min-width: 1px) { .blockCon47648 .pf-btn-wrap a.blocks-button { background-color: #d0b647; } }';
   let nodeUrls = [];
   let pageEvaluations = 0;
   const page = {
@@ -117,7 +117,10 @@ test('G54-style external cross-origin instance rule is scoped by the settingId r
   assert.equal(row.actual.stylesheetEvidence.rules[0].selector, '.blockCon47648 .pf-btn-wrap a.blocks-button');
   assert.deepEqual(row.actual.stylesheetEvidence.rules[0].declarations, [{ property: 'background-color', value: '#d0b647' }]);
   assert.equal(row.actual.stylesheetEvidence.rules[0].sheetUrl, 'https://cdn.invalid/leadong-block.css');
-  assert.equal(row.actual.stylesheetEvidence.unreadableSheets[0].url, 'https://cdn.invalid/leadong-block.css');
+  assert.equal(row.actual.stylesheetEvidence.unreadableSheetCount, 0,
+    'CSSOM SecurityError is resolved by the successful Node-side stylesheet fetch');
+  assert.equal(row.actual.stylesheetEvidence.recoveredFetchCount, 1);
+  assert.equal(row.actual.stylesheetEvidence.recoveredFetches[0].url, 'https://cdn.invalid/leadong-block.css');
   assert.doesNotMatch(JSON.stringify(row), /cache=token/);
 });
 
@@ -135,10 +138,51 @@ test('unresolved stylesheet fetch and CSSOM failures produce inconclusive, never
   assert.equal(row.status, 'record');
   assert.equal(row.reason.code, 'inconclusive-stylesheet-unavailable');
   assert.equal(row.actual.stylesheetEvidence.fetchFailureCount, 1);
+  assert.equal(row.actual.stylesheetEvidence.fetchFailureCount, row.actual.stylesheetEvidence.fetchFailures.length);
   assert.equal(row.actual.stylesheetEvidence.unreadableSheetCount, 1);
   assert.equal(row.actual.stylesheetEvidence.fetchFailures[0].url, 'https://cdn.invalid/missing.css');
   assert.equal(row.actual.stylesheetEvidence.fetchFailures[0].attempts.length, 4);
   assert.doesNotMatch(JSON.stringify(row), /auth=secret/);
+});
+
+test('unreadable font-only stylesheets are excluded from color uncertainty and fetch accounting stays explicit', async () => {
+  let call = 0;
+  const page = {
+    context: () => ({ request: { get: async () => { throw new Error('network unavailable'); } } }),
+    evaluate: async (_fn, arg) => {
+      if (arg?.declarations) return [];
+      call += 1;
+      return call === 1 ? { links: ['https://fonts.googleapis.com/css?family=Example'], preloads: [], inline: [],
+        inlineRules: [], linkRules: [], unreadableSheets: [{ href: 'https://fonts.googleapis.com/css?family=Example', reason: 'SecurityError' }],
+        baseUrl: 'https://site.invalid/page' }
+        : { rootCount: 1, styles: [{ color: 'transparent' }] };
+    },
+  };
+  const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '.instance-root', settingsReport: {
+    block: { currentValues: [{ section: '区块配色', type: 'color', value: '#d0b647' }] },
+  }, fetchNode: async () => { throw new Error('node network unavailable'); } });
+  const evidence = row.actual.stylesheetEvidence;
+  assert.equal(row.classification, 'absent');
+  assert.equal(evidence.fetchFailureCount, evidence.fetchFailures.length);
+  assert.equal(evidence.unreadableSheetCount, 0);
+  assert.equal(evidence.excludedSheets[0].exclusionReason, 'font-face-only-host');
+});
+
+test('a fully fetched stylesheet with no selector in the instance cannot make a color inconclusive', async () => {
+  let call = 0;
+  const page = { evaluate: async (_fn, arg) => {
+    if (arg?.declarations) return [];
+    call += 1;
+    return call === 1 ? { links: ['https://assets.invalid/unrelated.css'], preloads: [], inline: [], inlineRules: [],
+      linkRules: [], unreadableSheets: [], baseUrl: 'https://site.invalid/page' }
+      : { rootCount: 1, styles: [{ color: 'transparent' }] };
+  } };
+  const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '.instance-root', settingsReport: {
+    block: { currentValues: [{ section: '区块配色', type: 'color', value: '#d0b647' }] },
+  }, fetchStylesheet: async () => '.unrelated .text { color: #ffffff; }' });
+  assert.equal(row.classification, 'absent');
+  assert.equal(row.actual.stylesheetEvidence.unreadableSheetCount, 0);
+  assert.equal(row.actual.stylesheetEvidence.excludedSheets[0].reason, 'no-selector-matches-instance');
 });
 
 test('linked, preloaded and imported stylesheets are recursively included and failure evidence is explicit', async () => {
@@ -147,7 +191,8 @@ test('linked, preloaded and imported stylesheets are recursively included and fa
     context: () => ({ request: { get: async (url) => { urls.push(url); return { ok: () => true, text: async () => url.endsWith('root.css')
       ? '@import "nested.css"; .outside{color:#d0b647}' : '.instance .target{background:#d0b647}' }; } } }),
     evaluate: async (_fn, arg) => {
-      if (arg?.declarations) return arg.declarations.map((rule) => ({ ...rule, matchedSelectors: rule.selectors }));
+      if (arg?.declarations) return arg.declarations.filter((rule) => rule.selector.includes('.instance'))
+        .map((rule) => ({ ...rule, matchedSelectors: rule.selectors }));
       if (!page.inventoryRead) { page.inventoryRead = true; return { links: ['https://cdn.invalid/root.css'],
         preloads: ['https://cdn.invalid/preloaded.css'], inline: ['@import "inline-import.css";'], inlineRules: [],
         linkRules: [], unreadableSheets: [], baseUrl: 'https://site.invalid/products.html' }; }
@@ -200,24 +245,71 @@ test('optional state exercise records attempted states and the first state revea
   };
   const result = await exerciseWrittenColorStates(page, '.target', [{ id: 'color-a', value: '#d0b647' }]);
   assert.deepEqual(result, { states: ['hover', 'focus'], candidateCount: 1, disclosureCount: 0,
-    exerciseCounts: { toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 },
+    exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
+      tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 },
     revealed: { 'color-a': { state: 'hover', matches: 1 } } });
+});
+
+test('state exercise opens only safe instance controls and records attempted/opened/restored counts', async () => {
+  const actions = [];
+  const toggle = { evaluate: async () => ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
+    submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: true, isTab: false,
+    expanded: 'false', selected: null, hasPopup: true, pointerAction: false }),
+    click: async () => { actions.push('open'); }, press: async () => { actions.push('escape'); },
+    getAttribute: async () => 'false', hover: async () => {}, focus: async () => {} };
+  const unsafeLink = { evaluate: async () => ({ safe: false, isTab: false }), click: async () => { actions.push('unsafe-link'); },
+    hover: async () => {}, focus: async () => {} };
+  const controls = [toggle, unsafeLink];
+  let allCalls = 0;
+  const page = { locator: () => ({ locator: (selector) => {
+    if (selector === 'details') return { count: async () => 0 };
+    allCalls += 1;
+    const list = allCalls === 2 ? controls : [];
+    return { count: async () => list.length, nth: (index) => list[index] };
+  } }),
+  evaluate: async (_fn, arg) => arg?.rootSelector ? { rootCount: 1, styles: [{ color: 'transparent' }] } : undefined };
+  const result = await exerciseWrittenColorStates(page, '.instance-root', [{ id: 'color-a', value: '#d0b647' }]);
+  assert.deepEqual(actions, ['open', 'escape']);
+  assert.equal(result.exerciseCounts.attempted, 1);
+  assert.equal(result.exerciseCounts.opened, 1);
+  assert.equal(result.exerciseCounts.restored, 1);
+  assert.equal(result.exerciseCounts.eligibleCandidates, 1);
+});
+
+test('interactive state target safety excludes navigation, form submission and hidden elements', () => {
+  const base = { visible: true, tag: 'div', hasHref: false, insideForm: false, submitControl: false,
+    hasExplicitToggle: false, semantic: false, nativeButton: false, pointerAction: true };
+  assert.equal(isSafeStateExerciseTarget(base), true);
+  assert.equal(isSafeStateExerciseTarget({ ...base, tag: 'a', hasHref: true }), false);
+  assert.equal(isSafeStateExerciseTarget({ ...base, insideForm: true }), false);
+  assert.equal(isSafeStateExerciseTarget({ ...base, submitControl: true }), false);
+  assert.equal(isSafeStateExerciseTarget({ ...base, visible: false }), false);
 });
 
 test('state exercise opens instance-local category toggles and tabs, then restores the selected tab', async () => {
   const actions = [];
   let expanded = 'false';
   let activeTab = 'first';
-  const toggle = { evaluate: async () => ({ safe: true, isTab: false, expanded, selected: null }),
+  const toggle = { evaluate: async () => ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
+    submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: true, isTab: false,
+    expanded, selected: null, hasPopup: false }),
     click: async () => { expanded = expanded === 'false' ? 'true' : 'false'; actions.push(`toggle:${expanded}`); },
-    getAttribute: async (name) => name === 'aria-expanded' ? expanded : null };
-  const tab = (id, selected) => ({ evaluate: async () => ({ safe: true, isTab: true, selected: selected ? 'true' : 'false' }),
+    getAttribute: async (name) => name === 'aria-expanded' ? expanded : null,
+    press: async () => { actions.push('escape'); } };
+  const tab = (id, selected) => ({ evaluate: async () => ({ tag: 'div', visible: true, hasHref: false, insideForm: false,
+    submitControl: false, hasExplicitToggle: false, semantic: true, nativeButton: false, isTab: true,
+    selected: selected ? 'true' : 'false', expanded: null, hasPopup: false }),
     click: async () => { activeTab = id; actions.push(`tab:${id}`); } });
   const controls = [toggle, tab('first', true), tab('second', false)];
+  let allCall = 0;
   const page = {
     locator: () => ({ locator: (selector) => {
       if (selector === 'details') return { count: async () => 0 };
-      if (selector.includes('[aria-expanded')) return { count: async () => controls.length, nth: (index) => controls[index] };
+      if (selector === '*') {
+        allCall += 1;
+        if (allCall === 2) return { count: async () => controls.length, nth: (index) => controls[index] };
+        return { count: async () => 0 };
+      }
       return { count: async () => 0 };
     } }),
     evaluate: async (_fn, arg) => arg?.rootSelector ? { rootCount: 1, styles: [{ color: 'transparent' }] } : undefined,
@@ -225,11 +317,11 @@ test('state exercise opens instance-local category toggles and tabs, then restor
   const result = await exerciseWrittenColorStates(page, '.instance-root', [{ id: 'color-a', value: '#d0b647' }]);
   assert.ok(result.states.includes('category-expanded'));
   assert.ok(result.states.includes('tab-selected'));
-  assert.deepEqual(result.exerciseCounts, { toggleCandidates: 1, togglesOpened: 1, tabCandidates: 2, tabsSelected: 2,
-    detailsCandidates: 0, detailsOpened: 0 });
+  assert.deepEqual(result.exerciseCounts, { eligibleCandidates: 3, attempted: 2, opened: 2, restored: 2, toggleCandidates: 1,
+    togglesOpened: 1, tabCandidates: 2, tabsSelected: 1, detailsCandidates: 0, detailsOpened: 0 });
   assert.equal(expanded, 'false');
   assert.equal(activeTab, 'first');
-  assert.deepEqual(actions, ['toggle:true', 'toggle:false', 'tab:first', 'tab:second', 'tab:first']);
+  assert.deepEqual(actions, ['toggle:true', 'toggle:false', 'tab:second', 'tab:first']);
 });
 
 test('every written-color miss records states exercised and stylesheet scan diagnostics', async () => {
@@ -249,7 +341,7 @@ test('every written-color miss records states exercised and stylesheet scan diag
   const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '.target', settingsReport, stateExercise: true });
   assert.equal(row.classification, 'absent');
   assert.deepEqual(row.actual.stateExercise, { enabled: true, states: [], candidateCount: 0,
-    disclosureCount: 0, exerciseCounts: { toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
+    disclosureCount: 0, exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
       tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null });
   assert.equal(row.actual.stylesheetEvidence.sheetCount, 0);
   assert.equal(row.actual.stylesheetEvidence.matchCount, 0);
@@ -281,7 +373,7 @@ test('cross-origin linked CSS fetched through context request becomes scoped CSS
   assert.equal(row.actual.stylesheetEvidence.matchCount, 1);
   assert.equal(row.actual.stylesheetEvidence.rules[0].properties[0], 'background-image');
   assert.deepEqual(row.actual.stateExercise, { enabled: false, states: [], candidateCount: 0,
-    disclosureCount: 0, exerciseCounts: { toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
+    disclosureCount: 0, exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
       tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null });
 });
 

@@ -287,13 +287,12 @@ function cssColorDeclarations(cssText, expected) {
   const expectedKey = opaqueColorKey(expected);
   if (!expectedKey) return [];
   const matches = [];
-  // CSSOM is not available for cross-origin stylesheets. Parse ordinary rules
-  // from fetched text and preserve only selector/property evidence, never URLs.
-  for (const rule of String(cssText || '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    const selector = rule[1].trim();
-    if (!selector || selector.startsWith('@')) continue;
+  // CSSOM is not available for cross-origin stylesheets. Parse ordinary and
+  // conditionally nested rules from fetched text without evaluating the media.
+  for (const rule of cssRuleEntries(cssText)) {
+    const selector = rule.selector;
     const properties = [];
-    for (const declaration of rule[2].split(';')) {
+    for (const declaration of rule.body.split(';')) {
       const colon = declaration.indexOf(':');
       if (colon < 1) continue;
       const property = declaration.slice(0, colon).trim().toLowerCase();
@@ -306,8 +305,58 @@ function cssColorDeclarations(cssText, expected) {
   return matches;
 }
 
+function cssRuleEntries(cssText) {
+  const entries = [];
+  // Retain selectors nested in conditional at-rules (media/supports/layer).
+  // This is intentionally a lightweight CSS rule reader, not a CSS evaluator.
+  const visit = (text) => {
+    let cursor = 0;
+    while (cursor < text.length) {
+      const open = text.indexOf('{', cursor);
+      if (open < 0) break;
+      const head = text.slice(cursor, open).trim();
+      let depth = 1, close = open + 1;
+      while (close < text.length && depth) {
+        if (text[close] === '{') depth += 1;
+        else if (text[close] === '}') depth -= 1;
+        close += 1;
+      }
+      if (depth) break;
+      const body = text.slice(open + 1, close - 1);
+      if (head.startsWith('@')) visit(body);
+      else if (head) entries.push({ selector: head, body });
+      cursor = close;
+    }
+  };
+  const source = String(cssText || '').replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/@import\s+(?:url\(\s*)?(?:['"][^'"]+['"]|[^\s;)]+)\s*\)?[^;]*;/gi, '');
+  visit(source);
+  return entries;
+}
+
+function cssRuleSelectors(cssText) {
+  return [...new Set(cssRuleEntries(cssText).flatMap((rule) => splitCssSelectorList(rule.selector)))];
+}
+
+function isFontOnlyStylesheetUrl(input) {
+  try {
+    const url = new URL(input);
+    const host = url.hostname.toLowerCase();
+    const path = url.pathname.toLowerCase();
+    return /(^|[.-])fonts?([.-]|$)/.test(host)
+      && (path === '/css' || path.startsWith('/css/') || path.endsWith('.css'));
+  } catch { return false; }
+}
+
+function isOnlyFontOrImportMetadata(cssText) {
+  const residual = String(cssText || '').replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/@font-face\s*\{(?:[^{}]|\{[^{}]*\})*\}/gi, '')
+    .replace(/@(?:import\s+(?:url\(\s*)?(?:['"][^'"]+['"]|[^\s;)]+)\s*\)?|charset\s+[^;]+|namespace\s+[^;]+);/gi, '').trim();
+  return residual.length === 0;
+}
+
 function countCssRules(cssText) {
-  return [...String(cssText || '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((match) => !match[1].trim().startsWith('@')).length;
+  return cssRuleEntries(cssText).length;
 }
 
 function splitCssSelectorList(selectorList) {
@@ -415,7 +464,7 @@ async function scopedCssMatches(page, rootSelector, declarations) {
 export async function scanWrittenColorStylesheets({ page, rootSelector, settingsReport, fetchStylesheet, fetchNode } = {}) {
   const values = extractWrittenColorValues(settingsReport);
   if (!page || !rootSelector || !values.length) return { evidenceById: {}, sheetCount: 0, ruleCount: 0, fetchFailureCount: 0,
-    fetchFailures: [], unreadableSheets: [] };
+    fetchFailures: [], recoveredFetches: [], unreadableSheets: [], excludedSheets: [] };
   const inventory = await page.evaluate(({ rootSelector }) => {
     const links = [...document.querySelectorAll('link[rel~="stylesheet"][href]')].map((item) => item.href);
     const preloads = [...document.querySelectorAll('link[rel~="preload"][as="style"][href]')].map((item) => item.href);
@@ -459,9 +508,9 @@ export async function scanWrittenColorStylesheets({ page, rootSelector, settings
   for (const text of inventory.inline || []) importUrls(text, inventory.baseUrl).forEach((url) => { discovered.add(url); imported.add(url); });
   for (const [href, text] of alreadyRead) importUrls(text, href).forEach((url) => { discovered.add(url); imported.add(url); });
   const fetchFailures = [];
-  const unreadableSheets = (inventory.unreadableSheets || []).map((sheet) => ({
-    url: sanitizeStylesheetUrl(sheet.href), reason: sheet.reason,
-  }));
+  const recoveredFetches = [];
+  const unreadableSheets = [];
+  const excludedSheets = [];
   const visited = new Set();
   const queue = [...discovered];
   let fetchedIndex = 0;
@@ -477,10 +526,17 @@ export async function scanWrittenColorStylesheets({ page, rootSelector, settings
       const fetched = await readStylesheetText({ page, href, fetchStylesheet, fetchNode });
       text = fetched.text;
       fetchedUrl = fetched.fetchedUrl || href;
-      if (fetched.unavailable) fetchFailures.push({ url: sanitizeStylesheetUrl(href), reason: 'all-fetch-attempts-failed', attempts: fetched.attempts });
-      else if (fetched.attempts.length) {
-        // Keep recovery attempts as diagnostics even if a later transport worked.
-        fetchFailures.push({ url: sanitizeStylesheetUrl(href), recovered: true, attempts: fetched.attempts });
+      const cssomFailure = (inventory.unreadableSheets || []).find((sheet) => sheet.href === href);
+      if (fetched.unavailable) {
+        const entry = { url: sanitizeStylesheetUrl(href), reason: 'all-fetch-attempts-failed', attempts: fetched.attempts };
+        fetchFailures.push(entry);
+        if (isFontOnlyStylesheetUrl(href)) excludedSheets.push({ ...entry, relevance: 'excluded', exclusionReason: 'font-face-only-host' });
+        else unreadableSheets.push({ ...entry, relevance: 'unknown-could-contain-instance-rule' });
+      }
+      else if (fetched.attempts.length || cssomFailure) {
+        recoveredFetches.push({ url: sanitizeStylesheetUrl(href),
+          recoveryReason: cssomFailure ? 'cssom-read-recovered-by-stylesheet-fetch' : 'transport-retry-succeeded',
+          ...(cssomFailure ? { cssomReason: cssomFailure.reason } : {}), attempts: fetched.attempts });
       }
     }
     const url = sanitizeStylesheetUrl(href);
@@ -488,6 +544,20 @@ export async function scanWrittenColorStylesheets({ page, rootSelector, settings
     for (const importUrl of importUrls(text, href)) {
       imported.add(importUrl);
       if (!visited.has(importUrl)) queue.push(importUrl);
+    }
+    if (text && source.startsWith('external-')) {
+      const selectors = cssRuleSelectors(text);
+      if (!selectors.length) {
+        if (isOnlyFontOrImportMetadata(text)) excludedSheets.push({ url: sanitizeStylesheetUrl(href), reason: 'font-or-import-only-css' });
+        else unreadableSheets.push({ url: sanitizeStylesheetUrl(href), reason: 'stylesheet-rules-unparseable',
+          relevance: 'unknown-could-contain-instance-rule' });
+        continue;
+      }
+      const selectorMatches = await scopedCssMatches(page, rootSelector, selectors.map((selector) => ({
+        selector, selectors: [selector], declarations: [{ property: '__selector_probe', value: '' }], source,
+        sheetUrl: sanitizeStylesheetUrl(href), fetchedUrl: sanitizeStylesheetUrl(fetchedUrl),
+      })));
+      if (!selectorMatches.length) excludedSheets.push({ url: sanitizeStylesheetUrl(href), reason: 'no-selector-matches-instance' });
     }
   }
   const evidenceById = {};
@@ -509,13 +579,14 @@ export async function scanWrittenColorStylesheets({ page, rootSelector, settings
       importedStylesheetCount: imported.size,
       inlineStyleTagCount: (inventory.inline || []).length, inlineAttributeCount: (inventory.inlineRules || []).length,
       ruleCount: externalRuleCount, inlineStyleRuleCount, inlineAttributeRuleCount,
-      fetchFailureCount: fetchFailures.filter((failure) => !failure.recovered).length,
-      fetchFailures, unreadableSheetCount: unreadableSheets.length, unreadableSheets,
+      fetchFailureCount: fetchFailures.length, recoveredFetchCount: recoveredFetches.length,
+      fetchFailures, recoveredFetches, unreadableSheetCount: unreadableSheets.length, unreadableSheets, excludedSheets,
       matchCount: scoped.length, rules: serializedRules };
   }
   return { evidenceById, sheetCount: externalSheets.length,
     ruleCount: externalRuleCount, inlineStyleRuleCount, inlineAttributeRuleCount,
-    fetchFailureCount: fetchFailures.filter((failure) => !failure.recovered).length, fetchFailures, unreadableSheets,
+    fetchFailureCount: fetchFailures.length, recoveredFetchCount: recoveredFetches.length,
+    fetchFailures, recoveredFetches, unreadableSheets, excludedSheets,
     linkedStylesheetCount: (inventory.links || []).length, preloadStyleCount: (inventory.preloads || []).length,
     importedStylesheetCount: imported.size };
 }
@@ -876,10 +947,12 @@ export async function runWrittenColorFrontChecks({ page, rootSelector, settingsR
     expected: item.value, detail: '目标区块前台实例不可达。', reason: { stage: 'front', code: 'instance-root-unavailable',
       expectedSource: 'run-report.currentValues', controlIndex: item.controlIndex } }));
   const checks = [];
+  const emptyExerciseCounts = { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
+    tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 };
   const stateEvidence = stateExercise
     ? await exerciseWrittenColorStates(page, rootSelector, values).catch((error) => ({ states: [], candidateCount: 0,
-      disclosureCount: 0, revealed: {}, error: { class: error?.name || 'Error', code: 'state-exercise-unavailable' } }))
-    : { states: [], candidateCount: 0, disclosureCount: 0, revealed: {} };
+      disclosureCount: 0, exerciseCounts: emptyExerciseCounts, revealed: {}, error: { class: error?.name || 'Error', code: 'state-exercise-unavailable' } }))
+    : { states: [], candidateCount: 0, disclosureCount: 0, exerciseCounts: emptyExerciseCounts, revealed: {} };
   // Fetch/parse linked CSS before assigning an absent verdict. Cross-origin
   // CSSOM failures are retried through the page context's request client.
   const stylesheetScan = includeStylesheets
@@ -891,6 +964,7 @@ export async function runWrittenColorFrontChecks({ page, rootSelector, settingsR
     const matches = countInstanceColorMatches(snapshot, item.value);
     const cssEvidence = stylesheetScan.evidenceById[item.id] || { sheetCount: stylesheetScan.sheetCount,
       ruleCount: stylesheetScan.ruleCount, fetchFailureCount: stylesheetScan.fetchFailureCount,
+      recoveredFetchCount: stylesheetScan.recoveredFetchCount || 0,
       unreadableSheetCount: stylesheetScan.unreadableSheets?.length || 0,
       linkedStylesheetCount: stylesheetScan.linkedStylesheetCount || 0,
       preloadStyleCount: stylesheetScan.preloadStyleCount || 0,
@@ -898,16 +972,21 @@ export async function runWrittenColorFrontChecks({ page, rootSelector, settingsR
       inlineStyleRuleCount: stylesheetScan.inlineStyleRuleCount || 0,
       inlineAttributeRuleCount: stylesheetScan.inlineAttributeRuleCount || 0,
       fetchFailures: stylesheetScan.fetchFailures || [], unreadableSheets: stylesheetScan.unreadableSheets || [],
+      recoveredFetches: stylesheetScan.recoveredFetches || [], excludedSheets: stylesheetScan.excludedSheets || [],
       matchCount: 0, rules: [] };
     const foundOnElement = snapshot.rootCount === 1 && (matches > 0 || Boolean(stateMatch));
     const cssOnly = !foundOnElement && cssEvidence.matchCount > 0;
-    const stylesheetIncomplete = cssEvidence.fetchFailureCount > 0 || cssEvidence.unreadableSheetCount > 0;
+    // A terminal fetch failure matters only while the sheet could still hold a
+    // selector for this instance. Successfully fetched non-matching sheets and
+    // known font-only resources are explicitly excluded from the color oracle.
+    const stylesheetIncomplete = cssEvidence.unreadableSheetCount > 0;
     const outcome = foundOnElement ? 'found-on-element' : cssOnly ? 'instance-scoped-css-only'
       : stylesheetIncomplete ? 'inconclusive-stylesheet-unavailable' : 'absent';
     const actual = { rootCount: snapshot.rootCount, elementCount: snapshot.styles.length,
       matches: matches || stateMatch?.matches || 0,
       stylesheetEvidence: { sheetCount: cssEvidence.sheetCount, ruleCount: cssEvidence.ruleCount,
-        fetchFailureCount: cssEvidence.fetchFailureCount, matchCount: cssEvidence.matchCount,
+        fetchFailureCount: cssEvidence.fetchFailureCount, recoveredFetchCount: cssEvidence.recoveredFetchCount || 0,
+        matchCount: cssEvidence.matchCount,
         unreadableSheetCount: cssEvidence.unreadableSheetCount,
         linkedStylesheetCount: cssEvidence.linkedStylesheetCount || 0,
         preloadStyleCount: cssEvidence.preloadStyleCount || 0,
@@ -917,11 +996,13 @@ export async function runWrittenColorFrontChecks({ page, rootSelector, settingsR
         inlineStyleTagCount: cssEvidence.inlineStyleTagCount || 0,
         inlineAttributeCount: cssEvidence.inlineAttributeCount || 0,
         fetchFailures: cssEvidence.fetchFailures || [], unreadableSheets: cssEvidence.unreadableSheets || [],
+        recoveredFetches: cssEvidence.recoveredFetches || [], excludedSheets: cssEvidence.excludedSheets || [],
         ...(cssEvidence.matchCount ? { rules: cssEvidence.rules } : {}) },
       stateExercise: { enabled: Boolean(stateExercise), states: stateEvidence.states,
         candidateCount: stateEvidence.candidateCount, disclosureCount: stateEvidence.disclosureCount,
-        exerciseCounts: stateEvidence.exerciseCounts || { toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
-          tabsSelected: 0, detailsCandidates: stateEvidence.disclosureCount || 0, detailsOpened: 0 },
+        exerciseCounts: stateEvidence.exerciseCounts || { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0,
+          toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0, tabsSelected: 0,
+          detailsCandidates: stateEvidence.disclosureCount || 0, detailsOpened: 0 },
         revealedBy: stateMatch?.state || null,
         ...(stateEvidence.error ? { error: stateEvidence.error } : {}) } };
     checks.push({ id: item.id, name: '本次写入颜色前台回读', status: outcome === 'found-on-element' ? 'pass'
@@ -940,14 +1021,20 @@ export async function runWrittenColorFrontChecks({ page, rootSelector, settingsR
   return checks;
 }
 
+export function isSafeStateExerciseTarget(info = {}) {
+  return info.visible === true && info.tag !== 'a' && info.hasHref !== true
+    && info.insideForm !== true && info.submitControl !== true
+    && Boolean(info.hasExplicitToggle || info.semantic || info.nativeButton || info.pointerAction);
+}
+
 export async function exerciseWrittenColorStates(page, rootSelector, values, { maxElements = 80 } = {}) {
   const root = page.locator(rootSelector);
-  const candidates = root.locator('a,button,[role="button"],[role="link"],[role="option"],[role="menuitem"],[role="tab"],[aria-haspopup],summary,details,input,select,textarea');
+  const candidates = root.locator('*');
   const count = Math.min(await candidates.count(), maxElements);
   const revealed = {};
   const states = new Set();
-  const exerciseCounts = { toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0, tabsSelected: 0,
-    detailsCandidates: 0, detailsOpened: 0 };
+  const exerciseCounts = { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
+    tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 };
   const scan = async (state) => {
     const snapshot = await readInstanceColorSnapshot(page, rootSelector);
     for (const value of values) {
@@ -962,18 +1049,27 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
     try {
       const tagName = await candidate.evaluate((element) => element.tagName);
       if (String(tagName).toUpperCase() === 'SELECT') {
-        await candidate.evaluate((element) => element.showPicker?.());
+        exerciseCounts.attempted += 1;
+        const opened = await candidate.evaluate((element) => {
+          if (typeof element.showPicker !== 'function') return false;
+          element.showPicker();
+          return true;
+        });
+        if (!opened) continue;
+        exerciseCounts.opened += 1;
         states.add('select-open');
         await scan('select-open');
         await candidate.press('Escape', { timeout: 1000 });
+        exerciseCounts.restored += 1;
       }
     } catch {}
     try { await page.mouse?.move(0, 0); } catch {}
   }
 
-  // Expand only controls whose semantics are explicit. Never click anchors,
-  // submit buttons, or arbitrary controls that could navigate or submit.
-  const stateControls = root.locator('[aria-expanded="false"],[aria-expanded="true"],[role="tab"]');
+  // Open only controls rooted in this instance. Never activate links, submit
+  // controls, or anything inside a form. Pointer-only elements are eligible
+  // only when they cannot navigate or submit.
+  const stateControls = root.locator('*');
   const stateCount = Math.min(await stateControls.count(), maxElements);
   const selectedTabs = [];
   for (let index = 0; index < stateCount; index += 1) {
@@ -983,21 +1079,33 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
       const tag = element.tagName.toLowerCase();
       const role = element.getAttribute('role');
       const type = element.getAttribute('type');
-      const insideForm = Boolean(element.closest('form'));
+      const insideForm = Boolean(element.closest('form') || element.form);
       const isTab = role === 'tab';
-      const isDisclosure = element.getAttribute('aria-expanded') === 'false';
-      const isSafeButton = tag === 'button' && type !== 'submit' && type !== 'reset' && (!insideForm || type === 'button');
-      const isSafeRole = (['button', 'treeitem', 'menuitem'].includes(role) || isTab)
-        && tag !== 'a' && !element.hasAttribute('href') && !insideForm;
-      return { safe: isTab ? isSafeRole : isDisclosure && (isSafeButton || isSafeRole), isTab,
-        expanded: element.getAttribute('aria-expanded'), selected: element.getAttribute('aria-selected') };
+      const hasExplicitToggle = element.hasAttribute('aria-expanded') || element.hasAttribute('aria-haspopup');
+      const semantic = ['button', 'tab', 'combobox'].includes(role);
+      const nativeButton = tag === 'button' && !['submit', 'reset'].includes(type) && !insideForm;
+      const pointerAction = getComputedStyle(element).cursor === 'pointer';
+      const submitControl = (tag === 'button' || tag === 'input') && ['submit', 'reset', 'image'].includes(type);
+      const style = getComputedStyle(element);
+      const visible = element.getClientRects().length > 0 && style.display !== 'none'
+        && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0;
+      return { tag, visible, hasHref: element.hasAttribute('href'), insideForm, submitControl,
+        hasExplicitToggle, semantic, nativeButton, isTab, isSelect: tag === 'select',
+        isDetails: tag === 'details' || tag === 'summary', pointerAction,
+        expanded: element.getAttribute('aria-expanded'), hasPopup: element.hasAttribute('aria-haspopup'),
+        selected: element.getAttribute('aria-selected'), type };
     }); } catch { continue; }
-    if (!info?.safe) continue;
+    info.safe = isSafeStateExerciseTarget(info);
+    if (!info.safe) continue;
+    exerciseCounts.eligibleCandidates += 1;
+    if (info.isSelect || info.isDetails) continue; // handled without choosing/changing a value below
     if (info.isTab) {
       exerciseCounts.tabCandidates += 1;
-      if (info.selected === 'true') selectedTabs.push(control);
+      if (info.selected === 'true') { selectedTabs.push(control); continue; }
       try {
+        exerciseCounts.attempted += 1;
         await control.click({ timeout: 1500 });
+        exerciseCounts.opened += 1;
         states.add('tab-selected'); exerciseCounts.tabsSelected += 1;
         await scan('tab-selected');
       } catch {}
@@ -1005,16 +1113,25 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
     }
     exerciseCounts.toggleCandidates += 1;
     try {
+      if (info.expanded === 'true') { await scan('category-expanded'); continue; }
+      exerciseCounts.attempted += 1;
       await control.click({ timeout: 1500 });
       const expanded = await control.getAttribute('aria-expanded');
-      if (expanded === 'true') {
+      if (expanded === 'true' || info.expanded !== expanded || info.hasPopup || info.pointerAction) {
+        exerciseCounts.opened += 1;
         states.add('category-expanded'); exerciseCounts.togglesOpened += 1;
         await scan('category-expanded');
-        await control.click({ timeout: 1500 });
+        if (expanded === 'true') await control.click({ timeout: 1500 });
+        else await control.press('Escape', { timeout: 1000 });
+        const after = await control.getAttribute('aria-expanded');
+        if (after === info.expanded || (info.expanded === null && after === null)) exerciseCounts.restored += 1;
       }
     } catch {}
   }
-  for (const selected of selectedTabs) try { await selected.click({ timeout: 1500 }); } catch {}
+  for (const selected of selectedTabs) try {
+    await selected.click({ timeout: 1500 });
+    exerciseCounts.restored += 1;
+  } catch {}
 
   const details = root.locator('details');
   const detailsCount = Math.min(await details.count(), maxElements);
@@ -1022,13 +1139,17 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
   for (let index = 0; index < detailsCount; index += 1) {
     const item = details.nth(index);
     try {
-      const wasOpen = await item.evaluate((element) => element.open);
-      if (wasOpen) continue;
+      const state = await item.evaluate((element) => ({ open: element.open,
+        visible: getComputedStyle(element).display !== 'none' && getComputedStyle(element).visibility !== 'hidden' }));
+      if (!state.visible || state.open) continue;
       await item.evaluate((element) => { element.open = true; });
       states.add('disclosure-open');
       exerciseCounts.detailsOpened += 1;
+      exerciseCounts.attempted += 1;
+      exerciseCounts.opened += 1;
       await scan('disclosure-open');
       await item.evaluate((element) => { element.open = false; });
+      if (!(await item.evaluate((element) => element.open))) exerciseCounts.restored += 1;
     } catch { try { await item.evaluate((element) => { element.open = false; }); } catch {} }
   }
   try { await page.evaluate(() => document.activeElement?.blur?.()); } catch {}
