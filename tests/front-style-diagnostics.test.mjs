@@ -313,8 +313,9 @@ test('inventory text falls back to the last setting value written, then to an ex
 
 test('style dimensions use configurable two-pixel default tolerance while colors remain exact', () => {
   assert.deepEqual(compareProps({ fontSize: 14, width: 28, color: '#ffffff' },
-    { fontSize: 16, width: 30, color: '#fffffe' }, { px: 0.6, sizePx: 2 }), ['文字颜色设计为 #ffffff，实测为 #fffffe']);
+    { fontSize: 15.99, width: 29.99, color: '#fffffe' }, { px: 0.6, sizePx: 2 }), ['文字颜色设计为 #ffffff，实测为 #fffffe']);
   assert.deepEqual(compareProps({ fontSize: 14 }, { fontSize: 16.01 }, { sizePx: 2 }), ['字号设计为 14px，实测为 16.01px']);
+  assert.deepEqual(compareProps({ width: 28 }, { width: 30 }, { sizePx: 2 }), ['宽设计为 28px，实测为 30px']);
 });
 
 test('pagination semantic scope requires a pagination container inside the instance root', () => {

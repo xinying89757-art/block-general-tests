@@ -103,7 +103,11 @@ const px = (v) => {
   const n = parseFloat(String(v ?? '').replace('px', ''));
   return Number.isFinite(n) ? n : null;
 };
-const close = (a, b, tol) => a != null && b != null && Math.abs(a - b) <= tol;
+// Size measurements are rounded to CSS pixels in the reader. A delta strictly
+// below the configured tolerance is accepted; a full 2px delta remains visible
+// as a mismatch (e.g. 30px vs 28px with the default tolerance).
+const close = (a, b, tol, exclusive = false) => a != null && b != null
+  && (exclusive ? Math.abs(a - b) < tol : Math.abs(a - b) <= tol);
 
 const SIZE_PROPERTIES = new Set(['fontSize', 'lineHeight', 'borderRadius', 'letterSpacing', 'width', 'height']);
 
@@ -116,7 +120,7 @@ export function compareProps(expected, actual, tolerances = {}) {
   for (const [k, want] of Object.entries(expected)) {
     const got = actual[k];
     let ok;
-    if (typeof want === 'number') ok = close(got, want, SIZE_PROPERTIES.has(k) ? sizePx : px);
+    if (typeof want === 'number') ok = close(got, want, SIZE_PROPERTIES.has(k) ? sizePx : px, SIZE_PROPERTIES.has(k));
     else ok = String(got ?? '').toLowerCase() === String(want).toLowerCase();
     const unit = ['fontSize', 'lineHeight', 'borderRadius', 'letterSpacing', 'width', 'height'].includes(k) ? 'px' : '';
     const shownWant = typeof want === 'number' ? `${want}${unit}` : want;

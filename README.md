@@ -111,7 +111,7 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 
 `block-style-spec` 画像中若只有 `recordOnly` 库存项，会按 `record` 输出这些待人工建立前台映射的能力，并继续执行通用视口布局检查。不要把设置库存标签当作前台 DOM 选择器。
 
-需要诊断写入色是否只出现在 CSS 源文件而未进入实例计算样式时，可在 Mac 上运行 `scripts/front-style-only.mjs` 时加 `--include-stylesheets 1`。它会额外读取链接样式表、内联样式和 CSS 变量；这类命中只记 `record`，不会覆盖目标实例元素扫描的失败。尺寸按默认 ±2px 比较，可在画像 `styleSpec.tolerances.sizePx` 调整；颜色仍按精确归一化值比较。分页样式项声明 `scope.containerKind: "pagination"` 后，只在实例内语义分页容器中查找候选元素。
+写入色检查统一扫描目标实例内的计算样式（含 `::before`/`::after`、SVG paint、outline、shadow、gradient）和链接/内联 CSS。JSON 结果只有三种颜色结论：`found-on-element` 为通过；`instance-scoped-css-only` 表示目标实例有匹配 CSS 规则但渲染样式未命中（`record`，带机器诊断中的规则选择器和属性，绝不算通过）；`absent` 为失败（已保存的颜色未在前台呈现）。颜色识别支持 rgb/rgba、3/6/8 位 hex、hsl/hsla。可用 `--include-stylesheets 0` 关闭样式表读取。可选 `--exercise-states 1` 会在扫描前对实例内交互元素做 hover/focus，并临时展开再还原原本关闭的 `<details>`；不点击链接/按钮，不导航，不改设置，报告记录哪种状态首次显出颜色。前台 `checks[]` 按 id 去重，冲突时保留更保守的 fail/error。尺寸比较默认严格小于 2px 的差值才通过，因此 30px 对 28px 仍为 fail；可在画像 `styleSpec.tolerances.sizePx` 调整。颜色仍按精确归一化值比较。分页样式项声明 `scope.containerKind: "pagination"` 后，只在实例内语义分页容器中查找候选元素。
 
 ## 安全和恢复的底线
 

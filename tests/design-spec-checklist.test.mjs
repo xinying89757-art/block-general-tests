@@ -179,7 +179,8 @@ test('written 区块配色 checks use only report current values and accept any 
   const page = { evaluate: async () => ({ rootCount: 1, styles: ++calls === 1
     ? [{ color: 'rgb(18,52,86)', backgroundColor: 'rgba(0,0,0,0)', borderColor: 'rgba(0,0,0,0)' }]
     : [{ color: 'rgb(0,0,0)', backgroundColor: 'rgba(0,0,0,0)', borderColor: 'rgba(0,0,0,0)' }] }) };
-  const checks = await runWrittenColorFrontChecks({ page, rootSelector: '[data-instance="target"]', settingsReport });
+  const checks = await runWrittenColorFrontChecks({ page, rootSelector: '[data-instance="target"]', settingsReport,
+    includeStylesheets: false });
   assert.deepEqual(checks.map((item) => item.status), ['pass', 'fail']);
   assert.equal(checks[0].reason.expectedSource, 'run-report.currentValues');
   const unavailable = await runWrittenColorFrontChecks({ page: null, rootSelector: null, settingsReport });

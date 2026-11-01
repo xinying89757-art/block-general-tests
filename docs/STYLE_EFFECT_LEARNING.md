@@ -86,17 +86,23 @@ failed setting result (`palette-write-readback-mismatch`); a visible swatch is
 not used as a substitute for that input readback. The later saved-value check
 remains a separate persistence assertion.
 
-On a Mac/front run, `scripts/front-style-only.mjs --include-stylesheets 1`
-optionally searches external linked stylesheets, inline `<style>` blocks,
-inline style attributes, and computed CSS custom properties for the run's
-written palette colors. It recognizes rgb/rgba, hex, and hsl/hsla forms with
-valid alpha from 0 through 1. A stylesheet-only occurrence is emitted as a
-`record` row (`written-color-stylesheet-only-match`); it never converts a
-missing computed-style match inside the exact instance into a pass. The
-default element scan remains the pass/fail oracle.
+On a Mac/front run, `scripts/front-style-only.mjs` searches external linked
+stylesheets, inline `<style>` blocks, and the target instance's inline style
+attributes for the run's written palette colors by default. It recognizes
+rgb/rgba, 3/6/8-digit hex, and hsl/hsla forms with alpha in [0, 1]. One unified
+result classifies a computed-style match as `found-on-element` (pass), a
+matching instance-scoped CSS rule without a rendered match as
+`instance-scoped-css-only` (record, never pass), or no match as `absent` (fail).
+The CSS-only result records selectors and properties in machine-readable JSON;
+it never substitutes for the computed-style oracle. Use `--include-stylesheets
+0` to disable CSS source inspection. `--exercise-states 1` optionally hovers and
+focuses generic interactive descendants, temporarily opening and restoring
+closed `<details>` elements, and records the state that first revealed a color.
 
-Front style dimensions use a default ±2 CSS-pixel tolerance, configurable per
-profile as `styleSpec.tolerances.sizePx`; other numeric measurements use
+Front style dimensions use a default 2 CSS-pixel tolerance with an exclusive
+boundary, configurable per
+profile as `styleSpec.tolerances.sizePx`; the boundary is exclusive, so a full
+2px difference (30px vs 28px) remains a mismatch. Other numeric measurements use
 `styleSpec.tolerances.px` (default 0.6). Color comparisons remain exact after
 normalization. A style item may declare `scope.containerKind: "pagination"`;
 its selector is then resolved only under the innermost semantic pagination

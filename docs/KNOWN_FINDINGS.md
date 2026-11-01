@@ -48,3 +48,20 @@ are confirmed; whether the published page's external CSS contains or applies
 them remains unresolved until the optional stylesheet search is run on the
 Mac. Stylesheet-only text matches are diagnostic records, not a passing
 computed-style assertion.
+
+## Front findings from the 2026-11-01 Mac rerun
+
+- At a 375px viewport, the Products document measured 505px wide and product
+  cards overflowed the viewport. Keep the mobile overflow assertion as a real
+  finding; this is page-level evidence and should be rechecked before filing.
+- For block 47748, the non-current pagination item rendered `#4d4f53` where the
+  design spec expects `#898989`. Keep this as a design mismatch; do not infer a
+  palette-control or selector defect from it.
+- For block 47498, the second and third saved palette colors
+  (`rgb(13, 13, 10)` and `rgb(17, 13, 9)`) were not found on the public front
+  instance in the Mac scan. The editor controls and canvas read them back, so
+  this is recorded as “saved but not on front”; the available evidence does
+  not identify whether the cause is publication, external CSS, or block scope.
+- The 47748 pagination size comparison uses the shared size tolerance. A 30px
+  measurement against 28px expected is exactly at the configured boundary and
+  remains a fail; record the actual measurement rather than rounding it away.
