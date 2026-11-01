@@ -250,9 +250,10 @@ function cssColorDeclarations(cssText, expected) {
       if (colon < 1) continue;
       const property = declaration.slice(0, colon).trim().toLowerCase();
       const value = declaration.slice(colon + 1).replace(/!important\s*$/i, '').trim();
-      if (cssColors(value).some((candidate) => opaqueColorKey(candidate) === expectedKey)) properties.push(property);
+      const colors = cssColors(value).filter((candidate) => opaqueColorKey(candidate) === expectedKey);
+      if (colors.length) properties.push({ property, value: colors[0] });
     }
-    if (properties.length) matches.push({ selector, selectors: splitCssSelectorList(selector), properties: [...new Set(properties)] });
+    if (properties.length) matches.push({ selector, selectors: splitCssSelectorList(selector), declarations: properties });
   }
   return matches;
 }
@@ -276,55 +277,112 @@ function splitCssSelectorList(selectorList) {
   return selectors.filter(Boolean);
 }
 
-async function scopedCssMatches(page, rootSelector, declarations, { blockId, settingId } = {}) {
+export function sanitizeStylesheetUrl(input) {
+  try {
+    const url = new URL(input);
+    url.username = '';
+    url.password = '';
+    url.search = '';
+    url.hash = '';
+    return url.href;
+  } catch { return '[invalid-stylesheet-url]'; }
+}
+
+function importUrls(cssText, baseUrl) {
+  const urls = [];
+  for (const match of String(cssText || '').matchAll(/@import\s+(?:url\(\s*)?(?:['"]([^'"]+)['"]|([^\s;)]+))\s*\)?[^;]*;/gi)) {
+    try { urls.push(new URL(match[1] || match[2], baseUrl).href); } catch {}
+  }
+  return urls;
+}
+
+function stylesheetUrlAttempts(input) {
+  try {
+    const original = new URL(input);
+    const urls = [original.href];
+    if (original.protocol === 'https:') { const http = new URL(original.href); http.protocol = 'http:'; urls.push(http.href); }
+    return [...new Set(urls)];
+  } catch { return []; }
+}
+
+function safeStylesheetFailure(error) {
+  return String(error?.message || error || 'stylesheet-fetch-failed')
+    .replace(/https?:\/\/[^\s)'"<>]+/gi, (url) => sanitizeStylesheetUrl(url))
+    .replace(/\b(cookie|authorization|password|token|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
+    .slice(0, 180);
+}
+
+async function readStylesheetText({ page, href, fetchStylesheet, fetchNode = null }) {
+  const attempts = [];
+  const urls = stylesheetUrlAttempts(href);
+  const contextRequest = page.context?.()?.request || page.request;
+  for (const url of urls) {
+    if (fetchStylesheet) {
+      try { return { text: await fetchStylesheet(url), attempts, fetchedUrl: url }; }
+      catch (error) { attempts.push({ method: 'injected-fetch', url: sanitizeStylesheetUrl(url), reason: safeStylesheetFailure(error) }); }
+    } else if (contextRequest?.get) {
+      try {
+        const response = await contextRequest.get(url, { timeout: 15000 });
+        if (!response.ok()) throw new Error(`http-${response.status()}`);
+        return { text: await response.text(), attempts, fetchedUrl: url };
+      } catch (error) { attempts.push({ method: 'page-context-request', url: sanitizeStylesheetUrl(url), reason: safeStylesheetFailure(error) }); }
+    } else attempts.push({ method: 'page-context-request', url: sanitizeStylesheetUrl(url), reason: 'request-api-unavailable' });
+  }
+  for (const url of urls) {
+    try {
+      const nodeRequest = fetchNode || fetch;
+      if (typeof nodeRequest !== 'function') throw new Error('node-fetch-unavailable');
+      const response = await nodeRequest(url, { signal: AbortSignal.timeout(15000) });
+      if (!response.ok) throw new Error(`http-${response.status}`);
+      const text = typeof response.text === 'function' ? await response.text() : String(response.text ?? '');
+      return { text, attempts, fetchedUrl: url };
+    } catch (error) { attempts.push({ method: 'node-fetch', url: sanitizeStylesheetUrl(url), reason: safeStylesheetFailure(error) }); }
+  }
+  return { text: '', attempts, unavailable: true };
+}
+
+async function scopedCssMatches(page, rootSelector, declarations) {
   if (!declarations.length) return [];
-  return page.evaluate(({ rootSelector, declarations, blockId, settingId }) => {
+  return page.evaluate(({ rootSelector, declarations }) => {
     const root = document.querySelector(rootSelector);
     if (!root) return [];
-    const rootClasses = [...root.classList];
-    const identities = [...new Set([root.id, settingId, `siteblocks-setting-wrap-${settingId}`,
-      ...rootClasses.filter((name) => blockId && name.includes(String(blockId))), ...rootClasses].filter(Boolean))];
-    const hasIdentity = (selector) => identities.some((identity) =>
-      selector.includes(`#${identity}`) || selector.includes(`.${identity}`)
-      || selector.includes(`="${identity}"`) || selector.includes(`='${identity}'`));
     return declarations.flatMap((declaration) => {
       const matchedSelectors = declaration.selectors.filter((selector) => {
         const base = selector.replace(/::(?:before|after|marker|placeholder)\b/g, '')
           .replace(/:(?:hover|focus|focus-visible|active|checked|open)\b/g, '');
         try {
           if (root.matches(base) || root.querySelector(base)) return true;
-          if (!hasIdentity(base)) return false;
-          const identityMatches = identities.map((identity) => ({ identity, tokenIndex: Math.max(
-            base.indexOf(`.${identity}`), base.indexOf(`#${identity}`), base.indexOf(`="${identity}"`), base.indexOf(`='${identity}'`)) }))
-            .filter((item) => item.tokenIndex >= 0).sort((a, b) => b.tokenIndex - a.tokenIndex);
-          for (const item of identityMatches) {
-            const token = base.slice(item.tokenIndex).match(/^(?:\.[\w-]+|#[\w-]+|=["'][^"']+["'])/);
-            if (!token) continue;
-            let tail = base.slice(item.tokenIndex + token[0].length).replace(/^\s*[>+~]?\s*/, '').trim();
-            if (!tail) return true;
-            try { if (root.querySelector(tail)) return true; } catch {}
-          }
-          return false;
+          // Rules often use a framework wrapper class outside the settingId
+          // root (and that class need not contain the block number). Match the
+          // selector globally, then require the actual matched element to be
+          // the selected instance root or one of its descendants.
+          return [...document.querySelectorAll(base)].some((element) => element === root || root.contains(element));
         } catch { return false; }
       });
       return matchedSelectors.length ? [{ ...declaration, matchedSelectors }] : [];
     });
-  }, { rootSelector, declarations, blockId: String(blockId || ''), settingId: String(settingId || '') });
+  }, { rootSelector, declarations });
 }
 
-async function scanWrittenColorStylesheets({ page, rootSelector, settingsReport, fetchStylesheet } = {}) {
+export async function scanWrittenColorStylesheets({ page, rootSelector, settingsReport, fetchStylesheet, fetchNode } = {}) {
   const values = extractWrittenColorValues(settingsReport);
-  if (!page || !rootSelector || !values.length) return { evidenceById: {}, sheetCount: 0, ruleCount: 0, fetchFailureCount: 0 };
+  if (!page || !rootSelector || !values.length) return { evidenceById: {}, sheetCount: 0, ruleCount: 0, fetchFailureCount: 0,
+    fetchFailures: [], unreadableSheets: [] };
   const inventory = await page.evaluate(({ rootSelector }) => {
     const links = [...document.querySelectorAll('link[rel~="stylesheet"][href]')].map((item) => item.href);
+    const preloads = [...document.querySelectorAll('link[rel~="preload"][as="style"][href]')].map((item) => item.href);
     const inline = [...document.querySelectorAll('style')].map((item) => item.textContent || '');
     const linkRules = [];
-    let crossOriginUnreadableCount = 0;
+    const unreadableSheets = [];
     for (const sheet of [...document.styleSheets]) {
       const href = sheet.href;
       if (!href) continue;
-      try { linkRules.push({ href, text: [...sheet.cssRules].map((rule) => rule.cssText).join('\n') }); }
-      catch { crossOriginUnreadableCount += 1; }
+      try {
+        const rules = [...sheet.cssRules];
+        const collect = (items) => items.flatMap((rule) => [rule.cssText,
+          ...(rule.styleSheet ? collect(rule.styleSheet.cssRules) : [])]);
+        linkRules.push({ href, text: collect(rules).join('\n') });
+      } catch (error) { unreadableSheets.push({ href, reason: error?.name || 'cssom-unreadable' }); }
     }
     const inlineRules = [];
     const target = document.querySelector(rootSelector);
@@ -341,41 +399,77 @@ async function scanWrittenColorStylesheets({ page, rootSelector, settingsReport,
       const style = item.getAttribute('style');
       if (style) inlineRules.push({ selector: relativePath(item), text: style });
     }
-    return { links, inline, inlineRules, linkRules, crossOriginUnreadableCount };
+    return { links, preloads, inline, inlineRules, linkRules, unreadableSheets, baseUrl: location.href };
   }, { rootSelector });
-  const sheets = [...inventory.inline.map((text, index) => ({ source: `inline-${index}`, text }))];
+  const sheets = [...inventory.inline.map((text, index) => ({ source: `inline-${index}`, url: inventory.baseUrl, text }))];
   for (const [index, item] of (inventory.inlineRules || []).entries())
-    sheets.push({ source: `inline-attr-${index}`, text: `${item.selector}{${item.text}}` });
+    sheets.push({ source: `inline-attr-${index}`, url: inventory.baseUrl, text: `${item.selector}{${item.text}}` });
   const alreadyRead = new Map((inventory.linkRules || []).map((item) => [item.href, item.text]));
-  for (const [index, href] of inventory.links.entries()) {
-    if (alreadyRead.has(href)) { sheets.push({ source: `linked-${index}`, text: alreadyRead.get(href) }); continue; }
-    try {
-      const request = page.context?.()?.request || page.request;
-      if (!fetchStylesheet && !request?.get) throw new Error('stylesheet-fetch-unavailable');
-      const text = fetchStylesheet ? await fetchStylesheet(href) : await (async () => {
-        const response = await request.get(href, { timeout: 20000 });
-        if (!response.ok()) throw new Error(`stylesheet-http-${response.status()}`);
-        return response.text();
-      })();
-      sheets.push({ source: `linked-${index}`, text });
-    } catch {
-      sheets.push({ source: `linked-${index}`, text: '', unavailable: true });
+  const discovered = new Set([...(inventory.links || []), ...(inventory.preloads || []), ...alreadyRead.keys(),
+    ...(inventory.unreadableSheets || []).map((sheet) => sheet.href)]);
+  const imported = new Set();
+  for (const text of inventory.inline || []) importUrls(text, inventory.baseUrl).forEach((url) => { discovered.add(url); imported.add(url); });
+  for (const [href, text] of alreadyRead) importUrls(text, href).forEach((url) => { discovered.add(url); imported.add(url); });
+  const fetchFailures = [];
+  const unreadableSheets = (inventory.unreadableSheets || []).map((sheet) => ({
+    url: sanitizeStylesheetUrl(sheet.href), reason: sheet.reason,
+  }));
+  const visited = new Set();
+  const queue = [...discovered];
+  let fetchedIndex = 0;
+  while (queue.length && visited.size < 200) {
+    const href = queue.shift();
+    if (visited.has(href)) continue;
+    visited.add(href);
+    const source = `external-${fetchedIndex++}`;
+    let text;
+    let fetchedUrl = href;
+    if (alreadyRead.has(href)) text = alreadyRead.get(href);
+    else {
+      const fetched = await readStylesheetText({ page, href, fetchStylesheet, fetchNode });
+      text = fetched.text;
+      fetchedUrl = fetched.fetchedUrl || href;
+      if (fetched.unavailable) fetchFailures.push({ url: sanitizeStylesheetUrl(href), reason: 'all-fetch-attempts-failed', attempts: fetched.attempts });
+      else if (fetched.attempts.length) {
+        // Keep recovery attempts as diagnostics even if a later transport worked.
+        fetchFailures.push({ url: sanitizeStylesheetUrl(href), recovered: true, attempts: fetched.attempts });
+      }
+    }
+    const url = sanitizeStylesheetUrl(href);
+    sheets.push({ source, url, fetchedUrl: sanitizeStylesheetUrl(fetchedUrl), text });
+    for (const importUrl of importUrls(text, href)) {
+      imported.add(importUrl);
+      if (!visited.has(importUrl)) queue.push(importUrl);
     }
   }
   const evidenceById = {};
+  const externalSheets = sheets.filter((sheet) => sheet.source.startsWith('external-'));
+  const inlineStyleSheets = sheets.filter((sheet) => sheet.source.startsWith('inline-') && !sheet.source.startsWith('inline-attr-'));
+  const inlineAttributeSheets = sheets.filter((sheet) => sheet.source.startsWith('inline-attr-'));
+  const externalRuleCount = externalSheets.reduce((sum, sheet) => sum + countCssRules(sheet.text), 0);
+  const inlineStyleRuleCount = inlineStyleSheets.reduce((sum, sheet) => sum + countCssRules(sheet.text), 0);
+  const inlineAttributeRuleCount = inlineAttributeSheets.reduce((sum, sheet) => sum + countCssRules(sheet.text), 0);
   for (const item of values) {
     const declarations = sheets.flatMap((sheet) => cssColorDeclarations(sheet.text, item.value)
-      .map((declaration) => ({ ...declaration, source: sheet.source })));
-    const scoped = await scopedCssMatches(page, rootSelector, declarations,
-      { blockId: settingsReport?.blockId, settingId: settingsReport?.block?.settingId });
-    evidenceById[item.id] = { sheetCount: sheets.length, ruleCount: sheets.reduce((sum, sheet) => sum + countCssRules(sheet.text), 0),
-      fetchFailureCount: sheets.filter((sheet) => sheet.unavailable).length,
-      cssRulesUnreadableCount: inventory.crossOriginUnreadableCount || 0,
-      matchCount: scoped.length, rules: scoped };
+      .map((declaration) => ({ ...declaration, source: sheet.source, sheetUrl: sheet.url, fetchedUrl: sheet.fetchedUrl })));
+    const scoped = await scopedCssMatches(page, rootSelector, declarations);
+    const serializedRules = scoped.map((rule) => ({ selector: rule.selector, matchedSelectors: rule.matchedSelectors,
+      declarations: rule.declarations, properties: rule.declarations.map((entry) => entry.property), source: rule.source,
+      sheetUrl: rule.sheetUrl, fetchedUrl: rule.fetchedUrl }));
+    evidenceById[item.id] = { sheetCount: externalSheets.length,
+      linkedStylesheetCount: (inventory.links || []).length, preloadStyleCount: (inventory.preloads || []).length,
+      importedStylesheetCount: imported.size,
+      inlineStyleTagCount: (inventory.inline || []).length, inlineAttributeCount: (inventory.inlineRules || []).length,
+      ruleCount: externalRuleCount, inlineStyleRuleCount, inlineAttributeRuleCount,
+      fetchFailureCount: fetchFailures.filter((failure) => !failure.recovered).length,
+      fetchFailures, unreadableSheetCount: unreadableSheets.length, unreadableSheets,
+      matchCount: scoped.length, rules: serializedRules };
   }
-  return { evidenceById, sheetCount: sheets.length,
-    ruleCount: sheets.reduce((sum, sheet) => sum + countCssRules(sheet.text), 0),
-    fetchFailureCount: sheets.filter((sheet) => sheet.unavailable).length };
+  return { evidenceById, sheetCount: externalSheets.length,
+    ruleCount: externalRuleCount, inlineStyleRuleCount, inlineAttributeRuleCount,
+    fetchFailureCount: fetchFailures.filter((failure) => !failure.recovered).length, fetchFailures, unreadableSheets,
+    linkedStylesheetCount: (inventory.links || []).length, preloadStyleCount: (inventory.preloads || []).length,
+    importedStylesheetCount: imported.size };
 }
 
 export async function runWrittenColorStylesheetSearch(options = {}) {
@@ -531,7 +625,7 @@ function writtenPaletteColorValues(settingsReport) {
 }
 
 export async function runWrittenColorFrontChecks({ page, rootSelector, settingsReport, includeStylesheets = true,
-  fetchStylesheet, stateExercise = false }) {
+  fetchStylesheet, fetchNode, stateExercise = false }) {
   const values = extractWrittenColorValues(settingsReport);
   if (!values.length) return [{ id: 'written-color-presence', name: '本次写入颜色前台回读', status: 'na',
     detail: '运行报告没有可验证的颜色设置当前值。', reason: { stage: 'front', code: 'no-written-color-values' } }];
@@ -546,34 +640,54 @@ export async function runWrittenColorFrontChecks({ page, rootSelector, settingsR
   // Fetch/parse linked CSS before assigning an absent verdict. Cross-origin
   // CSSOM failures are retried through the page context's request client.
   const stylesheetScan = includeStylesheets
-    ? await scanWrittenColorStylesheets({ page, rootSelector, settingsReport, fetchStylesheet })
-    : { evidenceById: {}, sheetCount: 0, ruleCount: 0, fetchFailureCount: 0 };
+    ? await scanWrittenColorStylesheets({ page, rootSelector, settingsReport, fetchStylesheet, fetchNode })
+    : { evidenceById: {}, sheetCount: 0, ruleCount: 0, fetchFailureCount: 0, fetchFailures: [], unreadableSheets: [] };
   for (const item of values) {
     const snapshot = await readInstanceColorSnapshot(page, rootSelector);
     const stateMatch = stateEvidence.revealed[item.id];
     const matches = countInstanceColorMatches(snapshot, item.value);
     const cssEvidence = stylesheetScan.evidenceById[item.id] || { sheetCount: stylesheetScan.sheetCount,
       ruleCount: stylesheetScan.ruleCount, fetchFailureCount: stylesheetScan.fetchFailureCount,
-      cssRulesUnreadableCount: 0, matchCount: 0, rules: [] };
+      unreadableSheetCount: stylesheetScan.unreadableSheets?.length || 0,
+      linkedStylesheetCount: stylesheetScan.linkedStylesheetCount || 0,
+      preloadStyleCount: stylesheetScan.preloadStyleCount || 0,
+      importedStylesheetCount: stylesheetScan.importedStylesheetCount || 0,
+      inlineStyleRuleCount: stylesheetScan.inlineStyleRuleCount || 0,
+      inlineAttributeRuleCount: stylesheetScan.inlineAttributeRuleCount || 0,
+      fetchFailures: stylesheetScan.fetchFailures || [], unreadableSheets: stylesheetScan.unreadableSheets || [],
+      matchCount: 0, rules: [] };
     const foundOnElement = snapshot.rootCount === 1 && (matches > 0 || Boolean(stateMatch));
     const cssOnly = !foundOnElement && cssEvidence.matchCount > 0;
-    const outcome = foundOnElement ? 'found-on-element' : cssOnly ? 'instance-scoped-css-only' : 'absent';
+    const stylesheetIncomplete = cssEvidence.fetchFailureCount > 0 || cssEvidence.unreadableSheetCount > 0;
+    const outcome = foundOnElement ? 'found-on-element' : cssOnly ? 'instance-scoped-css-only'
+      : stylesheetIncomplete ? 'inconclusive-stylesheet-unavailable' : 'absent';
     const actual = { rootCount: snapshot.rootCount, elementCount: snapshot.styles.length,
       matches: matches || stateMatch?.matches || 0,
       stylesheetEvidence: { sheetCount: cssEvidence.sheetCount, ruleCount: cssEvidence.ruleCount,
         fetchFailureCount: cssEvidence.fetchFailureCount, matchCount: cssEvidence.matchCount,
-        ...(cssEvidence.cssRulesUnreadableCount ? { cssRulesUnreadableCount: cssEvidence.cssRulesUnreadableCount } : {}),
+        unreadableSheetCount: cssEvidence.unreadableSheetCount,
+        linkedStylesheetCount: cssEvidence.linkedStylesheetCount || 0,
+        preloadStyleCount: cssEvidence.preloadStyleCount || 0,
+        importedStylesheetCount: cssEvidence.importedStylesheetCount || 0,
+        inlineStyleRuleCount: cssEvidence.inlineStyleRuleCount || 0,
+        inlineAttributeRuleCount: cssEvidence.inlineAttributeRuleCount || 0,
+        inlineStyleTagCount: cssEvidence.inlineStyleTagCount || 0,
+        inlineAttributeCount: cssEvidence.inlineAttributeCount || 0,
+        fetchFailures: cssEvidence.fetchFailures || [], unreadableSheets: cssEvidence.unreadableSheets || [],
         ...(cssEvidence.matchCount ? { rules: cssEvidence.rules } : {}) },
       stateExercise: { enabled: Boolean(stateExercise), states: stateEvidence.states,
         candidateCount: stateEvidence.candidateCount, disclosureCount: stateEvidence.disclosureCount,
+        exerciseCounts: stateEvidence.exerciseCounts || { toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
+          tabsSelected: 0, detailsCandidates: stateEvidence.disclosureCount || 0, detailsOpened: 0 },
         revealedBy: stateMatch?.state || null,
         ...(stateEvidence.error ? { error: stateEvidence.error } : {}) } };
     checks.push({ id: item.id, name: '本次写入颜色前台回读', status: outcome === 'found-on-element' ? 'pass'
-      : outcome === 'instance-scoped-css-only' ? 'record' : 'fail',
+      : ['instance-scoped-css-only', 'inconclusive-stylesheet-unavailable'].includes(outcome) ? 'record' : 'fail',
       classification: outcome, expected: item.value, actual,
       detail: outcome === 'found-on-element' ? '目标区块内存在呈现本次写入颜色的元素。'
         : outcome === 'instance-scoped-css-only' ? '已保存的颜色只出现在目标实例相关 CSS 规则中，未在计算样式中呈现。'
-          : '已保存的颜色未在目标实例前台呈现。',
+          : outcome === 'inconclusive-stylesheet-unavailable' ? '样式表未能完整读取，颜色结果无法判为 absent。'
+            : '已保存的颜色未在目标实例前台呈现。',
       reason: { stage: 'front', code: outcome,
         expectedSource: 'run-report.currentValues', controlIndex: item.controlIndex,
         propertiesChecked: ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'outlineColor', 'boxShadow',
@@ -589,6 +703,8 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
   const count = Math.min(await candidates.count(), maxElements);
   const revealed = {};
   const states = new Set();
+  const exerciseCounts = { toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0, tabsSelected: 0,
+    detailsCandidates: 0, detailsOpened: 0 };
   const scan = async (state) => {
     const snapshot = await readInstanceColorSnapshot(page, rootSelector);
     for (const value of values) {
@@ -611,8 +727,55 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
     } catch {}
     try { await page.mouse?.move(0, 0); } catch {}
   }
+
+  // Expand only controls whose semantics are explicit. Never click anchors,
+  // submit buttons, or arbitrary controls that could navigate or submit.
+  const stateControls = root.locator('[aria-expanded="false"],[aria-expanded="true"],[role="tab"]');
+  const stateCount = Math.min(await stateControls.count(), maxElements);
+  const selectedTabs = [];
+  for (let index = 0; index < stateCount; index += 1) {
+    const control = stateControls.nth(index);
+    let info;
+    try { info = await control.evaluate((element) => {
+      const tag = element.tagName.toLowerCase();
+      const role = element.getAttribute('role');
+      const type = element.getAttribute('type');
+      const insideForm = Boolean(element.closest('form'));
+      const isTab = role === 'tab';
+      const isDisclosure = element.getAttribute('aria-expanded') === 'false';
+      const isSafeButton = tag === 'button' && type !== 'submit' && type !== 'reset' && (!insideForm || type === 'button');
+      const isSafeRole = (['button', 'treeitem', 'menuitem'].includes(role) || isTab)
+        && tag !== 'a' && !element.hasAttribute('href') && !insideForm;
+      return { safe: isTab ? isSafeRole : isDisclosure && (isSafeButton || isSafeRole), isTab,
+        expanded: element.getAttribute('aria-expanded'), selected: element.getAttribute('aria-selected') };
+    }); } catch { continue; }
+    if (!info?.safe) continue;
+    if (info.isTab) {
+      exerciseCounts.tabCandidates += 1;
+      if (info.selected === 'true') selectedTabs.push(control);
+      try {
+        await control.click({ timeout: 1500 });
+        states.add('tab-selected'); exerciseCounts.tabsSelected += 1;
+        await scan('tab-selected');
+      } catch {}
+      continue;
+    }
+    exerciseCounts.toggleCandidates += 1;
+    try {
+      await control.click({ timeout: 1500 });
+      const expanded = await control.getAttribute('aria-expanded');
+      if (expanded === 'true') {
+        states.add('category-expanded'); exerciseCounts.togglesOpened += 1;
+        await scan('category-expanded');
+        await control.click({ timeout: 1500 });
+      }
+    } catch {}
+  }
+  for (const selected of selectedTabs) try { await selected.click({ timeout: 1500 }); } catch {}
+
   const details = root.locator('details');
   const detailsCount = Math.min(await details.count(), maxElements);
+  exerciseCounts.detailsCandidates = detailsCount;
   for (let index = 0; index < detailsCount; index += 1) {
     const item = details.nth(index);
     try {
@@ -620,12 +783,13 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
       if (wasOpen) continue;
       await item.evaluate((element) => { element.open = true; });
       states.add('disclosure-open');
+      exerciseCounts.detailsOpened += 1;
       await scan('disclosure-open');
       await item.evaluate((element) => { element.open = false; });
     } catch { try { await item.evaluate((element) => { element.open = false; }); } catch {} }
   }
   try { await page.evaluate(() => document.activeElement?.blur?.()); } catch {}
-  return { states: [...states], candidateCount: count, disclosureCount: detailsCount, revealed };
+  return { states: [...states], candidateCount: count, disclosureCount: detailsCount, exerciseCounts, revealed };
 }
 
 export async function runDesignSpecEditorChecks(profile, inventory) {

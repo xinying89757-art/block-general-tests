@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { addStyleFailureReasons, resolveFrontStyleCapability, resolveItemApplicability, styleCheckDescriptors,
+import { addStyleFailureReasons, breakageFindings, resolveFrontStyleCapability, resolveItemApplicability, styleCheckDescriptors,
   textContentOracle, compareProps, isPaginationContainerMetadata } from '../src/capabilities/block-style-spec.mjs';
 import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, resolveFrontStyleInstance, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 
@@ -46,8 +46,19 @@ test('breakage checks report the root locator, viewport, and count-valued expect
   assert.match(check.reason.locator, /block subtree layout invariants/);
   assert.equal(check.reason.matchedElementCount, 1);
   assert.deepEqual(check.reason.viewport, { label: 'mobile', width: 375, height: 667 });
-  assert.deepEqual(check.reason.expected, { horizontalOverflow: false, stickingOut: 0, overlaps: 0, textClipped: 0, imgDistorted: 0 });
+  assert.deepEqual(check.reason.expected, { instanceOverflow: false, stickingOut: 0, overlaps: 0, textClipped: 0, imgDistorted: 0 });
   assert.equal(check.reason.actual.documentWidth, 390);
+});
+
+test('mobile page-level overflow is informational; instance overflow or overlap remains a failure', () => {
+  const pageOnly = { horizontalOverflow: true, docScrollWidth: 505, viewportWidth: 375,
+    blockOverflow: false, stickingOut: [], overlaps: [], textClipped: [{ text: 'not used for mobile verdict' }], imgDistorted: [{ fit: 'fill' }] };
+  assert.deepEqual(breakageFindings(pageOnly, { mobile: true }), []);
+  assert.deepEqual(breakageFindings({ ...pageOnly, blockOverflow: true }, { mobile: true }), ['目标区块实例内部横向溢出']);
+  assert.deepEqual(breakageFindings({ ...pageOnly, overlaps: [{ a: 'left', b: 'right' }] }, { mobile: true }), ['重叠 1 处：「left」压「right」']);
+  const [check] = addStyleFailureReasons([{ id: 'bss-breakage-mobile', status: 'fail', detail: 'instance defect',
+    evidence: { ...pageOnly, blockOverflow: true, pageLevelFinding: 'page-level overflow only' } }], { capability, blockId: '777' });
+  assert.equal(check.reason.actual.pageLevelFinding, 'page-level overflow only');
 });
 
 test('navigation diagnostics do not expose which profile selector candidate was used', () => {

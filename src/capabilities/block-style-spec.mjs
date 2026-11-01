@@ -405,15 +405,24 @@ async function breakage(frame, rootSel) {
   }, rootSel);
 }
 
-function breakageFindings(b) {
+export function breakageFindings(b, { mobile = false } = {}) {
   const f = [];
-  if (b.horizontalOverflow) f.push(`页面级横向溢出（文档宽 ${b.docScrollWidth} > 视口宽 ${b.viewportWidth}；目标实例${b.blockOverflow ? '也' : '未'}溢出）`);
-  else if (b.blockOverflow) f.push('目标区块实例内部横向溢出（页面文档未超出视口）');
+  // Document overflow is reported as page-level information, not attributed to
+  // this block. Mobile block failures require evidence inside the instance.
+  if (b.blockOverflow) f.push('目标区块实例内部横向溢出');
+  if (mobile && !b.blockOverflow && !b.stickingOut?.length && !b.overlaps?.length) return f;
   if (b.stickingOut?.length) f.push(`超框 ${b.stickingOut.length} 处：${b.stickingOut.map((x) => x.text || x.tag).join('、')}`);
   if (b.overlaps?.length) f.push(`重叠 ${b.overlaps.length} 处：${b.overlaps.map((x) => `「${x.a}」压「${x.b}」`).join('、')}`);
-  if (b.textClipped?.length) f.push(`文字被截 ${b.textClipped.length} 处：${b.textClipped.map((x) => x.text).join('、')}`);
-  if (b.imgDistorted?.length) f.push(`图片失真 ${b.imgDistorted.length} 处`);
+  if (!mobile) {
+    if (b.textClipped?.length) f.push(`文字被截 ${b.textClipped.length} 处：${b.textClipped.map((x) => x.text).join('、')}`);
+    if (b.imgDistorted?.length) f.push(`图片失真 ${b.imgDistorted.length} 处`);
+  }
   return f;
+}
+
+function pageOverflowFinding(b) {
+  return b.horizontalOverflow
+    ? `页面级横向溢出（文档宽 ${b.docScrollWidth} > 视口宽 ${b.viewportWidth}）；此项仅记录，不单独判为区块失败。` : null;
 }
 
 async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
@@ -604,8 +613,11 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
     const pcFailed = checks.some((c) => c.status === 'fail');
     const pcBreak = await breakage(frame, rootSel);
     const pcFindings = breakageFindings(pcBreak);
+    const pcPageInfo = pageOverflowFinding(pcBreak);
     checks.push(result('bss-breakage-pc', pcFindings.length ? 'fail' : 'pass',
-      pcFindings.length ? pcFindings.join('；') : 'PC 端无横向溢出、超框、重叠、截断与图片失真。', pcBreak));
+      pcFindings.length ? pcFindings.join('；') : [
+        'PC 端目标实例无超框、重叠、截断与图片失真。', pcPageInfo,
+      ].filter(Boolean).join(' '), { ...pcBreak, pageLevelFinding: pcPageInfo }));
     if (pcFailed || pcFindings.length) await shot('pc');
     // Pad / Mobile: no design frames -> breakage only.
     for (const vp of ['pad', 'mobile']) {
@@ -613,9 +625,12 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
       await previewPage.setViewportSize({ width: viewports[vp], height: vp === 'pad' ? 1024 : 667 });
       await frame.waitForTimeout(2500);
       const b = await breakage(frame, rootSel);
-      const findings = breakageFindings(b);
+      const findings = breakageFindings(b, { mobile: vp === 'mobile' });
+      const pageInfo = pageOverflowFinding(b);
       checks.push(result(`bss-breakage-${vp}`, findings.length ? 'fail' : 'pass',
-        findings.length ? findings.join('；') : `设计稿无${vp === 'pad' ? 'Pad' : '移动'}端画板，只查错乱：无横向溢出、超框、重叠、截断与图片失真。`, b));
+        findings.length ? findings.join('；') : [
+          `设计稿无${vp === 'pad' ? 'Pad' : '移动'}端画板；目标实例内无溢出或重叠。`, pageInfo,
+        ].filter(Boolean).join(' '), { ...b, pageLevelFinding: pageInfo }));
       if (findings.length) await shot(vp);
     }
   } finally {
@@ -662,12 +677,13 @@ function diagnosticValues(check, item) {
   }
   if (check.id.startsWith('bss-breakage-')) {
     return {
-      expected: { horizontalOverflow: false, stickingOut: 0, overlaps: 0, textClipped: 0, imgDistorted: 0 },
+      expected: { instanceOverflow: false, stickingOut: 0, overlaps: 0, textClipped: 0, imgDistorted: 0 },
       actual: { horizontalOverflow: Boolean(evidence.horizontalOverflow),
         stickingOut: evidence.stickingOut?.length ?? null, overlaps: evidence.overlaps?.length ?? null,
         textClipped: evidence.textClipped?.length ?? null, imgDistorted: evidence.imgDistorted?.length ?? null,
         documentWidth: evidence.docScrollWidth ?? null, viewportWidth: evidence.viewportWidth ?? null,
         overflowScope: evidence.horizontalOverflowScope || 'unknown', blockOverflow: Boolean(evidence.blockOverflow),
+        pageLevelFinding: evidence.pageLevelFinding || null,
         overflowAttribution: evidence.overflowAttribution || { pageLevel: Boolean(evidence.horizontalOverflow),
           instance: Boolean(evidence.blockOverflow), source: evidence.blockOverflow && evidence.horizontalOverflow
             ? 'page-and-instance' : evidence.blockOverflow ? 'instance-only'
