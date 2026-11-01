@@ -47,11 +47,14 @@ export function attachFrontStyleInstance(checks, settingId) {
 /** Final report boundary: dedupe the complete mixed check list, then recount its summary. */
 export function finalizeFrontStyleReport(report) {
   const checks = dedupeChecksById(report?.checks || []).map((check) => {
-    if (check.status !== 'na') return check;
+    if (!['na', 'fail'].includes(check.status)) return check;
     const reason = check.reason && typeof check.reason === 'object' && !Array.isArray(check.reason)
       ? { ...check.reason } : {};
     if (typeof reason.code !== 'string' || !reason.code.trim()) {
-      reason.machineReason = reason.code === undefined ? 'No machine reason was supplied.' : reason.code;
+      const original = reason.code;
+      reason.machineReason = original === undefined ? 'No machine reason was supplied.'
+        : original && typeof original === 'object' && typeof original.code === 'string' ? original.code
+          : typeof original === 'string' ? original : 'Non-string machine reason was normalized.';
       reason.code = 'na-reason-unavailable';
     }
     return { ...check, reason };
@@ -60,6 +63,13 @@ export function finalizeFrontStyleReport(report) {
   return { ...report, checks,
     summary: { pass: count('pass'), fail: count('fail'), na: count('na') + count('skip'),
       other: checks.length - count('pass') - count('fail') - count('na') - count('skip') } };
+}
+
+export function preservePartialFrontStyleReport(report, { stage, error } = {}) {
+  const safe = sanitizeFrontStyleError(error || new Error('Run interrupted.'));
+  return { ...report, partial: true, error: safe.message,
+    executionError: { stage: String(stage || 'unknown'), class: safe.class, message: safe.message },
+    checks: [...(report?.checks || [])] };
 }
 
 export function buildFrontStyleExecutionErrors({ capability, blockId, stage, error, viewport }) {

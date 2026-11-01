@@ -125,6 +125,19 @@ test('profile-local color scope override controls the functional scope name and 
   assert.equal(result.reason.mappingReason, 'Profile-confirmed functional mapping.');
 });
 
+test('overwritten palette scope does not compare against its stale design default', async () => {
+  const item = requirement({ id: 'button-scope', checkType: 'color-scope', sourceText: 'Button background',
+    expected: { value: '#1c4587' }, params: { styleCheckIds: ['button-bg'] } });
+  const report = { checks: [{ id: 'button-bg', status: 'pass', expected: '#1c4587', value: '#ff0000' }] };
+  const result = await checkDesignRequirementFront(item, { profile: profile([item]), frontChecks: [], settingsReport: report });
+  assert.equal(result.status, 'na');
+  assert.equal(result.reason.code, 'palette-scope-superseded-by-write');
+  const runValueCheck = await checkDesignRequirementFront(item, { profile: profile([item]), settingsReport: report,
+    frontChecks: [{ id: 'bss-button-bg', status: 'pass', expected: '#ff0000', actual: [{ backgroundColor: '#ff0000' }] }] });
+  assert.equal(runValueCheck.status, 'na');
+  assert.equal(runValueCheck.reason.code, 'palette-scope-superseded-by-write');
+});
+
 test('color normalization handles design opacity and CSS rgba consistently', () => {
   assert.equal(normalizeDesignColor('#044F9F @7%'), normalizeDesignColor('rgba(4, 79, 159, 0.07)'));
   assert.equal(normalizeDesignColor('#1c4587'), normalizeDesignColor('rgb(28, 69, 135)'));

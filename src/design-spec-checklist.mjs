@@ -684,7 +684,9 @@ async function readTypographyByFeatures(page, rootSelector, requirement, profile
     if (!selectors.length) nodes = [...root.querySelectorAll('*')].filter((node) => {
       const style = getComputedStyle(node), rect = node.getBoundingClientRect();
       if (!rect.width || !rect.height || style.display === 'none' || style.visibility === 'hidden') return false;
-      const text = [node.innerText, node.value, node.getAttribute('placeholder'), node.getAttribute('aria-label'), node.title]
+      const ownText = [...node.childNodes].filter((child) => child.nodeType === Node.TEXT_NODE)
+        .map((child) => child.textContent || '').join(' ').replace(/\s+/g, ' ').trim();
+      const text = [ownText, node.value, node.getAttribute('placeholder'), node.getAttribute('aria-label'), node.title]
         .filter(Boolean).join(' ').toLowerCase().replace(/\s+/g, ' ').trim();
       const textMatch = tokens.some((token) => text.includes(token));
       const roleMatch = params.role && (node.getAttribute('role') === params.role || node.tagName.toLowerCase() === params.role);
@@ -696,8 +698,10 @@ async function readTypographyByFeatures(page, rootSelector, requirement, profile
     return [...new Set(nodes)].filter((node) => {
       const rect = node.getBoundingClientRect(), style = getComputedStyle(node);
       return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-    }).slice(0, 100).map((node) => ({
-      label: String(node.innerText || node.value || node.getAttribute('aria-label') || node.title || '').trim().slice(0, 80),
+    }).sort((a, b) => a.querySelectorAll('*').length - b.querySelectorAll('*').length).slice(0, 1).map((node) => ({
+      label: String([...node.childNodes].filter((child) => child.nodeType === Node.TEXT_NODE)
+        .map((child) => child.textContent || '').join(' ').trim() || node.value
+        || node.getAttribute('aria-label') || node.title || '').trim().slice(0, 80),
       role: node.getAttribute('role') || node.tagName.toLowerCase(),
       fontSize: getComputedStyle(node).fontSize,
       fontWeight: getComputedStyle(node).fontWeight,
@@ -752,12 +756,26 @@ async function checkImageRatio(requirement, page, rootSelector) {
     if (!root) return { rootFound: false, images: [] };
     let images = [];
     for (const selector of selectorCandidates) { try { images.push(...root.querySelectorAll(selector)); } catch {} }
-    if (!selectorCandidates.length) images = [...root.querySelectorAll('img')];
-    return { rootFound: true, images: [...new Set(images)].filter((img) => {
-      const r = img.getBoundingClientRect(); return r.width > 0 && r.height > 0 && img.complete && img.naturalWidth > 0;
-    }).map((img) => { const r = img.getBoundingClientRect(), s = getComputedStyle(img); return {
-      ratio: r.width / r.height, objectPosition: s.objectPosition, centered: /center/i.test(s.objectPosition),
-    }; }) };
+    if (!selectorCandidates.length) images = [...root.querySelectorAll('img,picture,*')];
+    const candidates = [...new Set(images.flatMap((node) => node.tagName?.toLowerCase() === 'picture'
+      ? [node, ...node.querySelectorAll('img')] : [node]))];
+    return { rootFound: true, images: candidates.flatMap((node) => {
+      const r = node.getBoundingClientRect(), s = getComputedStyle(node);
+      const tag = node.tagName?.toLowerCase();
+      const img = tag === 'picture' ? node.querySelector('img') : tag === 'img' ? node : null;
+      const lazySource = img?.getAttribute('data-src') || img?.getAttribute('data-srcset')
+        || img?.getAttribute('srcset') || img?.getAttribute('src') || img?.currentSrc || null;
+      const hasBackground = Boolean(s.backgroundImage && s.backgroundImage !== 'none');
+      const visible = r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'
+        && Number(s.opacity || 1) > 0;
+      const hasImage = tag === 'picture' || (tag === 'img' && (img.complete && img.naturalWidth > 0
+        || Boolean(lazySource))) || hasBackground;
+      if (!visible || !hasImage) return [];
+      const width = img?.naturalWidth || r.width, height = img?.naturalHeight || r.height;
+      return [{ ratio: width / height, objectPosition: s.objectPosition, centered: /center/i.test(s.objectPosition),
+        sourceKind: tag === 'picture' ? 'picture' : tag === 'img' ? 'img' : 'background-image',
+        hasLazySource: Boolean(lazySource), hasBackgroundImage: hasBackground }];
+    }) };
   }, { rootSelector, selectorCandidates });
   if (!actual.rootFound || !actual.images.length) return requirementResult(requirement, 'na', requirement.expected, actual,
     'image-ratio-elements-unresolved', '实例中没有可测量的图片，需人工复核。');
@@ -853,6 +871,11 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
   if (requirement.checkType === 'color-scope' || requirement.checkType === 'typography') {
     const scopeOverride = requirement.checkType === 'color-scope' ? scopeOverrideFor(profile?.designSpec, requirement.id) : null;
     let mapped = mappedFrontCheck(requirement, frontChecks);
+    if (requirement.checkType === 'color-scope' && paletteScopeWasOverwritten(requirement, settingsReport)) return checkResult(requirement, 'na', {
+      detail: '本次运行改写了该配色；本项设计默认范围已被本次写入覆盖。',
+      reason: { code: 'palette-scope-superseded-by-write', expectedSource: 'run-report.checks.value',
+        mappedCheckIds: requirement.params?.styleCheckIds || [], writtenCheckStatus: mapped?.status || 'unmapped' },
+    });
     const mappedHasTypography = mapped?.actual?.some?.((row) => TYPOGRAPHY_PROPERTIES.some((property) => row?.[property] != null));
     if (requirement.checkType === 'typography' && (!mapped || mapped.status === 'na' || !mappedHasTypography) && page && rootSelector) {
       const observations = await readTypographyByFeatures(page, rootSelector, requirement, profile).catch(() => []);
@@ -910,6 +933,16 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
   if (requirement.checkType === 'mobile-layout') return checkMobileLayout(requirement, page, rootSelector);
   return checkResult(requirement, 'na', { detail: '该检查类型尚无安全的自动化 oracle。',
     reason: { code: 'unsupported-requirement-human-review', checkType: requirement.checkType, humanReviewRequired: true } });
+}
+
+function paletteScopeWasOverwritten(requirement, report) {
+  const ids = new Set((requirement.params?.styleCheckIds || (requirement.params?.styleCheckId
+    ? [requirement.params.styleCheckId] : [])).flatMap((id) => [String(id), `bss-${id}`]));
+  const defaults = [requirement.expected?.value, requirement.expected?.color].map(normalizeDesignColor).filter(Boolean);
+  return (report?.checks || []).some((check) => ids.has(String(check.id)) && ['pass', 'fail'].includes(check.status)
+    && normalizeDesignColor(check.value) && normalizeDesignColor(check.expected)
+    && normalizeDesignColor(check.value) !== normalizeDesignColor(check.expected)
+    && (!defaults.length || defaults.includes(normalizeDesignColor(check.expected))));
 }
 
 export function extractWrittenColorValues(settingsReport) {
@@ -975,7 +1008,8 @@ export async function runWrittenColorFrontChecks(options = {}) {
 }
 
 async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsReport, includeStylesheets = true,
-  fetchStylesheet, fetchNode, stateExercise = false }) {
+  fetchStylesheet, fetchNode, stateExercise = false, stateActionTimeoutMs = 1500, stateOverallTimeoutMs = 45000,
+  onProgress }) {
   const values = extractWrittenColorValues(settingsReport);
   if (!values.length) return [{ id: 'written-color-presence', name: '本次写入颜色前台回读', status: 'na',
     detail: '运行报告没有可验证的颜色设置当前值。', reason: { stage: 'front', code: 'no-written-color-values' } }];
@@ -986,7 +1020,8 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
   const emptyExerciseCounts = { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
     tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 };
   const stateEvidence = stateExercise
-    ? await exerciseWrittenColorStates(page, rootSelector, values).catch((error) => ({ states: [], candidateCount: 0,
+    ? await exerciseWrittenColorStates(page, rootSelector, values, { actionTimeoutMs: stateActionTimeoutMs,
+      overallTimeoutMs: stateOverallTimeoutMs }).catch((error) => ({ states: [], candidateCount: 0,
       disclosureCount: 0, exerciseCounts: emptyExerciseCounts, revealed: {}, error: { class: error?.name || 'Error', code: 'state-exercise-unavailable' } }))
     : { states: [], candidateCount: 0, disclosureCount: 0, exerciseCounts: emptyExerciseCounts, revealed: {} };
   // Fetch/parse linked CSS before assigning an absent verdict. Cross-origin
@@ -995,6 +1030,7 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
     ? await scanWrittenColorStylesheets({ page, rootSelector, settingsReport, fetchStylesheet, fetchNode })
     : { evidenceById: {}, sheetCount: 0, ruleCount: 0, fetchFailureCount: 0, fetchFailures: [], unreadableSheets: [] };
   for (const item of values) {
+    onProgress?.(`written-color-check-start id=${item.id}`);
     const snapshot = await readInstanceColorSnapshot(page, rootSelector);
     const stateMatch = stateEvidence.revealed[item.id];
     const matches = countInstanceColorMatches(snapshot, item.value);
@@ -1036,6 +1072,7 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
         recoveredFetches: cssEvidence.recoveredFetches || [], excludedSheets: cssEvidence.excludedSheets || [],
         ...(cssEvidence.matchCount ? { rules: cssEvidence.rules } : {}) },
       stateExercise: { enabled: Boolean(stateExercise), states: stateEvidence.states,
+        notExercised: stateEvidence.notExercised || [], timedOut: Boolean(stateEvidence.timedOut),
         candidateCount: stateEvidence.candidateCount, disclosureCount: stateEvidence.disclosureCount,
         exerciseCounts: stateEvidence.exerciseCounts || { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0,
           toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0, tabsSelected: 0,
@@ -1055,6 +1092,7 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
         propertiesChecked: ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'outlineColor', 'boxShadow',
           'backgroundImage', '::before', '::after'],
         ...(stateMatch ? { revealedByState: stateMatch.state } : {}) } });
+    onProgress?.(`written-color-check-complete id=${item.id} status=${checks.at(-1).status}`);
   }
   return checks;
 }
@@ -1065,55 +1103,107 @@ export function isSafeStateExerciseTarget(info = {}) {
     && Boolean(info.hasExplicitToggle || info.semantic || info.nativeButton || info.pointerAction || info.hasClickHandler);
 }
 
-export async function exerciseWrittenColorStates(page, rootSelector, values, { maxElements = 200 } = {}) {
+export async function exerciseWrittenColorStates(page, rootSelector, values, { maxElements = 200,
+  actionTimeoutMs = 1500, overallTimeoutMs = 45000 } = {}) {
+  let timer;
+  const control = { timedOut: null };
+  const work = exerciseWrittenColorStatesInner(page, rootSelector, values, { maxElements, actionTimeoutMs, control });
+  try {
+    return await Promise.race([work, new Promise((resolve) => { timer = setTimeout(() => {
+      control.timedOut = { action: 'overall-timeout', timeoutMs: overallTimeoutMs };
+      resolve({
+      states: [], candidateCount: 0, disclosureCount: 0,
+      exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
+        tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealed: {}, timedOut: true,
+      notExercised: [{ state: 'remaining-states', status: 'not-exercised', reason: {
+        code: 'state-exercise-overall-timeout', timeoutMs: overallTimeoutMs } }],
+    }); }, overallTimeoutMs); })]);
+  } catch (error) {
+    if (!error?.stateActionTimeout) throw error;
+    return { states: [], candidateCount: 0, disclosureCount: 0,
+      exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
+        tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealed: {}, timedOut: true,
+      notExercised: [{ state: 'remaining-states', status: 'not-exercised', reason: {
+        code: 'state-exercise-action-timeout', action: String(error.message || 'unknown').slice(0, 80),
+        timeoutMs: actionTimeoutMs } }] };
+  } finally { clearTimeout(timer); }
+}
+
+async function exerciseWrittenColorStatesInner(page, rootSelector, values, { maxElements = 200, actionTimeoutMs = 1500,
+  control = { timedOut: null } } = {}) {
+  let actionTimedOut = null;
+  const timedOut = () => actionTimedOut || control.timedOut;
+  const action = async (name, operation) => {
+    if (timedOut()) throw Object.assign(new Error(`State exercise stopped after timed out action: ${timedOut().action}`),
+      { stateActionTimeout: true });
+    let timer;
+    try { return await Promise.race([Promise.resolve().then(operation), new Promise((_, reject) => { timer = setTimeout(() => {
+      actionTimedOut = { action: name, timeoutMs: actionTimeoutMs };
+      control.timedOut = actionTimedOut;
+      reject(Object.assign(new Error(`State action timed out: ${name}`), { stateActionTimeout: true }));
+    }, actionTimeoutMs); })]); } finally { clearTimeout(timer); }
+  };
   const root = page.locator(rootSelector);
   const candidates = root.locator('*');
-  const count = Math.min(await candidates.count(), maxElements);
+  const count = Math.min(await action('count-elements', () => candidates.count()), maxElements);
   const revealed = {};
   const states = new Set();
   const exerciseCounts = { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
     tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 };
   const scan = async (state) => {
-    const snapshot = await readInstanceColorSnapshot(page, rootSelector);
+    const snapshot = await action(`scan-${state}`, () => readInstanceColorSnapshot(page, rootSelector));
     for (const value of values) {
       const matches = countInstanceColorMatches(snapshot, value.value);
       if (!revealed[value.id] && matches > 0) revealed[value.id] = { state, matches };
     }
   };
-  for (let index = 0; index < count; index += 1) {
+  for (let index = 0; index < count && !timedOut(); index += 1) {
     const candidate = candidates.nth(index);
-    try { await candidate.hover({ timeout: 1500 }); states.add('hover'); await scan('hover'); } catch {}
-    try { await candidate.focus({ timeout: 1500 }); states.add('focus'); await scan('focus'); } catch {}
+    let hoverEligible = true;
     try {
-      const tagName = await candidate.evaluate((element) => element.tagName);
+      const info = await action('inspect-hover-target', () => candidate.evaluate((element) => {
+        const tag = element.tagName?.toLowerCase();
+        const style = getComputedStyle(element);
+        return { tag, role: element.getAttribute('role'), pointer: style.cursor === 'pointer',
+          clickHandler: typeof element.onclick === 'function' || element.hasAttribute('onclick'),
+          tabIndex: element.tabIndex >= 0, explicit: element.hasAttribute('aria-expanded') || element.hasAttribute('aria-haspopup') };
+      }));
+      hoverEligible = !info || typeof info !== 'object' || ['a', 'button', 'select', 'summary'].includes(info.tag)
+        || ['button', 'tab', 'option', 'combobox'].includes(info.role) || info.pointer || info.clickHandler || info.tabIndex || info.explicit;
+    } catch {}
+    if (!hoverEligible) continue;
+    try { await action('hover', () => candidate.hover({ timeout: actionTimeoutMs })); states.add('hover'); await scan('hover'); } catch {}
+    try { await action('focus', () => candidate.focus({ timeout: actionTimeoutMs })); states.add('focus'); await scan('focus'); } catch {}
+    try {
+      const tagName = await action('read-control-type', () => candidate.evaluate((element) => element.tagName));
       if (String(tagName).toUpperCase() === 'SELECT') {
         exerciseCounts.attempted += 1;
-        const opened = await candidate.evaluate((element) => {
+        const opened = await action('open-native-picker', () => candidate.evaluate((element) => {
           if (typeof element.showPicker !== 'function') return false;
           element.showPicker();
           return true;
-        });
+        }));
         if (!opened) continue;
         exerciseCounts.opened += 1;
         states.add('select-open');
         await scan('select-open');
-        await candidate.press('Escape', { timeout: 1000 });
+        await action('close-native-picker', () => candidate.press('Escape', { timeout: Math.min(1000, actionTimeoutMs) }));
         exerciseCounts.restored += 1;
       }
     } catch {}
-    try { await page.mouse?.move(0, 0); } catch {}
+    try { await action('neutral-pointer', () => page.mouse?.move(0, 0)); } catch {}
   }
 
   // Open only controls rooted in this instance. Never activate links, submit
   // controls, or anything inside a form. Pointer-only elements are eligible
   // only when they cannot navigate or submit.
   const stateControls = root.locator('*');
-  const stateCount = Math.min(await stateControls.count(), maxElements);
+  const stateCount = timedOut() ? 0 : Math.min(await action('count-state-controls', () => stateControls.count()), maxElements);
   const selectedTabs = [];
-  for (let index = 0; index < stateCount; index += 1) {
+  for (let index = 0; index < stateCount && !timedOut(); index += 1) {
     const control = stateControls.nth(index);
     let info;
-    try { info = await control.evaluate((element) => {
+    try { info = await action('inspect-toggle', () => control.evaluate((element) => {
       const tag = element.tagName.toLowerCase();
       const role = element.getAttribute('role');
       const type = element.getAttribute('type');
@@ -1140,7 +1230,7 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
         isDetails: tag === 'details' || tag === 'summary', pointerAction,
         expanded: element.getAttribute('aria-expanded'), hasPopup: element.hasAttribute('aria-haspopup'),
         selected: element.getAttribute('aria-selected'), type };
-    }); } catch { continue; }
+    })); } catch { continue; }
     info.safe = isSafeStateExerciseTarget(info);
     if (!info.safe) continue;
     exerciseCounts.eligibleCandidates += 1;
@@ -1150,7 +1240,7 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
       if (info.selected === 'true') { selectedTabs.push(control); continue; }
       try {
         exerciseCounts.attempted += 1;
-        await control.click({ timeout: 1500 });
+        await action('select-tab', () => control.click({ timeout: actionTimeoutMs }));
         exerciseCounts.opened += 1;
         states.add('tab-selected'); exerciseCounts.tabsSelected += 1;
         await scan('tab-selected');
@@ -1161,9 +1251,9 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
     try {
       if (info.expanded === 'true') { await scan('category-expanded'); continue; }
       exerciseCounts.attempted += 1;
-      await control.click({ timeout: 1500 });
-      const expanded = await control.getAttribute('aria-expanded');
-      const siblingPanelOpened = (info.hiddenSiblingIndexes || []).length > 0 && await control.evaluate((element, indexes) => {
+      await action('activate-toggle', () => control.click({ timeout: actionTimeoutMs }));
+      const expanded = await action('read-expanded-state', () => control.getAttribute('aria-expanded'));
+      const siblingPanelOpened = (info.hiddenSiblingIndexes || []).length > 0 && await action('read-toggle-panel', () => control.evaluate((element, indexes) => {
         const siblings = [...(element.parentElement?.children || [])];
         return indexes.some((index) => {
           const sibling = siblings[index];
@@ -1172,15 +1262,15 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
           return !sibling.hidden && sibling.getAttribute('aria-hidden') !== 'true'
             && style.display !== 'none' && style.visibility !== 'hidden';
         });
-      }, info.hiddenSiblingIndexes).catch(() => false);
+      }, info.hiddenSiblingIndexes)).catch(() => false);
       if (expanded === 'true' || info.expanded !== expanded || siblingPanelOpened) {
         exerciseCounts.opened += 1;
         states.add('category-expanded'); exerciseCounts.togglesOpened += 1;
         await scan('category-expanded');
-        if (expanded === 'true' || siblingPanelOpened) await control.click({ timeout: 1500 });
-        else await control.press('Escape', { timeout: 1000 });
-        const after = await control.getAttribute('aria-expanded');
-        const panelRestored = siblingPanelOpened ? await control.evaluate((element, indexes) => {
+        if (expanded === 'true' || siblingPanelOpened) await action('restore-toggle', () => control.click({ timeout: actionTimeoutMs }));
+        else await action('dismiss-toggle', () => control.press('Escape', { timeout: Math.min(1000, actionTimeoutMs) }));
+        const after = await action('read-restored-state', () => control.getAttribute('aria-expanded'));
+        const panelRestored = siblingPanelOpened ? await action('verify-panel-restored', () => control.evaluate((element, indexes) => {
           const siblings = [...(element.parentElement?.children || [])];
           return indexes.every((index) => {
             const sibling = siblings[index];
@@ -1189,37 +1279,40 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
             return sibling.hidden || sibling.getAttribute('aria-hidden') === 'true'
               || style.display === 'none' || style.visibility === 'hidden';
           });
-        }, info.hiddenSiblingIndexes).catch(() => false) : true;
+        }, info.hiddenSiblingIndexes)).catch(() => false) : true;
         if (panelRestored && (after === info.expanded || (info.expanded === null && after === null))) exerciseCounts.restored += 1;
       }
     } catch {}
   }
   for (const selected of selectedTabs) try {
-    await selected.click({ timeout: 1500 });
+    if (timedOut()) break;
+    await action('restore-selected-tab', () => selected.click({ timeout: actionTimeoutMs }));
     exerciseCounts.restored += 1;
   } catch {}
 
   const details = root.locator('details');
-  const detailsCount = Math.min(await details.count(), maxElements);
+  const detailsCount = timedOut() ? 0 : Math.min(await action('count-disclosures', () => details.count()), maxElements);
   exerciseCounts.detailsCandidates = detailsCount;
-  for (let index = 0; index < detailsCount; index += 1) {
+  for (let index = 0; index < detailsCount && !timedOut(); index += 1) {
     const item = details.nth(index);
     try {
-      const state = await item.evaluate((element) => ({ open: element.open,
-        visible: getComputedStyle(element).display !== 'none' && getComputedStyle(element).visibility !== 'hidden' }));
+      const state = await action('read-disclosure-state', () => item.evaluate((element) => ({ open: element.open,
+        visible: getComputedStyle(element).display !== 'none' && getComputedStyle(element).visibility !== 'hidden' })));
       if (!state.visible || state.open) continue;
-      await item.evaluate((element) => { element.open = true; });
+      await action('open-disclosure', () => item.evaluate((element) => { element.open = true; }));
       states.add('disclosure-open');
       exerciseCounts.detailsOpened += 1;
       exerciseCounts.attempted += 1;
       exerciseCounts.opened += 1;
       await scan('disclosure-open');
-      await item.evaluate((element) => { element.open = false; });
-      if (!(await item.evaluate((element) => element.open))) exerciseCounts.restored += 1;
-    } catch { try { await item.evaluate((element) => { element.open = false; }); } catch {} }
+      await action('close-disclosure', () => item.evaluate((element) => { element.open = false; }));
+      if (!(await action('verify-disclosure-restored', () => item.evaluate((element) => element.open)))) exerciseCounts.restored += 1;
+    } catch { try { await action('restore-disclosure-after-error', () => item.evaluate((element) => { element.open = false; })); } catch {} }
   }
-  try { await page.evaluate(() => document.activeElement?.blur?.()); } catch {}
-  return { states: [...states], candidateCount: count, disclosureCount: detailsCount, exerciseCounts, revealed };
+  if (!timedOut()) try { await action('clear-focus', () => page.evaluate(() => document.activeElement?.blur?.())); } catch {}
+  return { states: [...states], candidateCount: count, disclosureCount: detailsCount, exerciseCounts, revealed,
+    notExercised: timedOut() ? [{ state: 'remaining-states', status: 'not-exercised', reason: {
+      code: timedOut().action === 'overall-timeout' ? 'state-exercise-overall-timeout' : 'state-exercise-action-timeout', ...timedOut() } }] : [] };
 }
 
 export async function runDesignSpecEditorChecks(profile, inventory) {
@@ -1234,5 +1327,13 @@ export async function runDesignSpecFrontChecks(profile, context) {
     if (requirement.checkType === 'mobile-layout' && viewportLabel && viewportLabel !== 'mobile') return false;
     return !declared || !viewportLabel || declared === viewportLabel;
   });
-  return Promise.all(requirements.map((requirement) => checkDesignRequirementFront(requirement, { ...context, profile })));
+  const checks = [];
+  for (const requirement of requirements) {
+    context?.onProgress?.(`design-check-start id=${requirement.id}`);
+    const check = await checkDesignRequirementFront(requirement, { ...context, profile });
+    checks.push(check);
+    context?.onCheck?.(check);
+    context?.onProgress?.(`design-check-complete id=${requirement.id} status=${check?.status || 'not-applicable'}`);
+  }
+  return checks;
 }

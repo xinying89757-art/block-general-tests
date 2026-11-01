@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { addStyleFailureReasons, breakageFindings, resolveFrontStyleCapability, resolveItemApplicability, styleCheckDescriptors,
   textContentOracle, compareProps, isPaginationContainerMetadata } from '../src/capabilities/block-style-spec.mjs';
-import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, resolveFrontStyleInstance, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
+import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, finalizeFrontStyleReport, preservePartialFrontStyleReport,
+  resolveFrontStyleInstance, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 
 const capability = { id: 'block-style-spec', styleSpec: { viewports: { pc: 1440, pad: 768, mobile: 375 }, items: [
   { id: 'button-bg', kind: 'first', selector: 'a.action', props: { backgroundColor: '#1c4587', borderRadius: 3 } },
@@ -98,6 +99,27 @@ test('selectors without offline DOM snapshots remain na and do not guess replace
     evidence: { matchedCount: 0 } }], { capability: cap, blockId: '1' });
   assert.equal(check.status, 'na');
   assert.equal(check.reason.applicability, 'No offline DOM snapshot.');
+});
+
+test('all na and fail report reason codes are strings, including object-valued diagnostics', () => {
+  const capability = { styleSpec: { items: [{ id: 'button-bg', kind: 'first', props: { color: '#123456' } }] } };
+  const converted = addStyleFailureReasons([
+    { id: 'bss-button-bg', status: 'na', detail: 'unresolved', evidence: { machineReason: { code: 'scope-unmapped' } } },
+    { id: 'bss-button-bg-2', status: 'fail', detail: 'wrong', evidence: { machineReason: { code: 'value-mismatch' } } },
+  ], { capability });
+  const report = finalizeFrontStyleReport({ checks: [...converted,
+    { id: 'bad-code', status: 'fail', reason: { code: { code: 'nested' } } },
+    { id: 'bad-na-code', status: 'na', reason: { code: { code: 'nested' } } }] });
+  assert.ok(report.checks.filter((check) => ['na', 'fail'].includes(check.status))
+    .every((check) => typeof check.reason?.code === 'string' && !check.reason.code.includes('[object Object]')));
+});
+
+test('partial report preserves completed checks when execution is interrupted', () => {
+  const check = { id: 'done', status: 'pass' };
+  const partial = preservePartialFrontStyleReport({ checks: [check] }, { stage: 'design-spec', error: new Error('timeout') });
+  assert.equal(partial.partial, true);
+  assert.deepEqual(partial.checks, [check]);
+  assert.equal(partial.executionError.stage, 'design-spec');
 });
 
 test('navigation fallback derives link candidates only from the uniquely scoped instance root', () => {

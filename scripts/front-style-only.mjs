@@ -12,7 +12,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { runFrontLayer, resolveFrontStyleCapability } from '../src/capabilities/block-style-spec.mjs';
-import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, finalizeFrontStyleReport, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
+import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, finalizeFrontStyleReport, preservePartialFrontStyleReport,
+  sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 import { markUniqueFrontInstance } from '../src/front-instance-root.mjs';
 import { runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../src/design-spec-checklist.mjs';
 
@@ -54,13 +55,40 @@ const report = { flow: 'front-style-only', blockId, url: sanitizeFrontStyleUrl(a
 let exitCode = 0;
 let stage = 'launch-browser';
 let browser;
+const configuredTimeout = Number(args['global-timeout-ms'] || process.env.FRONT_STYLE_TIMEOUT_MS || 480000);
+const configuredStateActionTimeout = Number(args['state-action-timeout-ms'] || 1500);
+const configuredStateOverallTimeout = Number(args['state-timeout-ms'] || 45000);
+const globalTimeoutMs = Number.isFinite(configuredTimeout) && configuredTimeout > 0 ? Math.max(1000, configuredTimeout) : 480000;
+const stateActionTimeoutMs = Number.isFinite(configuredStateActionTimeout) && configuredStateActionTimeout > 0
+  ? Math.max(100, configuredStateActionTimeout) : 1500;
+const stateOverallTimeoutMs = Number.isFinite(configuredStateOverallTimeout) && configuredStateOverallTimeout > 0
+  ? Math.max(stateActionTimeoutMs, configuredStateOverallTimeout) : 45000;
+let abortReason = null;
+const progress = (name) => console.log(`[front-style] stage=${name}`);
+const abortRun = (kind) => {
+  if (abortReason) return;
+  abortReason = { kind, stage, at: new Date().toISOString() };
+  report.partial = true;
+  report.interruption = abortReason;
+  progress(`${kind.toLowerCase()}-requested`);
+  browser?.close().catch(() => {});
+};
+const globalTimer = setTimeout(() => abortRun('GLOBAL_TIMEOUT'), globalTimeoutMs);
+const onSigint = () => abortRun('SIGINT');
+const onSigterm = () => abortRun('SIGTERM');
+process.once('SIGINT', onSigint);
+process.once('SIGTERM', onSigterm);
 try {
+  progress(stage);
   browser = await chromium.launch({ headless: true, ...(args.channel ? { channel: args.channel } : {}) });
+  if (abortReason) throw new Error(`Front style run interrupted: ${abortReason.kind}`);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: args['strict-tls'] !== '1' });
   const page = await context.newPage();
   stage = 'navigate';
+  progress(stage);
   await page.goto(args.url, { waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });
   stage = 'locate-block';
+  progress(stage);
   const settingId = args['setting-id'] || settingsReport?.block?.settingId || null;
   const markedRoot = await markUniqueFrontInstance(page, { blockId, settingId, markerValue: `front-style-${Date.now()}` });
   report.blockInstances = markedRoot.rootCount;
@@ -69,24 +97,43 @@ try {
   config.rootSelector = markedRoot.selector;
   config.settingId = settingId;
   stage = 'read-style';
+  progress('style-checks');
   report.expectedValueSourceReport = args['run-report'] || null;
   try {
+    const incrementalStyleChecks = new Map();
     const styleChecks = capability && (capability.styleSpec?.items?.length || capability.styleSpec?.recordOnly?.length)
       ? await runFrontLayer({ frame: page, previewPage: page, config,
-        capability: { ...resolvedCapability, designSpec: profile.designSpec } }) : [];
+        capability: { ...resolvedCapability, designSpec: profile.designSpec }, onProgress: progress,
+        onCheck: (check) => {
+          incrementalStyleChecks.set(check.id, check);
+          report.checks = attachFrontStyleInstance([...incrementalStyleChecks.values()], report.settingId);
+        } }) : [];
+    report.checks = attachFrontStyleInstance(styleChecks, report.settingId);
+    progress(`style-checks-complete count=${styleChecks.length}`);
+    stage = 'design-spec-checks'; progress(stage);
     const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector: config.rootSelector,
-      frontChecks: styleChecks, settingsReport, viewport: { label: 'pc', width: 1440, height: 900 } });
+      frontChecks: styleChecks, settingsReport, viewport: { label: 'pc', width: 1440, height: 900 },
+      onProgress: progress, onCheck: (check) => {
+        report.checks = attachFrontStyleInstance([...styleChecks, ...report.checks.filter((row) => row.id.startsWith('design-')),
+          ...(check ? [check] : [])], report.settingId);
+      } });
+    report.checks = attachFrontStyleInstance([...styleChecks, ...designChecks.filter(Boolean)], report.settingId);
+    progress(`design-spec-checks-complete count=${designChecks.filter(Boolean).length}`);
+    stage = 'written-color-checks'; progress(stage);
     const writtenColors = await runWrittenColorFrontChecks({ page, rootSelector: config.rootSelector, settingsReport,
-      includeStylesheets: args['include-stylesheets'] !== '0', stateExercise: args['exercise-states'] === '1' });
-    report.checks = attachFrontStyleInstance([...styleChecks, ...designChecks.filter(Boolean), ...writtenColors], report.settingId);
+      includeStylesheets: args['include-stylesheets'] !== '0', stateExercise: args['exercise-states'] === '1',
+      stateActionTimeoutMs, stateOverallTimeoutMs, onProgress: progress });
+    report.checks = attachFrontStyleInstance([...report.checks, ...writtenColors], report.settingId);
+    progress(`written-color-checks-complete count=${writtenColors.length}`);
   } finally { await markedRoot.clear().catch(() => {}); }
   const shots = fs.readdirSync('screenshots').filter((f) => f.startsWith(`style-${blockId}-`));
   report.screenshots = shots.map((f) => `screenshots/${f}`);
 } catch (error) {
   const safe = sanitizeFrontStyleError(error);
   report.error = safe.message; exitCode = 1;
-  report.checks = attachFrontStyleInstance(buildFrontStyleExecutionErrors({ capability, blockId, stage, error: safe,
+  if (!report.checks.length) report.checks = attachFrontStyleInstance(buildFrontStyleExecutionErrors({ capability, blockId, stage, error: safe,
     viewport: capability.styleSpec?.viewports }), report.settingId);
+  else Object.assign(report, preservePartialFrontStyleReport(report, { stage, error: safe }));
   try {
     const pg = browser?.contexts()[0]?.pages()[0];
     if (pg) {
@@ -99,6 +146,9 @@ try {
     for (const check of report.checks) if (check.reason) check.reason.screenshot = report.errorScreenshot;
   }
 } finally {
+  clearTimeout(globalTimer);
+  process.removeListener('SIGINT', onSigint);
+  process.removeListener('SIGTERM', onSigterm);
   if (browser) await browser.close().catch(() => {});
 }
 Object.assign(report, finalizeFrontStyleReport(report));

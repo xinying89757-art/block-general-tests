@@ -246,6 +246,7 @@ async function readItem(frame, rootSel, item) {
       }
       case 'nav-parent': {
         let links = scopedSelect(item.selector || '.pf-cate-wrap a').filter(vis);
+        let parents;
         if (!links.length) {
           // Generic fallback: derive candidate links from the selected
           // instance's own list hierarchy; never search page-wide or guess a
@@ -254,8 +255,12 @@ async function readItem(frame, rootSel, item) {
           links = [...selectionRoot.querySelectorAll('a, [role="link"]')].filter(vis);
           out.candidateSource = 'instance-root-semantic-hierarchy';
           out.derivedCandidateCount = links.length;
+          if (!links.length) {
+            parents = [...selectionRoot.querySelectorAll('li,[role="treeitem"],[aria-level]')].filter((node) => vis(node)
+              && (node.querySelector('ul,ol,[role="group"]') || Number(node.getAttribute('aria-level') || 0) === 1));
+          }
         }
-        const parents = links.filter((a) => {
+        parents ||= links.filter((a) => {
           const li = a.closest('li');
           return li && li.parentElement?.closest('li') == null && li.querySelector('ul');
         });
@@ -265,12 +270,18 @@ async function readItem(frame, rootSel, item) {
       }
       case 'nav-leaf': {
         let links = scopedSelect(item.selector || '.pf-cate-wrap a').filter(vis);
+        let leaves;
         if (!links.length) {
           links = [...selectionRoot.querySelectorAll('a, [role="link"]')].filter(vis);
           out.candidateSource = 'instance-root-semantic-hierarchy';
           out.derivedCandidateCount = links.length;
+          if (!links.length) leaves = [...selectionRoot.querySelectorAll('li,[role="treeitem"],[aria-level]')].filter((node) => {
+            if (!vis(node) || node.querySelector('ul,ol,[role="group"]')) return false;
+            const level = Number(node.getAttribute('aria-level') || 0);
+            return level > 1 || Boolean(node.closest('ul,ol')?.parentElement?.closest('li'));
+          });
         }
-        const leaves = links.filter((a) => {
+        leaves ||= links.filter((a) => {
           const li = a.closest('li');
           return li && li.parentElement?.closest('li') && !li.querySelector('ul');
         });
@@ -488,7 +499,7 @@ function pageOverflowFinding(b) {
     ? `页面级横向溢出（文档宽 ${b.docScrollWidth} > 视口宽 ${b.viewportWidth}）；此项仅记录，不单独判为区块失败。` : null;
 }
 
-async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
+async function runFrontLayerRaw({ frame, previewPage, config, capability, onProgress, onCheck }) {
   const spec = capability?.styleSpec;
   styleExpectations = {};
   const propNames = { fontSize: '字号', fontWeight: '字重', lineHeight: '行高', color: '文字颜色',
@@ -523,6 +534,11 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
   const tolerances = { px: spec.tolerances?.px ?? 0.6, sizePx: spec.tolerances?.sizePx ?? 2 };
   const viewports = spec.viewports || { pc: 1440, pad: 768, mobile: 375 };
   const checks = [];
+  const pushCheck = checks.push.bind(checks);
+  checks.push = (...rows) => {
+    for (const row of rows) { onCheck?.(row); onProgress?.(`style-check-complete id=${row.id} status=${row.status}`); }
+    return pushCheck(...rows);
+  };
   const rootSel = config.rootSelector;
   if (!rootSel) return skipAll('无法按区块编号与 settingId 唯一圈定实例根节点。');
   const shots = [];
@@ -547,6 +563,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
     for (const item of spec.items || []) {
       if (isNullColorPlaceholder(item)) continue;
       const checkId = `bss-${item.id}`;
+      onProgress?.(`style-check-start id=${checkId}`);
       if (item.notApplicableReason) {
         checks.push(result(checkId, 'na', '未应用该样式检查。', { machineReason: {
           code: 'profile-selector-not-resolvable', details: String(item.notApplicableReason).slice(0, 240) } }));
@@ -672,6 +689,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
       }
     }
     for (const item of spec.recordOnly || []) {
+      onProgress?.(`style-check-start id=bss-${item.id}`);
       checks.push(result(`bss-${item.id}`, 'record', item.note || 'No reviewed front-end selector or visual oracle is available.',
         { inventoryCapability: item.inventoryCapability || null, visualOracle: 'unreviewed' }, { name: item.name || item.id }));
     }
@@ -688,6 +706,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
     // stay in each profile. When present, evaluate those requirements at the
     // mobile viewport in addition to the instance-integrity check.
     for (const vp of ['pad', 'mobile']) {
+      onProgress?.(`breakage-check-start viewport=${vp}`);
       if (!previewPage) { checks.push(result(`bss-breakage-${vp}`, 'skip', '未提供 previewPage，无法切换视口。')); continue; }
       await previewPage.setViewportSize({ width: viewports[vp], height: vp === 'pad' ? 1024 : 667 });
       await frame.waitForTimeout(2500);
@@ -1000,10 +1019,19 @@ export function addStyleFailureReasons(checks, { capability, blockId, rootSelect
       } } : {}),
       ...(check.status === 'na' || check.status === 'skip' || check.status === 'deferred'
         ? { applicability: String(check.detail || check.status).slice(0, 240) } : {}),
-      ...(evidence.machineReason ? { code: String(evidence.machineReason) } : {}),
+      ...(evidence.machineReason ? { code: machineReasonCode(evidence.machineReason) } : {}),
       ...(evidence.candidateSource ? { candidateSource: String(evidence.candidateSource) } : {}),
     } };
   });
+}
+
+function machineReasonCode(value) {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if (typeof value.code === 'string' && value.code.trim()) return value.code.trim();
+    if (typeof value.reason === 'string' && value.reason.trim()) return value.reason.trim();
+  }
+  return 'reason-code-unavailable';
 }
 
 export function styleCheckDescriptors(capability) {
@@ -1024,6 +1052,7 @@ export function styleCheckDescriptors(capability) {
 
 export async function runFrontLayer(args) {
   const checks = await runFrontLayerRaw(args);
+  for (const check of checks) args.onProgress?.(`style-check-result id=${check.id} status=${check.status}`);
   return addStyleFailureReasons(checks, { capability: args.capability, blockId: args.config?.blockId,
     rootSelector: args.config?.rootSelector,
     viewports: args.capability?.styleSpec?.viewports });

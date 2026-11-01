@@ -233,8 +233,9 @@ test('standalone stylesheet evidence is scoped to the instance and is not a pass
 
 test('optional state exercise records attempted states and the first state revealing a written color', async () => {
   let state = '';
+  let evaluateCount = 0;
   const locator = { count: async () => 1, nth: () => ({ hover: async () => { state = 'hover'; }, focus: async () => { state = 'focus'; },
-    evaluate: async () => ({ safe: false }), click: async () => {}, getAttribute: async () => null }) };
+    evaluate: async () => ++evaluateCount <= 2 ? 'DIV' : ({ safe: false }), click: async () => {}, getAttribute: async () => null }) };
   const page = {
     locator: () => ({ locator: (selector) => selector === 'details' ? { count: async () => 0 }
       : selector.includes('aria-expanded') ? { count: async () => 0 } : locator }),
@@ -247,7 +248,31 @@ test('optional state exercise records attempted states and the first state revea
   assert.deepEqual(result, { states: ['hover', 'focus'], candidateCount: 1, disclosureCount: 0,
     exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
       tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 },
-    revealed: { 'color-a': { state: 'hover', matches: 1 } } });
+    revealed: { 'color-a': { state: 'hover', matches: 1 } }, notExercised: [] });
+});
+
+test('a state toggle whose click never resolves is bounded and recorded as not-exercised', async () => {
+  let evaluateCount = 0;
+  const element = { hover: async () => {}, focus: async () => {}, press: async () => {},
+    evaluate: async () => ++evaluateCount === 1 ? 'DIV' : ({ tag: 'div', visible: true, hasHref: false, insideForm: false,
+      submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: false, hasClickHandler: false,
+      hiddenSiblingIndexes: [], isTab: false, isSelect: false, isDetails: false, pointerAction: false, expanded: 'false' }),
+    click: () => new Promise(() => {}), getAttribute: async () => null };
+  const locator = { count: async () => 1, nth: () => element };
+  const root = { locator: () => locator };
+  const page = { locator: () => root, evaluate: async () => ({ rootCount: 1, styles: [] }),
+    mouse: { move: async () => {} } };
+  const started = Date.now();
+  const result = await exerciseWrittenColorStates(page, '.target', [{ id: 'color', value: '#123456' }],
+    { actionTimeoutMs: 20, overallTimeoutMs: 100 });
+  assert.ok(Date.now() - started < 500);
+  assert.equal(result.notExercised[0].status, 'not-exercised');
+  assert.equal(result.notExercised[0].reason.code, 'state-exercise-action-timeout');
+  assert.equal(result.notExercised[0].reason.action, 'activate-toggle');
+  evaluateCount = 0;
+  const overall = await exerciseWrittenColorStates(page, '.target', [{ id: 'color', value: '#123456' }],
+    { actionTimeoutMs: 500, overallTimeoutMs: 20 });
+  assert.equal(overall.notExercised[0].reason.code, 'state-exercise-overall-timeout');
 });
 
 test('state exercise opens only safe instance controls and records attempted/opened/restored counts', async () => {
@@ -384,7 +409,7 @@ test('every written-color miss records states exercised and stylesheet scan diag
   assert.equal(row.classification, 'absent');
   assert.deepEqual(row.actual.stateExercise, { enabled: true, states: [], candidateCount: 0,
     disclosureCount: 0, exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
-      tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null });
+      tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null, notExercised: [], timedOut: false });
   assert.equal(row.actual.stylesheetEvidence.sheetCount, 0);
   assert.equal(row.actual.stylesheetEvidence.matchCount, 0);
 });
@@ -416,7 +441,7 @@ test('cross-origin linked CSS fetched through context request becomes scoped CSS
   assert.equal(row.actual.stylesheetEvidence.rules[0].properties[0], 'background-image');
   assert.deepEqual(row.actual.stateExercise, { enabled: false, states: [], candidateCount: 0,
     disclosureCount: 0, exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
-      tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null });
+      tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null, notExercised: [], timedOut: false });
 });
 
 test('front result deduplication is by id and preserves the most conservative verdict', () => {

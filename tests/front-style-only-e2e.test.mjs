@@ -20,6 +20,11 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     response.end(`<!doctype html><html><head><link rel="stylesheet" href="/fixture.css"></head><body>
       <div data-appid="90001" data-id="siteblocks-setting-wrap-setting-smoke" class="fixture" style="width:320px;position:relative">
         <div class="sample">Style sample</div><div class="palette">palette</div>
+        <div class="typography-wrapper" style="font-size:12px">Exact leaf label <span style="font-size:16px">Exact leaf label</span></div>
+        <ul class="category-tree"><li>Parent category<ul><li>Nested category</li></ul></li></ul>
+        <img class="lazy-image" data-src="/lazy.png" style="display:block;width:100px;height:100px">
+        <picture style="display:block;width:100px;height:100px"><img data-srcset="/picture.png 1x" style="width:100%;height:100%"></picture>
+        <div class="background-image" style="width:100px;height:100px;background-image:url('/background.png')"></div>
         <div class="toggle-wrap"><button type="button" onclick="document.querySelector('.toggle-panel').hidden = !document.querySelector('.toggle-panel').hidden">Toggle</button>
           <div class="toggle-panel" hidden>Disclosure panel</div></div>
         <div class="clipper" style="position:relative;width:320px;overflow:hidden">
@@ -29,6 +34,7 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
         <div class="hidden-pair"><span>hidden one</span><span>hidden two</span></div>
         <div class="invisible-pair"><span>invisible one</span><span>invisible two</span></div>
         <div class="zero-pair"><i></i><i></i></div>
+        <div class="compare-bar" style="display:none;position:absolute;left:0;top:0;width:100%;height:40px"><span>0 items</span><span>Compare</span></div>
       </div><style>
         .sample { display:block; color:rgb(0, 0, 0); }
         .palette { color:transparent; }
@@ -56,10 +62,16 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     fs.writeFileSync(profilePath, JSON.stringify({
       capabilities: [{ id: 'block-style-spec', styleSpec: { items: [
         { id: 'sample-color', kind: 'first', selector: '.sample', props: { color: '#000000' } },
+        { id: 'category-parent', kind: 'nav-parent', selector: '.missing-parent', props: {} },
+        { id: 'category-leaf', kind: 'nav-leaf', selector: '.missing-leaf', props: {} },
       ] } }],
       designSpec: { source: { fileKey: 'fixture', nodeId: '1:1' }, overrides: [], requirements: [
         { id: 'mobile-sample', checkType: 'mobile-layout', sourceText: 'sample display',
           expected: { display: 'block' }, checkStage: 'front', params: { viewport: 'mobile', selector: '.sample' } },
+        { id: 'leaf-typography', checkType: 'typography', sourceText: 'Exact leaf label', expected: { fontSize: '16px' },
+          checkStage: 'front', params: {} },
+        { id: 'image-ratio-fixture', checkType: 'image-ratio', sourceText: 'Images square', expected: { ratio: '1:1' },
+          checkStage: 'front', params: {} },
       ] },
     }));
     fs.writeFileSync(runPath, JSON.stringify({ blockId: '90001', block: { settingId: 'setting-smoke', currentValues: [
@@ -89,6 +101,13 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     assert.ok(color?.actual.stateExercise.exerciseCounts.restored > 0);
     assert.equal(report.checks.find((row) => row.id === 'bss-breakage-mobile')?.status, 'pass',
       'overlapping text clipped by an overflow-hidden ancestor is not a visible mobile overlap');
+    assert.equal(report.checks.find((row) => row.id === 'design-leaf-typography')?.status, 'pass');
+    assert.deepEqual(report.checks.find((row) => row.id === 'design-leaf-typography')?.actual.fontSize, ['16px']);
+    assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.status, 'pass');
+    assert.ok(report.checks.find((row) => row.id === 'bss-category-parent')?.evidence.matchedCount >= 1);
+    assert.ok(report.checks.find((row) => row.id === 'bss-category-leaf')?.evidence.matchedCount >= 1);
+    assert.doesNotMatch(JSON.stringify(report.checks.find((row) => row.id === 'bss-breakage-mobile')?.evidence?.overlaps || []), /compare-bar/);
+    assert.match(result.stdout, /stage=style-check-start id=bss-sample-color/);
   } finally {
     await new Promise((resolve) => server.close(resolve));
     fs.rmSync(temp, { recursive: true, force: true });
