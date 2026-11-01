@@ -105,15 +105,18 @@ const px = (v) => {
 };
 const close = (a, b, tol) => a != null && b != null && Math.abs(a - b) <= tol;
 
-function compareProps(expected, actual, tolPx) {
+const SIZE_PROPERTIES = new Set(['fontSize', 'lineHeight', 'borderRadius', 'letterSpacing', 'width', 'height']);
+
+export function compareProps(expected, actual, tolerances = {}) {
   const diffs = [];
+  const { px = 0.6, sizePx = 2 } = typeof tolerances === 'number' ? { px: tolerances, sizePx: tolerances } : tolerances;
   const names = { fontSize: '字号', fontWeight: '字重', lineHeight: '行高', color: '文字颜色',
     backgroundColor: '背景色', borderColor: '边框色', borderRadius: '圆角', textAlign: '对齐方式',
     letterSpacing: '字距', width: '宽', height: '高' };
   for (const [k, want] of Object.entries(expected)) {
     const got = actual[k];
     let ok;
-    if (typeof want === 'number') ok = close(got, want, tolPx);
+    if (typeof want === 'number') ok = close(got, want, SIZE_PROPERTIES.has(k) ? sizePx : px);
     else ok = String(got ?? '').toLowerCase() === String(want).toLowerCase();
     const unit = ['fontSize', 'lineHeight', 'borderRadius', 'letterSpacing', 'width', 'height'].includes(k) ? 'px' : '';
     const shownWant = typeof want === 'number' ? `${want}${unit}` : want;
@@ -123,17 +126,40 @@ function compareProps(expected, actual, tolPx) {
   return diffs;
 }
 
+export const PAGINATION_CONTAINER_PATTERN = 'pagination|pager|page[-_ ]?nav|分页';
+export function isPaginationContainerMetadata({ tagName = '', role = '', ariaLabel = '', id = '', className = '' } = {}) {
+  return new RegExp(PAGINATION_CONTAINER_PATTERN, 'i').test([tagName, role, ariaLabel, id, className].join(' '));
+}
+
 // Read the elements one styleSpec item needs, inside the block root.
 async function readItem(frame, rootSel, item) {
   return frame.evaluate(({ rootSel, item }) => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const root = document.querySelector(rootSel);
     if (!root) return { error: '预览里没有找到按实例身份圈定的区块根节点', matchedCount: 0 };
-    const select = (selector) => selector === ':scope' ? [root] : [...root.querySelectorAll(selector)];
+    let selectionRoot = root;
+    if (item.scope?.containerKind === 'pagination') {
+      const candidates = [...root.querySelectorAll('*')].filter((node) =>
+        new RegExp(item.paginationContainerPattern, 'i').test([
+          node.tagName, node.getAttribute('role'), node.getAttribute('aria-label'), node.id,
+          typeof node.className === 'string' ? node.className : '',
+        ].filter(Boolean).join(' ')));
+      const selector = item.selector || item.selectorCandidates?.[0];
+      const containing = candidates.filter((container) => {
+        try { return Boolean(selector && container.querySelector(selector)); } catch { return false; }
+      });
+      const innermost = containing.filter((container) => !containing.some((other) =>
+        other !== container && container.contains(other)));
+      if (innermost.length !== 1) return { error: innermost.length
+        ? '目标区块内分页容器不唯一。' : '目标区块内没有包含画像候选元素的分页容器。',
+      matchedCount: 0, paginationContainerCount: innermost.length };
+      selectionRoot = innermost[0];
+    }
+    const scopedSelect = (selector) => selector === ':scope' ? [selectionRoot] : [...selectionRoot.querySelectorAll(selector)];
     if (Array.isArray(item.selectorCandidates)) {
       const candidates = [...new Set([item.selector, ...item.selectorCandidates].filter(Boolean))];
       for (const candidate of candidates) {
-        try { if (root.querySelectorAll(candidate).length) { item.selector = candidate; break; } } catch {}
+        try { if (selectionRoot.querySelectorAll(candidate).length) { item.selector = candidate; break; } } catch {}
       }
     }
     item.selector ||= item.selectorCandidates?.[0] || null;
@@ -184,40 +210,40 @@ async function readItem(frame, rootSel, item) {
           break;
         }
         const needle = norm(item.text);
-        const matches = [...root.querySelectorAll('*')].filter((el) => norm(el.innerText) === needle && vis(el));
+        const matches = [...selectionRoot.querySelectorAll('*')].filter((el) => norm(el.innerText) === needle && vis(el));
         out.matchedCount = matches.length;
         out.elements = matches.slice(0, item.sample ?? 2).map((el) => ({ label: needle, ...styleOf(el) }));
         break;
       }
       case 'text': {
-        const matches = [...root.querySelectorAll(item.selector)].filter((x) => norm(x.innerText) === item.text);
+        const matches = [...selectionRoot.querySelectorAll(item.selector)].filter((x) => norm(x.innerText) === item.text);
         out.matchedCount = matches.length;
         const el = matches[0];
         if (el) push(el, item.text);
         break;
       }
       case 'first': {
-        const matches = select(item.selector);
+        const matches = scopedSelect(item.selector);
         out.matchedCount = matches.length;
         const el = matches[0];
         if (el) push(el, item.name || item.kind || 'matched element');
         break;
       }
       case 'sample': {
-        const found = select(item.selector).filter(vis);
+        const found = scopedSelect(item.selector).filter(vis);
         out.matchedCount = found.length;
         const els = found.slice(0, item.sample ?? 2);
         els.forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
         break;
       }
       case 'nav-parent': {
-        let links = select(item.selector || '.pf-cate-wrap a').filter(vis);
+        let links = scopedSelect(item.selector || '.pf-cate-wrap a').filter(vis);
         if (!links.length) {
           // Generic fallback: derive candidate links from the selected
           // instance's own list hierarchy; never search page-wide or guess a
           // block-specific class. If the hierarchy has no semantic evidence,
           // the existing zero-match result remains a skip/na.
-          links = [...root.querySelectorAll('a, [role="link"]')].filter(vis);
+          links = [...selectionRoot.querySelectorAll('a, [role="link"]')].filter(vis);
           out.candidateSource = 'instance-root-semantic-hierarchy';
           out.derivedCandidateCount = links.length;
         }
@@ -230,9 +256,9 @@ async function readItem(frame, rootSel, item) {
         break;
       }
       case 'nav-leaf': {
-        let links = select(item.selector || '.pf-cate-wrap a').filter(vis);
+        let links = scopedSelect(item.selector || '.pf-cate-wrap a').filter(vis);
         if (!links.length) {
-          links = [...root.querySelectorAll('a, [role="link"]')].filter(vis);
+          links = [...selectionRoot.querySelectorAll('a, [role="link"]')].filter(vis);
           out.candidateSource = 'instance-root-semantic-hierarchy';
           out.derivedCandidateCount = links.length;
         }
@@ -247,7 +273,7 @@ async function readItem(frame, rootSel, item) {
       case 'presence': {
         const selector = item.selector || 'a, button, span';
         const needle = String(item.text || '').trim().toLowerCase();
-        const found = select(selector).filter((el) => {
+        const found = scopedSelect(selector).filter((el) => {
           const candidates = [el.innerText, el.getAttribute('aria-label'), el.getAttribute('title')]
             .map((value) => norm(value).toLowerCase()).filter(Boolean);
           return candidates.includes(needle) && vis(el);
@@ -268,7 +294,7 @@ async function readItem(frame, rootSel, item) {
         out.error = `未知 styleSpec kind: ${item.kind}`;
     }
     return out;
-  }, { rootSel, item });
+  }, { rootSel, item: { ...item, paginationContainerPattern: PAGINATION_CONTAINER_PATTERN } });
 }
 
 // Breakage checks (no design frame needed): horizontal overflow, elements
@@ -411,7 +437,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
   }
   const skipAll = (reason) => Object.keys(NAMES).map((id) => result(id, 'skip', reason));
   if (!spec?.items?.length && !spec?.recordOnly?.length) return skipAll('未提供设计样式要求，未做样式比对。');
-  const tolPx = spec.tolerances?.px ?? 0.6;
+  const tolerances = { px: spec.tolerances?.px ?? 0.6, sizePx: spec.tolerances?.sizePx ?? 2 };
   const viewports = spec.viewports || { pc: 1440, pad: 768, mobile: 375 };
   const checks = [];
   const rootSel = config.rootSelector;
@@ -528,7 +554,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
         if (actual.color) actual.color = normColor(actual.color);
         if (actual.backgroundColor) actual.backgroundColor = normColor(actual.backgroundColor);
         if (actual.borderColor) actual.borderColor = normColor(actual.borderColor);
-        diffs.push(...compareProps(item.props || {}, actual, tolPx).map((d) => `「${el.label}」${d}`));
+        diffs.push(...compareProps(item.props || {}, actual, tolerances).map((d) => `「${el.label}」${d}`));
         if (item.geometry?.centered) {
           const c = el.centered;
           if (!c) diffs.push(`「${el.label}」无法量到文字位置，居中未验证`);
@@ -727,11 +753,27 @@ export function resolveFrontStyleCapability(capability, settingsReport = null) {
       item.resolvedExpectedSources.text = `run-report:block.currentValues[region=${binding.control?.region ?? '*'},label=${binding.control?.label ?? '*'}]`;
       item.valueResolutionReason = null;
     } else {
-      item.text = null;
-      item.valueResolutionReason = !settingsReport ? 'run-report-not-provided'
-        : candidates.length !== 1 ? 'run-control-value-not-unique' : 'setting-value-not-written-this-run';
-      item.resolvedExpectedSources.text = item.valueResolutionReason;
-      resolvedExpectedSources[`${item.id}.text`] = item.valueResolutionReason;
+      const checkIds = binding.settingCheckIds || [];
+      const checks = settingsReport?.checks || [];
+      const lastWritten = [...checks].reverse().find((check) => checkIds.includes(check.id)
+        && ['pass', 'fail'].includes(check.status) && check.value !== null && check.value !== undefined
+        && String(check.value) !== '');
+      const runMarker = autotestMarkerFromReport(settingsReport);
+      if (lastWritten) {
+        item.text = String(lastWritten.value);
+        item.resolvedExpectedSources.text = `run-report:checks[${lastWritten.id}].value`;
+        item.valueResolutionReason = null;
+      } else if (runMarker) {
+        item.text = runMarker.value;
+        item.resolvedExpectedSources.text = runMarker.source;
+        item.valueResolutionReason = null;
+      } else {
+        item.text = null;
+        item.valueResolutionReason = !settingsReport ? 'run-report-not-provided'
+          : candidates.length !== 1 ? 'run-control-value-not-unique' : 'setting-value-not-written-this-run';
+        item.resolvedExpectedSources.text = item.valueResolutionReason;
+        resolvedExpectedSources[`${item.id}.text`] = item.valueResolutionReason;
+      }
     }
   }
   for (const [key, binding] of Object.entries(spec.expectedValueSources || {})) {
@@ -763,6 +805,18 @@ export function resolveFrontStyleCapability(capability, settingsReport = null) {
     resolvedExpectedSources[key] = source;
   }
   return { ...capability, styleSpec: { ...spec, items, resolvedExpectedSources } };
+}
+
+function autotestMarkerFromReport(report) {
+  if (!report || typeof report !== 'object') return null;
+  const explicit = [report.autotestMarker, report.marker, report.fixtureMarker,
+    report.fixture?.marker, report.block?.autotestMarker, report.block?.marker]
+    .filter((value) => typeof value === 'string' && /^AUTOTEST-/i.test(value.trim()));
+  const currentValues = [...(report.block?.currentValues || []), ...(report.currentValues || [])]
+    .filter((entry) => entry?.marker === true || entry?.fixtureMarker === true)
+    .map((entry) => entry.value).filter((value) => typeof value === 'string' && /^AUTOTEST-/i.test(value.trim()));
+  const values = [...new Set([...explicit, ...currentValues].map((value) => value.trim()))];
+  return values.length === 1 ? { value: values[0], source: 'run-report:autotest-marker' } : null;
 }
 
 function settingWasWritten(report, binding) {

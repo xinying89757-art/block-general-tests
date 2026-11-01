@@ -248,6 +248,12 @@ export function normalizeColor(value) {
   return text;
 }
 
+export function paletteWriteReadback(setValue, readBackValue) {
+  const matched = normalizeColor(setValue) === normalizeColor(readBackValue);
+  return { setValue, readBackValue: readBackValue ?? null, matched,
+    ...(matched ? {} : { reason: 'palette-write-readback-mismatch' }) };
+}
+
 export async function setSchemeColor(canvas, value) {
   const panel = await uniqueVisiblePanel(canvas, RAIL.colorPanel, 'Color scheme');
   await retryTransient(() => waitForControlsReady(panel));
@@ -271,9 +277,19 @@ export async function setSchemeColor(canvas, value) {
         return { available: true, value: el.value };
       }, color);
       const applied = await poll(read, matches);
-      if (api.available && applied.matched) return 'Spectrum API';
+      if (api.available && applied.matched) return { method: 'Spectrum API', controlIdentity: control.identity,
+        ...paletteWriteReadback(color, applied.value) };
+      if (api.available) {
+        const error = new Error('Palette input readback did not equal the requested value after write.');
+        error.code = 'palette-write-readback-mismatch';
+        error.paletteReadback = { controlIdentity: control.identity, ...paletteWriteReadback(color, applied.value) };
+        throw error;
+      }
       apiError = api.available ? `API 后值为 ${JSON.stringify(applied.value)}` : '画布内没有可用的 Spectrum jQuery API';
-    } catch (error) { apiError = error.message; }
+    } catch (error) {
+      if (error.code === 'palette-write-readback-mismatch') throw error;
+      apiError = error.message;
+    }
     // Fallback: open the Spectrum popup from the replacer and type the value.
     // Scope every step to the container that actually opened: several
     // .sp-container copies exist (one per Spectrum instance on the page),
@@ -299,12 +315,22 @@ export async function setSchemeColor(canvas, value) {
     if (await choose.count() !== 1) throw new Error('当前 Spectrum 取色弹窗确认按钮不唯一。');
     await choose.click({ timeout: TIMEOUT });
     const applied = await poll(read, matches);
-    if (!applied.matched) throw new Error(`Spectrum API 失败（${apiError}）；取色面板降级失败，改写后值为 ${JSON.stringify(applied.value)}`);
-    return 'Spectrum 面板';
+    if (!applied.matched) {
+      const error = new Error('Palette input readback did not equal the requested value after picker write.');
+      error.code = 'palette-write-readback-mismatch';
+      error.paletteReadback = { controlIdentity: control.identity, ...paletteWriteReadback(color, applied.value) };
+      throw error;
+    }
+    return { method: 'Spectrum 面板', controlIdentity: control.identity, ...paletteWriteReadback(color, applied.value) };
   };
   const results = [];
   for (const entry of plan) results.push({ controlIdentity: entry.control.identity, method: await setOne(entry) });
-  return results.length === 1 ? results[0].method : results;
+  const writes = results.map((entry) => entry.method);
+  // Preserve the legacy return shape for capability-level callers that write
+  // an entire palette. A target-specific write (used by a setting unit)
+  // returns the exact set/readback values for its report.
+  if (value && typeof value === 'object' && value.controlIdentity) return writes[0];
+  return writes.length === 1 ? writes[0].method : writes;
 }
 
 export async function saveColorPanel(canvas) {

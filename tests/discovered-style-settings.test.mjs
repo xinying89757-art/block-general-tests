@@ -94,6 +94,34 @@ test('each discovered 区块配色 control receives a distinct alternate written
   assert.equal(new Set(prepared.settings.map((unit) => unit.alternateValue.toLowerCase())).size, 3);
 });
 
+test('palette setting results retain requested and actual-input readback and fail on mismatch', async () => {
+  const inventory = [{ type: 'rail:color-scheme', title: 'right-rail-color', controls: [
+    { index: 0, type: 'color', identity: 'position:0', position: 0, value: '#123456' },
+  ] }];
+  let state = '#123456';
+  let mismatch = false;
+  const lifecycle = { kind: 'right-rail-flyout', isOpen: false,
+    async open() { this.isOpen = true; }, async read() { return state; },
+    async apply(_ref, value) { state = value; return { setValue: value,
+      readBackValue: mismatch ? '#000000' : value, matched: !mismatch }; },
+    async cancel() { this.isOpen = false; }, async commit() { this.isOpen = false; } };
+  const [unit] = (await createDiscoveredStyleSettingUnits({ inventory,
+    styleControlAdapter: { createLifecycle: async () => lifecycle } })).settings;
+  await lifecycle.open(); await unit.apply();
+  const passed = await unit.check();
+  assert.equal(passed.status, 'pass');
+  assert.equal(passed.evidence.paletteWrite.setValue, unit.alternateValue);
+  assert.equal(passed.evidence.paletteWrite.readBackValue, unit.alternateValue);
+  assert.equal(passed.evidence.paletteWrite.source, 'actual-color-input-value');
+  await lifecycle.cancel();
+  mismatch = true;
+  await lifecycle.open(); await unit.apply();
+  const failed = await unit.check();
+  assert.equal(failed.status, 'fail');
+  assert.equal(failed.reason.code, 'palette-write-readback-mismatch');
+  assert.equal(failed.evidence.paletteWrite.matches, false);
+});
+
 test('shared fresh adapter composes discovered style controls even when no capability maps them', async () => {
   const inventory = [{ type: 'rail:color-scheme', title: 'right-rail-color', wrapIndex: 0,
     kind: 'right-rail-flyout', controls: [

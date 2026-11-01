@@ -31,3 +31,20 @@ runner now checks SVG fill/stroke, outline, shadows, gradients, and pseudo
 elements too. Treat the Mac front result as unresolved until it is rerun with
 that expanded reader; do not attribute it to a block defect or weaken the
 written-value assertion without that evidence.
+
+## G54 read-only palette comparison and Mac stylesheet evidence
+
+The latest Mac reports (`front-style-47498-1793509038406.json` and
+`front-style-47748-1793509050490.json`) still show three written-color misses
+for 47498 (0/296 elements) and mobile overflow findings; the 47498 button text
+row is `na` because its current-value inventory is not unique. A read-only
+Products editor inspection of 47498 instance `rAfbpBFNQHvy` at
+`reports/g48-style-inspection-47498-1793509330398.json` again read the persisted
+palette values as `rgb(208, 182, 71)`, `rgb(13, 13, 10)`, and
+`rgb(17, 13, 9)`. The exact instance canvas snapshot contains those values in
+29, 2, and 2 style rows respectively. The probe changed no setting, saved no
+page, and published nothing. Thus control readback and editor-canvas effects
+are confirmed; whether the published page's external CSS contains or applies
+them remains unresolved until the optional stylesheet search is run on the
+Mac. Stylesheet-only text matches are diagnostic records, not a passing
+computed-style assertion.

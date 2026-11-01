@@ -70,7 +70,7 @@ export function createFreshLifecycle(kind, operations = {}) {
     },
     async apply(...args) {
       if (!opened) throw new Error(`Fresh ${kind} lifecycle apply requires an open surface.`);
-      await operations.apply(...args); dirty = true;
+      const result = await operations.apply(...args); dirty = true; return result;
     },
     async commit(...args) {
       if (!opened) throw new Error(`Fresh ${kind} lifecycle commit requires an open surface.`);

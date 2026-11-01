@@ -77,3 +77,27 @@ An unlearned automatic check is `na` in the machine report with its reason;
 the human-facing summary does not show selector matches or compatibility
 details. Candidate selectors are only drawn from that block's own canvas
 snapshot and are not used as a substitute for the learned effect assertion.
+
+## Palette readback and optional CSS-source diagnostics
+
+Each discovered palette setting records the requested color and the value
+read immediately from the color input itself after the write. A mismatch is a
+failed setting result (`palette-write-readback-mismatch`); a visible swatch is
+not used as a substitute for that input readback. The later saved-value check
+remains a separate persistence assertion.
+
+On a Mac/front run, `scripts/front-style-only.mjs --include-stylesheets 1`
+optionally searches external linked stylesheets, inline `<style>` blocks,
+inline style attributes, and computed CSS custom properties for the run's
+written palette colors. It recognizes rgb/rgba, hex, and hsl/hsla forms with
+valid alpha from 0 through 1. A stylesheet-only occurrence is emitted as a
+`record` row (`written-color-stylesheet-only-match`); it never converts a
+missing computed-style match inside the exact instance into a pass. The
+default element scan remains the pass/fail oracle.
+
+Front style dimensions use a default ±2 CSS-pixel tolerance, configurable per
+profile as `styleSpec.tolerances.sizePx`; other numeric measurements use
+`styleSpec.tolerances.px` (default 0.6). Color comparisons remain exact after
+normalization. A style item may declare `scope.containerKind: "pagination"`;
+its selector is then resolved only under the innermost semantic pagination
+container inside the uniquely identified block instance.

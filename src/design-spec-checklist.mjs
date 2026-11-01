@@ -180,8 +180,105 @@ async function readInstanceColorSnapshot(page, rootSelector) {
 function cssColors(value) {
   const text = String(value ?? '');
   const found = [];
-  for (const match of text.matchAll(/rgba?\([^)]*\)|#[\da-f]{3,8}\b/gi)) found.push(match[0]);
+  for (const match of text.matchAll(/rgba?\([^)]*\)|hsla?\([^)]*\)|#[\da-f]{3,8}\b/gi)) found.push(match[0]);
   return found;
+}
+
+function opaqueColorKey(value) {
+  const text = String(value ?? '').trim().toLowerCase();
+  const hex = text.match(/^#([\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i);
+  if (hex) {
+    let parts = hex[1];
+    if (parts.length <= 4) parts = [...parts].map((part) => part + part).join('');
+    return parts.slice(0, 6);
+  }
+  const rgb = text.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgb) {
+    const parts = rgb[1].split(/[,/\s]+/).filter(Boolean);
+    if (parts.length < 3) return null;
+    const alpha = parts[3] === undefined ? 1 : Number.parseFloat(parts[3]);
+    if (!Number.isFinite(alpha) || alpha < 0 || alpha > 1) return null;
+    const channels = parts.slice(0, 3).map((part) => part.endsWith('%')
+      ? Math.round(Number.parseFloat(part) * 2.55) : Math.round(Number.parseFloat(part)));
+    if (channels.some((channel) => !Number.isFinite(channel) || channel < 0 || channel > 255)) return null;
+    return channels.map((channel) => channel.toString(16).padStart(2, '0')).join('');
+  }
+  const hsl = text.match(/^hsla?\(([^)]+)\)$/i);
+  if (hsl) {
+    const parts = hsl[1].split(/[,/\s]+/).filter(Boolean);
+    if (parts.length < 3) return null;
+    const alpha = parts[3] === undefined ? 1 : Number.parseFloat(parts[3]);
+    if (!Number.isFinite(alpha) || alpha < 0 || alpha > 1) return null;
+    const h = ((Number.parseFloat(parts[0]) % 360) + 360) % 360 / 360;
+    const s = Number.parseFloat(parts[1]) / 100, l = Number.parseFloat(parts[2]) / 100;
+    if (![h, s, l].every(Number.isFinite) || s < 0 || s > 1 || l < 0 || l > 1) return null;
+    const hue = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const channels = s === 0 ? [l, l, l] : [hue(p, q, h + 1 / 3), hue(p, q, h), hue(p, q, h - 1 / 3)];
+    return channels.map((channel) => Math.round(channel * 255).toString(16).padStart(2, '0')).join('');
+  }
+  return null;
+}
+
+export function countCssColorMatches(cssText, expected) {
+  const expectedKey = opaqueColorKey(expected);
+  if (!expectedKey) return 0;
+  return cssColors(cssText).filter((candidate) => opaqueColorKey(candidate) === expectedKey).length;
+}
+
+export async function runWrittenColorStylesheetSearch({ page, settingsReport, elementChecks = [], fetchStylesheet } = {}) {
+  const values = extractWrittenColorValues(settingsReport);
+  if (!page || !values.length) return [];
+  const inventory = await page.evaluate(() => {
+    const root = document.documentElement;
+    const links = [...document.querySelectorAll('link[rel~="stylesheet"][href]')].map((item) => item.href);
+    const inline = [...document.querySelectorAll('style')].map((item) => item.textContent || '');
+    for (const item of [root, ...root.querySelectorAll('*')]) {
+      const style = item.getAttribute('style');
+      if (style) inline.push(style);
+      const computed = getComputedStyle(item);
+      for (const property of computed) if (property.startsWith('--')) {
+        const value = computed.getPropertyValue(property).trim();
+        if (value) inline.push(`${property}:${value}`);
+      }
+    }
+    return { links, inline };
+  });
+  const sheets = [...inventory.inline.map((text, index) => ({ source: `inline-${index}`, text }))];
+  for (const [index, href] of inventory.links.entries()) {
+    try {
+      const text = fetchStylesheet ? await fetchStylesheet(href) : await (async () => {
+        if (!page.request?.get) throw new Error('stylesheet-fetch-unavailable');
+        const response = await page.request.get(href, { timeout: 15000 });
+        if (!response.ok()) throw new Error(`stylesheet-http-${response.status()}`);
+        return response.text();
+      })();
+      sheets.push({ source: `external-${index}`, text });
+    } catch {
+      // External stylesheet fetch failures are counted but never printed with
+      // hrefs, which may contain query tokens.
+      sheets.push({ source: `external-${index}`, text: '', unavailable: true });
+    }
+  }
+  return values.flatMap((item) => {
+    const elementResult = elementChecks.find((check) => check.id === item.id);
+    if (elementResult?.status === 'pass') return [];
+    const matches = sheets.filter((sheet) => countCssColorMatches(sheet.text, item.value) > 0);
+    if (!matches.length) return [];
+    return [{ id: `${item.id}-stylesheet-evidence`, name: '样式表颜色线索（不作通过判定）', status: 'record',
+      expected: item.value, actual: { stylesheetMatchCount: matches.length,
+        sourceKinds: [...new Set(matches.map((sheet) => sheet.source.split('-')[0]))],
+        unavailableStylesheetCount: sheets.filter((sheet) => sheet.unavailable).length },
+      detail: '颜色只在样式表或内联 CSS 文本中出现，不能替代目标实例的计算样式断言。',
+      reason: { stage: 'front', code: 'written-color-stylesheet-only-match', expectedSource: 'run-report.currentValues' } }];
+  });
 }
 
 export function countInstanceColorMatches(snapshot, expected) {

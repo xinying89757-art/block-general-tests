@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { addStyleFailureReasons, resolveFrontStyleCapability, resolveItemApplicability, styleCheckDescriptors,
-  textContentOracle } from '../src/capabilities/block-style-spec.mjs';
+  textContentOracle, compareProps, isPaginationContainerMetadata } from '../src/capabilities/block-style-spec.mjs';
 import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, resolveFrontStyleInstance, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 
 const capability = { id: 'block-style-spec', styleSpec: { viewports: { pc: 1440, pad: 768, mobile: 375 }, items: [
@@ -76,7 +76,7 @@ test('selectors without offline DOM snapshots remain na and do not guess replace
 
 test('navigation fallback derives link candidates only from the uniquely scoped instance root', () => {
   const source = fs.readFileSync(new URL('../src/capabilities/block-style-spec.mjs', import.meta.url), 'utf8');
-  assert.match(source, /links = \[\.\.\.root\.querySelectorAll\('a, \[role="link"\]'\)\]/);
+  assert.match(source, /links = \[\.\.\.selectionRoot\.querySelectorAll\('a, \[role="link"\]'\)\]/);
   assert.match(source, /candidateSource = 'instance-root-semantic-hierarchy'/);
   assert.doesNotMatch(source, /document\.querySelectorAll\('a, \[role="link"\]'\)/);
   assert.match(source, /navigation \? 'na' : 'skip'/);
@@ -293,6 +293,34 @@ test('inventory text oracle does not guess when the run value is missing or ambi
   ] }, checks: [{ id: 'button-label-persist', status: 'pass' }] });
   assert.equal(ambiguous.styleSpec.items[0].text, null);
   assert.equal(ambiguous.styleSpec.items[0].valueResolutionReason, 'run-control-value-not-unique');
+});
+
+test('inventory text falls back to the last setting value written, then to an explicit AUTOTEST marker', () => {
+  const source = { styleSpec: { items: [{ id: 'inventory-label', kind: 'text-content', text: null,
+    runValueSource: { control: { region: 'button-popover', label: 'Button label' },
+      settingCheckIds: ['button-label-persist'] } }] } };
+  const ambiguous = { block: { currentValues: [
+    { region: 'button-popover', label: 'Button label', value: 'Old' },
+    { region: 'button-popover', label: 'Button label', value: 'New' },
+  ] }, checks: [{ id: 'button-label-persist', status: 'pass', value: 'AUTOTEST-WRITTEN' }] };
+  const written = resolveFrontStyleCapability(source, ambiguous).styleSpec.items[0];
+  assert.equal(written.text, 'AUTOTEST-WRITTEN');
+  assert.equal(written.resolvedExpectedSources.text, 'run-report:checks[button-label-persist].value');
+  const marked = resolveFrontStyleCapability(source, { autotestMarker: 'AUTOTEST-RUN' }).styleSpec.items[0];
+  assert.equal(marked.text, 'AUTOTEST-RUN');
+  assert.equal(marked.resolvedExpectedSources.text, 'run-report:autotest-marker');
+});
+
+test('style dimensions use configurable two-pixel default tolerance while colors remain exact', () => {
+  assert.deepEqual(compareProps({ fontSize: 14, width: 28, color: '#ffffff' },
+    { fontSize: 16, width: 30, color: '#fffffe' }, { px: 0.6, sizePx: 2 }), ['文字颜色设计为 #ffffff，实测为 #fffffe']);
+  assert.deepEqual(compareProps({ fontSize: 14 }, { fontSize: 16.01 }, { sizePx: 2 }), ['字号设计为 14px，实测为 16.01px']);
+});
+
+test('pagination semantic scope requires a pagination container inside the instance root', () => {
+  assert.equal(isPaginationContainerMetadata({ tagName: 'DIV', className: 'product-pagination' }), true);
+  assert.equal(isPaginationContainerMetadata({ tagName: 'NAV', role: 'navigation', ariaLabel: 'Pagination' }), true);
+  assert.equal(isPaginationContainerMetadata({ tagName: 'DIV', className: 'product-list' }), false);
 });
 
 test('profile button style shares the CSS target without requiring stale button copy', () => {

@@ -111,6 +111,8 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 
 `block-style-spec` 画像中若只有 `recordOnly` 库存项，会按 `record` 输出这些待人工建立前台映射的能力，并继续执行通用视口布局检查。不要把设置库存标签当作前台 DOM 选择器。
 
+需要诊断写入色是否只出现在 CSS 源文件而未进入实例计算样式时，可在 Mac 上运行 `scripts/front-style-only.mjs` 时加 `--include-stylesheets 1`。它会额外读取链接样式表、内联样式和 CSS 变量；这类命中只记 `record`，不会覆盖目标实例元素扫描的失败。尺寸按默认 ±2px 比较，可在画像 `styleSpec.tolerances.sizePx` 调整；颜色仍按精确归一化值比较。分页样式项声明 `scope.containerKind: "pagination"` 后，只在实例内语义分页容器中查找候选元素。
+
 ## 安全和恢复的底线
 
 - `.env` 里有你的账号密码，永远不提交、不分享、不打印。仓库里只有 `.env.example`。

@@ -156,12 +156,19 @@ export async function createDiscoveredStyleSettingUnits({ inventory = [], persis
     requirementsAdded ||= !hadRequirement;
     const requirement = profile?.requirements?.capabilities?.find((item) => item.id === candidate.requirementId)
       || { id: candidate.requirementId, editorControl: candidate.reference };
+    let writeReadback = null;
     const check = async () => {
       await lifecycle.open();
       try {
         const actual = await lifecycle.read(candidate.reference);
         const pass = normalizedEqual(candidate.kind, actual, alternateValue);
-        return { status: pass ? 'pass' : 'fail', expected: alternateValue, actual,
+        const readbackMatchesWrite = writeReadback?.matched !== false
+          && (!writeReadback || normalizedEqual(candidate.kind, writeReadback.readBackValue, writeReadback.setValue));
+        return { status: pass && readbackMatchesWrite ? 'pass' : 'fail', expected: alternateValue, actual,
+          ...(candidate.kind === 'color' && writeReadback ? { evidence: { paletteWrite: {
+            setValue: writeReadback.setValue, readBackValue: writeReadback.readBackValue,
+            matches: readbackMatchesWrite, source: 'actual-color-input-value' } } } : {}),
+          ...(writeReadback && !readbackMatchesWrite ? { reason: { code: 'palette-write-readback-mismatch' } } : {}),
           detail: 'Style control persistence should retain the value written by this setting unit.' };
       } finally { await lifecycle.cancel(); }
     };
@@ -173,7 +180,7 @@ export async function createDiscoveredStyleSettingUnits({ inventory = [], persis
       alternateValue, initialValue: candidate.initialValue, valueKind: candidate.kind,
       ...(candidate.kind === 'font-size' ? { styleProperty: 'fontSize' } : { styleProperty: 'color' }),
       lifecycle,
-      apply: async () => lifecycle.apply(candidate.reference, alternateValue),
+      apply: async () => { writeReadback = await lifecycle.apply(candidate.reference, alternateValue); },
       editorCheck: check, check,
       restore: async () => lifecycle.apply(candidate.reference, candidate.initialValue),
       frontRequires: [],

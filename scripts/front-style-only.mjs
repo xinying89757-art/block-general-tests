@@ -14,7 +14,7 @@ import { chromium } from 'playwright-core';
 import { runFrontLayer, resolveFrontStyleCapability } from '../src/capabilities/block-style-spec.mjs';
 import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 import { markUniqueFrontInstance } from '../src/front-instance-root.mjs';
-import { runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../src/design-spec-checklist.mjs';
+import { runDesignSpecFrontChecks, runWrittenColorFrontChecks, runWrittenColorStylesheetSearch } from '../src/design-spec-checklist.mjs';
 
 const args = {};
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -76,7 +76,11 @@ try {
     const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector: config.rootSelector,
       frontChecks: styleChecks, settingsReport, viewport: { width: 1440, height: 900 } });
     const writtenColors = await runWrittenColorFrontChecks({ page, rootSelector: config.rootSelector, settingsReport });
-    report.checks = attachFrontStyleInstance([...styleChecks, ...designChecks.filter(Boolean), ...writtenColors], report.settingId);
+    const stylesheetEvidence = args['include-stylesheets'] === '1'
+      ? await runWrittenColorStylesheetSearch({ page, rootSelector: config.rootSelector, settingsReport,
+        elementChecks: writtenColors }) : [];
+    report.checks = attachFrontStyleInstance([...styleChecks, ...designChecks.filter(Boolean), ...writtenColors,
+      ...stylesheetEvidence], report.settingId);
   } finally { await markedRoot.clear().catch(() => {}); }
   const shots = fs.readdirSync('screenshots').filter((f) => f.startsWith(`style-${blockId}-`));
   report.screenshots = shots.map((f) => `screenshots/${f}`);

@@ -154,7 +154,9 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
       const batchOutcomes = new Map();
       for (const setting of batch.settings) {
         batchOutcomes.set(setting.id, applyErrors.has(setting.id)
-          ? { status: 'fail', detail: applyErrors.get(setting.id).message, error: applyErrors.get(setting.id).message }
+          ? { status: 'fail', detail: applyErrors.get(setting.id).message, error: applyErrors.get(setting.id).message,
+            ...(applyErrors.get(setting.id).code ? { reason: { code: applyErrors.get(setting.id).code } } : {}),
+            ...(applyErrors.get(setting.id).paletteReadback ? { evidence: { paletteWrite: applyErrors.get(setting.id).paletteReadback } } : {}) }
           : await safeCheck(setting, 'batch', batchInfo));
       }
       const failed = batch.settings.filter((setting) => outcomeStatus(batchOutcomes.get(setting.id)) === 'fail');

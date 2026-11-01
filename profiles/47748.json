@@ -195,7 +195,10 @@
               ".pagination span"
             ],
             "learnedSelectorRequired": true,
-            "text": "1"
+            "text": "1",
+            "scope": {
+              "containerKind": "pagination"
+            }
           },
           {
             "id": "pagination-other",
@@ -209,7 +212,10 @@
             "sample": 2,
             "selectorCandidates": [
               ".pagination a"
-            ]
+            ],
+            "scope": {
+              "containerKind": "pagination"
+            }
           }
         ],
         "notes": [
@@ -219,7 +225,8 @@
         ],
         "tolerances": {
           "color": "exact",
-          "px": 0.6
+          "px": 0.6,
+          "sizePx": 2
         },
         "viewports": {
           "mobile": 375,
