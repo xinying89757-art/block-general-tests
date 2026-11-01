@@ -4,7 +4,8 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { login, attemptStorageStateReuse, matchSiteLanguage, matchSiteListCards, readAuthCredentials } from '../scripts/explore-login.mjs';
-import { SITE_LIST_URL, hostOf, matchAttachedCardIndexes, normalizeFreshPageEntry, publicBaseUrlFromCardValues } from '../src/editor.mjs';
+import { SITE_LIST_URL, classifyEditorEntryState, hostOf, matchAttachedCardIndexes, normalizeFreshPageEntry,
+  publicBaseUrlFromCardValues, waitForSiteList } from '../src/editor.mjs';
 
 function loginPage({ rejected = false } = {}) {
   const actions = [];
@@ -94,6 +95,38 @@ test('editor enters through the www site-list; attached offscreen cards remain e
   assert.deepEqual(matchAttachedCardIndexes(['elsewhere.test', 'target.test'], 'target.test'), [1]);
   assert.equal(hostOf('en-site79106751.ldwebsite.com'), 'en-site79106751.ldwebsite.com');
   assert.equal(hostOf('http://en-site79106751.ldwebsite.com'), 'en-site79106751.ldwebsite.com');
+});
+
+test('editor entry classification reports logged-out, editor, site-list and unavailable states distinctly', () => {
+  assert.equal(classifyEditorEntryState({ url: 'https://www.leadong.com/login.html' }), 'logged-out');
+  assert.equal(classifyEditorEntryState({ url: 'https://website.leadong.com/phoenix/pagebuilder/id' }), 'editor');
+  assert.equal(classifyEditorEntryState({ url: SITE_LIST_URL, siteCardCount: 1 }), 'site-list');
+  assert.equal(classifyEditorEntryState({ url: 'https://www.leadong.com/' }), 'site-list-unavailable');
+  assert.equal(classifyEditorEntryState({ url: 'https://www.leadong.com/', loginVisible: true }), 'logged-out');
+});
+
+test('site-list wait performs one bounded generic retry before reporting unavailable', async () => {
+  let cardsReady = false;
+  let navigations = 0;
+  const page = {
+    url: () => SITE_LIST_URL,
+    frames: () => [],
+    goto: async () => { navigations += 1; cardsReady = true; },
+    waitForTimeout: async () => {},
+    locator: (selector) => selector === '.mySiteBox'
+      ? { count: async () => cardsReady ? 1 : 0 }
+      : { first: () => ({ isVisible: async () => false }) },
+  };
+  const result = await waitForSiteList(page, { timeoutMs: 2, maxAttempts: 2, pollMs: 1 });
+  assert.deepEqual(result, { status: 'ready', attempts: 2 });
+  assert.equal(navigations, 1);
+});
+
+test('site-list wait identifies an expired session instead of falling back to the editor URL', async () => {
+  const page = { url: () => 'https://www.leadong.com/login.html', frames: () => [],
+    locator: () => ({ count: async () => 0, first: () => ({ isVisible: async () => false }) }),
+    goto: async () => {}, waitForTimeout: async () => {} };
+  assert.deepEqual(await waitForSiteList(page, { timeoutMs: 10, maxAttempts: 2 }), { status: 'logged-out', attempts: 1 });
 });
 
 test('site-card host discovery handles relative references and prefers the exact target host', () => {

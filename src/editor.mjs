@@ -12,6 +12,8 @@ function blockSelector(blockId) {
 }
 
 export const SITE_LIST_URL = 'https://www.leadong.com/website.html';
+export const DEFAULT_SITE_LIST_TIMEOUT_MS = 30_000;
+export const DEFAULT_SITE_LIST_ATTEMPTS = 2;
 const PLATFORM_HOSTS = new Set(['www.leadong.com', 'website.leadong.com', 'jianzhan.leadong.com']);
 const LANGUAGE_NAMES = { 0: '英语', 1: '中文（简体）', 3: '阿拉伯语', 4: '法语', 10: '日语', 11: '韩语' };
 const LANGUAGE_PREFIXES = { en: 0, cn: 1, sa: 3, fr: 4, jp: 10, kr: 11 };
@@ -21,6 +23,50 @@ export function hostOf(value) {
   if (!raw) return '';
   try { return new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).host.toLowerCase(); }
   catch { return ''; }
+}
+
+export function classifyEditorEntryState({ url = '', loginVisible = false, siteCardCount = 0 } = {}) {
+  if (loginVisible || /\/login(?:\.html)?(?:[?#]|$)/i.test(String(url))) return 'logged-out';
+  if (/\/phoenix\/pagebuilder(?:\/|$)/i.test(String(url))) return 'editor';
+  if (Number(siteCardCount) > 0) return 'site-list';
+  return 'site-list-unavailable';
+}
+
+function safeLocation(value) {
+  try { const url = new URL(value); return `${url.origin}${url.pathname}`; }
+  catch { return ''; }
+}
+
+export async function isLoggedOutPage(page) {
+  if (/\/login(?:\.html)?(?:[?#]|$)/i.test(page.url())) return true;
+  for (const scope of [page, ...page.frames()]) {
+    for (const selector of ['#loginName', 'input[type="password"]']) {
+      if (await scope.locator(selector).first().isVisible().catch(() => false)) return true;
+    }
+  }
+  return false;
+}
+
+/** Bounded site-list polling with one generic navigation retry. */
+export async function waitForSiteList(page, { timeoutMs = DEFAULT_SITE_LIST_TIMEOUT_MS,
+  maxAttempts = DEFAULT_SITE_LIST_ATTEMPTS, pollMs = 250 } = {}) {
+  const cards = page.locator('.mySiteBox');
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await isLoggedOutPage(page)) return { status: 'logged-out', attempts: attempt + 1 };
+      if (await cards.count().catch(() => 0)) return { status: 'ready', attempts: attempt + 1 };
+      await page.waitForTimeout(Math.min(pollMs, Math.max(1, deadline - Date.now()))).catch(() => {});
+    }
+    if (attempt + 1 < maxAttempts) {
+      await page.goto(SITE_LIST_URL, { waitUntil: 'domcontentloaded', timeout: timeoutMs }).catch(() => {});
+    }
+  }
+  return { status: await isLoggedOutPage(page) ? 'logged-out' : 'unavailable', attempts: maxAttempts };
+}
+
+function entryError(code, message) {
+  return Object.assign(new Error(`${code}: ${message}`), { code, environment: true });
 }
 
 export function targetLanguage(config) {
@@ -142,14 +188,20 @@ export async function enterSiteFromList(page, config) {
 }
 
 export async function openEditor(page, config) {
-  await page.goto(SITE_LIST_URL, { waitUntil: 'domcontentloaded' });
-  if (/\/login(?:\.html)?(?:[?#]|$)/i.test(page.url())) {
-    throw new Error(`站点列表已跳转到登录页（${page.url()}），请重跑 scripts/explore-login.mjs 刷新登录态。`);
+  await page.goto(SITE_LIST_URL, { waitUntil: 'domcontentloaded', timeout: Number(config.navigationTimeoutMs) || 60_000 });
+  const siteList = await waitForSiteList(page, { timeoutMs: Number(config.siteListTimeoutMs) || DEFAULT_SITE_LIST_TIMEOUT_MS,
+    maxAttempts: Number(config.siteListAttempts) || DEFAULT_SITE_LIST_ATTEMPTS });
+  if (siteList.status === 'logged-out') {
+    throw entryError('ENV_LOGIN_REQUIRED', `站点列表入口检测到登录页或登录表单（${safeLocation(page.url())}）；请运行 scripts/explore-login.mjs --force-login 刷新登录态。`);
   }
-  try {
-    await page.locator('.mySiteBox').first().waitFor({ state: 'attached', timeout: 30_000 });
-  } catch {
-    if (!config.editSiteUrl) throw new Error(`等待站点列表 .mySiteBox 超时，当前地址：${page.url()}。`);
+  if (siteList.status !== 'ready') {
+    if (!config.editSiteUrl) {
+      throw entryError('ENV_SITE_LIST_TIMEOUT', `等待站点列表卡片超时（${siteList.attempts} 次有界尝试，${safeLocation(page.url())}）；检查网络、登录态或站点列表加载状态。`);
+    }
+    await page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded', timeout: Number(config.navigationTimeoutMs) || 60_000 });
+    if (await isLoggedOutPage(page)) {
+      throw entryError('ENV_LOGIN_REQUIRED', `备选编辑器入口检测到登录态失效（${safeLocation(page.url())}）；请运行 scripts/explore-login.mjs --force-login。`);
+    }
   }
   let editorPage;
   try {
@@ -161,7 +213,10 @@ export async function openEditor(page, config) {
     editorPage = page;
   }
   if (!editorPage.url().includes('/phoenix/pagebuilder')) {
-    throw new Error(`未进入领动编辑器，当前地址：${editorPage.url()}。请检查站名、语言和站点权限；登录态失效时重跑 scripts/explore-login.mjs。`);
+    if (await isLoggedOutPage(editorPage)) {
+      throw entryError('ENV_LOGIN_REQUIRED', `未进入编辑器且检测到登录态失效（${safeLocation(editorPage.url())}）；请运行 scripts/explore-login.mjs --force-login。`);
+    }
+    throw entryError('ENV_EDITOR_ENTRY_FAILED', `未进入领动编辑器（${safeLocation(editorPage.url())}）；站点入口重试已用尽，请检查目标站权限或编辑器入口。`);
   }
   await waitForEditorReady(editorPage);
   await verifyEditorSiteIdentity(editorPage, config);
