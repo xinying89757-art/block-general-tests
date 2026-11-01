@@ -26,15 +26,17 @@ export const RAIL = {
 // module's first openRailPanel and the width module's flip both hit this
 // in the same run, while the width module's first open worked). Poll
 // instead of reading once.
-export async function selectBlock(canvas, blockId) {
+export async function selectBlock(canvas, blockId, { clickTarget, waitForRail } = {}) {
   const wrap = canvas.locator(RAIL.wrap(blockId)).first();
   await wrap.scrollIntoViewIfNeeded();
+  const activate = clickTarget || ((element) => element.evaluate((node) => node.click()));
+  const wait = waitForRail || (() => visibleRailIndex(canvas));
   for (let attempt = 0; attempt < 2; attempt++) {
-    await wrap.click({ timeout: TIMEOUT });
-    try { return await visibleRailIndex(canvas); }
+    await activate(wrap);
+    try { return await wait(); }
     catch { /* retry the click once, then fall through to the error */ }
   }
-  return visibleRailIndex(canvas);
+  return wait();
 }
 
 export async function visibleRailIndex(canvas) {
@@ -162,6 +164,17 @@ export async function setSchemeColor(canvas, value) {
 export async function saveColorPanel(canvas) {
   const panel = canvas.locator(`${RAIL.colorPanel}:visible`).first();
   await saveAndWait(panel.page(), () => panel.locator(RAIL.colorSave).click({ timeout: TIMEOUT }));
+}
+
+export async function cancelColorPanel(canvas) {
+  const panel = canvas.locator(`${RAIL.colorPanel}:visible`).first();
+  if (!await panel.count()) return;
+  const rail = canvas.locator(RAIL.rail).filter({ visible: true });
+  if (await rail.count() !== 1) throw new Error('配色浮层关闭时无法唯一定位当前区块右侧图标栏。');
+  const icon = rail.locator(RAIL.colorIcon);
+  if (await icon.count() !== 1) throw new Error('配色浮层关闭图标不唯一。');
+  await icon.click({ timeout: TIMEOUT });
+  await panel.waitFor({ state: 'hidden', timeout: TIMEOUT });
 }
 
 // Read the module-width state from the visible width flyout: which radio

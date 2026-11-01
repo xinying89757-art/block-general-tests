@@ -1,5 +1,6 @@
 import { saveAndWait } from './ui-waits.mjs';
 import { selectedBlockInstance, waitForCanvasRender } from './block-render.mjs';
+import { waitForUniquePageSaveControl } from './page-save-control.mjs';
 
 const CANVAS = 'iframe.backstage-pc-proview';
 const PANEL = '.backstage-addmodules-chooseWrapper';
@@ -15,8 +16,11 @@ const PLATFORM_HOSTS = new Set(['www.leadong.com', 'website.leadong.com', 'jianz
 const LANGUAGE_NAMES = { 0: '英语', 1: '中文（简体）', 3: '阿拉伯语', 4: '法语', 10: '日语', 11: '韩语' };
 const LANGUAGE_PREFIXES = { en: 0, cn: 1, sa: 3, fr: 4, jp: 10, kr: 11 };
 
-function hostOf(value) {
-  try { return new URL(value).host.toLowerCase(); } catch { return ''; }
+export function hostOf(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try { return new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).host.toLowerCase(); }
+  catch { return ''; }
 }
 
 export function targetLanguage(config) {
@@ -34,19 +38,25 @@ export function matchAttachedCardIndexes(hosts, targetHost) {
   return hosts.flatMap((host, index) => host === targetHost ? [index] : []);
 }
 
-export async function discoverPublicBaseUrl(card) {
+export function publicBaseUrlFromCardValues(values, { targetHost = '', baseUrl = SITE_LIST_URL } = {}) {
+  const candidates = [];
+  for (const value of values) {
+    try {
+      const url = new URL(value, baseUrl);
+      if (!/^https?:$/i.test(url.protocol)) continue;
+      if (PLATFORM_HOSTS.has(url.hostname.toLowerCase()) || /\/phoenix\//i.test(url.pathname)) continue;
+      candidates.push(url);
+    } catch { /* Ignore relative links and javascript handlers. */ }
+  }
+  const exact = candidates.find((url) => url.host.toLowerCase() === String(targetHost).toLowerCase());
+  return (exact || candidates[0])?.origin || '';
+}
+
+export async function discoverPublicBaseUrl(card, targetHost = '') {
   const urls = await card.locator('a[href], [data-url], [data-href]').evaluateAll((nodes) =>
     nodes.flatMap((node) => ['href', 'data-url', 'data-href'].map((attr) => node.getAttribute(attr)).filter(Boolean)),
   );
-  for (const value of urls) {
-    try {
-      const url = new URL(value);
-      if (!/^https?:$/i.test(url.protocol)) continue;
-      if (['website.leadong.com', 'jianzhan.leadong.com'].includes(url.hostname.toLowerCase()) || /\/phoenix\//i.test(url.pathname)) continue;
-      return url.origin;
-    } catch { /* Ignore relative links and javascript handlers. */ }
-  }
-  return '';
+  return publicBaseUrlFromCardValues(urls, { targetHost });
 }
 
 export async function enterSiteFromList(page, config) {
@@ -66,7 +76,7 @@ export async function enterSiteFromList(page, config) {
   const targetHost = hostOf(config.siteDomain);
   for (let index = 0; index < await cards.count(); index += 1) {
     const card = cards.nth(index);
-    const publicUrl = await discoverPublicBaseUrl(card);
+    const publicUrl = await discoverPublicBaseUrl(card, targetHost);
     hosts.push(hostOf(publicUrl));
     availableCards.push(card);
   }
@@ -248,7 +258,7 @@ async function clickPageTab(page, kind) {
 // [{ name, pageurl, href }]. System pages live in a <dl>, custom pages in a <ul>.
 // Both tabs' lists stay in the DOM, so only visible links count.
 async function listMenuPages(page) {
-  return page.evaluate(() => {
+  const rawEntries = await page.evaluate(() => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const panel = document.querySelector('.backstage-topToolbar-pageBox');
     if (!panel) return [];
@@ -256,8 +266,29 @@ async function listMenuPages(page) {
       if (a.offsetParent === null) return false;
       const li = a.closest('li, dt, dd');
       return li && a.getAttribute('data-href');
-    }).map((a) => ({ name: norm(a.textContent), title: a.getAttribute('title'), pageurl: a.getAttribute('pageurl'), href: a.getAttribute('data-href') }));
+    }).map((a) => {
+      const row = a.closest('.backstage-topToolbar-list') || a.parentElement;
+      const linkView = row?.querySelector('.page_linkview');
+      const identity = row?.querySelector('.page_edit_btn[pk], .page_setting[pk]');
+      return { name: norm(a.textContent), title: a.getAttribute('title'), pageurl: a.getAttribute('pageurl'),
+        frontUrl: linkView?.getAttribute('url') || '', id: a.getAttribute('data-id') || a.getAttribute('pageid') ||
+          a.id || identity?.getAttribute('pk') || '', href: a.getAttribute('data-href') };
+    });
   });
+  return rawEntries.map(normalizeFreshPageEntry);
+}
+
+export function normalizeFreshPageEntry(entry) {
+  return { ...entry, name: String(entry.name || '').replace(/\s+/g, ' ').trim(),
+    title: String(entry.title || '').trim(), id: String(entry.id || ''),
+    pageurl: String(entry.pageurl || entry.frontUrl || '').trim(), href: String(entry.href || '').trim() };
+}
+
+export async function listFreshEditorPages(page, kind = 'system') {
+  if (!['system', 'custom'].includes(kind)) throw new Error('Page-list kind must be system or custom.');
+  await openPageMenu(page);
+  await clickPageTab(page, kind);
+  return listMenuPages(page);
 }
 
 export async function gotoTargetPage(page, config) {
@@ -278,6 +309,36 @@ export async function gotoTargetPage(page, config) {
   await frame.locator('body').waitFor({ state: 'attached', timeout: 60_000 });
   await page.waitForTimeout(3_000);
   return { frame, created: false };
+}
+
+// Fresh-block flow requires an explicit identity for system pages: an exact
+// editor page id or URL supplied by the caller. It never falls back to a
+// familiar/default page name.
+export async function gotoFreshTargetPage(page, target) {
+  if (target?.kind === 'custom') {
+    if (!target.name) throw new Error('FRESH_PAGE_NAME is required for a custom page.');
+    const config = { resolvedTarget: { page: target.name, kind: 'custom' }, blockId: target.blockId };
+    const selected = await ensureTargetPage(page, config);
+    await openPageMenu(page);
+    await clickPageTab(page, 'custom');
+    const matches = (await listMenuPages(page)).filter((item) => item.name === target.name || item.title === target.name);
+    if (matches.length !== 1) throw new Error(`Fresh custom page name matched ${matches.length} menu entries; cannot report an unambiguous front URL.`);
+    return { ...selected, pageItem: matches[0] };
+  }
+  if (target?.kind !== 'system' || !target.id || !target.url) {
+    throw new Error('Fresh system page requires both FRESH_PAGE_ID and FRESH_PAGE_URL.');
+  }
+  await openPageMenu(page);
+  await clickPageTab(page, 'system');
+  const items = await listMenuPages(page);
+  const matches = items.filter((item) => item.id === String(target.id) || item.pageurl === target.url || item.href === target.url);
+  if (matches.length !== 1) throw new Error(`Fresh system page selector matched ${matches.length} menu entries; expected one by id/url.`);
+  await page.locator(`.backstage-topToolbar-pageBox a[data-href=${JSON.stringify(matches[0].href)}]`).click();
+  await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
+  const frame = page.frameLocator(CANVAS);
+  await frame.locator('body').waitFor({ state: 'attached', timeout: 60_000 });
+  await page.waitForTimeout(3_000);
+  return { frame, created: false, pageItem: matches[0] };
 }
 
 async function ensurePageMenuOpen(page) {
@@ -361,10 +422,11 @@ export async function addBlockIfNeeded(page, frame, config) {
   const rendered = await waitForCanvasRender(inspectCanvas, {
     timeoutMs: Number(process.env.CANVAS_RENDER_TIMEOUT_MS) || 45_000,
     stableMs: Number(process.env.CANVAS_RENDER_STABLE_MS) || 8_000,
+    allowEmptyCanvas: Boolean(config.addAnotherInstance),
   });
   const countBefore = rendered.targets.length;
   const chosenBefore = selectedBlockInstance(rendered.targets);
-  if (countBefore > 0) return { added: false, countBefore, countAfter: countBefore,
+  if (countBefore > 0 && !config.addAnotherInstance) return { added: false, countBefore, countAfter: countBefore,
     instances: rendered.targets, selectedInstance: chosenBefore };
 
   const addButton = frame
@@ -430,14 +492,28 @@ export async function addBlockIfNeeded(page, frame, config) {
     if (await close.isVisible()) await close.click();
     await panel.waitFor({ state: 'hidden' });
     return { added: true, addedVia: moduleType, countBefore, countAfter, attempts,
-      instances: afterRender.targets, selectedInstance: selectedBlockInstance(afterRender.targets) };
+      instances: afterRender.targets, selectedInstance: config.addAnotherInstance
+        ? { ...afterRender.targets.at(-1), order: afterRender.targets.length, total: afterRender.targets.length }
+        : selectedBlockInstance(afterRender.targets) };
   }
   throw new Error(`区块 ${config.blockId} 在模块列表中未找到（已尝试 ${order.join(' → ')}）。`);
 }
 
 export async function savePage(page) {
-  const save = page.locator('#saveLayout');
-  await save.waitFor({ state: 'visible' });
+  const selected = await waitForUniquePageSaveControl({ readScopes: async () => {
+    const frames = [page.mainFrame(), ...page.frames().filter((frame) => frame !== page.mainFrame())];
+    return Promise.all(frames.map(async (frame, index) => {
+      const locator = frame.locator('#saveLayout');
+      const controls = await locator.evaluateAll((nodes) => nodes.map((element) => ({
+        id: element.id,
+        visible: Boolean(element.getClientRects().length)
+          && getComputedStyle(element).visibility !== 'hidden'
+          && getComputedStyle(element).display !== 'none',
+      }))).catch(() => []);
+      return { name: index === 0 ? 'page' : `frame-${index}`, frameUrl: frame.url(), locator, controls };
+    }));
+  } });
+  const save = selected.locator.nth(selected.index);
   // No stable business-success selector is known yet. Observe save HTTP errors,
   // then require completed writes, an available save control and a stable canvas.
   const failedResponses = [];

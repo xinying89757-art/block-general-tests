@@ -11,6 +11,7 @@ export async function waitForCanvasRender(readSnapshot, {
   timeoutMs = 45_000,
   stableMs = 8_000,
   pollMs = 500,
+  allowEmptyCanvas = false,
   now = () => Date.now(),
   delay = sleep,
 } = {}) {
@@ -24,7 +25,7 @@ export async function waitForCanvasRender(readSnapshot, {
     const ready = lastSnapshot?.ready === true
       && lastSnapshot?.canvasReady === true
       && lastSnapshot?.loading !== true
-      && Number(lastSnapshot?.blockCount) > 0;
+      && (allowEmptyCanvas || Number(lastSnapshot?.blockCount) > 0);
     const signature = ready ? JSON.stringify(lastSnapshot.signature) : null;
     if (signature && signature === stableSignature) {
       if (now() - stableSince >= stableMs) return lastSnapshot;

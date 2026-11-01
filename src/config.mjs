@@ -25,6 +25,10 @@ function parseBoolean(value, name) {
   throw new Error(`${name} must be true or false; received ${JSON.stringify(value)}`);
 }
 
+export function accountFromEnv(env = process.env) {
+  return (firstDefined(env.ACCOUNT, env.PLAYWRIGHT_ACCOUNT, env.PLAYWRIGHT_USERNAME, '') || '').trim();
+}
+
 // Also used by the login script, which does not require BLOCK_ID.
 export function loadBrowserConfig(env = process.env) {
   const browser = firstDefined(env.BROWSER, 'chromium').trim().toLowerCase();
@@ -73,12 +77,7 @@ export function loadConfig() {
     targetPageKind: (firstDefined(process.env.TARGET_PAGE_KIND) || '').trim().toLowerCase(),
     siteDomain: (process.env.SITE_DOMAIN || '').trim().replace(/\/$/, ''),
     siteName: (process.env.SITE_NAME || '').trim(),
-    account: firstDefined(
-      process.env.ACCOUNT,
-      process.env.PLAYWRIGHT_ACCOUNT,
-      process.env.PLAYWRIGHT_USERNAME,
-      '',
-    ).trim(),
+    account: accountFromEnv(),
     password: firstDefined(process.env.PASSWORD, process.env.PLAYWRIGHT_PASSWORD, ''),
     moduleType,
     ...loadBrowserConfig(),

@@ -3,6 +3,7 @@ import { categorySelectionChanges } from './product-category-select.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText, fixtureCategoryState, findControl, controlValue } from './shared.mjs';
 import { executeSettingBatches } from '../batch-save.mjs';
+import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 
 const SUITE = 'capability:product-list-display';
 const NAMES = {
@@ -35,6 +36,9 @@ export const batchSaveMetadata = Object.freeze({
   comparison: Object.freeze({}),
   'display-field': Object.freeze({}),
 });
+export const freshSettings = Object.freeze({ status: 'adapted', metadata: batchSaveMetadata,
+  settingKeys: Object.freeze(Object.keys(batchSaveMetadata)),
+  createDefinitions: createProductListBatchDefinitions });
 
 export async function runListEffectPlan(tasks, { checkGroup } = {}) {
   const selected = checkGroup ? tasks.filter((task) => task.id === checkGroup) : tasks;
@@ -540,6 +544,12 @@ function controlBatchSetting({ id, key, name, control, alternate }) {
   return setting;
 }
 
+export function bindFreshBatchSettingSession(setting, session) {
+  const apply = setting.apply;
+  const restore = setting.restore;
+  return { ...setting, apply: () => apply(session), restore: () => restore(session) };
+}
+
 function attachBatchEffect(setting, { canvas, config, profile, report }) {
   setting.captureEffect = async () => {
     try { setting.effectBefore = await readEffectRoot(canvas, config, productSnapshot); }
@@ -602,10 +612,19 @@ function attachBatchEffect(setting, { canvas, config, profile, report }) {
   };
 }
 
-export async function runBatchSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
-  const session = listSession({ page, canvas, config, capability });
-  const initial = await probeControls(session);
-  if (initial.reason) return runSettingsLayer({ page, canvas, context, config, capability, profile, report });
+export async function createProductListBatchDefinitions(args) {
+  const { page, canvas, context, config, capability, profile, report } = args;
+  // Optional dependencies let the same definitions run against an offline
+  // editor-session fixture. Production callers continue to use the real
+  // capability-scoped dialog session and probe its live controls.
+  const session = args.scopedSession || listSession({ page, canvas, config, capability });
+  const initial = Array.isArray(args.initialControls)
+    ? { controls: args.initialControls }
+    : await probeControls(session);
+  if (initial.reason) {
+    await session.cancel().catch(() => {});
+    return { settings: [], staticResults: [result('pld-settings', 'skip', `无法读取产品列表设置：${initial.reason}`)] };
+  }
 
   const controls = initial.controls;
   const checksById = new Map();
@@ -655,30 +674,72 @@ export async function runBatchSettingsLayer({ page, canvas, context, config, cap
   else checksById.set('pld-display-field-persist', result('pld-display-field-persist', fields.length === 0 ? 'na' : 'skip',
     fields.length === 0 ? '本区块没有展示字段设置项。' : '没有可切换的展示字段。'));
 
+  candidates.forEach((setting) => attachBatchEffect(setting, { canvas, config, profile, report }));
+  const checkBatch = async (setting, { phase }) => {
+    const state = setting.inspect(await session.read());
+    const effectCheck = await setting.checkEffect();
+    const format = (value) => typeof value === 'boolean' ? (value ? '勾选' : '未勾选') : String(value ?? '缺失');
+    const detail = `${setting.name}原值“${format(setting.originalValue)}”，批量保存后应为“${format(setting.alternateValue)}”；实际为“${format(state.value)}”。${effectCheck.detail}`;
+    return { status: state.valid && effectCheck.status !== 'fail' ? 'pass' : 'fail', detail,
+      expected: setting.alternateValue, actual: state.value,
+      evidence: { control: setting.control.label || setting.control.context, original: setting.originalValue,
+        alternate: setting.alternateValue, afterSave: state.value, phase, effectCheck } };
+  };
+  const saveBatch = async () => {
+    await session.save();
+    await session.open(); await session.read(); await session.cancel(); await session.open();
+    await (args.savePageOperation || (() => savePage(page)))();
+    await session.open();
+  };
+  const lifecycle = createFreshLifecycle('settings-dialog', {
+    open: () => session.open(), read: () => session.read(), apply: async () => {},
+    commit: () => session.save(), cancel: () => session.cancel(),
+  });
+  const freshCandidates = candidates.map((setting) => {
+    const captureEffect = setting.captureEffect;
+    const fresh = bindFreshBatchSettingSession(setting, session);
+    const apply = fresh.apply;
+    const restore = fresh.restore;
+    fresh.lifecycle = lifecycle;
+    fresh.apply = async () => { await lifecycle.apply(); await apply(); };
+    fresh.restore = async () => { await lifecycle.apply(); await restore(); };
+    fresh.captureEffect = () => captureEffect?.();
+    fresh.check = async (ctx) => {
+      await lifecycle.open();
+      try { return await checkBatch(setting, { phase: ctx?.phase || 'fresh-batch' }); }
+      finally { await lifecycle.cancel(); }
+    };
+    return fresh;
+  });
+  const region = capability?.dialogTitle || '设置产品列表';
+  const persistedControls = candidates.map((setting) => ({ settingId: setting.id, region,
+    controlIndex: setting.control?.index, type: setting.control?.type })).filter((item) => Number.isInteger(item.controlIndex) && item.type);
+  // Definitions are captured during sequential adapter preparation. Leave the
+  // modal closed so a later capability (for example, a canvas rail flyout)
+  // does not inherit an open dialog/backdrop.
+  await session.cancel();
+  return { settings: freshCandidates, metadata: batchSaveMetadata, checkBatch, saveBatch, persistedControls,
+    staticResults: [...checksById.values()] };
+}
+
+export async function runBatchSettingsLayer(args) {
+  const { page, canvas, context, config, capability, profile, report } = args;
+  const definitions = await createProductListBatchDefinitions(args);
+  const session = listSession({ page, canvas, config, capability });
+  const checksById = new Map(definitions.staticResults.map((check) => [check.id, check]));
+  const candidates = definitions.settings;
+  if (candidates.length === 0 && definitions.staticResults.some((item) => item.id === 'pld-settings')) {
+    return runSettingsLayer(args);
+  }
+
   if (candidates.length) {
-    candidates.forEach((setting) => attachBatchEffect(setting, { canvas, config, profile, report }));
     config.batchSaveUsed = true;
     const execution = await executeSettingBatches({ settings: candidates, metadata: batchSaveMetadata, adapter: {
       capture: async (settings) => new Map(settings.map((setting) => [setting.id, setting.originalValue])),
-      apply: async (setting) => { await setting.captureEffect?.(); await setting.apply(session); },
+      apply: async (setting) => { await setting.captureEffect?.({ canvas, config, profile, report }); await setting.apply({ session }); },
       restore: async (setting) => setting.restore(session),
-      save: async () => {
-        await session.save();
-        await session.open();
-        await session.read();
-        await session.cancel();
-        await savePage(page);
-        await session.open();
-      },
-      check: async (setting, { phase }) => {
-        const state = setting.inspect(await session.read());
-        const effectCheck = await setting.checkEffect();
-        const format = (value) => typeof value === 'boolean' ? (value ? '勾选' : '未勾选') : String(value ?? '缺失');
-        const detail = `${setting.name}原值“${format(setting.originalValue)}”，批量保存后应为“${format(setting.alternateValue)}”；实际为“${format(state.value)}”。${effectCheck.detail}`;
-        return { status: state.valid && effectCheck.status !== 'fail' ? 'pass' : 'fail', detail,
-          evidence: { control: setting.control.label || setting.control.context, original: setting.originalValue,
-            alternate: setting.alternateValue, afterSave: state.value, phase, effectCheck } };
-      },
+      save: definitions.saveBatch,
+      check: definitions.checkBatch,
     } });
     for (const item of execution.results) {
       const details = [item.batchResult?.detail].filter(Boolean);

@@ -92,6 +92,61 @@ test('failed batch check is rerun alone and both outcomes are retained', async (
   assert.equal(events.at(-1), 'baseline');
 });
 
+test('retain mode reports passing peers when one member of their saved batch fails', async () => {
+  const settings = [{ id: 'peer-pass', key: 'left', value: 'changed' },
+    { id: 'peer-fail', key: 'right', value: 'changed' }];
+  const run = await executeSettingBatches({ settings, finalState: 'retain-tested-values', adapter: {
+    apply: async () => {}, save: async () => {},
+    check: async (setting) => setting.id === 'peer-fail'
+      ? { status: 'fail', expected: 'wanted', actual: 'observed' }
+      : { status: 'pass', expected: 'changed', actual: 'changed' },
+  } });
+  assert.deepEqual(run.results.map(({ id, status }) => [id, status]), [
+    ['peer-fail', 'fail'], ['peer-pass', 'pass'],
+  ]);
+  assert.equal(run.results.find(({ id }) => id === 'peer-pass').batchResult.actual, 'changed');
+});
+
+test('retain mode restores required dependencies between checks then reapplies the selected failing value', async () => {
+  const events = [];
+  const values = {};
+  const settings = [
+    { id: 'source-check', key: 'source', value: 'category', initialValue: 'all' },
+    { id: 'quantity-check', key: 'quantity', value: 10, initialValue: 20 },
+    { id: 'pagination-check', key: 'pagination', value: true, initialValue: false },
+  ];
+  const run = await executeSettingBatches({ settings, metadata: {
+    source: { interferesWith: ['pagination'] },
+    quantity: { interferesWith: ['pagination'] },
+    pagination: { interferesWith: ['source', 'quantity'], requiresBaseline: ['source', 'quantity'] },
+  }, finalState: 'retain-tested-values', adapter: {
+    capture: async (items) => new Map(items.map((item) => [item.id, item.initialValue])),
+    apply: async (setting, { phase }) => { values[setting.key] = setting.value; events.push(`apply:${setting.key}:${phase}`); },
+    restore: async (setting) => { values[setting.key] = setting.initialValue; events.push(`restore:${setting.key}`); },
+    save: async ({ reason }) => events.push(`save:${reason}`),
+    check: async (setting, { phase }) => {
+      events.push(`check:${setting.key}:${phase}`);
+      return setting.key === 'source' ? { status: 'fail', expected: 'all', actual: 'category' } : { status: 'pass' };
+    },
+  } });
+  assert.deepEqual(run.batches.map((batch) => batch.restoreBefore), [[], ['source', 'quantity']]);
+  assert.ok(events.indexOf('restore:source') < events.indexOf('check:pagination:batch'));
+  assert.ok(events.indexOf('apply:source:retain-failure') > events.indexOf('check:pagination:batch'));
+  assert.equal(values.source, 'category');
+  assert.equal(values.quantity, 20);
+  assert.equal(values.pagination, true);
+  assert.deepEqual(run.timing.retainedFailures.selectedIds, ['source-check']);
+});
+
+test('retain mode rejects dependency restoration before applying when restore adapter is absent', async () => {
+  const events = [];
+  await assert.rejects(executeSettingBatches({ settings: [{ id: 'a', key: 'a' }, { id: 'b', key: 'b' }],
+    metadata: { b: { requiresBaseline: ['a'] } }, finalState: 'retain-tested-values', adapter: {
+      apply: async () => events.push('apply'), save: async () => {}, check: async () => ({ status: 'pass' }),
+    } }), /没有 restore 适配器/);
+  assert.deepEqual(events, []);
+});
+
 test('runner selects the capability batch entry only when BATCH_SAVE is enabled', async () => {
   const calls = [];
   const module = {

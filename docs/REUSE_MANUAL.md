@@ -1,6 +1,6 @@
-# 区块设置项复用手册 v1.15
+# 区块设置项复用手册 v1.16
 
-版本：v1.15（2026-10-31）
+版本：v1.16（2026-10-31）
 范围：已在两个区块上验证：40838（2026-10-23，20 pass / 0 fail；2026-10-26 产品对比前台加验后 21 pass / 0 fail）与 47748（2026-10-26，配置后 16 pass / 0 fail，配色与宽度加验后 20 pass / 0 fail，分类 oracle 两处加验后 22 pass / 0 fail；2026-10-27 样式检查加验后 31 pass / 5 fail，5 个 fail 均为用户已确认的样式偏差；2026-10-28 三层验证分段实跑后 48 pass / 7 fail，7 个 fail 全是已知问题，无新增），并对 40838 做了回归（20 pass / 0 fail）。v1.6 新增：分享给其他人用的包（任何智能体都能跑）与页面选择（新建自定义页面 / 系统页名称）。v1.7 新增：基线捕获与应用（画像 `baseline`，区块加到新页后自动按基线配好再跑）。v1.11 新增：按能力分段跑（`CAPABILITY_FILTER`）与多段报告合并（`scripts/merge-reports.mjs`），长套件被运行环境重启打断时可分段跑完再合并。v1.12 新增：自定义筛选夹具准备流程（探测前置、每种类型一个字段的交并集真值表、收尾只恢复区块）。
 目的：为区块各个设置项形成可复用的流程和脚本，不是以测出某个区块的缺陷为目标。40838 是首个样本，47748 是第二个验证样本；顺带发现的问题只记录，不在本手册里深挖。
 
@@ -78,6 +78,27 @@
 - `radioGroupPersist({ session, page, name, labels })`：任意个选项的 radio 组闭环（例如 47748 列表数据来源的 4 个选项）。组不存在返回 `na`；探查失败、选项不全、当前选中不唯一或有选项 disabled 时返回 `skip`。
 - `poll(read, accepts)`：10 秒轮询读值。读值超时或断言读不到值时算“没匹配上”，不直接抛错——前台本来就没有筛选组的区块（47748），基线采集应记 record，而不是在最后一毫秒抛超时。
 - `previewSelector(blockId)`：预览根节点，`.siteblocks-setting-wrap[data-appid]`，不要用 LA 类名。
+
+## 5.1 Fresh-block live-scene flow (opt-in)
+
+The separate fresh-block entry tests a newly inserted default instance and leaves it on the page. It does not read, capture, apply, or restore a site baseline. Existing baseline-based `npm run test:block` remains unchanged.
+
+Page selection is mandatory. Configure one of:
+
+```sh
+node scripts/fresh-block.mjs --page-kind custom --page-name "<configured page name>"
+node scripts/fresh-block.mjs --page-kind system --page-id "<editor page id>" --page-url "/<page path>"
+```
+
+Equivalent environment keys are `FRESH_PAGE_KIND`, `FRESH_PAGE_NAME` (custom), and `FRESH_PAGE_ID` plus `FRESH_PAGE_URL` (system). There is no default page; incomplete selection refuses to start. `src/fresh-settings-adapter.mjs` loads each profile capability's exported `freshSettings` contract. Adapted definitions provide `settings` with `apply` and `check` functions, `persistedControls` references for controls covered by their existing persistence assertions, and optional dependency metadata. The shared adapter applies non-interfering groups, saves once per group, reruns failed settings alone, and uses retain-tested-values semantics without a restore method. Capabilities that have not exposed definitions are listed as `not-adapted`, never as passes. Full editor inventories remain in both report snapshots; post-publish comparison uses only controls explicitly declared by adapted capabilities, while the report gives the count of inventoried controls not covered by those definitions. This prevents inactive picker UI state from being mistaken for a persistence assertion without filtering by field label. A batch that requires an unavailable baseline is refused before opening the page rather than silently checking a dependent value in a changed state.
+
+The fresh-block workflow identifies instances solely by the configured block number (`data-appid`) on the explicitly selected page. Before deleting anything, it requires a unique `settingId` and editor ordinal for every matching instance, then deletes every instance of that block number one at a time and verifies after each action that exactly one target instance disappeared and counts of every other block number stayed unchanged. It adds one default instance, saves and reloads, and requires exactly one instance with the newly captured `settingId` before testing settings. It never uses a marker or sidecar instance registry.
+
+First-run default control values are stored outside version control at `.local/fresh-defaults/<encoded-host>/<encoded-block-id>.json`; subsequent differences are informational report entries, not failures. Batch settings are saved by declared non-interfering groups. Failed settings are rerun alone; conflicting confirmed failures retain only the first by check order, while the report lists the suppressed setting/value/expected/actual/screenshot. All-pass runs leave the final batch values. The page is published after checks, and the JSON report includes editor/front links, block instance identity/position, current values, changed-default notes, per-check outcomes, and failure screenshot paths. Exactly one target-number block remains for the next run.
+
+Capability definitions are opt-in and must preserve their existing assertion values and evidence fields. They can declare shared `settings-dialog`, `canvas-popover`, or `right-rail-flyout` lifecycles, which sequence open/read/apply/commit/cancel and reject unknown or incomplete surfaces. The popover commit is its verified save-and-close action; rail flyouts use their own save/cancel controls. A definition that cannot bind a setting to an available fixture/control at runtime returns a precise `notAdaptedReason`; its read-only observations remain in the report, but it is not counted as adapted. Check-only capabilities may run their existing profile-driven assertions after publication without adding a settings batch. Fresh current/default inventories also include the selected block's color and width rail controls. Unsupported capability definitions remain explicit report entries. The existing baseline runner remains on its existing settings-layer path.
+
+For post-publish verification, adapted definitions also identify their persisted controls by dialog region, control index, and control type. The full current and reloaded inventories remain in the report; the equality assertion covers only declared controls, and the report counts controls outside adapted definitions as unverified. This separates stored settings from inactive picker UI state without filtering controls by CMS item name or label. The custom-filter fresh definition reuses the fixture-declared field choice and its existing persistence oracle; profile-declared fixed radio values and field inventory remain separately recorded.
 
 特殊控件不走通用 `persistControl`：背景颜色是 Spectrum 取色器，先试 `jQuery(input).spectrum('set', ...)` 加 `trigger('change')`，失败再降级到取色面板点选。两种方式都失败且尚未保存时，记 `skip`，不记 fail。
 

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { login, attemptStorageStateReuse, matchSiteLanguage, matchSiteListCards } from '../scripts/explore-login.mjs';
-import { SITE_LIST_URL, matchAttachedCardIndexes } from '../src/editor.mjs';
+import { login, attemptStorageStateReuse, matchSiteLanguage, matchSiteListCards, readAuthCredentials } from '../scripts/explore-login.mjs';
+import { SITE_LIST_URL, hostOf, matchAttachedCardIndexes, normalizeFreshPageEntry, publicBaseUrlFromCardValues } from '../src/editor.mjs';
 
 function loginPage({ rejected = false } = {}) {
   const actions = [];
@@ -92,4 +92,32 @@ test('navigation4 miss falls back to host matching in site-list cards', () => {
 test('editor enters through the www site-list; attached offscreen cards remain eligible', () => {
   assert.equal(SITE_LIST_URL, 'https://www.leadong.com/website.html');
   assert.deepEqual(matchAttachedCardIndexes(['elsewhere.test', 'target.test'], 'target.test'), [1]);
+  assert.equal(hostOf('en-site79106751.ldwebsite.com'), 'en-site79106751.ldwebsite.com');
+  assert.equal(hostOf('http://en-site79106751.ldwebsite.com'), 'en-site79106751.ldwebsite.com');
+});
+
+test('site-card host discovery handles relative references and prefers the exact target host', () => {
+  assert.equal(publicBaseUrlFromCardValues([
+    '/phoenix/pagebuilder/editor',
+    'https://www.leadong.com/website.html',
+    '//target.example/products',
+    'https://other.example/',
+  ], { targetHost: 'target.example' }), 'https://target.example');
+  assert.equal(publicBaseUrlFromCardValues(['javascript:openEditor()', null]), '');
+});
+
+test('system page menu entries use sibling page id and public link metadata', () => {
+  assert.deepEqual(normalizeFreshPageEntry({ name: ' Products ', title: null, id: 'page-id', pageurl: '',
+    frontUrl: '/products.html', href: '/phoenix/pagebuilder/page-id' }), {
+    name: 'Products', title: '', id: 'page-id', pageurl: '/products.html', frontUrl: '/products.html',
+    href: '/phoenix/pagebuilder/page-id',
+  });
+});
+
+test('auth-file loader accepts the private account/password shape without exposing values', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'login-auth-file-'));
+  const file = path.join(dir, 'auth.json');
+  writeFileSync(file, JSON.stringify({ account: 'unit-account', password: 'unit-password' }));
+  try { assert.deepEqual(readAuthCredentials(file), { account: 'unit-account', password: 'unit-password' }); }
+  finally { rmSync(dir, { recursive: true, force: true }); }
 });

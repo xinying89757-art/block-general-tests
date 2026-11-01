@@ -98,6 +98,13 @@ export function writeEditorUrl(envPath, url) {
   return updated !== original;
 }
 
+export function readAuthCredentials(authFile) {
+  const parsed = JSON.parse(readFileSync(authFile, 'utf8'));
+  if (typeof parsed.account !== 'string' || typeof parsed.password !== 'string'
+    || !parsed.account || !parsed.password) throw new Error('Auth file must contain non-empty account and password fields.');
+  return { account: parsed.account, password: parsed.password };
+}
+
 async function findInputs(page) {
   for (const scope of [page, ...page.frames()]) {
     const placeholderUser = scope.getByPlaceholder('用户名/邮箱/手机号码', { exact: true }).first();
@@ -222,13 +229,18 @@ async function readSiteListCards(page) {
 }
 
 async function main() {
-  dotenv.config({ path: path.join(root, ".env"), quiet: true });
+  const authFileIndex = process.argv.indexOf('--auth-file');
+  const authFile = authFileIndex >= 0 ? process.argv[authFileIndex + 1] : '';
+  const quiet = process.argv.includes('--quiet');
+  if (quiet) console.log = () => {};
+  if (!authFile) dotenv.config({ path: path.join(root, ".env"), quiet: true });
   if (process.env.NO_PROXY === '1') {
     process.env.HTTPS_PROXY = '';
     process.env.https_proxy = '';
   }
-  const ACCOUNT = process.env.PLAYWRIGHT_USERNAME || "";
-  const PASSWORD = process.env.PLAYWRIGHT_PASSWORD || "";
+  const auth = authFile ? readAuthCredentials(path.resolve(root, authFile)) : null;
+  const ACCOUNT = auth?.account || process.env.PLAYWRIGHT_USERNAME || "";
+  const PASSWORD = auth?.password || process.env.PLAYWRIGHT_PASSWORD || "";
   const forceLogin = process.argv.includes('--force-login');
   if ((!ACCOUNT || !PASSWORD) && forceLogin) throw new Error("missing credentials in .env");
 
@@ -266,7 +278,7 @@ async function main() {
     if (reused) {
       console.log('LOGIN: reused-storage-state');
     } else {
-      if (!ACCOUNT || !PASSWORD) throw new Error("登录态无效或不存在，且 .env 缺少登录凭据；请补齐后重跑。");
+      if (!ACCOUNT || !PASSWORD) throw new Error("登录态无效或不存在，且未提供可用的凭据来源。");
       console.log('LOGIN: form');
       await login(page, ACCOUNT, PASSWORD);
     }
@@ -275,7 +287,7 @@ async function main() {
     mkdirSync(path.join(root, "screenshots"), { recursive: true });
     await context.storageState({ path: statePath });
     chmodSync(statePath, 0o600);
-    await page.screenshot({ path: path.join(root, "screenshots", "after-login.png"), fullPage: false });
+    if (!quiet) await page.screenshot({ path: path.join(root, "screenshots", "after-login.png"), fullPage: false });
 
     console.log("POST_LOGIN_URL:", page.url());
     console.log("TITLE:", await page.title());

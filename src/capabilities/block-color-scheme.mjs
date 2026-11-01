@@ -18,9 +18,11 @@
 // stylesheet rule that paints it, if one exists.
 import { savePage, openPreview } from '../editor.mjs';
 import { TIMEOUT, previewSelector, checkReportText, readBackWithRetry } from './shared.mjs';
-import { RAIL, openRailPanel, readSchemeColor, setSchemeColor, saveColorPanel, normalizeColor } from './rail.mjs';
+import { RAIL, openRailPanel, readSchemeColor, setSchemeColor, saveColorPanel, cancelColorPanel, normalizeColor } from './rail.mjs';
+import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 
 const SUITE = 'capability:block-color-scheme';
+export const freshSettings = Object.freeze({ status: 'adapted', createDefinitions: createFreshDefinitions });
 const NAMES = {
   'bcs-state': '配色方案个数与当前值',
   'bcs-color-persist': '配色保存回读与恢复',
@@ -30,6 +32,38 @@ const SCHEME = '#1C4587';
 const SCHEME_RGB = 'rgb(28, 69, 135)';
 const ALT_COLOR = '#FF0000';
 const ALT_RGB = 'rgb(255, 0, 0)';
+
+export async function createFreshDefinitions(args) {
+  const { canvas, config } = args;
+  const lifecycle = args.lifecycle || createFreshLifecycle('right-rail-flyout', {
+    open: () => openRailPanel(canvas, config.blockId, RAIL.colorIcon, RAIL.colorPanel),
+    read: () => readSchemeColor(canvas),
+    apply: (value) => setSchemeColor(canvas, value),
+    commit: () => saveColorPanel(canvas),
+    cancel: () => cancelColorPanel(canvas),
+  });
+  const initial = args.initialValue ?? await (async () => {
+    await lifecycle.open();
+    try { return await lifecycle.read(); } finally { await lifecycle.cancel(); }
+  })();
+  const setting = {
+    id: 'bcs-color-persist', key: 'scheme-color', name: NAMES['bcs-color-persist'], lifecycle,
+    initialValue: initial, originalValue: initial, value: ALT_COLOR, expected: ALT_COLOR,
+    apply: () => lifecycle.apply(ALT_COLOR), restore: () => lifecycle.apply(initial),
+    check: async () => {
+      await lifecycle.open();
+      try {
+        const actual = await lifecycle.read();
+        const pass = normalizeColor(actual) === normalizeColor(ALT_COLOR);
+        return { status: pass ? 'pass' : 'fail', expected: ALT_COLOR, actual,
+          detail: `原有配色持久化断言：改为 ${ALT_COLOR} 后保存重开应保持该值，实际 ${actual}。` };
+      } finally { await lifecycle.cancel(); }
+    },
+  };
+  return { settings: [setting], persistedControls: [{ region: 'right-rail-color', controlIndex: 0, type: 'text' }],
+    staticResults: [result('bcs-state', 'record', `配色方案 ${initial ? 1 : 0} 个（设计稿只有配色 1），当前值 ${initial}。`, { count: initial ? 1 : 0, value: initial })] };
+}
+
 
 function result(id, status, detail, evidence, textFields = {}) {
   return { id, name: NAMES[id], status, detail, suite: SUITE,
