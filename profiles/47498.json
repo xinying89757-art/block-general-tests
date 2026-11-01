@@ -27,10 +27,432 @@
             "id": "inventory-btn-text",
             "name": "按钮文字（已盘点值）",
             "kind": "text-content",
-            "selectorCandidates": ["*"],
+            "selectorCandidates": [
+              "*"
+            ],
             "text": "分类按钮",
             "valueSource": "onboarding.matched[btn-text].evidence[按钮文本]",
             "note": "Exact persisted inventory value is checked as visible text within the target block; uses no block-specific class selector."
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "color",
+            "props": {
+              "color": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "backgroundColor",
+            "props": {
+              "backgroundColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "borderColor",
+            "props": {
+              "borderColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "outlineColor",
+            "props": {
+              "outlineColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "textDecorationColor",
+            "props": {
+              "textDecorationColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "accentColor",
+            "props": {
+              "accentColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "caretColor",
+            "props": {
+              "caretColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "columnRuleColor",
+            "props": {
+              "columnRuleColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "fill",
+            "props": {
+              "fill": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-stroke",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "stroke",
+            "props": {
+              "stroke": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "color",
+            "props": {
+              "color": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "backgroundColor",
+            "props": {
+              "backgroundColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "borderColor",
+            "props": {
+              "borderColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "outlineColor",
+            "props": {
+              "outlineColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "textDecorationColor",
+            "props": {
+              "textDecorationColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "accentColor",
+            "props": {
+              "accentColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "caretColor",
+            "props": {
+              "caretColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "columnRuleColor",
+            "props": {
+              "columnRuleColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "fill",
+            "props": {
+              "fill": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-stroke",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "stroke",
+            "props": {
+              "stroke": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "color",
+            "props": {
+              "color": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "backgroundColor",
+            "props": {
+              "backgroundColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "borderColor",
+            "props": {
+              "borderColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "outlineColor",
+            "props": {
+              "outlineColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "textDecorationColor",
+            "props": {
+              "textDecorationColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "accentColor",
+            "props": {
+              "accentColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "caretColor",
+            "props": {
+              "caretColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "columnRuleColor",
+            "props": {
+              "columnRuleColor": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "fill",
+            "props": {
+              "fill": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
+          },
+          {
+            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-stroke",
+            "name": "自动样式值检查",
+            "kind": "sample",
+            "sample": 500,
+            "learnedSelectorRequired": true,
+            "selectorLearningPending": true,
+            "autoLearned": true,
+            "styleProperty": "stroke",
+            "props": {
+              "stroke": null
+            },
+            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
           }
         ],
         "recordOnly": [
@@ -223,6 +645,72 @@
         "id": "btn-target",
         "params": {
           "wrapIndex": 0
+        }
+      },
+      {
+        "id": "discovered-style-rail-color-scheme-0-0-color",
+        "capability": "discovered-style-controls",
+        "mode": "editor-setting",
+        "valueKind": "color",
+        "styleProperty": null,
+        "lifecycleSurface": "right-rail-flyout",
+        "editorControl": {
+          "regionType": "rail:color-scheme",
+          "regionTitle": "right-rail-color",
+          "wrapIndex": 0,
+          "index": 0,
+          "tag": "INPUT",
+          "type": "color",
+          "name": "colorVal0",
+          "label": "colorVal0",
+          "role": "color",
+          "identity": "name:colorVal0",
+          "section": "区块配色",
+          "position": 0
+        }
+      },
+      {
+        "id": "discovered-style-rail-color-scheme-0-1-color",
+        "capability": "discovered-style-controls",
+        "mode": "editor-setting",
+        "valueKind": "color",
+        "styleProperty": null,
+        "lifecycleSurface": "right-rail-flyout",
+        "editorControl": {
+          "regionType": "rail:color-scheme",
+          "regionTitle": "right-rail-color",
+          "wrapIndex": 0,
+          "index": 1,
+          "tag": "INPUT",
+          "type": "color",
+          "name": "colorVal1",
+          "label": "colorVal1",
+          "role": "color",
+          "identity": "name:colorVal1",
+          "section": "区块配色",
+          "position": 1
+        }
+      },
+      {
+        "id": "discovered-style-rail-color-scheme-0-2-color",
+        "capability": "discovered-style-controls",
+        "mode": "editor-setting",
+        "valueKind": "color",
+        "styleProperty": null,
+        "lifecycleSurface": "right-rail-flyout",
+        "editorControl": {
+          "regionType": "rail:color-scheme",
+          "regionTitle": "right-rail-color",
+          "wrapIndex": 0,
+          "index": 2,
+          "tag": "INPUT",
+          "type": "color",
+          "name": "colorVal2",
+          "label": "colorVal2",
+          "role": "color",
+          "identity": "name:colorVal2",
+          "section": "区块配色",
+          "position": 2
         }
       }
     ],

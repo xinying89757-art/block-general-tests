@@ -5,7 +5,7 @@ import { validateProfile } from '../scripts/validate-profiles.mjs';
 
 const readJson = (name) => JSON.parse(readFileSync(new URL(`../profiles/${name}`, import.meta.url), 'utf8'));
 const template = readJson('TEMPLATE.json');
-const profiles = ['40838.json', '47748.json'].map(readJson);
+const profiles = ['40838.json', '47498.json', '47748.json'].map(readJson);
 const capabilities = new Set(readdirSync(new URL('../src/capabilities/', import.meta.url))
   .filter((name) => name.endsWith('.mjs') && !['TEMPLATE.mjs', 'shared.mjs'].includes(name))
   .map((name) => name.slice(0, -'.mjs'.length)));
@@ -57,4 +57,12 @@ test('fixed-front requirements need a fixedValue', () => {
   assert.ok(validateProfile(p, template, { capabilities }).some(e => /fixedValue/.test(e)));
   p.requirements.capabilities = [{ id: 'cff-logic', mode: 'fixed-front', fixedValue: '交集' }];
   assert.equal(validateProfile(p, template, { capabilities }).filter(e => /requirements/.test(e)).length, 0);
+});
+
+test('profile-driven discovered style editor settings are validated against their generic shape', () => {
+  const profile = structuredClone(profiles.find((item) => String(item.blockId) === '47498'));
+  assert.deepEqual(validateProfile(profile, template, { capabilities }), []);
+  const discovered = profile.requirements.capabilities.find((item) => item.capability === 'discovered-style-controls');
+  discovered.editorControl.index = -1;
+  assert.ok(validateProfile(profile, template, { capabilities }).some((error) => /有效的发现式样式设置项/.test(error)));
 });

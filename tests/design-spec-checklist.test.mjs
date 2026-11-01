@@ -50,6 +50,16 @@ test('module-width editor check requires the setting and the specified default',
   assert.equal(missing.actual.settingExists, false);
   assert.equal(checkDesignRequirementEditor(item, { profile: p, inventory: [{ ...region,
     controls: [{ type: 'radio', label: '1200px', checked: true }] }] }).status, 'fail');
+  const customWidth = { type: 'rail:module-width', controls: [
+    { type: 'radio', label: '1200px', checked: false },
+    { type: 'radio', label: '自定义（需不小于1200px）', checked: true },
+    { type: 'text', label: '自定义宽度', styleProperty: 'width', value: '1440' },
+  ] };
+  const custom = checkDesignRequirementEditor(item, { profile: p, inventory: [customWidth] });
+  assert.equal(custom.status, 'pass');
+  assert.equal(custom.actual.defaultValue, '1440px');
+  assert.equal(checkDesignRequirementEditor(item, { profile: p, inventory: [{ ...customWidth,
+    controls: customWidth.controls.map((control) => control.styleProperty === 'width' ? { ...control, value: '1600' } : control) }] }).status, 'fail');
 });
 
 test('spec color matches any element in the instance and fails when none match', async () => {

@@ -84,10 +84,22 @@ export function validateProfile(profile, template, { capabilities } = {}) {
       const ids = new Set();
       items.forEach((item, index) => {
         const label = `requirements.capabilities[${index}]`;
-        if (!item || typeof item !== 'object' || Array.isArray(item) || typeof item.id !== 'string' || !signatures.some(s => s.id === item.id)) errors.push(`${label}.id 必须是已知设置项 id`);
+        const discoveredStyle = item?.capability === 'discovered-style-controls'
+          && item?.mode === 'editor-setting'
+          && /^discovered-style-[a-z0-9-]+$/i.test(String(item?.id || ''))
+          && ['color', 'font-size'].includes(item?.valueKind)
+          && ['settings-dialog', 'right-rail-flyout'].includes(item?.lifecycleSurface)
+          && item?.editorControl && typeof item.editorControl === 'object'
+          && typeof item.editorControl.regionType === 'string'
+          && Number.isInteger(item.editorControl.wrapIndex) && item.editorControl.wrapIndex >= 0
+          && Number.isInteger(item.editorControl.index) && item.editorControl.index >= 0
+          && typeof item.editorControl.type === 'string';
+        if (!item || typeof item !== 'object' || Array.isArray(item) || typeof item.id !== 'string'
+          || (!signatures.some(s => s.id === item.id) && !discoveredStyle)) errors.push(`${label}.id 必须是已知设置项 id 或有效的发现式样式设置项`);
         else if (ids.has(item.id)) errors.push(`${label}.id 重复：${item.id}`);
         else ids.add(item.id);
-        if (item?.mode !== undefined && item.mode !== 'fixed-front') errors.push(`${label}.mode 只能是 fixed-front`);
+        if (item?.mode !== undefined && item.mode !== 'fixed-front'
+          && !(discoveredStyle && item.mode === 'editor-setting')) errors.push(`${label}.mode 只能是 fixed-front 或有效的 editor-setting`);
         if (item?.mode === 'fixed-front' && (typeof item.fixedValue !== 'string' || !item.fixedValue)) errors.push(`${label}.fixedValue 必须是非空字符串（fixed-front 时）`);
         if (item?.fixedValue !== undefined && item?.mode !== 'fixed-front') errors.push(`${label}.fixedValue 只能与 mode=fixed-front 一起使用`);
         if (item?.params !== undefined && (!item.params || typeof item.params !== 'object' || Array.isArray(item.params))) errors.push(`${label}.params 必须是对象`);

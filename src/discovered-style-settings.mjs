@@ -165,7 +165,8 @@ export async function createDiscoveredStyleSettingUnits({ inventory = [], persis
           detail: 'Style control persistence should retain the value written by this setting unit.' };
       } finally { await lifecycle.cancel(); }
     };
-    const unit = createSettingUnit({ id: candidate.id, capability: 'discovered-style-controls',
+    const unit = createSettingUnit({ id: candidate.id, key: candidate.requirementId,
+      capability: 'discovered-style-controls',
       requirementId: candidate.requirementId, locate: { source: 'requirement-profile', id: candidate.requirementId, requirement },
       lifecycleSurface: lifecycle.kind, dependencies: [],
       persistedControls: [{ region: candidate.regionName, controlIndex: candidate.controlIndex, type: candidate.type }],

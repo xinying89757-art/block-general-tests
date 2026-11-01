@@ -117,13 +117,25 @@ export function checkDesignRequirementEditor(requirement, { profile, inventory =
   const regions = inventory.filter((region) => region.type === 'rail:module-width');
   const radios = regions.flatMap((region) => (region.controls || []).filter((control) => control.type === 'radio'));
   const selected = radios.filter((control) => control.checked);
-  const defaultValue = selected.length === 1 ? String(selected[0].label || selected[0].value || '').trim() : null;
+  const selectedLabel = selected.length === 1 ? String(selected[0].label || selected[0].value || '').trim() : null;
+  const customWidth = selected.length === 1 && /自定义/i.test(selectedLabel || '')
+    ? regions.flatMap((region) => region.controls || []).find((control) => control.type === 'text'
+      && control.styleProperty === 'width')?.value
+    : null;
+  const defaultValue = selected.length !== 1 ? null : customWidth !== null && customWidth !== undefined && customWidth !== ''
+    ? (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:px)?$/i.test(String(customWidth).trim())
+      ? `${Number.parseFloat(customWidth)}px` : String(customWidth).trim())
+    : selectedLabel;
   const wanted = String(requirement.expected.default || '').trim();
   const exists = regions.length === 1 && radios.length > 0;
-  const pass = exists && selected.length === 1 && defaultValue === wanted;
+  const normalizeWidth = (value) => {
+    const match = String(value ?? '').trim().match(/^([+-]?(?:\d+\.?\d*|\.\d+))(px)?$/i);
+    return match ? `${Number(match[1])}px` : String(value ?? '').trim().toLowerCase();
+  };
+  const pass = exists && selected.length === 1 && normalizeWidth(defaultValue) === normalizeWidth(wanted);
   return checkResult(requirement, pass ? 'pass' : 'fail', {
-    detail: pass ? '模块宽度设置存在，默认值符合设计规范。' : '规范要求行展开；模块宽度设置必须存在且默认值须符合设计规范。',
-    actual: { settingExists: exists, selectedCount: selected.length, defaultValue },
+    detail: pass ? '模块宽度设置存在，默认宽度符合设计规范。' : '规范要求行展开；模块宽度设置必须存在且默认值须符合设计规范。',
+    actual: { settingExists: exists, selectedCount: selected.length, selectedOption: selectedLabel, defaultValue },
     reason: { code: pass ? 'module-width-default-matched' : exists ? 'module-width-default-mismatch' : 'module-width-setting-missing' },
   });
 }

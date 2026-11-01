@@ -6,6 +6,7 @@ import { alternateStyleControlValue, createDiscoveredStyleSettingUnits,
   discoverStyleControlCandidates, isColorSchemeInventoryRegion, styleControlKind } from '../src/discovered-style-settings.mjs';
 import { createFreshSettingsAdapter } from '../src/fresh-settings-adapter.mjs';
 import { freshRailInventoryRegions } from '../src/fresh-block-browser-adapter.mjs';
+import { planSettingBatches } from '../src/batch-save.mjs';
 
 function mockLifecycle(state, events) {
   return {
@@ -32,6 +33,9 @@ test('single color value gets a stable identity for the generic writer', async (
   const prepared = await createDiscoveredStyleSettingUnits({ inventory: [region],
     styleControlAdapter: { createLifecycle: async () => mockLifecycle({ 0: '#123456' }, []) } });
   assert.equal(prepared.settings.length, 1);
+  assert.equal(prepared.settings[0].key, prepared.settings[0].requirementId);
+  assert.equal(planSettingBatches(prepared.settings).length, 1,
+    'discovered color units must be accepted by the shared batch planner');
   assert.equal(prepared.settings[0].locate.requirement.editorControl.identity, 'position:0');
   const actualInventory = identifyColorPanelInputs([{ name: 'scheme', label: 'Scheme', role: 'color',
     value: '#123456', position: 0 }]).controls;
@@ -59,6 +63,9 @@ test('color control shapes are discovered without labels and become writable lea
   const prepared = await createDiscoveredStyleSettingUnits({ inventory, profile,
     styleControlAdapter: { createLifecycle: async () => lifecycle } });
   assert.equal(prepared.settings.length, 3);
+  assert.equal(new Set(prepared.settings.map((unit) => unit.key)).size, 3);
+  assert.equal(planSettingBatches(prepared.settings).length, 1,
+    'each discovered color control is a keyed batch setting');
   assert.deepEqual(prepared.settings.map((unit) => unit.styleEffect.properties.includes('color')), [true, true, true]);
   assert.equal(profile.requirements.capabilities.length, 3);
   assert.equal(profile.capabilities.find((item) => item.id === 'block-style-spec').styleSpec.items.length, 30);
