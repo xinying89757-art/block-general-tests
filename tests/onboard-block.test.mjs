@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { assertOnboardingOverwriteAllowed, buildDraftProfile, mapDiscoveredInventory } from '../src/onboard-block.mjs';
+import { assertOnboardingOverwriteAllowed, buildDraftProfile, buildOnboardingEnvironmentReport,
+  classifyOnboardingEnvironmentOutcome, mapDiscoveredInventory } from '../src/onboard-block.mjs';
 import { freshRailInventoryRegions } from '../src/fresh-block-browser-adapter.mjs';
 import { validateProfile } from '../scripts/validate-profiles.mjs';
 
@@ -56,4 +57,22 @@ test('reviewed profiles cannot be overwritten without an explicit flag', () => {
   assert.equal(assertOnboardingOverwriteAllowed({ onboarding: { status: 'draft-unreviewed' } }), true);
   assert.equal(assertOnboardingOverwriteAllowed({ blockId: 'other' }, true), true);
   assert.equal(assertOnboardingOverwriteAllowed(null), true);
+});
+
+test('missing module-library target becomes a first-class environment report with stage and links', () => {
+  const error = new Error('在 review/develop/online 模块列表中未找到区块 47498');
+  const outcome = classifyOnboardingEnvironmentOutcome(error);
+  assert.equal(outcome.status, 'environment-unavailable');
+  const report = buildOnboardingEnvironmentReport({ runId: 'r1', blockId: 'generic-1', siteHost: 'example.test',
+    page: { kind: 'system', id: 'p1', url: '/items.html' },
+    links: { editor: 'https://editor.test/page/p1', front: 'https://example.test/items.html' }, outcome, error,
+    lastProgress: { stage: 'instances-inventoried', deletedSettingIds: [] } });
+  assert.equal(report.status, 'environment-unavailable');
+  assert.equal(report.stage, 'add-default-block');
+  assert.equal(report.environmentOutcome, 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY');
+  assert.deepEqual(report.links, { editor: 'https://editor.test/page/p1', front: 'https://example.test/items.html' });
+  assert.equal(report.inventory.status, 'not-reached');
+  assert.equal(report.checks.length, 0);
+  assert.equal(report.publishedAt, null);
+  assert.equal(classifyOnboardingEnvironmentOutcome(new Error('assertion expected x got y')), null);
 });

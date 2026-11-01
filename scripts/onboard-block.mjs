@@ -11,7 +11,8 @@ import { writeCheckpoint } from '../src/run-safety.mjs';
 import { createFreshBlockBrowserAdapter } from '../src/fresh-block-browser-adapter.mjs';
 import { createFreshSettingsAdapter } from '../src/fresh-settings-adapter.mjs';
 import { parseFreshPageConfig, runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
-import { assertOnboardingOverwriteAllowed, buildDraftProfile, mapDiscoveredInventory, summarizeDraftMapping } from '../src/onboard-block.mjs';
+import { assertOnboardingOverwriteAllowed, buildDraftProfile, buildOnboardingEnvironmentReport,
+  classifyOnboardingEnvironmentOutcome, mapDiscoveredInventory, summarizeDraftMapping } from '../src/onboard-block.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const args = process.argv.slice(2);
@@ -65,6 +66,7 @@ const checkpointPath = path.join(root, '.run-state', `${runId}.json`);
 let settingsAdapter = null;
 let mappingSummary = null;
 let generatedProfile = null;
+let lastProgress = null;
 const session = await launchSession(config);
 try {
   const adapter = createFreshBlockBrowserAdapter({ config, session, targetPage: page,
@@ -81,13 +83,33 @@ try {
         context, loadCapability: async (id) => import(pathToFileURL(path.join(root, 'src', 'capabilities', `${id}.mjs`)).href) });
       return settingsAdapter.prepare({ page: editorPage, canvas: frame, frame, config });
     } });
-  const report = await runFreshBlockFlow({ config: { ...config, siteHost, blockId, page }, adapter, runId,
+  let report;
+  try { report = await runFreshBlockFlow({ config: { ...config, siteHost, blockId, page }, adapter, runId,
     onProgress: async (event) => {
       const entry = { at: new Date().toISOString(), ...event };
+      lastProgress = entry;
       console.log(`[onboard-progress] ${JSON.stringify(entry)}`);
       await writeCheckpoint(checkpointPath, { runId, blockId, pageKind: page.kind, stage: event.stage,
         progressAt: entry.at, counts: { target: event.targetCount ?? null, checks: event.checkCount ?? null } });
-    } });
+    } }); }
+  catch (error) {
+    const outcome = classifyOnboardingEnvironmentOutcome(error);
+    if (!outcome) throw error;
+    const reportDir = path.resolve(root, config.reportDir || 'reports');
+    await fs.mkdir(reportDir, { recursive: true });
+    const baseUrl = `https://${siteHost}`;
+    const environmentReport = buildOnboardingEnvironmentReport({ runId, blockId, siteHost, page,
+      links: { editor: page.editorHref || null,
+        front: page.url ? new URL(page.url, baseUrl).href : null }, outcome, error, lastProgress });
+    const reportPath = path.join(reportDir, `fresh-block-${blockId}-${Date.now()}.json`);
+    await fs.writeFile(reportPath, `${JSON.stringify(environmentReport, null, 2)}\n`);
+    const summaryPath = reportPath.replace(/\.json$/, '-summary-zh.md');
+    await fs.writeFile(summaryPath, `# 区块 ${blockId} onboarding 环境结果\n\n- 状态：${outcome.status}\n- 阶段：${environmentReport.stage}\n- 原因：${outcome.message}\n- 前台：${environmentReport.links.front || '未生成'}\n- 编辑器：${environmentReport.links.editor || '未生成'}\n- 设置盘点：未开始；未执行设置批次或发布。\n- JSON：\`${path.relative(root, reportPath)}\`\n`);
+    console.error(`[onboard] environment outcome: ${outcome.code}; report: ${reportPath}`);
+    console.error(`[onboard] Chinese summary: ${summaryPath}`);
+    process.exitCode = 2;
+  }
+  if (report) {
   const reportDir = path.resolve(root, config.reportDir || 'reports');
   await fs.mkdir(reportDir, { recursive: true });
   const reportPath = path.join(reportDir, `fresh-block-${blockId}-${Date.now()}.json`);
@@ -102,4 +124,5 @@ try {
   console.log(`[onboard] report: ${reportPath}`);
   console.log(`[onboard] Chinese summary: ${summaryPath}`);
   console.log(`[onboard] ${passes} pass / ${fails} fail; published=${Boolean(report.publishedAt)}`);
+  }
 } finally { await session.browser.close(); }

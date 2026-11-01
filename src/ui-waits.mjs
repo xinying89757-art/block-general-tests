@@ -12,6 +12,33 @@ export function uiWaitConfig() {
   };
 }
 
+const ENVIRONMENT_WAIT_STAGES = new Set(['navigation', 'editor-load', 'library-load']);
+
+export function environmentTimeoutRetries(value = process.env.ENV_TIMEOUT_RETRIES) {
+  const parsed = Number(value ?? 1);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 2) {
+    throw new Error('ENV_TIMEOUT_RETRIES must be an integer from 0 to 2.');
+  }
+  return parsed;
+}
+
+export function isEnvironmentTimeout(error) {
+  return error?.name === 'TimeoutError' || error?.code === 'ETIMEDOUT'
+    || /timeout|timed out/i.test(String(error?.message || ''));
+}
+
+/** Retry bounded idempotent environment waits only; assertion and mutation stages are rejected. */
+export async function retryEnvironmentTimeout(action, { stage, retries = environmentTimeoutRetries() } = {}) {
+  if (!ENVIRONMENT_WAIT_STAGES.has(stage)) throw new Error(`Environment timeout retry is not allowed for stage: ${stage || '(missing)'}`);
+  if (!Number.isInteger(retries) || retries < 0 || retries > 2) throw new Error('Environment timeout retries must be from 0 to 2.');
+  for (let attempt = 0; ; attempt += 1) {
+    try { return await action({ attempt }); }
+    catch (error) {
+      if (attempt >= retries || !isEnvironmentTimeout(error)) throw error;
+    }
+  }
+}
+
 const transient = (error) => error?.name === 'TimeoutError'
   || /detached|not attached|Execution context was destroyed|Cannot find context/i.test(error?.message || '');
 

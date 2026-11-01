@@ -1,0 +1,1 @@
+{"blockId":"sample","runId":"box-1","checks":[{"id":"style-color","status":"deferred"},{"id":"persist-width","status":"pass"},{"id":"settings-save","status":"fail"}]}

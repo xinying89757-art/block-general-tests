@@ -80,3 +80,28 @@ export function assertOnboardingOverwriteAllowed(existingProfile, overwriteRevie
   if (overwriteReviewed) return true;
   throw new Error('An existing reviewed profile requires explicit overwrite approval.');
 }
+
+export function classifyOnboardingEnvironmentOutcome(error) {
+  const message = String(error?.message || error || '');
+  if (/模块列表中未找到|未找到.{0,40}模块|module librar.{0,40}not found|not found in (?:the )?module librar/i.test(message)) {
+    return { status: 'environment-unavailable', code: 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY',
+      message: '目标区块未出现在可搜索的模块库列表中；未运行设置批次。' };
+  }
+  if (error?.environment === true) return { status: 'environment-error', code: error.code || 'EDITOR_ENVIRONMENT_ERROR', message };
+  return null;
+}
+
+export function buildOnboardingEnvironmentReport({ runId, blockId, siteHost, page, links, outcome, error, lastProgress }) {
+  if (!outcome || !['environment-error', 'environment-unavailable'].includes(outcome.status)) {
+    throw new Error('A classified onboarding environment outcome is required.');
+  }
+  return { schemaVersion: 1, flow: 'fresh-block-onboarding', runId, status: outcome.status,
+    environmentOutcome: outcome.code, siteHost, blockId: String(blockId), page,
+    links: { editor: links?.editor || null, front: links?.front || null },
+    stage: outcome.code === 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY' ? 'add-default-block' : (lastProgress?.stage || 'start'),
+    lifecycle: { deletedSettingIds: lastProgress?.deletedSettingIds || [], addedSettingId: null },
+    inventory: { status: 'not-reached', autoMappedCount: null, unmappedCount: null },
+    checks: [], failures: [], publishedAt: null,
+    error: { code: outcome.code, message: outcome.message, originalMessage: String(error?.message || error || '') },
+  };
+}
