@@ -128,7 +128,7 @@ try {
   const unmapped = mappingSummary.unmappedControls.length ? mappingSummary.unmappedControls.map((item) => `- ${item.regionType || item.kind}：${item.control.label || '(无标签)'} [${item.control.type}]`).join('\n') : '- 无';
   const passes = report.checks.filter((item) => item.status === 'pass').length;
   const fails = report.failures.length;
-  await fs.writeFile(summaryPath, `# 区块 ${blockId} 自动接入摘要\n\n- 画像：\`${path.relative(root, profilePath)}\`（草稿，未审核）\n- 前台页面：${report.links.front || '未生成'}\n- 编辑器页面：${report.links.editor || page.editorHref || '未生成'}\n- 自动映射设置：${mappingSummary.autoMappedCount}\n${mapped}\n- 未映射设置：${mappingSummary.unmappedCount}\n${unmapped}\n- 结果：${passes} pass / ${fails} fail；发布确认=${Boolean(report.publishedConfirmed ?? report.publishedAt)}\n- 报告：\`${path.relative(root, reportPath)}\`\n\n自动映射只复用唯一匹配的通用结构签名；预期值、夹具及新断言均未推断，需人工审核草稿画像。\n`);
+  await fs.writeFile(summaryPath, `# 区块 ${blockId} 自动接入摘要\n\n- 画像：\`${path.relative(root, profilePath)}\`（草稿，未审核）\n- 前台页面：${report.links.front || '未生成'}\n- 编辑器页面：${report.links.editor || page.editorHref || '未生成'}\n- 自动映射设置：${mappingSummary.autoMappedCount}\n${mapped}\n- 未映射设置：${mappingSummary.unmappedCount}\n${unmapped}\n- 结果：${passes} pass / ${fails} fail / ${report.summary?.na || 0} na / ${report.summary?.['human-review'] || 0} 人工判断；发布确认=${Boolean(report.publishedConfirmed ?? report.publishedAt)}\n- 报告：\`${path.relative(root, reportPath)}\`\n\n自动映射只复用唯一匹配的通用结构签名；预期值、夹具及新断言均未推断，需人工审核草稿画像。\n`);
   console.log(`[onboard] report: ${reportPath}`);
   console.log(`[onboard] Chinese summary: ${summaryPath}`);
   console.log(`[onboard] ${passes} pass / ${fails} fail; published=${Boolean(report.publishedConfirmed ?? report.publishedAt)}`);

@@ -91,7 +91,7 @@ test('equal main-image evidence is not resolved by DOM order or counted as a pas
   assert.equal(result.actual.imageSelection.ambiguousCards.length, 1);
 }));
 
-test('real absent nav/filter checks report precise na reasons through the production style runner', async () => fixture('47748', 'pc', async (page) => {
+test('real absent nav/filter checks report human review with original machine reasons through the production style runner', async () => fixture('47748', 'pc', async (page) => {
   const rows = await runFrontLayer({ frame: page, previewPage: page, config: { blockId: '47748', rootSelector, actionTimeoutMs: 3000 },
     capability: { id: 'block-style-spec', styleSpec: { items: [
       { id: 'nav-parent', kind: 'nav-parent', props: { fontWeight: 700 } },
@@ -100,7 +100,7 @@ test('real absent nav/filter checks report precise na reasons through the produc
     ] } } });
   for (const id of ['nav-parent', 'nav-leaf', 'filter-option']) {
     const row = rows.find((item) => item.id === `bss-${id}`);
-    assert.equal(row.status, 'na', JSON.stringify(row));
+    assert.equal(row.status, 'human-review', JSON.stringify(row));
     assert.equal(row.reason.code, id === 'filter-option' ? 'text-filter-without-option-nodes' : 'navigation-child-levels-not-in-instance-dom');
   }
 }));

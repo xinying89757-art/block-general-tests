@@ -65,7 +65,7 @@ test('no state field performs no interaction, even when the expected scope would
   const page = new Proxy({}, { get: () => { throw new Error('no interaction or live observation needed'); } });
   const item = requirement(); delete item.state;
   const row = await checkDesignRequirementFront(item, { page, rootSelector: '#instance', profile: {}, frontChecks: [] });
-  assert.equal(row.status, 'na');
+  assert.equal(row.status, 'human-review');
   assert.equal(row.reason.code, 'scope-unmapped');
 });
 

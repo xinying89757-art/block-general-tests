@@ -899,7 +899,33 @@
         }
       }
     ],
-    "overrides": [],
+    "overrides": [
+      {
+        "requirementId": "other-9-item",
+        "status": "human-review",
+        "reason": "测试站无二级分类/筛选选项，Xinying 2026-11-01 决定人工判断"
+      },
+      {
+        "requirementId": "typography-12-used-paver-mobile",
+        "status": "human-review",
+        "reason": "测试站无二级分类/筛选选项，Xinying 2026-11-01 决定人工判断"
+      },
+      {
+        "requirementId": "typography-2-used-paver-pc",
+        "status": "human-review",
+        "reason": "测试站无二级分类/筛选选项，Xinying 2026-11-01 决定人工判断"
+      },
+      {
+        "requirementId": "typography-3-item-pc",
+        "status": "human-review",
+        "reason": "测试站无二级分类/筛选选项，Xinying 2026-11-01 决定人工判断"
+      },
+      {
+        "requirementId": "typography-6-item-pc",
+        "status": "human-review",
+        "reason": "测试站无二级分类/筛选选项，Xinying 2026-11-01 决定人工判断"
+      }
+    ],
     "scopeOverrides": [
       {
         "requirementId": "color-1-1-scope-1",

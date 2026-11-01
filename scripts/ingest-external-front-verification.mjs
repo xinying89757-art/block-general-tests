@@ -21,6 +21,6 @@ if (!reportArg || !resultArg) {
   await fs.writeFile(reportPath, `${JSON.stringify(updated, null, 2)}\n`);
   if (updated.externalFrontStyleReport) {
     const { pass, fail, na } = updated.externalFrontStyleReport.summary;
-    console.log(`[external-front] ${path.relative(root, reportPath)} style pass=${pass} fail=${fail} na=${na}`);
+    console.log(`[external-front] ${path.relative(root, reportPath)} style pass=${pass} fail=${fail} na=${na} 人工判断=${updated.externalFrontStyleReport.summary['human-review']}`);
   } else console.log(`[external-front] ${path.relative(root, reportPath)} confirmed=${updated.externalFrontVerification.confirmed}`);
 }

@@ -1,3 +1,4 @@
+import { applyHumanReviewVerdict, verdictCountsZh } from './human-review.mjs';
 import { addStyleFailureReasons, styleCheckDescriptors } from './capabilities/block-style-spec.mjs';
 import { dedupeChecksById } from './front-check-utils.mjs';
 
@@ -61,10 +62,10 @@ function informationalLineHeightResult(check) {
 }
 
 /** Final report boundary: dedupe the complete mixed check list, then recount its summary. */
-export function finalizeFrontStyleReport(report) {
+export function finalizeFrontStyleReport(report, { profile } = {}) {
   const inputChecks = (report?.checks || []).map(informationalLineHeightResult);
   const checks = dedupeChecksById(inputChecks).map((check) => {
-    if (!['na', 'fail'].includes(check.status)) return check;
+    if (!['na', 'fail', 'human-review'].includes(check.status)) return check;
     const reason = check.reason && typeof check.reason === 'object' && !Array.isArray(check.reason)
       ? { ...check.reason } : {};
     if (typeof reason.code !== 'string' || !reason.code.trim()) {
@@ -79,7 +80,7 @@ export function finalizeFrontStyleReport(report) {
           : reason.stage === 'compare' || check.status === 'fail' ? 'assertion-mismatch'
             : `front-${String(reason.stage || check.status || 'read')}-result`;
     }
-    return { ...check, reason };
+    return applyHumanReviewVerdict({ ...check, reason }, { profile });
   });
   const count = (status) => checks.filter((check) => check.status === status).length;
   const failed = new Map(checks.filter((check) => check.status === 'fail').map((check) => [String(check.id), check]));
@@ -127,8 +128,8 @@ export function finalizeFrontStyleReport(report) {
     failureDeduplication: { rule: 'Each failed check id is one raw failure; failed dependsOn chains and the same spec/property/expectation across viewports count once per root. All rows remain in checks.',
       rawFailCount: failed.size, rawFailureObservationCount: inputChecks.filter((check) => check?.status === 'fail').length,
       dedupedFailCount: rootIds.length, rootFailureIds: rootIds, rootFailures, viewportGroups, failures },
-    summary: { pass: count('pass'), fail: rootIds.length, rawFail: failed.size, dedupedFail: rootIds.length, na: count('na') + count('skip'),
-      other: checks.filter((check) => !['pass', 'fail', 'na', 'skip'].includes(check.status)
+    summary: { pass: count('pass'), fail: rootIds.length, rawFail: failed.size, dedupedFail: rootIds.length, na: count('na') + count('skip'), 'human-review': count('human-review'),
+      other: checks.filter((check) => !['pass', 'fail', 'na', 'skip', 'human-review'].includes(check.status)
         && check.reason?.code !== 'line-height-policy-informational').length } };
 }
 
@@ -148,4 +149,11 @@ export function buildFrontStyleExecutionErrors({ capability, blockId, stage, err
     evidence: { matchedCount: null },
   }));
   return addStyleFailureReasons(checks, { capability, blockId, viewports: viewport || capability?.styleSpec?.viewports });
+}
+
+
+export function summarizeFrontStyleZh(report) {
+  const reviews = (report.checks || []).filter((check) => check.status === 'human-review');
+  return `# 前台检查摘要\n\n- 结果：${verdictCountsZh(report.summary || {})}\n- 原始失败：${report.summary?.rawFail || 0}；去重失败：${report.summary?.fail || 0}。\n`
+    + (reviews.length ? `\n## 人工判断\n\n${reviews.map((check) => `- ${check.sourceText || check.name || check.id}：${check.reason?.humanReviewReason || '需人工判断。'}`).join('\n')}\n` : '');
 }

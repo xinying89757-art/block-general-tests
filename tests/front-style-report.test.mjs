@@ -11,7 +11,7 @@ test('final front report assembly collapses repeated check ids and recounts verd
     ['bss-button-text', 'fail'], ['bss-filter-title', 'pass'],
     ['bss-product-name', 'pass'], ['bss-pagination-other', 'pass'],
   ]);
-  assert.deepEqual(report.summary, { pass: 3, fail: 1, rawFail: 1, dedupedFail: 1, na: 0, other: 0 });
+  assert.deepEqual(report.summary, { pass: 3, fail: 1, rawFail: 1, dedupedFail: 1, na: 0, 'human-review': 0, other: 0 });
 });
 
 test('summary exposes raw failures and roots while retaining transitive dependent details', () => {

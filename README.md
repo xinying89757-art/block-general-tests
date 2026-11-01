@@ -149,3 +149,12 @@ without rewriting image attributes, then restore scroll. The total default is
 fresh runner. Unloaded images stay `na` with loaded/total evidence. The checklist
 may declare whether original size, visible `object-fit` content, or the image
 frame governs; see [image ratio measurement](docs/check-types.md#image-loading-and-ratio-measurement).
+
+### 人工判断
+
+缺少测试数据（如子级分类或筛选选项）或清单要求无法自动判定时，报告使用
+`human-review`（人工判断），与 pass / fail / na 分开计数；不算通过，也不算缺陷。
+已知例外 waiver 保持原样；超时、定位歧义及图片未加载仍为 na。清单可按机器原因
+配置条件 override，且不能覆盖实测 pass/fail。详见
+[检查类型与判定政策](docs/check-types.md#verdict-policy-人工判断-2026-11-01)。
+前台 CLI 在 JSON 旁生成 `-zh.md` 摘要；合并报告与 HTML 同样显示人工判断计数。

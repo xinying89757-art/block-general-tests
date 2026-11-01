@@ -1,3 +1,4 @@
+import { applyHumanReviewVerdict } from '../human-review.mjs';
 // Block style spec: design-file conformance + breakage checks.
 //
 // The capability is generic: every expected value lives in the profile
@@ -1056,5 +1057,6 @@ export async function runFrontLayer(args) {
   for (const check of checks) args.onProgress?.(`style-check-result id=${check.id} status=${check.status}`);
   return addStyleFailureReasons(checks, { capability: args.capability, blockId: args.config?.blockId,
     rootSelector: args.config?.rootSelector,
-    viewports: args.capability?.styleSpec?.viewports });
+    viewports: args.capability?.styleSpec?.viewports }).map((check) => applyHumanReviewVerdict(check,
+      { profile: { designSpec: args.capability?.designSpec } }));
 }

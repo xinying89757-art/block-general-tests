@@ -85,10 +85,10 @@ test('external front result rejects malformed data and incomplete reports', () =
 test('external Mac front-style report summary attaches to the matching fresh instance without claiming publish confirmation', () => {
   const base = { blockId: '111', block: { settingId: 'AbC' }, published: false, publishedConfirmed: false };
   const result = applyExternalFrontStyleReport(base, { flow: 'front-style-only', blockId: '111', settingId: 'AbC',
-    finishedAt: '2026-11-01T01:02:03Z', summary: { pass: 7, fail: 5, na: 33, other: 0 }, checks: [] },
+    finishedAt: '2026-11-01T01:02:03Z', summary: { pass: 7, fail: 5, na: 33, 'human-review': 2, other: 0 }, checks: [] },
   '/transfer/mac/front-style-result.json');
   assert.deepEqual(result.externalFrontStyleReport, { path: 'front-style-result.json',
-    summary: { pass: 7, fail: 5, na: 33, other: 0 }, settingId: 'AbC', checkedAt: '2026-11-01T01:02:03.000Z' });
+    summary: { pass: 7, fail: 5, na: 33, 'human-review': 2, other: 0 }, settingId: 'AbC', checkedAt: '2026-11-01T01:02:03.000Z' });
   assert.equal(result.published, false);
   assert.equal(result.publishedConfirmed, false);
   assert.throws(() => applyExternalFrontStyleReport(base, { flow: 'front-style-only', blockId: '111', settingId: 'other',

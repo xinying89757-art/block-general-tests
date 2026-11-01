@@ -1,3 +1,4 @@
+import { applyHumanReviewVerdict } from '../src/human-review.mjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -60,8 +61,8 @@ async function main() {
     if (report.failure) failure = report.failure;
   }
 
-  const checks = [...checksById.values()];
-  const summary = { pass: 0, fail: 0, skip: 0, na: 0, record: 0, deferred: 0 };
+  const checks = [...checksById.values()].map((check) => applyHumanReviewVerdict(check));
+  const summary = { pass: 0, fail: 0, skip: 0, na: 0, 'human-review': 0, record: 0, deferred: 0 };
   for (const check of checks) {
     if (Object.hasOwn(summary, check.status)) summary[check.status] += 1;
   }

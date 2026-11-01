@@ -1,3 +1,4 @@
+import { applyHumanReviewVerdict, collectHumanReview } from './human-review.mjs';
 import { readSpecTargetState, specScopeMapping, validateSpecState } from './spec-target-state.mjs';
 import { markUniqueFrontInstance } from './front-instance-root.mjs';
 import { readInstanceStructure } from './front-structure.mjs';
@@ -84,13 +85,14 @@ export function buildDesignHumanReview(profile, checks = []) {
   const listed = listUnsupportedDesignRequirements(profile);
   const byId = new Map((profile?.designSpec?.requirements || []).map((item) => [item.id, item]));
   for (const check of checks || []) {
-    if (!check || check.status !== 'na' || check.reason?.humanReviewRequired !== true) continue;
+    if (!check || !['na', 'human-review'].includes(check.status) || check.reason?.humanReviewRequired !== true) continue;
     const requirementId = String(check.id || '').replace(/^design-/, '');
     const requirement = byId.get(requirementId);
     if (!requirement) continue;
     listed.push({ id: requirement.id, checkType: requirement.checkType, sourceText: requirement.sourceText,
       stages: [check.reason?.stage || requirement.checkStage], reason: String(check.reason?.code || 'checker-returned-na') });
   }
+  listed.push(...collectHumanReview(checks).filter((item) => !byId.has(String(item.id).replace(/^design-/, ''))));
   const unique = new Map(listed.map((item) => [`${item.id}:${item.sourceText}`, item]));
   return [...unique.values()].map((item) => ({ ...item, sourceText: String(item.sourceText || '') }));
 }
@@ -183,10 +185,12 @@ export function validateDesignSpec(spec, profileId = '(unknown)') {
       const path = `.${key}[${index}]`;
       if (!item || typeof item !== 'object' || Array.isArray(item)) { add(path, 'must be an object'); return; }
       if (!requirementIds.has(item.requirementId)) add(`${path}.requirementId`, 'must reference an existing requirement');
-      if (allowedStatus && item.status !== allowedStatus) add(`${path}.status`, `must be ${allowedStatus}`);
+      if (allowedStatus && !['waived', 'human-review'].includes(item.status)) add(`${path}.status`, 'must be waived or human-review');
       if (key === 'overrides') {
         if (typeof item.reason !== 'string' || !item.reason.trim()) add(`${path}.reason`, 'must be non-empty');
-        if (Object.keys(item).some((prop) => !['requirementId', 'status', 'reason'].includes(prop))) add(path, 'contains an unknown property');
+        if (item.whenReasonCodes !== undefined && (item.status !== 'human-review' || !Array.isArray(item.whenReasonCodes)
+          || !item.whenReasonCodes.length || item.whenReasonCodes.some((code) => typeof code !== 'string' || !code.trim()))) add(`${path}.whenReasonCodes`, 'requires human-review and a non-empty array of non-empty machine reason strings');
+        if (Object.keys(item).some((prop) => !['requirementId', 'status', 'reason', 'whenReasonCodes'].includes(prop))) add(path, 'contains an unknown property');
       } else {
         for (const prop of ['sourceText', 'resolvedScope', 'reason']) if (typeof item[prop] !== 'string' || !item[prop].trim()) add(`${path}.${prop}`, 'must be non-empty');
         if (Object.keys(item).some((prop) => !['requirementId', 'sourceText', 'resolvedScope', 'reason'].includes(prop))) add(path, 'contains an unknown property');
@@ -233,7 +237,7 @@ function checkResult(requirement, status, { detail, actual, reason, classificati
 function overrideFor(spec, id) { return (spec?.overrides || []).find((entry) => entry.requirementId === id && entry.status === 'waived'); }
 function scopeOverrideFor(spec, id) { return (spec?.scopeOverrides || []).find((entry) => entry.requirementId === id); }
 
-export function checkDesignRequirementEditor(requirement, { profile, inventory = [] } = {}) {
+function checkDesignRequirementEditorRaw(requirement, { profile, inventory = [] } = {}) {
   const override = overrideFor(profile?.designSpec, requirement.id);
   if (override) return checkResult(requirement, 'na', { classification: 'known-exception',
     detail: `已知例外：${override.reason}`, reason: { code: 'waived', reason: override.reason } });
@@ -1109,7 +1113,7 @@ async function checkMobileLayout(requirement, page, rootSelector) {
     pass ? 'mobile-layout-matched' : 'mobile-layout-mismatch', pass ? '移动端布局符合清单。' : '移动端布局与清单不一致。');
 }
 
-export async function checkDesignRequirementFront(requirement, { profile, page, rootSelector, frontChecks = [], settingsReport = null, imageLoadTimeoutMs } = {}) {
+async function checkDesignRequirementFrontRaw(requirement, { profile, page, rootSelector, frontChecks = [], settingsReport = null, imageLoadTimeoutMs } = {}) {
   const override = overrideFor(profile?.designSpec, requirement.id);
   if (override) return checkResult(requirement, 'na', { classification: 'known-exception',
     detail: `已知例外：${override.reason}`, reason: { code: 'waived', reason: override.reason } });
@@ -1434,4 +1438,15 @@ export async function runDesignSpecFrontChecks(profile, context) {
     context?.onProgress?.(`design-check-complete id=${requirement.id} status=${check?.status || 'not-applicable'}`);
   }
   return checks;
+}
+
+
+// Apply verdict policy after the oracle, so a profile cannot mask pass/fail.
+export function checkDesignRequirementEditor(requirement, context = {}) {
+  return applyHumanReviewVerdict(checkDesignRequirementEditorRaw(requirement, context),
+    { profile: context.profile, requirementId: requirement.id });
+}
+export async function checkDesignRequirementFront(requirement, context = {}) {
+  return applyHumanReviewVerdict(await checkDesignRequirementFrontRaw(requirement, context),
+    { profile: context.profile, requirementId: requirement.id });
 }

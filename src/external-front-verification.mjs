@@ -45,7 +45,7 @@ export function applyExternalFrontStyleReport(report, frontStyleReport, sourcePa
     throw new Error('Front-style report settingId does not match the fresh instance.');
   }
   const summary = {};
-  for (const key of ['pass', 'fail', 'na', 'other']) {
+  for (const key of ['pass', 'fail', 'na', 'human-review', 'other']) {
     const value = frontStyleReport.summary[key] ?? 0;
     if (!Number.isInteger(value) || value < 0) throw new Error(`Front-style summary ${key} must be a non-negative integer.`);
     summary[key] = value;

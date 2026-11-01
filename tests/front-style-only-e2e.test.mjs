@@ -136,6 +136,11 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
       typeof row.reason?.code === 'string' && row.reason.code && row.reason.code !== '[object Object]'
         && row.reason.code !== 'na-reason-unavailable'), 'all read/locate/compare non-pass checks need a specific string reason');
     assert.equal(report.error, null);
+    assert.equal(report.checks.find((row) => row.id === 'design-manual-requirement').status, 'human-review');
+    const chineseSummary = fs.readFileSync(outputPath.replace(/\.json$/, '-zh.md'), 'utf8');
+    assert.match(chineseSummary, /人工判断/);
+    assert.ok(report.summary['human-review'] > 0);
+    assert.doesNotMatch(chineseSummary, /matchedSelector|selectorCandidates/);
     assert.equal(report.checks.find((row) => row.id === 'design-targeted-hover')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-targeted-hover')?.reason.state.restored, true);
     assert.equal(report.instanceCaptures.length, 2);

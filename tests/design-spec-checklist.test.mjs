@@ -158,7 +158,7 @@ test('dependent failures are linked and counted once at their root', () => {
     { id: 'design-scope-color', status: 'fail', dependsOn: ['functional-color'], reason: { code: 'written-scope-color-mismatch' } },
   ] });
   assert.deepEqual(report.checks[1].dependsOn, ['functional-color']);
-  assert.deepEqual(report.summary, { pass: 0, fail: 1, rawFail: 2, dedupedFail: 1, na: 0, other: 0 });
+  assert.deepEqual(report.summary, { pass: 0, fail: 1, rawFail: 2, dedupedFail: 1, na: 0, 'human-review': 0, other: 0 });
 });
 
 test('written color search includes SVG paint, outline, shadows, gradients and pseudo-elements', () => {
@@ -224,7 +224,7 @@ test('color normalization handles design opacity and CSS rgba consistently', () 
   assert.equal(normalizeDesignColor('#1c4587'), normalizeDesignColor('rgb(28, 69, 135)'));
 });
 
-test('mapped spec typography delegates to the profile-owned functional oracle; unmapped stays na', async () => {
+test('mapped spec typography delegates to the profile-owned functional oracle; unmapped needs human review', async () => {
   const mapped = { id: 'font', checkType: 'typography', sourceText: 'Label', expected: { fontSize: '18px' },
     checkStage: 'front', params: { styleCheckId: 'button-text' } };
   const p = profile([mapped]);
@@ -240,7 +240,7 @@ test('mapped spec typography delegates to the profile-owned functional oracle; u
   ] });
   assert.equal(mismatch.status, 'fail');
   const unmapped = await checkDesignRequirementFront({ ...mapped, params: {} }, { profile: p, frontChecks: [] });
-  assert.equal(unmapped.status, 'na');
+  assert.equal(unmapped.status, 'human-review');
   assert.equal(unmapped.reason.code, 'scope-unmapped');
 });
 
@@ -288,21 +288,21 @@ test('text truncation, image ratio, and default expand use checklist parameters 
     page: pageReturning({ rootFound: true, elements: [{ columns: 1, visible: true }] }), rootSelector: '.i' })).status, 'pass');
   const unresolved = await checkDesignRequirementFront({ ...ratio, expected: { ratio: 'unknown' } }, {
     profile: profile([ratio]), page: pageReturning({}), rootSelector: '.i' });
-  assert.equal(unresolved.status, 'na');
+  assert.equal(unresolved.status, 'human-review');
   assert.equal(unresolved.reason.humanReviewRequired, true);
   assert.equal(typeof unresolved.reason.code, 'string');
   const truncationNa = await checkDesignRequirementFront({ ...truncation, expected: {} }, { profile: profile([truncation]), page: pageReturning({}), rootSelector: '.i' });
-  assert.equal(truncationNa.status, 'na');
+  assert.equal(truncationNa.status, 'human-review');
   const ratioFail = await checkDesignRequirementFront(ratio, { profile: profile([ratio]),
     page: measuredImagePage([{ ratio: 1.5, centered: false }]), rootSelector: '.i' });
   assert.equal(ratioFail.status, 'fail');
   const ratioNa = await checkDesignRequirementFront({ ...ratio, expected: { ratio: '?' } }, { profile: profile([ratio]), page: pageReturning({}), rootSelector: '.i' });
-  assert.equal(ratioNa.status, 'na');
+  assert.equal(ratioNa.status, 'human-review');
   const expandFail = await checkDesignRequirementFront(expand, { profile: profile([expand]),
     page: pageReturning({ rootFound: true, maxVisibleLevel: 2, levels: [1, 2] }), rootSelector: '.i' });
   assert.equal(expandFail.status, 'fail');
   const expandNa = await checkDesignRequirementFront({ ...expand, expected: {} }, { profile: profile([expand]), page: pageReturning({}), rootSelector: '.i' });
-  assert.equal(expandNa.status, 'na');
+  assert.equal(expandNa.status, 'human-review');
 });
 
 test('scrollbar threshold checker covers pass, fail and na from checklist selectors', async () => {
@@ -314,7 +314,7 @@ test('scrollbar threshold checker covers pass, fail and na from checklist select
   assert.equal((await result({ rootFound: true, containerCount: 1, clientExtent: 40, scrollExtent: 80, itemCount: 3, scrollable: true })).status, 'pass');
   assert.equal((await result({ rootFound: true, containerCount: 1, clientExtent: 40, scrollExtent: 40, itemCount: 3, scrollable: false })).status, 'fail');
   assert.equal((await result({ rootFound: true, containerCount: 0, itemCount: 0, scrollable: null })).status, 'na');
-  assert.equal((await checkDesignRequirementFront({ ...item, params: {} }, { profile: p, rootSelector: '.instance', page: page({}) })).status, 'na');
+  assert.equal((await checkDesignRequirementFront({ ...item, params: {} }, { profile: p, rootSelector: '.instance', page: page({}) })).status, 'human-review');
 });
 
 test('navigation hierarchy checker covers pass, fail and na from nested-list levels', async () => {
@@ -324,8 +324,8 @@ test('navigation hierarchy checker covers pass, fail and na from nested-list lev
   const page = (value) => ({ evaluate: async () => value });
   assert.equal((await checkDesignRequirementFront(item, { profile: p, page: page({ rootFound: true, levels: [1, 2], itemCount: 4 }), rootSelector: '.i' })).status, 'pass');
   assert.equal((await checkDesignRequirementFront(item, { profile: p, page: page({ rootFound: true, levels: [1], itemCount: 2 }), rootSelector: '.i' })).status, 'fail');
-  assert.equal((await checkDesignRequirementFront(item, { profile: p, page: page({ rootFound: true, levels: [], itemCount: 0 }), rootSelector: '.i' })).status, 'na');
-  assert.equal((await checkDesignRequirementFront({ ...item, expected: {} }, { profile: p, page: page({}), rootSelector: '.i' })).status, 'na');
+  assert.equal((await checkDesignRequirementFront(item, { profile: p, page: page({ rootFound: true, levels: [], itemCount: 0 }), rootSelector: '.i' })).status, 'human-review');
+  assert.equal((await checkDesignRequirementFront({ ...item, expected: {} }, { profile: p, page: page({}), rootSelector: '.i' })).status, 'human-review');
 });
 
 test('unsupported requirements keep their verbatim source text in humanReview', () => {
@@ -399,7 +399,7 @@ test('typography checks compare only font size and weight; line-height, color an
   assert.equal(mismatch.status, 'fail');
   const incomplete = await checkDesignRequirementFront(item, { profile: p, frontChecks: [{ id: 'pagination-other', status: 'fail',
     reason: { actual: [{ fontSize: 14 }] } }] });
-  assert.equal(incomplete.status, 'na');
+  assert.equal(incomplete.status, 'human-review');
   assert.equal(incomplete.reason.code, 'design-typography-properties-unavailable');
   assert.deepEqual(mismatch.dependsOn, ['pagination-other']);
   const combined = finalizeFrontStyleReport({ checks: [
@@ -444,7 +444,7 @@ test('a child-level typography requirement never substitutes an observed parent 
   const check = await checkDesignRequirementFront(item, { profile: profile([item]), frontChecks: [
     { id: 'bss-label', status: 'pass', actual: [{ fontWeight: 700, lineHeight: 45, hierarchyLevel: 1 }] },
   ] });
-  assert.equal(check.status, 'na');
+  assert.equal(check.status, 'human-review');
   assert.equal(check.reason.code, 'typography-hierarchy-level-unresolved');
 });
 

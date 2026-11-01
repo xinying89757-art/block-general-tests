@@ -1,3 +1,4 @@
+import { applyHumanReviewVerdict } from './human-review.mjs';
 /**
  * Shared adapter for capability-owned fresh-setting definitions.
  * A capability opts in by exporting:
@@ -281,7 +282,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         return setting.check({ ...mergedContext, ...phase, setting });
       },
     };
-    prepared = { settings, metadata, capabilityResults, staticResults, persistedControls, batchAdapter, styleScopeDiagnostics,
+    prepared = { reportProfile: mergedContext.profile, settings, metadata, capabilityResults, staticResults, persistedControls, batchAdapter, styleScopeDiagnostics,
       humanReview: buildDesignHumanReview(mergedContext.profile, staticResults),
       runPostPublishChecks: async (runtime = {}) => {
         const checks = [];
@@ -295,7 +296,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
           ...mergedContext, ...runtime,
           frontAvailable: Boolean(runtime.frontAvailable ?? mergedContext.frontAvailable),
         }));
-        return checks;
+        return checks.map((check) => applyHumanReviewVerdict(check, { profile: mergedContext.profile }));
       } };
     return prepared;
   };

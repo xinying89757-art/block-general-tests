@@ -29,7 +29,7 @@ for (const block of ['47498', '47748']) for (const viewport of ['pc', 'mobile'])
     assert.equal(result.finderDebug.finders.interaction, undefined);
     for (const type of ['default-expand', 'nav-hierarchy-levels']) {
       const check = await checkDesignRequirementFront(req(type, { level: 1, levels: [1, 2] }), { page, rootSelector });
-      assert.equal(check.status, 'na'); assert.equal(typeof check.reason.code, 'string');
+      assert.equal(check.status, 'human-review'); assert.equal(typeof check.reason.code, 'string');
     }
     if (block === '47498') {
       const check = await checkDesignRequirementFront(req('image-ratio', { ratio: '1:1' }), { page, rootSelector });

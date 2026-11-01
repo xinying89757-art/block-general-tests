@@ -14,7 +14,7 @@ import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { runFrontLayer, resolveFrontStyleCapability } from '../src/capabilities/block-style-spec.mjs';
 import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, finalizeFrontStyleReport, preservePartialFrontStyleReport,
-  sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
+  sanitizeFrontStyleError, sanitizeFrontStyleUrl, summarizeFrontStyleZh } from '../src/front-style-report.mjs';
 import { markUniqueFrontInstance } from '../src/front-instance-root.mjs';
 import { buildDesignHumanReview, runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../src/design-spec-checklist.mjs';
 import { captureFrontInstance } from '../src/instance-capture.mjs';
@@ -176,10 +176,11 @@ try {
   process.removeListener('SIGTERM', onSigterm);
   if (browser) await browser.close().catch(() => {});
 }
-Object.assign(report, finalizeFrontStyleReport(report));
+Object.assign(report, finalizeFrontStyleReport(report, { profile }));
 report.humanReview = buildDesignHumanReview(profile, report.checks);
 report.finishedAt = new Date().toISOString();
 fs.writeFileSync(out, JSON.stringify(report, null, 2));
-console.log(`[front-style] ${blockId} pass=${report.summary.pass} fail=${report.summary.fail} rawFail=${report.summary.rawFail} dedupedFail=${report.summary.dedupedFail} na=${report.summary.na}${report.error ? ' error=' + report.error : ''} -> ${out}`);
+fs.writeFileSync(out.replace(/\.json$/i, '') + '-zh.md', summarizeFrontStyleZh(report));
+console.log(`[front-style] ${blockId} pass=${report.summary.pass} fail=${report.summary.fail} rawFail=${report.summary.rawFail} dedupedFail=${report.summary.dedupedFail} na=${report.summary.na} 人工判断=${report.summary['human-review']}${report.error ? ' error=' + report.error : ''} -> ${out}`);
 if (report.summary.fail) exitCode = exitCode || 1;
 process.exit(exitCode);

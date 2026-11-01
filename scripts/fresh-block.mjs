@@ -1,3 +1,4 @@
+import { verdictCountsZh } from '../src/human-review.mjs';
 // Explicit fresh-block workflow. Capability-owned definitions feed one shared
 // batch adapter; unsupported capabilities stay visible as not-adapted.
 import fs from 'node:fs/promises';
@@ -81,7 +82,7 @@ try {
   await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
   console.log(`[fresh-block] report: ${reportPath}`);
   const notAdapted = report.capabilities.filter((item) => item.status === 'not-adapted').length;
-  console.log(`[fresh-block] ${report.checks.filter((item) => item.status === 'pass').length} pass / ${report.failures.length} fail / ${notAdapted} not-adapted capabilities; published=${Boolean(report.publishedConfirmed ?? report.publishedAt)}`);
+  console.log(`[fresh-block] ${verdictCountsZh(report.summary)} / ${notAdapted} not-adapted capabilities; published=${Boolean(report.publishedConfirmed ?? report.publishedAt)}`);
 } finally {
   await session.browser.close();
 }

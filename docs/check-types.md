@@ -152,3 +152,47 @@ A `cover` crop may therefore be square while its original is rectangular; a
 `contain` image retains its original visible ratio within a square frame.
 Unloaded foreground images cannot pass using the frame dimensions alone.
 Source evidence records attribute names/presence/length, never source URL values.
+
+## Verdict policy: 人工判断 (2026-11-01)
+
+`human-review` is a first-class result, counted separately from `pass`, `fail`
+and `na` under `summary["human-review"]`. The Chinese label is **人工判断**.
+It means the automated check has no verdict and does not mean the requirement
+passed. Assertions, expected values, raw observations and machine reason codes
+are retained. This policy applies identically to editor/front checklist results,
+fresh reports, front-only JSON/Chinese summaries, merges and HTML.
+
+- Missing test data (no child hierarchy/navigation levels or filter options in
+  the instance) becomes 人工判断 with “测试数据缺少…，需人工判断”.
+- Existing `humanReviewRequired` na results, including unsupported checkers,
+  unmapped scopes and incomplete spec/typography observations, also become
+  人工判断. Operational unknowns are the exception: unloaded/missing images,
+  timeouts, missing instance roots, locator ambiguity and read errors remain
+  `na`, unless a checklist explicitly requests review for that reason.
+- `waived` remains `na` / **已知例外**, with its original reason. It is not a
+  human-review result. Deferred front work remains `deferred`.
+- A real measured `pass` or `fail` is never changed by a human-review override.
+  Root failure deduplication remains unchanged; review counts count check rows.
+  The older front summary's `na` counter still includes `skip` for compatibility;
+  fresh/merged reports retain a separate `skip` counter.
+
+A profile may declare:
+
+```json
+{
+  "requirementId": "child-category-font",
+  "status": "human-review",
+  "reason": "测试数据缺少子级分类，需人工判断。",
+  "whenReasonCodes": ["typography-hierarchy-level-unresolved"]
+}
+```
+
+`reason` must be non-empty; optional `whenReasonCodes` is a non-empty array of
+non-empty machine reason strings. Without that field the override applies to
+any otherwise-na result of this requirement. With it, an exact top-level or
+underlying mapped-check reason must match. Functional checks mapped by that
+requirement's `params.styleCheckId(s)` inherit the same conditional rule; no
+block id, label or selector is embedded in policy code. The validator requires a
+real requirement id. Machine reasons remain in `reason.code` and
+`evidence.humanReview`; the human summary shows only the spec text/review reason,
+never selector matching. The shared implementation is `src/human-review.mjs`.

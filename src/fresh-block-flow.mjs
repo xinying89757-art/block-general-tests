@@ -1,3 +1,4 @@
+import { applyHumanReviewVerdict, collectHumanReview, countVerdicts } from './human-review.mjs';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { executeSettingBatches, planSettingBatches } from './batch-save.mjs';
@@ -127,8 +128,9 @@ export async function writeFreshDefaultsSnapshot(file, snapshot) {
 export function buildFreshReport({ runId, siteHost, blockId, page, instance, capabilities = [],
   defaults, batch, currentValues, publishedReadback = null, editorLink, frontLink, publishedAt,
   editorPublishSucceeded = false, frontVerification = null,
-  deletedSettingIds = [], moduleLibraryPreflight = null, flowErrors = [], styleScopeLearning = [], humanReview = [] }) {
-  const failures = batch.results.filter((item) => item.status === 'fail').map((item) => ({
+  deletedSettingIds = [], moduleLibraryPreflight = null, flowErrors = [], styleScopeLearning = [], humanReview = [], profile }) {
+  const checks = batch.results.map((check) => applyHumanReviewVerdict(check, { profile }));
+  const failures = checks.filter((item) => item.status === 'fail').map((item) => ({
     checkId: item.id,
     setting: item.setting || item.id,
     value: item.value,
@@ -146,8 +148,8 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
       currentValues: currentValues || [], publishedReadbackValues: publishedReadback?.currentValues || null },
     lifecycle: { deletedSettingIds: [...deletedSettingIds], addedSettingId: instance.settingId || null },
     moduleLibraryPreflight,
-    defaults, capabilities, batches: batch.batches, checks: batch.results, failures,
-    humanReview: [...humanReview],
+    defaults, capabilities, batches: batch.batches, checks, summary: countVerdicts(checks), failures,
+    humanReview: [...new Map([...humanReview, ...collectHumanReview(checks)].map((item) => [String(item.id).replace(/^design-/, ''), item])).values()],
     retainedFailures: batch.timing.retainedFailures || { selectedIds: [], suppressed: [] },
     timing: batch.timing, settingsMode: 'BATCH_SAVE / retain-tested-values', flowErrors,
     // Diagnostics intentionally omit matched selector paths; the profile owns
@@ -494,7 +496,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     editorPublishSucceeded: publishAttempt?.publishSignal?.status === 'confirmed',
     publishedAt: published?.publishedAt || null,
     deletedSettingIds, moduleLibraryPreflight: config.moduleLibraryPreflight || null, flowErrors,
-    styleScopeLearning: prepared?.styleScopeDiagnostics || [], humanReview: prepared?.humanReview || [] });
+    styleScopeLearning: prepared?.styleScopeDiagnostics || [], humanReview: prepared?.humanReview || [], profile: prepared?.reportProfile });
   await adapter.writeReport?.(report);
   await onProgress({ stage: 'report-written' });
   return report;

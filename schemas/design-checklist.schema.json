@@ -59,9 +59,11 @@
         "required": ["requirementId", "status", "reason"],
         "properties": {
           "requirementId": { "type": "string" },
-          "status": { "const": "waived" },
-          "reason": { "type": "string", "minLength": 1 }
+          "status": { "enum": ["waived", "human-review"] },
+          "reason": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "whenReasonCodes": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "pattern": "\\S" } }
         },
+        "allOf": [{ "if": { "required": ["whenReasonCodes"] }, "then": { "properties": { "status": { "const": "human-review" } } } }],
         "additionalProperties": false
       }
     },
