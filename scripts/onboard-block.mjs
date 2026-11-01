@@ -71,17 +71,22 @@ const session = await launchSession(config);
 try {
   const adapter = createFreshBlockBrowserAdapter({ config, session, targetPage: page,
     settingsAdapter: { get batchAdapter() { return settingsAdapter?.batchAdapter; }, prepare: (...input) => settingsAdapter.prepare(...input) },
-    discoverAndPrepareSettings: async ({ page: editorPage, frame, inventory }) => {
+    discoverAndPrepareSettings: async ({ page: editorPage, frame, inventory, styleControlAdapter }) => {
       const mapping = mapDiscoveredInventory(inventory);
       mappingSummary = summarizeDraftMapping(mapping);
       generatedProfile = buildDraftProfile(template, { blockId, page, mapping });
       await fs.writeFile(profilePath, `${JSON.stringify(generatedProfile, null, 2)}\n`, { mode: 0o644, flag: existing ? 'w' : 'wx' });
       console.log(`[onboard] profile draft written: ${path.relative(root, profilePath)}; auto-mapped=${mappingSummary.autoMappedCount}; unmapped=${mappingSummary.unmappedCount}`);
       const context = { config, session, page, profile: generatedProfile, siteHost, blockId,
-        save: () => savePage(editorPage) };
+        save: () => savePage(editorPage),
+        persistProfile: async (nextProfile) => {
+          const temporary = `${profilePath}.${process.pid}.tmp`;
+          await fs.writeFile(temporary, `${JSON.stringify(nextProfile, null, 2)}\n`, { mode: 0o600 });
+          await fs.rename(temporary, profilePath);
+        } };
       settingsAdapter = await createFreshSettingsAdapter({ capabilities: generatedProfile.capabilities,
         context, loadCapability: async (id) => import(pathToFileURL(path.join(root, 'src', 'capabilities', `${id}.mjs`)).href) });
-      return settingsAdapter.prepare({ page: editorPage, canvas: frame, frame, config, inventory });
+      return settingsAdapter.prepare({ page: editorPage, canvas: frame, frame, config, inventory, styleControlAdapter });
     } });
   let report;
   try { report = await runFreshBlockFlow({ config: { ...config, siteHost, blockId, page }, adapter, runId,

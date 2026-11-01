@@ -55,6 +55,20 @@ the draft records a `pendingStyleEffects` entry; the setting adapter connects
 it to its actual setting-unit id, then marks it learned or leaves it pending
 with a machine reason.
 
+The same discovery path composes writable units directly from inventory
+controls that have not already been claimed by a capability setting. Color
+inputs are considered present when either the input itself or its associated
+visible picker surface is rendered; editor color pickers may keep their
+backing text input hidden. CSS color values and font-size-shaped control/value
+types select the generic unit kind, while an explicit different CSS property
+(such as width) excludes a dimension from font-size discovery. Each generated
+unit is located by its profile requirement (region, occurrence, control type
+and identity), writes a deterministic alternate value, checks the saved value,
+and provides an initial-value restore operation. Existing capability-owned
+controls are excluded by persisted-control references so their assertions
+remain authoritative. Onboarding stores the generated requirement and binds
+matching pending effects by region and control identity.
+
 An unlearned automatic check is `na` in the machine report with its reason;
 the human-facing summary does not show selector matches or compatibility
 details. Candidate selectors are only drawn from that block's own canvas

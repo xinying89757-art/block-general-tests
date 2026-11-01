@@ -64,6 +64,10 @@ export function colorPanelReadResult(inputs = [], { panelCount = 1 } = {}) {
     controls: inventory.controls, notes: inventory.notes };
 }
 
+export function isColorControlSurfaceVisible({ inputRendered = false, pickerRendered = false } = {}) {
+  return Boolean(inputRendered || pickerRendered);
+}
+
 export function planColorPanelWrites(controls = [], requested) {
   const entries = Array.isArray(requested) ? requested
     : requested && typeof requested === 'object' && requested.controlIdentity
@@ -79,7 +83,8 @@ export function planColorPanelWrites(controls = [], requested) {
   }
   const seen = new Set();
   return entries.map((entry) => {
-    const matches = controls.filter((control) => control.identifiable && control.identity === entry.controlIdentity);
+    const matches = controls.filter((control) => control.identifiable && (control.identity === entry.controlIdentity
+      || entry.controlIdentity === `position:${control.position}`));
     if (matches.length !== 1 || seen.has(entry.controlIdentity)) {
       throw new Error(`Color control ${entry.controlIdentity || '(missing identity)'} resolved ${matches.length} inputs or was selected more than once.`);
     }
@@ -98,23 +103,32 @@ async function uniqueVisiblePanel(canvas, selector, description) {
 
 async function readColorPanelInputs(panel) {
   const inputs = panel.locator(RAIL.colorInput);
-  return inputs.evaluateAll((nodes) => {
+  const candidates = await inputs.evaluateAll((nodes) => {
     const norm = (value) => String(value || '').replace(/\s+/g, ' ').trim();
     const visible = (element) => element.getClientRects().length > 0
       && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
     return nodes.map((element, domIndex) => {
       const rect = element.getBoundingClientRect();
+      const picker = element.parentElement?.querySelector('.sp-replacer, [role="colorpicker"], [data-color-picker]') || null;
+      const pickerVisible = Boolean(picker && visible(picker));
       const labels = [...(element.labels || [])].map((node) => norm(node.innerText || node.textContent));
       const nearby = element.closest('[aria-label], [data-label], label') || element.parentElement;
       const label = norm(element.getAttribute('aria-label') || element.getAttribute('title') || labels.find(Boolean)
         || nearby?.getAttribute('aria-label') || nearby?.getAttribute('data-label') || '');
+      const inputVisible = visible(element);
+      const proxyRect = pickerVisible ? picker.getBoundingClientRect() : rect;
+      const proxyIndexes = nodes.slice(0, domIndex + 1).filter((node) => {
+        const candidate = node.parentElement?.querySelector('.sp-replacer, [role="colorpicker"], [data-color-picker]');
+        return visible(node) || Boolean(candidate && visible(candidate));
+      }).length - 1;
       return { name: element.getAttribute('name') || '', label,
-        role: element.getAttribute('role') || element.getAttribute('type') || 'textbox',
-        value: element.value, visible: visible(element), domIndex,
-        position: visible(element) ? [...nodes.slice(0, domIndex + 1)].filter(visible).length - 1 : null,
-        rect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) } };
-    }).filter((item) => item.visible);
+        role: element.getAttribute('role') || (pickerVisible ? 'color' : element.getAttribute('type') || 'textbox'),
+        value: element.value, visible: inputVisible, pickerVisible, domIndex,
+        position: inputVisible || pickerVisible ? proxyIndexes : null,
+        rect: { x: Math.round(proxyRect.x), y: Math.round(proxyRect.y), width: Math.round(proxyRect.width), height: Math.round(proxyRect.height) } };
+    });
   });
+  return candidates.filter((item) => isColorControlSurfaceVisible({ inputRendered: item.visible, pickerRendered: item.pickerVisible }));
 }
 
 // The visible rail: exactly one operateTools element is rendered at 30px

@@ -88,7 +88,8 @@ test('single color input preserves the scalar reader contract and existing rail 
   const read = colorPanelReadResult(inputs);
   assert.equal(read, '#1C4587');
   assert.deepEqual(freshRailInventoryRegions(read, null)[0].controls, [{ index: 0, tag: 'INPUT', type: 'text',
-    name: 'scheme-color', label: '配色方案', value: '#1C4587', checked: false, disabled: false }]);
+    name: 'scheme-color', label: '配色方案', value: '#1C4587', checked: false, disabled: false,
+    role: 'color', identity: 'position:0', position: 0 }]);
   assert.deepEqual(planColorPanelWrites(identifyColorPanelInputs(inputs).controls, '#FF0000').map(({ control, value }) =>
     ({ identity: control.identity, value })), [{ identity: 'label:配色方案', value: '#FF0000' }]);
 });

@@ -80,7 +80,10 @@ export function buildDraftProfile(template, { blockId, page, mapping, observedAt
     if (!kind) return [];
     const properties = kind === 'font-size' ? ['fontSize'] : ['color', 'backgroundColor', 'borderColor', 'outlineColor',
       'textDecorationColor', 'accentColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke'];
-    return properties.map((property) => ({ requirementId: match.id, evidenceIndex: index, kind, property,
+    return properties.map((property) => ({ requirementId: match.id, evidenceIndex: index,
+      regionType: match.type || null, wrapIndex: Number.isInteger(match.wrapIndex) ? match.wrapIndex : null,
+      controlIndex: Number.isInteger(evidence.controlIndex) ? evidence.controlIndex : null,
+      controlName: evidence.controlName || null, kind, property,
       status: 'pending', reason: 'awaiting-setting-unit-and-editor-effect-snapshot' }));
   }));
   if (pendingStyleEffects.length && !profile.capabilities.some((item) => item.id === 'block-style-spec')) {

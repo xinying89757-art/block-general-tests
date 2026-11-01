@@ -2,12 +2,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { addBlockIfNeeded, closeToolbarMenusBeforeAction, gotoFreshTargetPage, openEditor, savePage } from './editor.mjs';
 import { inventorySettings } from './baseline.mjs';
-import { currentValuesFromInventory } from './fresh-settings-adapter.mjs';
+import { currentValuesFromInventory, createFreshLifecycle } from './fresh-settings-adapter.mjs';
+import { widgetSession } from './capabilities/shared.mjs';
 import { matchingDeleteConfirmMatches, waitForUniqueDeleteAction } from './fresh-editor-actions.mjs';
 import { waitForPublishSignal, verifyFrontInstance, choosePublishMenuItem, publishStageDiagnostics } from './publish-confirm.mjs';
 import { inspectActiveModuleLibraryOpener, probeModuleLibraryModes,
   waitForUniqueVisibleModuleLibraryPanel } from './module-library-browser.mjs';
-import { RAIL, openRailPanel, readSchemeColor, readModuleWidth, cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
+import { RAIL, openRailPanel, readSchemeColor, setSchemeColor, saveColorPanel, readModuleWidth,
+  cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
 import { waitForEditorLoadingToClear } from './ui-waits.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
@@ -55,11 +57,12 @@ export function freshRailInventoryRegions(color, width) {
     name: 'modulewidth', label: radio.label || '', value: radio.value, checked: Boolean(radio.checked), disabled: false }));
   const customIndex = widthControls.length;
   widthControls.push({ index: customIndex, tag: 'INPUT', type: 'text', name: '', label: '自定义宽度',
-    value: width?.customVal ?? '', checked: false, disabled: false });
+    value: width?.customVal ?? '', checked: false, disabled: false, styleProperty: 'width' });
   widthControls.push({ index: customIndex + 1, tag: 'INPUT', type: 'checkbox', name: 'globalApply', label: '全局应用',
     value: 'on', checked: Boolean(width?.globalApply), disabled: false });
   const colorControls = typeof color === 'string' ? [{ index: 0, tag: 'INPUT', type: 'text', name: 'scheme-color',
-    label: '配色方案', value: color, checked: false, disabled: false }] : (color?.controls || []).map((control, index) => ({
+    label: '配色方案', value: color, checked: false, disabled: false, role: 'color',
+    identity: 'position:0', position: 0 }] : (color?.controls || []).map((control, index) => ({
     index, tag: 'INPUT', type: 'color', name: control.name || control.identity || '',
     label: control.label || `Color input at position ${index + 1}`, value: control.value ?? null, checked: false,
     disabled: false, role: control.role || 'textbox', position: control.position, identity: control.identity,
@@ -70,6 +73,52 @@ export function freshRailInventoryRegions(color, width) {
       controls: colorControls, ...(color?.notes?.length ? { notes: color.notes } : {}) },
     { title: 'right-rail-width', type: 'rail:module-width', wrapIndex: 0, kind: 'right-rail-flyout', controls: widthControls },
   ];
+}
+
+function uniqueStyleControl(controls, target) {
+  const found = (controls || []).filter((item) => item.index === target.controlIndex
+    && item.type === target.type && (target.tag == null || item.tag === target.tag)
+    && (item.name || '') === (target.name || '') && (item.label || '') === (target.label || ''));
+  if (found.length !== 1) throw new Error(`Discovered style control identity resolved ${found.length} controls; expected exactly one.`);
+  return found[0];
+}
+
+function createStyleControlBrowserAdapter({ page, canvas, config }) {
+  return {
+    createLifecycle(reference) {
+      if (reference.regionType === 'rail:color-scheme') {
+        const readColor = async (target) => {
+          const value = await readSchemeColor(canvas);
+          if (typeof value === 'string') return value;
+          const matches = (value?.controls || []).filter((control) => control.identity === target.identity);
+          if (matches.length !== 1) throw new Error(`Color control identity resolved ${matches.length} values; expected exactly one.`);
+          return matches[0].value;
+        };
+        return createFreshLifecycle('right-rail-flyout', {
+          open: () => openRailPanel(canvas, config.blockId, RAIL.colorIcon, RAIL.colorPanel),
+          read: readColor,
+          apply: (target, value) => setSchemeColor(canvas, { controlIdentity: target.identity, value }),
+          commit: () => saveColorPanel(canvas),
+          cancel: () => cancelColorPanel(canvas),
+        });
+      }
+      const session = widgetSession({ page, canvas, config, type: reference.regionType,
+        title: reference.regionTitle, wrapIndex: reference.wrapIndex });
+      return createFreshLifecycle('settings-dialog', {
+        open: () => session.open(),
+        read: async (target) => {
+          const controls = await session.read();
+          return uniqueStyleControl(controls, target).value;
+        },
+        apply: async (target, value) => {
+          const controls = await session.read();
+          await session.set(uniqueStyleControl(controls, target), value);
+        },
+        commit: () => session.save(),
+        cancel: () => session.cancel(),
+      });
+    },
+  };
 }
 
 export function createFreshBlockBrowserAdapter({ config, session, targetPage, settingsAdapter, discoverAndPrepareSettings }) {
@@ -160,7 +209,8 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     },
     async prepareSettings(instance) {
       config.freshSettingId = instance?.settingId || null;
-      const args = { page, canvas: frame, frame, config };
+      const args = { page, canvas: frame, frame, config,
+        styleControlAdapter: createStyleControlBrowserAdapter({ page, canvas: frame, config }) };
       const inventory = await readFreshInventory();
       if (discoverAndPrepareSettings) {
         return discoverAndPrepareSettings({ ...args, inventory });

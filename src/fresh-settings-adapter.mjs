@@ -10,6 +10,7 @@
  * becoming persistence assertions.
  */
 import { discoverProfileFrontUnits, runFrontSettingUnits } from './setting-units.mjs';
+import { createDiscoveredStyleSettingUnits } from './discovered-style-settings.mjs';
 import { applyLearnedStyleEffects, clearLearnedStyleEffects, deriveSelectorCandidatesFromDom,
   deriveStyleEffectPaths, resolveSettingStyleEffect, snapshotInstanceComputedStyles } from './style-effect-learning.mjs';
 export const FRESH_LIFECYCLE_KINDS = Object.freeze(['settings-dialog', 'canvas-popover', 'right-rail-flyout']);
@@ -161,6 +162,15 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
       persistedControls.push(...(created.persistedControls || []).map((control) => ({ ...control, capability: id })));
       Object.assign(metadata, definition.metadata || {}, created.metadata || {});
       capabilityResults.push({ capability: id, status: 'adapted', settingIds: created.settings.map((setting) => setting.id) });
+    }
+    const discoveredStyle = await createDiscoveredStyleSettingUnits({ inventory: mergedContext.inventory || [],
+      persistedControls, profile: mergedContext.profile, styleControlAdapter: mergedContext.styleControlAdapter });
+    if (discoveredStyle.settings.length) {
+      settings.push(...discoveredStyle.settings);
+      persistedControls.push(...discoveredStyle.persistedControls);
+      capabilityResults.push({ capability: 'discovered-style-controls', status: 'adapted',
+        settingIds: discoveredStyle.settings.map((setting) => setting.id) });
+      if (discoveredStyle.requirementsAdded) await mergedContext.persistProfile?.(mergedContext.profile);
     }
     const ids = settings.map((setting) => setting.id);
     if (ids.some((id) => !id) || new Set(ids).size !== ids.length) throw new Error('Fresh capability setting ids must be present and globally unique.');
