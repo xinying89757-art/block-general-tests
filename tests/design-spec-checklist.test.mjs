@@ -159,7 +159,7 @@ test('dependent failures are linked and counted once at their root', () => {
     { id: 'design-scope-color', status: 'fail', dependsOn: ['functional-color'], reason: { code: 'written-scope-color-mismatch' } },
   ] });
   assert.deepEqual(report.checks[1].dependsOn, ['functional-color']);
-  assert.deepEqual(report.summary, { pass: 0, fail: 1, na: 0, other: 0 });
+  assert.deepEqual(report.summary, { pass: 0, fail: 1, rawFail: 2, dedupedFail: 1, na: 0, other: 0 });
 });
 
 test('written color search includes SVG paint, outline, shadows, gradients and pseudo-elements', () => {
@@ -407,6 +407,30 @@ test('typography design checks compare only spec font properties, excluding pale
     mismatch, { ...mismatch, id: 'design-pagination-mobile' },
   ] });
   assert.equal(combined.summary.fail, 1, 'PC/mobile typography dependent observations must not recount their root failure');
+});
+
+test('typography failure names only the properties that differ and survives style diagnostic assembly', async () => {
+  const item = { id: 'line-height', checkType: 'typography', sourceText: 'Typography',
+    expected: { fontSize: '14px', fontWeight: 400, lineHeight: '28px' }, checkStage: 'front', params: { styleCheckId: 'label' } };
+  const check = await checkDesignRequirementFront(item, { profile: profile([item]), frontChecks: [
+    { id: 'bss-label', status: 'pass', actual: [{ fontSize: 14, fontWeight: 400, lineHeight: 14 }] },
+  ] });
+  assert.equal(check.status, 'fail');
+  assert.match(check.detail, /行高（lineHeight）/);
+  assert.doesNotMatch(check.detail, /字号/);
+  assert.deepEqual(check.reason.mismatchedProperties, ['lineHeight']);
+  const [diagnosed] = addStyleFailureReasons([check], { capability: { styleSpec: { items: [] } } });
+  assert.deepEqual(diagnosed.reason.mismatches, check.reason.mismatches);
+});
+
+test('a child-level typography requirement never substitutes an observed parent row', async () => {
+  const item = { id: 'child-label', checkType: 'typography', sourceText: 'Child level label',
+    expected: { fontWeight: 400 }, checkStage: 'front', params: { hierarchyLevel: 2, styleCheckId: 'label' } };
+  const check = await checkDesignRequirementFront(item, { profile: profile([item]), frontChecks: [
+    { id: 'bss-label', status: 'pass', actual: [{ fontWeight: 700, lineHeight: 45, hierarchyLevel: 1 }] },
+  ] });
+  assert.equal(check.status, 'na');
+  assert.equal(check.reason.code, 'typography-hierarchy-level-unresolved');
 });
 
 test('written 区块配色 checks use only report current values and accept any matching descendant', async () => {

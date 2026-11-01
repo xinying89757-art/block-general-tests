@@ -47,7 +47,7 @@ const stamp = Date.now();
 const out = args.out || `reports/front-style-${blockId}-${stamp}.json`;
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.mkdirSync('screenshots', { recursive: true });
-const config = { blockId, actionTimeoutMs: 30000, navigationTimeoutMs: 60000 };
+const config = { blockId, actionTimeoutMs: 30000, navigationTimeoutMs: 60000, settingsReport };
 
 const report = { flow: 'front-style-only', blockId, url: sanitizeFrontStyleUrl(args.url),
   settingId: args['setting-id'] || settingsReport?.block?.settingId || null,
@@ -156,6 +156,6 @@ Object.assign(report, finalizeFrontStyleReport(report));
 report.humanReview = buildDesignHumanReview(profile, report.checks);
 report.finishedAt = new Date().toISOString();
 fs.writeFileSync(out, JSON.stringify(report, null, 2));
-console.log(`[front-style] ${blockId} pass=${report.summary.pass} fail=${report.summary.fail} na=${report.summary.na}${report.error ? ' error=' + report.error : ''} -> ${out}`);
+console.log(`[front-style] ${blockId} pass=${report.summary.pass} fail=${report.summary.fail} rawFail=${report.summary.rawFail} dedupedFail=${report.summary.dedupedFail} na=${report.summary.na}${report.error ? ' error=' + report.error : ''} -> ${out}`);
 if (report.summary.fail) exitCode = exitCode || 1;
 process.exit(exitCode);

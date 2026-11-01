@@ -253,13 +253,13 @@ test('optional state exercise records attempted states and the first state revea
   assert.deepEqual(result, { states: ['hover', 'focus'], candidateCount: 1, disclosureCount: 0,
     exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
       tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 },
-    revealed: { 'color-a': { state: 'hover', matches: 1 } }, notExercised: [] });
+    revealed: { 'color-a': { state: 'hover', matches: 1 } }, candidateDiagnostics: [], notExercised: [] });
 });
 
 test('a state toggle whose click never resolves is bounded and recorded as not-exercised', async () => {
   let evaluateCount = 0;
   const element = { hover: async () => {}, focus: async () => {}, press: async () => {},
-    evaluate: async () => ++evaluateCount === 1 ? 'DIV' : ({ tag: 'div', visible: true, hasHref: false, insideForm: false,
+    evaluate: async (fn) => String(fn).includes('element.click()') ? new Promise(() => {}) : ++evaluateCount === 1 ? 'DIV' : ({ tag: 'div', visible: true, hasHref: false, insideForm: false,
       submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: false, hasClickHandler: false,
       hiddenSiblingIndexes: [], isTab: false, isSelect: false, isDetails: false, pointerAction: false, expanded: 'false' }),
     click: () => new Promise(() => {}), getAttribute: async () => null };
@@ -273,7 +273,7 @@ test('a state toggle whose click never resolves is bounded and recorded as not-e
   assert.ok(Date.now() - started < 500);
   assert.equal(result.notExercised[0].status, 'not-exercised');
   assert.equal(result.notExercised[0].reason.code, 'state-exercise-action-timeout');
-  assert.equal(result.notExercised[0].reason.action, 'activate-toggle');
+  assert.equal(result.candidateDiagnostics[0].trial.status, 'timeout');
   evaluateCount = 0;
   const overall = await exerciseWrittenColorStates(page, '.target', [{ id: 'color', value: '#123456' }],
     { actionTimeoutMs: 500, overallTimeoutMs: 20 });
@@ -287,7 +287,7 @@ test('state exercise opens only safe instance controls and records attempted/ope
     ? (panelVisible ? 'panel-open' : 'panel-closed') : ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
     submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: true, isTab: false,
     expanded: 'false', selected: null, hasPopup: true, pointerAction: false, hiddenSiblingIndexes: [1] }),
-    click: async () => { panelVisible = !panelVisible; actions.push(panelVisible ? 'open' : 'close'); }, press: async () => { actions.push('escape'); },
+    click: async (options = {}) => { if (options.trial) return; panelVisible = !panelVisible; actions.push(panelVisible ? 'open' : 'close'); }, press: async () => { actions.push('escape'); },
     getAttribute: async () => 'false', hover: async () => {}, focus: async () => {} };
   const unsafeLink = { evaluate: async () => ({ safe: false, isTab: false }), click: async () => { actions.push('unsafe-link'); },
     hover: async () => {}, focus: async () => {} };
@@ -365,13 +365,13 @@ test('state exercise opens instance-local category toggles and tabs, then restor
   const toggle = { evaluate: async (fn) => fn.name === 'readStateControlDom' ? expanded : ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
     submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: true, isTab: false,
     expanded, selected: null, hasPopup: false }),
-    click: async () => { expanded = expanded === 'false' ? 'true' : 'false'; actions.push(`toggle:${expanded}`); },
+    click: async (options = {}) => { if (options.trial) return; expanded = expanded === 'false' ? 'true' : 'false'; actions.push(`toggle:${expanded}`); },
     getAttribute: async (name) => name === 'aria-expanded' ? expanded : null,
     press: async () => { actions.push('escape'); } };
   const tab = (id, selected) => ({ evaluate: async () => ({ tag: 'div', visible: true, hasHref: false, insideForm: false,
     submitControl: false, hasExplicitToggle: false, semantic: true, nativeButton: false, isTab: true,
-    selected: selected ? 'true' : 'false', expanded: null, hasPopup: false }),
-    click: async () => { activeTab = id; actions.push(`tab:${id}`); } });
+    selected: activeTab === id ? 'true' : 'false', expanded: null, hasPopup: false }),
+    click: async (options = {}) => { if (options.trial) return; activeTab = id; actions.push(`tab:${id}`); } });
   const controls = [toggle, tab('first', true), tab('second', false)];
   let allCall = 0;
   const page = {
@@ -412,7 +412,7 @@ test('every written-color miss records states exercised and stylesheet scan diag
   };
   const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '.target', settingsReport, stateExercise: true });
   assert.equal(row.classification, 'absent');
-  assert.deepEqual(row.actual.stateExercise, { enabled: true, states: [], candidateCount: 0,
+  assert.deepEqual(row.actual.stateExercise, { enabled: true, states: [], candidateCount: 0, candidateDiagnostics: [],
     disclosureCount: 0, exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
       tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null, notExercised: [], timedOut: false });
   assert.equal(row.actual.stylesheetEvidence.sheetCount, 0);
@@ -444,7 +444,7 @@ test('cross-origin linked CSS fetched through context request becomes scoped CSS
   assert.equal(row.actual.stylesheetEvidence.fetchFailureCount, 0);
   assert.equal(row.actual.stylesheetEvidence.matchCount, 1);
   assert.equal(row.actual.stylesheetEvidence.rules[0].properties[0], 'background-image');
-  assert.deepEqual(row.actual.stateExercise, { enabled: false, states: [], candidateCount: 0,
+  assert.deepEqual(row.actual.stateExercise, { enabled: false, states: [], candidateCount: 0, candidateDiagnostics: [],
     disclosureCount: 0, exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
       tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null, notExercised: [], timedOut: false });
 });

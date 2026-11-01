@@ -23,7 +23,7 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
         <a href="/away" style="cursor:pointer"><span>Do not follow this nested link</span></a>
         <button type="button" class="hover-color" style="cursor:pointer">Hover for palette</button>
         <div class="typography-wrapper" style="font-size:12px">Exact leaf label <span style="font-size:16px;font-weight:600;line-height:20px">Exact leaf label</span></div>
-        <ul class="category-tree"><li>Parent category<ul><li>Nested category</li></ul></li></ul>
+        <ul class="category-tree"><li style="font-weight:700;line-height:45px">Parent category<ul><li style="font-weight:400;line-height:20px"><span>Nested category</span></li></ul></li></ul>
         <div class="clamped" style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">A long text block for line clamp verification</div>
         <div class="scroll-container" style="height:40px;overflow-y:auto"><div class="scroll-row" style="height:30px">one</div><div class="scroll-row" style="height:30px">two</div><div class="scroll-row" style="height:30px">three</div></div>
         <article class="item-card"><img class="lazy-image" data-src="/lazy.png" style="display:block;width:100px;height:100px;object-position:50% 50%;background-position:0% 0%">
@@ -84,6 +84,14 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
           expected: { display: 'block' }, checkStage: 'front', params: { viewport: 'mobile', selector: '.sample' } },
         { id: 'leaf-typography', checkType: 'typography', sourceText: 'Exact leaf label', expected: { fontSize: '16px', fontWeight: '600', lineHeight: '20px' },
           checkStage: 'front', params: {} },
+        { id: 'hierarchy-child-typography', checkType: 'typography', sourceText: 'Category child level',
+          expected: { fontWeight: 400, lineHeight: '20px' }, checkStage: 'front', params: { hierarchyLevel: 2 } },
+        { id: 'palette-default', checkType: 'color-default', sourceText: 'Palette default',
+          expected: { value: '#1c4587' }, checkStage: 'front', params: {} },
+        { id: 'button-color-scope', checkType: 'color-scope', sourceText: 'Button background',
+          expected: { value: '#1c4587' }, checkStage: 'front', params: { styleCheckIds: ['button-bg'] } },
+        { id: 'current-color-scope', checkType: 'color-scope', sourceText: 'Current pagination background',
+          expected: { value: '#1c4587' }, checkStage: 'front', params: { styleCheckIds: ['pagination-current'] } },
         { id: 'image-ratio-fixture', checkType: 'image-ratio', sourceText: 'Images square', expected: { ratio: '1:1', centered: true },
           checkStage: 'front', params: {} },
         { id: 'hierarchy-fixture', checkType: 'nav-hierarchy-levels', sourceText: 'Navigation has two levels',
@@ -106,7 +114,9 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
       { section: '区块配色', region: 'right-rail-color', type: 'color', value: '#d0b647' },
       { section: '区块配色', region: 'right-rail-color', type: 'color', value: '#12ab34' },
       { section: '区块配色', region: 'right-rail-color', type: 'color', value: '#ab12cd' },
-    ] } }));
+      { section: '区块配色', region: 'right-rail-color', type: 'color', value: '#ff0000' },
+    ] }, checks: [{ id: 'bss-button-bg', setting: 'palette', status: 'pass', value: '#ff0000', expected: '#ff0000' },
+      { id: 'bss-pagination-current', setting: 'palette', status: 'pass', value: '#ff0000', expected: '#ff0000' }] }));
     const result = await new Promise((resolve, reject) => {
       const child = spawn(process.execPath, ['scripts/front-style-only.mjs', '--block', '90001', '--url',
         `http://127.0.0.1:${address.port}/products.html`, '--profile', profilePath, '--run-report', runPath,
@@ -148,6 +158,13 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     assert.equal(report.checks.find((row) => row.id === 'bss-breakage-mobile')?.status, 'pass',
       'overlapping text clipped by an overflow-hidden ancestor is not a visible mobile overlap');
     assert.equal(report.checks.find((row) => row.id === 'design-leaf-typography')?.status, 'pass');
+    assert.equal(report.checks.find((row) => row.id === 'design-hierarchy-child-typography')?.status, 'pass');
+    assert.ok(report.checks.find((row) => row.id === 'design-hierarchy-child-typography')?.actual.functionalChecks
+      .every((row) => row.hierarchyLevel === 2));
+    assert.equal(report.checks.find((row) => row.id === 'design-palette-default')?.status, 'na', 'mobile must use the run report too, never keep a stale-default failure');
+    assert.equal(report.checks.find((row) => row.id === 'design-button-color-scope')?.status, 'pass');
+    assert.equal(report.checks.find((row) => row.id === 'design-current-color-scope')?.status, 'pass');
+    assert.equal(report.checks.find((row) => row.id === 'design-button-color-scope')?.reason.expectedSource, 'run-report:setting-check-value');
     assert.deepEqual(report.checks.find((row) => row.id === 'design-leaf-typography')?.actual, {
       fontSize: ['16px'], fontWeight: ['600'], lineHeight: ['20px'],
       functionalChecks: [{ label: 'Exact leaf label', role: 'span', fontSize: '16px', fontWeight: '600', lineHeight: '20px' }],

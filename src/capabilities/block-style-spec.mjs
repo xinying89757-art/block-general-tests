@@ -753,7 +753,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability, onProg
   }
   return checks.map((check) => {
     if (check.status === 'pass') return check;
-    const viewport = check.id.endsWith('-pad') ? 'pad' : check.id.endsWith('-mobile') ? 'mobile' : 'pc';
+    const viewport = check.reason?.viewport?.label || (check.id.endsWith('-pad') ? 'pad' : check.id.endsWith('-mobile') ? 'mobile' : 'pc');
     if (!shots.includes(viewport)) return check;
     return { ...check, screenshot: `screenshots/style-${config.blockId}-${viewport}.png` };
   });
@@ -997,6 +997,10 @@ export function addStyleFailureReasons(checks, { capability, blockId, rootSelect
   const items = spec.items || [];
   return checks.map((check) => {
     if (check.status === 'pass') return check;
+    // Checklist checkers already supplied property-specific observations.
+    // Replacing them with an empty styleSpec diagnostic loses that evidence.
+    if (check.id.startsWith('design-') && check.reason?.checkType) return { ...check,
+      reason: { ...check.reason, ...(check.screenshot ? { screenshot: check.screenshot } : {}) } };
     const item = styleItemForCheck(check.id, items);
     const isBreakage = check.id.startsWith('bss-breakage-');
     const locator = isBreakage ? 'block subtree layout invariants'

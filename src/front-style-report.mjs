@@ -65,14 +65,21 @@ export function finalizeFrontStyleReport(report) {
     return { ...check, reason };
   });
   const count = (status) => checks.filter((check) => check.status === status).length;
-  const failedIds = new Set(checks.filter((check) => check.status === 'fail').map((check) => String(check.id)));
-  // A dependent checklist row can repeat the same underlying failure. Keep all
-  // rows for diagnosis but count only the leaf/root verdict in the summary.
-  const rootFailureCount = checks.filter((check) => check.status === 'fail'
-    && !(check.dependsOn || []).some((dependency) => failedIds.has(String(dependency))
-      && String(dependency) !== String(check.id))).length;
-  return { ...report, checks,
-    summary: { pass: count('pass'), fail: rootFailureCount, na: count('na') + count('skip'),
+  const failed = new Map(checks.filter((check) => check.status === 'fail').map((check) => [String(check.id), check]));
+  const rootsFor = (id, path = []) => {
+    if (path.includes(id)) return [[...path.slice(path.indexOf(id))].sort()[0]];
+    const dependencies = (failed.get(id)?.dependsOn || []).map(String).filter((dependency) => failed.has(dependency) && dependency !== id);
+    return dependencies.length ? [...new Set(dependencies.flatMap((dependency) => rootsFor(dependency, [...path, id])))] : [id];
+  };
+  const failures = [...failed.keys()].map((id) => ({ checkId: id,
+    dependsOn: failed.get(id).dependsOn || [], rootFailureIds: rootsFor(id) }));
+  const rootIds = [...new Set(failures.flatMap((item) => item.rootFailureIds))];
+  const byId = new Map(failures.map((item) => [item.checkId, item.rootFailureIds]));
+  return { ...report, checks: checks.map((check) => check.status === 'fail'
+    ? { ...check, rootFailureIds: byId.get(String(check.id)) } : check),
+    failureDeduplication: { rule: 'Each failed check id is one raw failure; failed dependsOn chains count once per root. All rows remain in checks.',
+      rawFailCount: failed.size, dedupedFailCount: rootIds.length, rootFailureIds: rootIds, failures },
+    summary: { pass: count('pass'), fail: rootIds.length, rawFail: failed.size, dedupedFail: rootIds.length, na: count('na') + count('skip'),
       other: checks.filter((check) => !['pass', 'fail', 'na', 'skip'].includes(check.status)).length } };
 }
 

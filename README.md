@@ -105,13 +105,17 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 
 ### 前台样式失败原因
 
+汇总同时列出 `summary.rawFail`（按 check id 去重后的失败明细数）和 `summary.dedupedFail`（沿失败 `dependsOn` 链归到根因后的数量）；`summary.fail` 保持等于后者。每条失败仍保留，`rootFailureIds` 与 `failureDeduplication` 说明它被计入哪个根失败。字号、字重、行高分别比较，失败文字与 `reason.mismatchedProperties` 指明实际不符的属性。
+
+状态练习对实例内可安全切换的控件先做 `force:false` trial，再点击；actionability 超时时可回退为经过实例/非导航安全校验的 DOM click。它观察被控或相邻面板的 mutation 与动画后尺寸，扫描后恢复原状态。候选的 tag/class/rect、真实点击目标、点击方式与恢复结果只写 JSON/debug 诊断，不进入人类摘要。
+
 `scripts/front-style-only.mjs` 的 JSON 报告在每条非 `pass` 检查上附 `reason`：`stage` 是 `locate`、`read` 或 `compare`；`locator` 和 `matchedElementCount` 说明实例内定位及命中数；`property`、`expected`、`actual` 用规范化样式值描述比较项；`viewport` 记录视口。颜色等受区块设置控制的期望值可用 `--run-report reports/fresh-block-<id>-<run>.json` 从本轮的 `block.currentValues` 解析；只有本轮确实写入时才作为本轮期望。默认色检查遇到本轮不同颜色会记为 `na`（机器原因 `palette-default-overridden-this-run`），本轮写入色由独立的写入色检查验证。失败原因中的 `expectedSource` 会注明来源。`skip`/`na`/`deferred` 还带 `applicability`，异常会带已脱敏的 `error.class` / `error.message`。有失败截图时，`reason.screenshot` 指向对应视口截图；移动端超框还会列出 offending element 的 CSS 路径。原因里不保存页面正文、Cookie 或带令牌的 URL。外层浏览器/导航错误会作为 `status: "error"` 的逐项 harness 记录，不改写断言结果。
 
 设计清单中的 typography 仅检查该条规范明确提供的 `fontSize`、`fontWeight`、`lineHeight`；不把颜色、盒子尺寸或能力画像的其他属性混入。分页颜色范围按画像映射到当前页；非当前页颜色继续按它自己的设计条目判定。候选选择器在画像候选未命中时，样式检查可在唯一实例根节点内按链接/列表层级推导候选；没有结构证据时保留 `na`，不猜测。
 
 `block-style-spec` 画像中若只有 `recordOnly` 库存项，会按 `record` 输出这些待人工建立前台映射的能力，并继续执行通用视口布局检查。不要把设置库存标签当作前台 DOM 选择器。
 
-写入色检查统一扫描目标实例内的计算样式（含 `::before`/`::after`、SVG paint、outline、shadow、gradient）和链接/内联 CSS。JSON 结果只有三种颜色结论：`found-on-element` 为通过；`instance-scoped-css-only` 表示目标实例有匹配 CSS 规则但渲染样式未命中（`record`，带机器诊断中的规则选择器和属性，绝不算通过）；`absent` 为失败（已保存的颜色未在前台呈现）。颜色识别支持 rgb/rgba、3/6/8 位 hex、hsl/hsla。可用 `--include-stylesheets 0` 关闭样式表读取。可选 `--exercise-states 1` 会在扫描前对实例内交互元素做 hover/focus，并临时展开再还原原本关闭的 `<details>`；不点击链接/按钮，不导航，不改设置，报告记录哪种状态首次显出颜色。前台 `checks[]` 按 id 去重，冲突时保留更保守的 fail/error。尺寸比较默认严格小于 2px 的差值才通过，因此 30px 对 28px 仍为 fail；可在画像 `styleSpec.tolerances.sizePx` 调整。颜色仍按精确归一化值比较。分页样式项声明 `scope.containerKind: "pagination"` 后，只在实例内语义分页容器中查找候选元素。
+写入色检查统一扫描目标实例内的计算样式（含 `::before`/`::after`、SVG paint、outline、shadow、gradient）和链接/内联 CSS。JSON 结果只有三种颜色结论：`found-on-element` 为通过；`instance-scoped-css-only` 表示目标实例有匹配 CSS 规则但渲染样式未命中（`record`，带机器诊断中的规则选择器和属性，绝不算通过）；`absent` 为失败（已保存的颜色未在前台呈现）。颜色识别支持 rgb/rgba、3/6/8 位 hex、hsl/hsla。可用 `--include-stylesheets 0` 关闭样式表读取。可选 `--exercise-states 1` 会在扫描前对实例内交互元素做 hover/focus，并临时展开再还原原本关闭的 `<details>`；只切换实例内通过安全过滤的按钮/展开控件，不跟随链接、不提交表单，扫描后恢复，报告记录哪种状态首次显出颜色。前台 `checks[]` 按 id 去重，冲突时保留更保守的 fail/error。尺寸比较默认严格小于 2px 的差值才通过，因此 30px 对 28px 仍为 fail；可在画像 `styleSpec.tolerances.sizePx` 调整。颜色仍按精确归一化值比较。分页样式项声明 `scope.containerKind: "pagination"` 后，只在实例内语义分页容器中查找候选元素。
 
 ## 安全和恢复的底线
 
