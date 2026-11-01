@@ -1,3 +1,5 @@
+import { markUniqueFrontInstance } from './front-instance-root.mjs';
+
 export const DESIGN_CHECK_TYPES = Object.freeze([
   'color-default', 'color-scope', 'typography', 'module-width', 'height-fit',
   'text-truncation', 'image-ratio', 'overflow-threshold', 'search-box-per-field',
@@ -938,7 +940,41 @@ function writtenPaletteColorValues(settingsReport) {
   return checkValues;
 }
 
-export async function runWrittenColorFrontChecks({ page, rootSelector, settingsReport, includeStylesheets = true,
+export async function runWrittenColorFrontChecks(options = {}) {
+  const { page, rootSelector, settingsReport } = options;
+  const values = extractWrittenColorValues(settingsReport);
+  if (!values.length || !page || !rootSelector) return runWrittenColorFrontChecksForRoot(options);
+
+  let effectiveRootSelector = rootSelector;
+  let recoveryMarker = null;
+  let rootCount = null;
+  try {
+    const root = page.locator(rootSelector);
+    if (typeof root?.count === 'function') rootCount = await root.count();
+  } catch {}
+  if (rootCount === 0 && settingsReport?.blockId && settingsReport?.block?.settingId) {
+    try {
+      recoveryMarker = await markUniqueFrontInstance(page, { blockId: settingsReport.blockId,
+        settingId: settingsReport.block.settingId, markerValue: `written-color-${Date.now()}` });
+      effectiveRootSelector = recoveryMarker.selector;
+      rootCount = recoveryMarker.rootCount === 1 ? 1 : recoveryMarker.rootCount;
+    } catch { /* returned as a machine-readable inconclusive result below */ }
+  }
+  if (rootCount !== null && rootCount !== 1) {
+    try { await recoveryMarker?.clear(); } catch {}
+    const code = rootCount === 0 ? 'instance-root-missing' : 'instance-root-not-unique';
+    return values.map((item) => ({ id: item.id, name: '本次写入颜色前台回读', status: 'record',
+      classification: code, expected: item.value,
+      actual: { rootCount, stylesheetScan: 'not-run', stateExercise: 'not-run' },
+      detail: rootCount === 0 ? '目标区块实例根节点不可用，颜色结果无法判为 absent。'
+        : '目标区块实例根节点不唯一，颜色结果无法判定。',
+      reason: { stage: 'front', code, expectedSource: 'run-report.currentValues', controlIndex: item.controlIndex } }));
+  }
+  try { return await runWrittenColorFrontChecksForRoot({ ...options, rootSelector: effectiveRootSelector }); }
+  finally { try { await recoveryMarker?.clear(); } catch {} }
+}
+
+async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsReport, includeStylesheets = true,
   fetchStylesheet, fetchNode, stateExercise = false }) {
   const values = extractWrittenColorValues(settingsReport);
   if (!values.length) return [{ id: 'written-color-presence', name: '本次写入颜色前台回读', status: 'na',
@@ -980,7 +1016,8 @@ export async function runWrittenColorFrontChecks({ page, rootSelector, settingsR
     // selector for this instance. Successfully fetched non-matching sheets and
     // known font-only resources are explicitly excluded from the color oracle.
     const stylesheetIncomplete = cssEvidence.unreadableSheetCount > 0;
-    const outcome = foundOnElement ? 'found-on-element' : cssOnly ? 'instance-scoped-css-only'
+    const outcome = snapshot.rootCount !== 1 ? 'instance-root-missing'
+      : foundOnElement ? 'found-on-element' : cssOnly ? 'instance-scoped-css-only'
       : stylesheetIncomplete ? 'inconclusive-stylesheet-unavailable' : 'absent';
     const actual = { rootCount: snapshot.rootCount, elementCount: snapshot.styles.length,
       matches: matches || stateMatch?.matches || 0,
@@ -1006,12 +1043,13 @@ export async function runWrittenColorFrontChecks({ page, rootSelector, settingsR
         revealedBy: stateMatch?.state || null,
         ...(stateEvidence.error ? { error: stateEvidence.error } : {}) } };
     checks.push({ id: item.id, name: '本次写入颜色前台回读', status: outcome === 'found-on-element' ? 'pass'
-      : ['instance-scoped-css-only', 'inconclusive-stylesheet-unavailable'].includes(outcome) ? 'record' : 'fail',
+      : ['instance-scoped-css-only', 'inconclusive-stylesheet-unavailable', 'instance-root-missing'].includes(outcome) ? 'record' : 'fail',
       classification: outcome, expected: item.value, actual,
       detail: outcome === 'found-on-element' ? '目标区块内存在呈现本次写入颜色的元素。'
         : outcome === 'instance-scoped-css-only' ? '已保存的颜色只出现在目标实例相关 CSS 规则中，未在计算样式中呈现。'
           : outcome === 'inconclusive-stylesheet-unavailable' ? '样式表未能完整读取，颜色结果无法判为 absent。'
-            : '已保存的颜色未在目标实例前台呈现。',
+            : outcome === 'instance-root-missing' ? '目标区块实例根节点不可用，颜色结果无法判为 absent。'
+              : '已保存的颜色未在目标实例前台呈现。',
       reason: { stage: 'front', code: outcome,
         expectedSource: 'run-report.currentValues', controlIndex: item.controlIndex,
         propertiesChecked: ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'outlineColor', 'boxShadow',
@@ -1024,10 +1062,10 @@ export async function runWrittenColorFrontChecks({ page, rootSelector, settingsR
 export function isSafeStateExerciseTarget(info = {}) {
   return info.visible === true && info.tag !== 'a' && info.hasHref !== true
     && info.insideForm !== true && info.submitControl !== true
-    && Boolean(info.hasExplicitToggle || info.semantic || info.nativeButton || info.pointerAction);
+    && Boolean(info.hasExplicitToggle || info.semantic || info.nativeButton || info.pointerAction || info.hasClickHandler);
 }
 
-export async function exerciseWrittenColorStates(page, rootSelector, values, { maxElements = 80 } = {}) {
+export async function exerciseWrittenColorStates(page, rootSelector, values, { maxElements = 200 } = {}) {
   const root = page.locator(rootSelector);
   const candidates = root.locator('*');
   const count = Math.min(await candidates.count(), maxElements);
@@ -1085,12 +1123,20 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
       const semantic = ['button', 'tab', 'combobox'].includes(role);
       const nativeButton = tag === 'button' && !['submit', 'reset'].includes(type) && !insideForm;
       const pointerAction = getComputedStyle(element).cursor === 'pointer';
+      const hasClickHandler = typeof element.onclick === 'function' || element.hasAttribute('onclick');
+      const hiddenSiblingIndexes = [...(element.parentElement?.children || [])].map((sibling, index) => ({ sibling, index }))
+        .filter(({ sibling }) => {
+        if (sibling === element) return false;
+        const siblingStyle = getComputedStyle(sibling);
+        return sibling.hidden || sibling.getAttribute('aria-hidden') === 'true'
+          || siblingStyle.display === 'none' || siblingStyle.visibility === 'hidden';
+      }).map(({ index }) => index);
       const submitControl = (tag === 'button' || tag === 'input') && ['submit', 'reset', 'image'].includes(type);
       const style = getComputedStyle(element);
       const visible = element.getClientRects().length > 0 && style.display !== 'none'
         && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0;
       return { tag, visible, hasHref: element.hasAttribute('href'), insideForm, submitControl,
-        hasExplicitToggle, semantic, nativeButton, isTab, isSelect: tag === 'select',
+        hasExplicitToggle, semantic, nativeButton, hasClickHandler, hiddenSiblingIndexes, isTab, isSelect: tag === 'select',
         isDetails: tag === 'details' || tag === 'summary', pointerAction,
         expanded: element.getAttribute('aria-expanded'), hasPopup: element.hasAttribute('aria-haspopup'),
         selected: element.getAttribute('aria-selected'), type };
@@ -1117,14 +1163,34 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
       exerciseCounts.attempted += 1;
       await control.click({ timeout: 1500 });
       const expanded = await control.getAttribute('aria-expanded');
-      if (expanded === 'true' || info.expanded !== expanded || info.hasPopup || info.pointerAction) {
+      const siblingPanelOpened = (info.hiddenSiblingIndexes || []).length > 0 && await control.evaluate((element, indexes) => {
+        const siblings = [...(element.parentElement?.children || [])];
+        return indexes.some((index) => {
+          const sibling = siblings[index];
+          if (!sibling) return false;
+          const style = getComputedStyle(sibling);
+          return !sibling.hidden && sibling.getAttribute('aria-hidden') !== 'true'
+            && style.display !== 'none' && style.visibility !== 'hidden';
+        });
+      }, info.hiddenSiblingIndexes).catch(() => false);
+      if (expanded === 'true' || info.expanded !== expanded || siblingPanelOpened) {
         exerciseCounts.opened += 1;
         states.add('category-expanded'); exerciseCounts.togglesOpened += 1;
         await scan('category-expanded');
-        if (expanded === 'true') await control.click({ timeout: 1500 });
+        if (expanded === 'true' || siblingPanelOpened) await control.click({ timeout: 1500 });
         else await control.press('Escape', { timeout: 1000 });
         const after = await control.getAttribute('aria-expanded');
-        if (after === info.expanded || (info.expanded === null && after === null)) exerciseCounts.restored += 1;
+        const panelRestored = siblingPanelOpened ? await control.evaluate((element, indexes) => {
+          const siblings = [...(element.parentElement?.children || [])];
+          return indexes.every((index) => {
+            const sibling = siblings[index];
+            if (!sibling) return true;
+            const style = getComputedStyle(sibling);
+            return sibling.hidden || sibling.getAttribute('aria-hidden') === 'true'
+              || style.display === 'none' || style.visibility === 'hidden';
+          });
+        }, info.hiddenSiblingIndexes).catch(() => false) : true;
+        if (panelRestored && (after === info.expanded || (info.expanded === null && after === null))) exerciseCounts.restored += 1;
       }
     } catch {}
   }

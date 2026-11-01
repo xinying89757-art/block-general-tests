@@ -252,10 +252,13 @@ test('optional state exercise records attempted states and the first state revea
 
 test('state exercise opens only safe instance controls and records attempted/opened/restored counts', async () => {
   const actions = [];
-  const toggle = { evaluate: async () => ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
+  let panelVisible = false;
+  let panelStateReads = 0;
+  const toggle = { evaluate: async (_fn, indexes) => indexes
+    ? (++panelStateReads === 1 ? panelVisible : !panelVisible) : ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
     submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: true, isTab: false,
-    expanded: 'false', selected: null, hasPopup: true, pointerAction: false }),
-    click: async () => { actions.push('open'); }, press: async () => { actions.push('escape'); },
+    expanded: 'false', selected: null, hasPopup: true, pointerAction: false, hiddenSiblingIndexes: [1] }),
+    click: async () => { panelVisible = !panelVisible; actions.push(panelVisible ? 'open' : 'close'); }, press: async () => { actions.push('escape'); },
     getAttribute: async () => 'false', hover: async () => {}, focus: async () => {} };
   const unsafeLink = { evaluate: async () => ({ safe: false, isTab: false }), click: async () => { actions.push('unsafe-link'); },
     hover: async () => {}, focus: async () => {} };
@@ -269,7 +272,7 @@ test('state exercise opens only safe instance controls and records attempted/ope
   } }),
   evaluate: async (_fn, arg) => arg?.rootSelector ? { rootCount: 1, styles: [{ color: 'transparent' }] } : undefined };
   const result = await exerciseWrittenColorStates(page, '.instance-root', [{ id: 'color-a', value: '#d0b647' }]);
-  assert.deepEqual(actions, ['open', 'escape']);
+  assert.deepEqual(actions, ['open', 'close']);
   assert.equal(result.exerciseCounts.attempted, 1);
   assert.equal(result.exerciseCounts.opened, 1);
   assert.equal(result.exerciseCounts.restored, 1);
@@ -284,6 +287,45 @@ test('interactive state target safety excludes navigation, form submission and h
   assert.equal(isSafeStateExerciseTarget({ ...base, insideForm: true }), false);
   assert.equal(isSafeStateExerciseTarget({ ...base, submitControl: true }), false);
   assert.equal(isSafeStateExerciseTarget({ ...base, visible: false }), false);
+  assert.equal(isSafeStateExerciseTarget({ ...base, pointerAction: false, hasClickHandler: true }), true);
+  assert.equal(isSafeStateExerciseTarget({ ...base, pointerAction: false, hasClickHandler: true,
+    tag: 'a', hasHref: false }), false);
+});
+
+test('a missing temporary root marker is inconclusive and does not scan stylesheets as absent', async () => {
+  let scanned = false;
+  const page = { locator: () => ({ count: async () => 0 }), evaluate: async (_fn, arg) => {
+    if (arg?.rootSelector && !arg?.declarations) scanned = true;
+    return { links: [], inline: [] };
+  } };
+  const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '[data-front-instance-target="old"]',
+    settingsReport: { block: { currentValues: [{ section: '区块配色', type: 'color', value: '#d0b647' }] } } });
+  assert.equal(row.status, 'record');
+  assert.equal(row.classification, 'instance-root-missing');
+  assert.equal(row.reason.code, 'instance-root-missing');
+  assert.deepEqual(row.actual, { rootCount: 0, stylesheetScan: 'not-run', stateExercise: 'not-run' });
+  assert.equal(scanned, false);
+});
+
+test('written-color checks rebuild a lost temporary marker from the stable instance identity', async () => {
+  let cleared = false;
+  const page = {
+    locator: (selector) => ({ count: async () => selector.includes('written-color-') ? 1 : 0,
+      evaluate: async () => { cleared = true; } }),
+    evaluate: async (_fn, arg) => {
+      if (arg?.blockId) return { status: 'resolved', rootCount: 1, matchCount: 1 };
+      if (arg?.declarations) return [];
+      if (arg?.rootSelector) return { rootCount: 1, styles: [{ color: 'rgb(208, 182, 71)' }] };
+      return undefined;
+    },
+  };
+  const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '[data-front-instance-target="stale"]',
+    settingsReport: { blockId: 'generic', block: { settingId: 'instance-a', currentValues: [
+      { section: '区块配色', type: 'color', value: '#d0b647' },
+    ] } }, includeStylesheets: false });
+  assert.equal(row.classification, 'found-on-element');
+  assert.equal(row.status, 'pass');
+  assert.equal(cleared, true, 'the recovery marker is kept through color reads, then removed');
 });
 
 test('state exercise opens instance-local category toggles and tabs, then restores the selected tab', async () => {

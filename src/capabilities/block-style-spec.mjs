@@ -308,7 +308,7 @@ async function readItem(frame, rootSel, item) {
 // Breakage checks (no design frame needed): horizontal overflow, elements
 // sticking out of the block wrap, overlapping leaf text, clipped text,
 // distorted images. Returns findings; empty means clean.
-async function breakage(frame, rootSel, { mobile = false } = {}) {
+export async function breakage(frame, rootSel, { mobile = false } = {}) {
   return frame.evaluate(({ rootSel, mobile }) => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const root = document.querySelector(rootSel);
@@ -340,6 +340,30 @@ async function breakage(frame, rootSel, { mobile = false } = {}) {
       }
       return parts.join(' > ') || root.tagName.toLowerCase();
     };
+    const visibleForOverlap = (el) => {
+      const box = el.getBoundingClientRect();
+      if (box.width <= 0 || box.height <= 0) return false;
+      for (let current = el; current; current = current.parentElement) {
+        const style = getComputedStyle(current);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse'
+          || Number(style.opacity || 1) <= 0) return false;
+        if (current === root) break;
+      }
+      for (let current = el.parentElement; current; current = current.parentElement) {
+        const ancestorBox = current.getBoundingClientRect();
+        const style = getComputedStyle(current);
+        const clipLeft = ancestorBox.left + current.clientLeft;
+        const clipTop = ancestorBox.top + current.clientTop;
+        const clipRight = clipLeft + current.clientWidth;
+        const clipBottom = clipTop + current.clientHeight;
+        if (['hidden', 'clip'].includes(style.overflowX)
+          && (box.left < clipLeft - 0.5 || box.right > clipRight + 0.5)) return false;
+        if (['hidden', 'clip'].includes(style.overflowY)
+          && (box.top < clipTop - 0.5 || box.bottom > clipBottom + 0.5)) return false;
+        if (current === root) break;
+      }
+      return true;
+    };
     for (const el of root.querySelectorAll('*')) {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) continue;
@@ -368,7 +392,8 @@ async function breakage(frame, rootSel, { mobile = false } = {}) {
       const r = node.getBoundingClientRect();
       if (!r.width || !r.height) continue;
       const s = getComputedStyle(node);
-      if (s.visibility === 'hidden' || s.display === 'none' || Number(s.opacity || 1) === 0) continue;
+      if (s.visibility === 'hidden' || s.display === 'none' || Number(s.opacity || 1) === 0
+        || (mobile && !visibleForOverlap(node))) continue;
       const withinRoot = r.left >= wrapBox.left - 1 && r.right <= wrapBox.right + 1
         && r.top >= wrapBox.top - 1 && r.bottom <= wrapBox.bottom + 1;
       let overlayPosition = false;
@@ -679,7 +704,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
             { ...read, viewport: 'mobile' }));
         }
         const responsiveChecklistChecks = await runDesignSpecFrontChecks({ designSpec: capability.designSpec }, {
-          page: frame, rootSelector, frontChecks: mobileStyleChecks, viewport: { label: 'mobile', width: viewports.mobile, height: 667 },
+          page: frame, rootSelector: rootSel, frontChecks: mobileStyleChecks, viewport: { label: 'mobile', width: viewports.mobile, height: 667 },
         });
         checks.push(...responsiveChecklistChecks.filter(Boolean));
       }
