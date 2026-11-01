@@ -1,7 +1,8 @@
 import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, productSnapshot, rememberCategoryState } from './effect-checks.mjs';
 import { categorySelectionChanges } from './product-category-select.mjs';
 import { savePage, openPreview } from '../editor.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText, fixtureCategoryState } from './shared.mjs';
+import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText, fixtureCategoryState, findControl, controlValue } from './shared.mjs';
+import { executeSettingBatches } from '../batch-save.mjs';
 
 const SUITE = 'capability:product-list-display';
 const NAMES = {
@@ -13,6 +14,11 @@ const NAMES = {
   'pld-data-source-category-front': '列表数据来源选部分分类前台效果',
   'pld-display-field-persist': '展示字段保存回读与恢复',
   'pld-data-source-persist': '列表数据来源保存回读与恢复',
+  'pld-data-source-batch-effect': '批量保存后数据来源画布效果',
+  'pld-size-batch-effect': '批量保存后产品数量画布效果',
+  'pld-pagination-batch-effect': '批量保存后分页画布效果',
+  'pld-compare-batch-effect': '批量保存后产品对比画布效果',
+  'pld-display-field-batch-effect': '批量保存后展示字段画布效果',
   'pld-front-note': '产品列表前台可观察性记录',
 };
 const backendCheckIds = Object.freeze([
@@ -21,6 +27,14 @@ const backendCheckIds = Object.freeze([
   'pld-pagination-backend', 'pld-compare-backend',
 ]);
 export const checkGroups = Object.freeze(Object.fromEntries(backendCheckIds.map((id) => [id, ['backend']])));
+export const batchSaveMetadata = Object.freeze({
+  'data-source': Object.freeze({ interferesWith: ['product-quantity', 'pagination'] }),
+  'product-quantity': Object.freeze({ interferesWith: ['pagination', 'data-source'] }),
+  pagination: Object.freeze({ interferesWith: ['product-quantity', 'data-source'],
+    requiresBaseline: ['product-quantity', 'data-source'] }),
+  comparison: Object.freeze({}),
+  'display-field': Object.freeze({}),
+});
 
 export async function runListEffectPlan(tasks, { checkGroup } = {}) {
   const selected = checkGroup ? tasks.filter((task) => task.id === checkGroup) : tasks;
@@ -481,6 +495,226 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   }
   checks.push(...await listEffects({ page, canvas, context, config, capability, profile, report }, 'front'));
   return checks;
+}
+
+function radioBatchSetting({ id, key, name, options }) {
+  const original = options.find((item) => item.checked);
+  const alternate = options.find((item) => !item.checked);
+  const setting = { id, key, name, control: original, originalValue: original.label, alternateValue: alternate.label };
+  const choose = async (session, target) => {
+    await session.open();
+    const controls = await session.read();
+    const current = findControl(controls, target);
+    if (!current) throw new Error(`${name}控件身份在保存期间变化`);
+    await session.set(current, true);
+  };
+  setting.apply = (session) => choose(session, alternate);
+  setting.restore = (session) => choose(session, original);
+  setting.inspect = (controls) => {
+    const states = options.map((item) => findControl(controls, item));
+    if (states.some((item) => !item)) return { value: null, valid: false };
+    const selected = states.filter((item) => item.checked);
+    return { value: selected.length === 1 ? selected[0].label : null,
+      valid: selected.length === 1 && selected[0].label === alternate.label };
+  };
+  return setting;
+}
+
+function controlBatchSetting({ id, key, name, control, alternate }) {
+  const original = controlValue(control);
+  const setting = { id, key, name, control, originalValue: original, alternateValue: alternate };
+  const set = async (session, value) => {
+    await session.open();
+    const controls = await session.read();
+    const current = findControl(controls, control);
+    if (!current) throw new Error(`${name}控件身份在保存期间变化`);
+    if (controlValue(current) !== value) await session.set(current, value);
+  };
+  setting.apply = (session) => set(session, alternate);
+  setting.restore = (session) => set(session, original);
+  setting.inspect = (controls) => {
+    const current = findControl(controls, control);
+    const value = current ? controlValue(current) : null;
+    return { value, valid: current !== undefined && value === alternate };
+  };
+  return setting;
+}
+
+function attachBatchEffect(setting, { canvas, config, profile, report }) {
+  setting.captureEffect = async () => {
+    try { setting.effectBefore = await readEffectRoot(canvas, config, productSnapshot); }
+    catch (error) { setting.effectBeforeError = error.message; }
+  };
+  setting.checkEffect = async () => {
+    if (setting.key === 'product-quantity') {
+      const before = setting.effectBefore;
+      if (!before?.count) return { status: 'skip', detail: setting.effectBeforeError || '当前画布无可读产品列表，无法核对数量效果。' };
+      const next = Number(setting.alternateValue);
+      const original = Number(setting.originalValue);
+      const available = before.count >= next ? before.count : before.count < original ? before.count : null;
+      if (available === null) return { status: 'skip', detail: '现有列表达到原数量上限，但没有完整可用产品数，暂不能判断数量设置效果。', evidence: before };
+      const expected = Math.min(next, available);
+      const after = await readEffectRoot(canvas, config, productSnapshot);
+      const evidence = { before, after, quantity: next, available, expected };
+      return { status: after.count === expected ? 'pass' : 'fail', detail: `产品数量设为 ${next} 后应显示 ${expected} 件，实际 ${after.count} 件。`, evidence };
+    }
+    if (setting.key === 'pagination') {
+      if (!setting.effectBefore?.count || setting.effectBefore.count < 2) return { status: 'skip', detail: '翻转前可见产品不足两件，无法判断分页条效果。', evidence: setting.effectBefore || null };
+      const after = await readEffectRoot(canvas, config, listVisibility);
+      if (!after.hasList) return { status: 'skip', detail: '当前画布没有可读产品列表。', evidence: after };
+      const expected = setting.alternateValue === '是';
+      return { status: after.pagination === expected ? 'pass' : 'fail',
+        detail: `分页设为“${setting.alternateValue}”后分页条应${expected ? '显示' : '隐藏'}，实际${after.pagination ? '显示' : '隐藏'}。`,
+        evidence: { before: setting.effectBefore, after, expected } };
+    }
+    if (setting.key === 'comparison') {
+      const after = await readEffectRoot(canvas, config, listVisibility);
+      if (!after.hasList || !after.cards) return { status: 'skip', detail: '当前画布没有可读产品卡，无法判断对比入口效果。', evidence: after };
+      const expected = setting.alternateValue === '开启';
+      const mismatches = after.compareCards.filter((shown) => shown !== expected).length;
+      return { status: mismatches ? 'fail' : 'pass', detail: `产品对比设为“${setting.alternateValue}”后应有 ${expected ? '全部' : '无'}产品卡显示入口，${mismatches} 张卡不符合。`,
+        evidence: { after, expected, mismatches } };
+    }
+    if (setting.key === 'display-field') {
+      const cards = await readEffectRoot(canvas, config, cardFieldSnapshot, [setting.control.label]);
+      if (!cards.length || cards.some((card) => !card.mapped || card.unmappedRows)) return { status: 'skip',
+        detail: `展示字段“${setting.control.label}”在画布产品卡上的对应位置无法唯一识别。`, evidence: { cards } };
+      const expected = setting.alternateValue === true;
+      const mismatches = cards.filter((card) => card.labels.includes(setting.control.label) !== expected);
+      return { status: mismatches.length ? 'fail' : 'pass', detail: `展示字段“${setting.control.label}”设为${expected ? '勾选' : '未勾选'}后，${mismatches.length} 张卡片与该状态不符。`,
+        evidence: { cards, expected, mismatches: mismatches.map((card) => card.product) } };
+    }
+    if (setting.key === 'data-source') {
+      const kind = { '所有产品': 'all', '使用筛选条件': 'filter', '选择指定产品': 'products', '选择部分产品分类': 'category' }[setting.alternateValue];
+      const fixture = kind === 'all' || kind === 'category' ? profile?.fixture?.products?.map((item) => item.name)
+        : kind === 'filter' ? profile?.fixture?.filteredProducts : profile?.fixture?.specifiedProducts;
+      if (!Array.isArray(fixture) || !fixture.length || report?.fixture?.applied === false) return { status: 'skip',
+        detail: `来源“${setting.alternateValue}”缺少完整且独立的 AUTOTEST 产品名单夹具。` };
+      const after = await readEffectRoot(canvas, config, productSnapshot);
+      const actualFixtures = after.names.filter((name) => name.startsWith('AUTOTEST-'));
+      const missing = fixture.filter((name) => !actualFixtures.includes(name));
+      const extra = actualFixtures.filter((name) => !fixture.includes(name));
+      return { status: missing.length || extra.length ? 'fail' : 'pass',
+        detail: `来源“${setting.alternateValue}”应显示 ${fixture.length} 件 AUTOTEST 产品；缺少 ${missing.length}、多出 ${extra.length}。`,
+        evidence: { wanted: fixture, actual: actualFixtures, missing, extra } };
+    }
+    return { status: 'skip', detail: '该设置未声明可独立判定的画布效果。' };
+  };
+}
+
+export async function runBatchSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
+  const session = listSession({ page, canvas, config, capability });
+  const initial = await probeControls(session);
+  if (initial.reason) return runSettingsLayer({ page, canvas, context, config, capability, profile, report });
+
+  const controls = initial.controls;
+  const checksById = new Map();
+  const candidates = [];
+  const labelsForSource = ['所有产品', '使用筛选条件', '选择指定产品', '选择部分产品分类'];
+  const sources = controls.filter((item) => item.type === 'radio' && labelsForSource.includes(item.label));
+  if (!sources.length) checksById.set('pld-data-source-persist', result('pld-data-source-persist', 'na', '列表数据来源：该区块没有此选项组。'));
+  else if (sources.length !== labelsForSource.length || new Set(sources.map((item) => item.name)).size !== 1
+    || sources.filter((item) => item.checked).length !== 1 || sources.some((item) => item.disabled)) {
+    checksById.set('pld-data-source-persist', result('pld-data-source-persist', 'skip', '列表数据来源：无法唯一定位该组选项或当前选中不唯一。', sources));
+  } else candidates.push(radioBatchSetting({ id: 'pld-data-source-persist', key: 'data-source',
+    name: '列表数据来源', options: sources }));
+
+  const fields = fieldsOf(controls);
+  checksById.set('pld-fields', Array.isArray(profile?.requirements?.displayFieldTypes) && profile.requirements.displayFieldTypes.length
+    ? result('pld-fields', 'record', `展示字段 ${fields.length} 个（排除全选，含系统属性与自定义字段）；需求类型：${profile.requirements.displayFieldTypes.join('、')}。`, fields)
+    : result('pld-fields', 'skip', '需求未提供，需人工补充', fields));
+
+  const numbers = controls.filter((item) => !item.disabled && !item.readOnly && ['text', 'number'].includes(item.type)
+    && /^\d+$/.test(item.value) && Number(item.value) >= 1 && Number(item.value) <= 100);
+  const sizeInputs = numbers.filter((item) => /每页产品数量|显示产品总数量/.test(item.label + item.context));
+  const pageSize = sizeInputs.length === 1 ? sizeInputs[0] : (numbers.length === 1 ? numbers[0] : null);
+  if (pageSize) candidates.push(controlBatchSetting({ id: 'pld-page-size-persist', key: 'product-quantity',
+    name: '产品数量', control: pageSize, alternate: Number(pageSize.value) === 10 ? '20' : '10' }));
+  else checksById.set('pld-page-size-persist', result('pld-page-size-persist', numbers.length === 0 ? 'na' : 'skip',
+    numbers.length === 0 ? '本区块没有产品数量设置项。' : '未能唯一定位每页产品数量输入（盘点值 20，上限 100）。'));
+
+  for (const [id, key, name, label, groupName] of [
+    ['pld-pagination-persist', 'pagination', '分页展示', null, 'pagination'],
+    ['pld-compare-persist', 'comparison', '产品对比', null, null],
+  ]) {
+    const labels = id === 'pld-pagination-persist' ? ['是', '否'] : ['关闭', '开启'];
+    const options = labels.map((labelText) => controls.filter((item) => item.type === 'radio'
+      && item.label === labelText && (!groupName || item.name === groupName)));
+    if (options.every((items) => items.length === 0)) {
+      checksById.set(id, result(id, 'na', `${name}：该区块没有此选项组。`));
+    } else if (options.some((items) => items.length !== 1) || options[0][0].index === options[1][0].index
+      || options[0][0].name !== options[1][0].name || options.some((items) => items[0].disabled)
+      || options.flat().filter((item) => item.checked).length !== 1) {
+      checksById.set(id, result(id, 'skip', `${name}：无法唯一定位该组选项或当前选中不唯一。`, options.flat()));
+    } else candidates.push(radioBatchSetting({ id, key, name, options: options.map((items) => items[0]) }));
+  }
+
+  const field = fields.find((item) => !item.disabled);
+  if (field) candidates.push(controlBatchSetting({ id: 'pld-display-field-persist', key: 'display-field',
+    name: '展示字段', control: field, alternate: !field.checked }));
+  else checksById.set('pld-display-field-persist', result('pld-display-field-persist', fields.length === 0 ? 'na' : 'skip',
+    fields.length === 0 ? '本区块没有展示字段设置项。' : '没有可切换的展示字段。'));
+
+  if (candidates.length) {
+    candidates.forEach((setting) => attachBatchEffect(setting, { canvas, config, profile, report }));
+    config.batchSaveUsed = true;
+    const execution = await executeSettingBatches({ settings: candidates, metadata: batchSaveMetadata, adapter: {
+      capture: async (settings) => new Map(settings.map((setting) => [setting.id, setting.originalValue])),
+      apply: async (setting) => { await setting.captureEffect?.(); await setting.apply(session); },
+      restore: async (setting) => setting.restore(session),
+      save: async () => {
+        await session.save();
+        await session.open();
+        await session.read();
+        await session.cancel();
+        await savePage(page);
+        await session.open();
+      },
+      check: async (setting, { phase }) => {
+        const state = setting.inspect(await session.read());
+        const effectCheck = await setting.checkEffect();
+        const format = (value) => typeof value === 'boolean' ? (value ? '勾选' : '未勾选') : String(value ?? '缺失');
+        const detail = `${setting.name}原值“${format(setting.originalValue)}”，批量保存后应为“${format(setting.alternateValue)}”；实际为“${format(state.value)}”。${effectCheck.detail}`;
+        return { status: state.valid && effectCheck.status !== 'fail' ? 'pass' : 'fail', detail,
+          evidence: { control: setting.control.label || setting.control.context, original: setting.originalValue,
+            alternate: setting.alternateValue, afterSave: state.value, phase, effectCheck } };
+      },
+    } });
+    for (const item of execution.results) {
+      const details = [item.batchResult?.detail].filter(Boolean);
+      if (item.rerunAloneResult) details.push(`单项复跑：${item.rerunAloneResult.status}；${item.rerunAloneResult.detail || item.rerunAloneResult.error || ''}`);
+      if (item.status === 'pass') details.push('所有批量改动在收尾时统一恢复并保存。');
+      checksById.set(item.id, result(item.id, item.status, details.join('；') || '批量保存检查结束。', {
+        batchResult: item.batchResult, ...(item.rerunAloneResult ? { rerunAloneResult: item.rerunAloneResult } : {}),
+      }));
+      const effect = item.batchResult?.evidence?.effectCheck;
+      if (effect) {
+        const effectId = ({ 'pld-data-source-persist': 'pld-data-source-batch-effect',
+          'pld-page-size-persist': 'pld-size-batch-effect', 'pld-pagination-persist': 'pld-pagination-batch-effect',
+          'pld-compare-persist': 'pld-compare-batch-effect', 'pld-display-field-persist': 'pld-display-field-batch-effect' })[item.id];
+        checksById.set(effectId, result(effectId, effect.status, effect.detail, effect.evidence));
+      }
+    }
+    report.batchSave ||= { enabled: true, capabilities: [] };
+    report.batchSave.capabilities.push({ id: 'product-list-display', batches: execution.batches,
+      results: execution.results.map(({ id, status, batchResult, rerunAloneResult }) => ({ id, status, batchResult, rerunAloneResult })),
+      timing: execution.timing });
+  }
+
+  checksById.set('pld-data-source-category-front', config.deferFront
+    ? result('pld-data-source-category-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
+    : await dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability, profile, report }));
+  checksById.set('pld-compare-front', config.deferFront
+    ? result('pld-compare-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
+    : await compareFrontCheck({ session, page, context, config, capability, profile, report }));
+  try { await session.cancel(); } catch (error) {
+    const last = [...checksById.values()].at(-1);
+    if (last) { last.status = 'fail'; last.detail += `；最终取消失败：${error.message}`; }
+  }
+  const order = ['pld-fields', 'pld-data-source-persist', 'pld-data-source-category-front', 'pld-page-size-persist',
+    'pld-data-source-batch-effect', 'pld-pagination-persist', 'pld-pagination-batch-effect', 'pld-compare-persist',
+    'pld-compare-batch-effect', 'pld-compare-front', 'pld-display-field-persist', 'pld-display-field-batch-effect', 'pld-size-batch-effect'];
+  return [...order.map((id) => checksById.get(id)).filter(Boolean), ...await listEffects({ page, canvas, context, config, capability, profile, report }, 'front')];
 }
 
 export async function runFrontEffectsLayer(args) {
