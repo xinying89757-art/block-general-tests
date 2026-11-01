@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { waitForPublishSignal, verifyFrontInstance, cacheBustedUrl, frontHasInstance,
   publishStageDiagnostics } from '../src/publish-confirm.mjs';
-import { applyExternalFrontVerification } from '../src/external-front-verification.mjs';
+import { applyExternalFrontStyleReport, applyExternalFrontVerification } from '../src/external-front-verification.mjs';
 
 const fakeClock = () => { let t = 0; return { now: () => t, sleep: async (ms) => { t += ms; } }; };
 
@@ -80,6 +80,21 @@ test('external front result rejects malformed data and incomplete reports', () =
   assert.throws(() => applyExternalFrontVerification({ blockId: '1', block: { settingId: 'x' } }, {
     url: 'file:///tmp/x', httpStatus: 200, blockFound: true, settingIdFound: true,
     checkedAt: '2026-11-01T00:00:00Z' }));
+});
+
+test('external Mac front-style report summary attaches to the matching fresh instance without claiming publish confirmation', () => {
+  const base = { blockId: '111', block: { settingId: 'AbC' }, published: false, publishedConfirmed: false };
+  const result = applyExternalFrontStyleReport(base, { flow: 'front-style-only', blockId: '111', settingId: 'AbC',
+    finishedAt: '2026-11-01T01:02:03Z', summary: { pass: 7, fail: 5, na: 33, other: 0 }, checks: [] },
+  '/transfer/mac/front-style-result.json');
+  assert.deepEqual(result.externalFrontStyleReport, { path: 'front-style-result.json',
+    summary: { pass: 7, fail: 5, na: 33, other: 0 }, settingId: 'AbC', checkedAt: '2026-11-01T01:02:03.000Z' });
+  assert.equal(result.published, false);
+  assert.equal(result.publishedConfirmed, false);
+  assert.throws(() => applyExternalFrontStyleReport(base, { flow: 'front-style-only', blockId: '111', settingId: 'other',
+    summary: { pass: 1, fail: 0, na: 0 } }, 'front.json'), /settingId/);
+  assert.throws(() => applyExternalFrontStyleReport(base, { flow: 'front-style-only', blockId: '111',
+    summary: { pass: -1 } }, 'front.json'), /non-negative integer/);
 });
 
 test('fresh flow fails the run when the adapter cannot confirm the publish', async () => {

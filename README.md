@@ -95,9 +95,19 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 
 脚本会追加 `externalFrontVerification`。只有 HTTP 2xx 且 `blockFound` 与 `settingIdFound` 都为 `true` 时，才将 `published` 和 `publishedConfirmed` 设为 `true`，来源记为 `external-front-check`。外部检查器应确认目标报告中的区块号和本次新 `settingId`；脚本会移除 URL 中的凭证、非缓存查询参数和片段，避免把令牌写进报告。
 
+也可直接附加 `scripts/front-style-only.mjs` 产生的前台样式报告：
+
+```sh
+node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<run>.json /path/to/front-style-<id>-<run>.json
+```
+
+当输入 `flow` 为 `front-style-only` 时，脚本校验区块号与 settingId，并在盒子报告中增加 `externalFrontStyleReport`（输入文件名、pass/fail/na/other 数量、settingId、检查时间）。该汇总附件不会单独确认发布；发布确认仍需使用上面的前台实例核验结果。
+
 ### 前台样式失败原因
 
-`scripts/front-style-only.mjs` 的 JSON 报告在每条非 `pass` 检查上附 `reason`：`stage` 是 `locate`、`read` 或 `compare`；`locator` 和 `matchedElementCount` 说明实际 CSS 定位方式及命中数；`property`、`expected`、`actual` 用规范化样式值描述比较项；`viewport` 记录视口。颜色等受区块设置控制的期望值可用 `--run-report reports/fresh-block-<id>-<run>.json` 从本轮的 `block.currentValues` 解析；没有本轮写入值时使用画像中声明的 `profileDefault`。失败原因中的 `expectedSource` 会注明使用了运行报告还是画像默认值。`skip`/`na`/`deferred` 还带 `applicability`，异常会带已脱敏的 `error.class` / `error.message`。有失败截图时，`reason.screenshot` 指向对应视口截图；移动端超框还会列出 offending element 的 CSS 路径。原因里不保存页面正文、Cookie 或带令牌的 URL。外层浏览器/导航错误会作为 `status: "error"` 的逐项 harness 记录，不改写断言结果。
+`scripts/front-style-only.mjs` 的 JSON 报告在每条非 `pass` 检查上附 `reason`：`stage` 是 `locate`、`read` 或 `compare`；`locator` 和 `matchedElementCount` 说明实例内定位及命中数；`property`、`expected`、`actual` 用规范化样式值描述比较项；`viewport` 记录视口。颜色等受区块设置控制的期望值可用 `--run-report reports/fresh-block-<id>-<run>.json` 从本轮的 `block.currentValues` 解析；只有本轮确实写入时才作为本轮期望。默认色检查遇到本轮不同颜色会记为 `na`（机器原因 `palette-default-overridden-this-run`），本轮写入色由独立的写入色检查验证。失败原因中的 `expectedSource` 会注明来源。`skip`/`na`/`deferred` 还带 `applicability`，异常会带已脱敏的 `error.class` / `error.message`。有失败截图时，`reason.screenshot` 指向对应视口截图；移动端超框还会列出 offending element 的 CSS 路径。原因里不保存页面正文、Cookie 或带令牌的 URL。外层浏览器/导航错误会作为 `status: "error"` 的逐项 harness 记录，不改写断言结果。
+
+设计清单中的 typography 仅检查该条规范明确提供的 `fontSize`、`fontWeight`、`lineHeight`；不把颜色、盒子尺寸或能力画像的其他属性混入。分页颜色范围按画像映射到当前页；非当前页颜色继续按它自己的设计条目判定。候选选择器在画像候选未命中时，样式检查可在唯一实例根节点内按链接/列表层级推导候选；没有结构证据时保留 `na`，不猜测。
 
 `block-style-spec` 画像中若只有 `recordOnly` 库存项，会按 `record` 输出这些待人工建立前台映射的能力，并继续执行通用视口布局检查。不要把设置库存标签当作前台 DOM 选择器。
 

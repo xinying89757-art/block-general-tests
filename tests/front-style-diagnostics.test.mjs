@@ -73,6 +73,21 @@ test('selectors without offline DOM snapshots remain na and do not guess replace
   assert.equal(check.reason.applicability, 'No offline DOM snapshot.');
 });
 
+test('navigation fallback derives link candidates only from the uniquely scoped instance root', () => {
+  const source = fs.readFileSync(new URL('../src/capabilities/block-style-spec.mjs', import.meta.url), 'utf8');
+  assert.match(source, /links = \[\.\.\.root\.querySelectorAll\('a, \[role="link"\]'\)\]/);
+  assert.match(source, /candidateSource = 'instance-root-semantic-hierarchy'/);
+  assert.doesNotMatch(source, /document\.querySelectorAll\('a, \[role="link"\]'\)/);
+  assert.match(source, /navigation \? 'na' : 'skip'/);
+  assert.match(source, /no-semantic-link-hierarchy-in-instance/);
+  const cap = { styleSpec: { items: [{ id: 'nav-parent', kind: 'nav-parent', selector: '.stale',
+    notApplicableReason: 'No semantic links inside the selected instance root.' }] } };
+  const [check] = addStyleFailureReasons([{ id: 'bss-nav-parent', status: 'na',
+    detail: 'No semantic links inside the selected instance root.', evidence: { matchedCount: 0 } }], { capability: cap });
+  assert.equal(check.status, 'na');
+  assert.equal(check.reason.matchedElementCount, 0);
+});
+
 test('mobile reason distinguishes page overflow and lists overflow, overlap and clipped selectors', () => {
   const [check] = addStyleFailureReasons([{ id: 'bss-breakage-mobile', status: 'fail', detail: 'overflow',
     evidence: { viewportWidth: 375, docScrollWidth: 505, rootMatchedCount: 1, horizontalOverflow: true,
@@ -110,6 +125,17 @@ test('run-written style values override defaults only when their setting check r
   assert.match(dynamic.reason.expectedSource.backgroundColor, /^run-report:block\.currentValues\[/);
   assert.deepEqual(fallback.reason.expected, { notSetThisRun: ['color'] });
   assert.equal(fallback.detail, 'not set this run');
+});
+
+test('pagination palette binding stays on current-page background and never recolors non-current text', () => {
+  const profile = JSON.parse(fs.readFileSync(new URL('../profiles/47748.json', import.meta.url), 'utf8'));
+  const capability = profile.capabilities.find((entry) => entry.id === 'block-style-spec');
+  const resolved = resolveFrontStyleCapability(capability, { block: { currentValues: [
+    { region: 'right-rail-color', label: '配色方案', value: 'rgb(255, 0, 0)' },
+  ] }, checks: [{ id: 'bcs-color-persist', status: 'pass' }] });
+  assert.equal(resolved.styleSpec.items.find((item) => item.id === 'pagination-current').props.backgroundColor, '#ff0000');
+  assert.equal(resolved.styleSpec.items.find((item) => item.id === 'pagination-other').props.color, '#898989');
+  assert.equal(resolved.styleSpec.expectedValueSources['pagination-other.color'], undefined);
 });
 
 test('editor-learned instance-relative selector and value override profile candidates without exposing a matched selector', () => {

@@ -53,7 +53,7 @@ export async function runFreshStyleChecks(args) {
   const front = frontLink || published?.frontLink;
   if (!front || !session?.context?.newPage) {
     const unavailable = unavailableStyleResults(capability, '发布后无法从当前执行环境打开前台页面；需前台机器运行此能力的既有样式断言。');
-    const design = await runDesignSpecFrontChecks(profile, { page: null, rootSelector: null, frontChecks: unavailable });
+    const design = await runDesignSpecFrontChecks(profile, { page: null, rootSelector: null, frontChecks: unavailable, settingsReport });
     const written = extractWrittenColorValues(settingsReport).length
       ? await runWrittenColorFrontChecks({ page: null, rootSelector: null, settingsReport }) : [];
     return [...unavailable, ...design.filter(Boolean), ...written];
@@ -69,7 +69,7 @@ export async function runFreshStyleChecks(args) {
     await page.locator(rootSelector).waitFor({ state: 'attached', timeout: config.actionTimeoutMs });
     const styleChecks = await runFrontLayer({ frame: page, previewPage: page,
       config: { ...config, rootSelector, settingId: instance?.settingId, settingsReport }, capability });
-    const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector, frontChecks: styleChecks });
+    const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector, frontChecks: styleChecks, settingsReport });
     const writtenColorChecks = extractWrittenColorValues(settingsReport).length
       ? await runWrittenColorFrontChecks({ page, rootSelector, settingsReport }) : [];
     return [...styleChecks, ...designChecks.filter(Boolean), ...writtenColorChecks];
@@ -206,7 +206,16 @@ async function readItem(frame, rootSel, item) {
         break;
       }
       case 'nav-parent': {
-        const links = select(item.selector || '.pf-cate-wrap a').filter(vis);
+        let links = select(item.selector || '.pf-cate-wrap a').filter(vis);
+        if (!links.length) {
+          // Generic fallback: derive candidate links from the selected
+          // instance's own list hierarchy; never search page-wide or guess a
+          // block-specific class. If the hierarchy has no semantic evidence,
+          // the existing zero-match result remains a skip/na.
+          links = [...root.querySelectorAll('a, [role="link"]')].filter(vis);
+          out.candidateSource = 'instance-root-semantic-hierarchy';
+          out.derivedCandidateCount = links.length;
+        }
         const parents = links.filter((a) => {
           const li = a.closest('li');
           return li && li.parentElement?.closest('li') == null && li.querySelector('ul');
@@ -216,7 +225,12 @@ async function readItem(frame, rootSel, item) {
         break;
       }
       case 'nav-leaf': {
-        const links = select(item.selector || '.pf-cate-wrap a').filter(vis);
+        let links = select(item.selector || '.pf-cate-wrap a').filter(vis);
+        if (!links.length) {
+          links = [...root.querySelectorAll('a, [role="link"]')].filter(vis);
+          out.candidateSource = 'instance-root-semantic-hierarchy';
+          out.derivedCandidateCount = links.length;
+        }
         const leaves = links.filter((a) => {
           const li = a.closest('li');
           return li && li.parentElement?.closest('li') && !li.querySelector('ul');
@@ -485,8 +499,13 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
       }
       const read = await readItem(frame, rootSel, item);
       if (read.error) { checks.push(result(checkId, 'skip', read.error, { matchedCount: read.matchedCount ?? 0 })); continue; }
-      if (!read.elements.length) { checks.push(result(checkId, 'skip', '在区块实例范围内没有找到符合画像候选特征的元素。',
-        { matchedCount: read.matchedCount ?? 0 })); continue; }
+      if (!read.elements.length) {
+        const navigation = ['nav-parent', 'nav-leaf'].includes(item.kind);
+        checks.push(result(checkId, navigation ? 'na' : 'skip', '在区块实例范围内没有找到符合画像候选特征的元素。',
+          { matchedCount: read.matchedCount ?? 0, candidateSource: read.candidateSource || 'profile-candidates',
+            machineReason: navigation ? 'no-semantic-link-hierarchy-in-instance' : 'no-profile-candidate-match' }));
+        continue;
+      }
       const diffs = [];
       const evidence = { matchedCount: read.matchedCount ?? read.elements.length,
         elements: read.elements.map((el) => ({ ...el, color: el.color ? normColor(el.color) : el.color, backgroundColor: el.backgroundColor ? normColor(el.backgroundColor) : el.backgroundColor })) };
@@ -766,6 +785,8 @@ export function addStyleFailureReasons(checks, { capability, blockId, rootSelect
       } } : {}),
       ...(check.status === 'na' || check.status === 'skip' || check.status === 'deferred'
         ? { applicability: String(check.detail || check.status).slice(0, 240) } : {}),
+      ...(evidence.machineReason ? { code: String(evidence.machineReason) } : {}),
+      ...(evidence.candidateSource ? { candidateSource: String(evidence.candidateSource) } : {}),
     } };
   });
 }

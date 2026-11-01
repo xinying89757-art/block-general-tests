@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyExternalFrontVerification } from '../src/external-front-verification.mjs';
+import { applyExternalFrontStyleReport, applyExternalFrontVerification } from '../src/external-front-verification.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const [reportArg, resultArg] = process.argv.slice(2);
@@ -15,7 +15,12 @@ if (!reportArg || !resultArg) {
     fs.readFile(reportPath, 'utf8').then(JSON.parse),
     fs.readFile(resultPath, 'utf8').then(JSON.parse),
   ]);
-  const updated = applyExternalFrontVerification(report, result);
+  const updated = result?.flow === 'front-style-only'
+    ? applyExternalFrontStyleReport(report, result, resultArg)
+    : applyExternalFrontVerification(report, result);
   await fs.writeFile(reportPath, `${JSON.stringify(updated, null, 2)}\n`);
-  console.log(`[external-front] ${path.relative(root, reportPath)} confirmed=${updated.externalFrontVerification.confirmed}`);
+  if (updated.externalFrontStyleReport) {
+    const { pass, fail, na } = updated.externalFrontStyleReport.summary;
+    console.log(`[external-front] ${path.relative(root, reportPath)} style pass=${pass} fail=${fail} na=${na}`);
+  } else console.log(`[external-front] ${path.relative(root, reportPath)} confirmed=${updated.externalFrontVerification.confirmed}`);
 }

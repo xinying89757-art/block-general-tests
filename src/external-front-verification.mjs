@@ -30,3 +30,30 @@ export function applyExternalFrontVerification(report, result) {
     confirmationSource: confirmed ? 'external-front-check'
       : (report.confirmationSource || null) };
 }
+
+export function applyExternalFrontStyleReport(report, frontStyleReport, sourcePath) {
+  if (!report || typeof report !== 'object' || !report.blockId || !report.block?.settingId) {
+    throw new Error('Fresh report must identify blockId and the fresh block settingId.');
+  }
+  if (!frontStyleReport || frontStyleReport.flow !== 'front-style-only'
+    || !frontStyleReport.summary || typeof frontStyleReport.summary !== 'object'
+    || typeof sourcePath !== 'string' || !sourcePath.trim()) {
+    throw new Error('Expected a front-style-only report, summary counts, and its source path.');
+  }
+  if (String(frontStyleReport.blockId) !== String(report.blockId)) throw new Error('Front-style report blockId does not match the fresh report.');
+  if (frontStyleReport.settingId && String(frontStyleReport.settingId) !== String(report.block.settingId)) {
+    throw new Error('Front-style report settingId does not match the fresh instance.');
+  }
+  const summary = {};
+  for (const key of ['pass', 'fail', 'na', 'other']) {
+    const value = frontStyleReport.summary[key] ?? 0;
+    if (!Number.isInteger(value) || value < 0) throw new Error(`Front-style summary ${key} must be a non-negative integer.`);
+    summary[key] = value;
+  }
+  return { ...report, externalFrontStyleReport: {
+    path: sourcePath.split(/[\\/]/).at(-1), summary,
+    settingId: frontStyleReport.settingId || null,
+    checkedAt: typeof frontStyleReport.finishedAt === 'string' && !Number.isNaN(Date.parse(frontStyleReport.finishedAt))
+      ? new Date(frontStyleReport.finishedAt).toISOString() : null,
+  } };
+}

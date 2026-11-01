@@ -246,16 +246,6 @@
             "settingCheckIds": [
               "bcs-color-persist"
             ]
-          },
-          "pagination-other.color": {
-            "control": {
-              "region": "right-rail-color",
-              "label": "配色方案"
-            },
-            "settingCheckIds": [
-              "bcs-color-persist"
-            ],
-            "profileDefault": "#898989"
           }
         }
       }

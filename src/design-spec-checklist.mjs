@@ -178,7 +178,49 @@ export function countInstanceColorMatches(snapshot, expected) {
     .some((property) => normalizeDesignColor(style?.[property]) === expectedColor)).length;
 }
 
-export async function checkDesignRequirementFront(requirement, { profile, page, rootSelector, frontChecks = [] } = {}) {
+const TYPOGRAPHY_PROPERTIES = Object.freeze(['fontSize', 'fontWeight', 'lineHeight']);
+
+function normalizedTypographyValue(property, value) {
+  if (property === 'fontWeight') {
+    const text = String(value ?? '').trim().toLowerCase();
+    const named = text.match(/\b(extralight|ultralight|light|regular|normal|medium|semibold|demibold|bold|extrabold|black)\b/);
+    if (named) return ({ ultralight: 200, extralight: 200, light: 300, regular: 400, normal: 400,
+      medium: 500, semibold: 600, demibold: 600, bold: 700, extrabold: 800, black: 900 })[named[1]];
+    const numeric = Number.parseInt(text, 10);
+    return Number.isFinite(numeric) ? numeric : text.replace(/\s+/g, '');
+  }
+  if (property === 'fontSize') return normalizedFontSize(value);
+  const text = String(value ?? '').trim().toLowerCase();
+  const number = Number.parseFloat(text);
+  return Number.isFinite(number) ? number : text.replace(/\s+/g, '');
+}
+
+function compareTypographyRequirement(expectedInput, mappedActual) {
+  const expected = Object.fromEntries(TYPOGRAPHY_PROPERTIES
+    .filter((property) => expectedInput?.[property] !== undefined)
+    .map((property) => [property, expectedInput[property]]));
+  const actualRows = (mappedActual || []).flatMap((entry) => Array.isArray(entry.actual)
+    ? entry.actual : entry.actual && typeof entry.actual === 'object' ? [entry.actual] : []);
+  const actual = {};
+  const missingProperties = [];
+  let mismatch = false;
+  for (const property of Object.keys(expected)) {
+    const values = actualRows.map((row) => row?.[property]).filter((value) => value !== undefined && value !== null);
+    actual[property] = values;
+    if (!values.length) missingProperties.push(property);
+    else if (!values.every((value) => normalizedTypographyValue(property, value)
+      === normalizedTypographyValue(property, expected[property]))) mismatch = true;
+  }
+  if (mismatch) return { status: 'fail', expected, actual,
+    reason: { code: 'design-typography-mismatch', propertiesChecked: Object.keys(expected) } };
+  if (!Object.keys(expected).length || missingProperties.length) return { status: 'na', expected, actual,
+    reason: { code: 'design-typography-properties-unavailable', missingProperties,
+      propertiesChecked: Object.keys(actual).filter((key) => actual[key].length) } };
+  return { status: 'pass', expected, actual,
+    reason: { code: 'design-typography-matched', propertiesChecked: Object.keys(expected) } };
+}
+
+export async function checkDesignRequirementFront(requirement, { profile, page, rootSelector, frontChecks = [], settingsReport = null } = {}) {
   const override = overrideFor(profile?.designSpec, requirement.id);
   if (override) return checkResult(requirement, 'na', { classification: 'known-exception',
     detail: `已知例外：${override.reason}`, reason: { code: 'waived', reason: override.reason } });
@@ -194,25 +236,13 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
     let actual = mapped.actual;
     let expected = requirement.expected;
     let reason = mapped.reason;
-    if (requirement.checkType === 'typography' && requirement.expected?.fontSize && mapped.status === 'pass') {
-      const values = (mapped.actual || []).flatMap((entry) => {
-        const actualValues = entry.actual;
-        if (Array.isArray(actualValues)) return actualValues.map((value) => value?.fontSize).filter((value) => value !== undefined);
-        if (actualValues && typeof actualValues === 'object' && actualValues.fontSize !== undefined) return [actualValues.fontSize];
-        return [];
-      });
-      if (!values.length) {
-        status = 'na';
-        reason = { code: 'mapped-font-size-value-unavailable', mappedCheck: mapped.reason };
-      } else {
-        const expectedSize = normalizedFontSize(requirement.expected.fontSize);
-        const matched = values.every((value) => normalizedFontSize(value) === expectedSize);
-        status = matched ? 'pass' : 'fail';
-        actual = { fontSizeValues: values, functionalChecks: mapped.actual };
-        expected = { fontSize: requirement.expected.fontSize };
-        reason = { code: matched ? 'spec-font-size-matched' : 'spec-font-size-mismatch',
-          expectedSource: 'designSpec.requirement.expected.fontSize', mappedCheck: mapped.reason };
-      }
+    if (requirement.checkType === 'typography') {
+      const typography = compareTypographyRequirement(requirement.expected, mapped.actual);
+      status = typography.status;
+      actual = { ...typography.actual, functionalChecks: mapped.actual };
+      expected = typography.expected;
+      reason = { ...typography.reason, expectedSource: 'designSpec.requirement.expected typography properties',
+        mappedCheck: mapped.reason };
     }
     return checkResult(requirement, status, { displayName: scopeOverride?.resolvedScope, expected,
       detail: status === 'na'
@@ -224,9 +254,18 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
   }
   if (requirement.checkType === 'color-default') {
     if (!page || !rootSelector) return checkResult(requirement, 'na', { detail: '目标区块实例根节点不可用。', reason: { code: 'instance-root-unavailable' } });
+    const defaultColor = requirement.expected?.value;
+    const written = writtenPaletteColorValues(settingsReport);
+    const differentWrittenColors = written.filter((item) => normalizeDesignColor(item.value) !== normalizeDesignColor(defaultColor));
+    if (differentWrittenColors.length) return checkResult(requirement, 'na', {
+      detail: '本次运行改写了配色；默认值检查不适用于当前实例。',
+      reason: { code: 'palette-default-overridden-this-run', expectedSource: 'designSpec.requirement.expected.value',
+        writtenValueCount: differentWrittenColors.length, writtenValueCheckIds: differentWrittenColors.map((item) => item.id),
+        writtenValueVerifiedBy: 'run-written-color-presence' },
+    });
     const snapshot = await readInstanceColorSnapshot(page, rootSelector);
     const actual = { rootCount: snapshot.rootCount, elementCount: snapshot.styles.length,
-      matches: countInstanceColorMatches(snapshot, requirement.expected?.value) };
+      matches: countInstanceColorMatches(snapshot, defaultColor) };
     const pass = actual.rootCount === 1 && actual.matches > 0;
     return checkResult(requirement, pass ? 'pass' : 'fail', { detail: pass
       ? '目标区块实例中至少一个元素呈现规范颜色。' : '目标区块实例中没有元素呈现规范颜色。', actual,
@@ -253,6 +292,17 @@ export function extractWrittenColorValues(settingsReport) {
     colors.push({ id: `written-color-${colors.length + 1}`, value: item.value.trim(), controlIndex: item.controlIndex ?? null });
   }
   return colors;
+}
+
+function writtenPaletteColorValues(settingsReport) {
+  const paletteValues = extractWrittenColorValues(settingsReport);
+  const checkValues = (settingsReport?.checks || []).filter((check) => ['pass', 'fail'].includes(check.status)
+      && check.setting && check.value !== undefined && check.expected !== undefined)
+    .filter((check) => normalizeDesignColor(check.value) && normalizeDesignColor(check.expected)
+      && /^rgba?\(/.test(normalizeDesignColor(check.value)) && /^rgba?\(/.test(normalizeDesignColor(check.expected)))
+    .filter((check) => paletteValues.some((item) => normalizeDesignColor(item.value) === normalizeDesignColor(check.value)))
+    .map((check) => ({ value: check.value, expected: check.expected }));
+  return checkValues;
 }
 
 export async function runWrittenColorFrontChecks({ page, rootSelector, settingsReport }) {

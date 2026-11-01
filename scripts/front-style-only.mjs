@@ -74,7 +74,7 @@ try {
     const styleChecks = capability && (capability.styleSpec?.items?.length || capability.styleSpec?.recordOnly?.length)
       ? await runFrontLayer({ frame: page, previewPage: page, config, capability: resolvedCapability }) : [];
     const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector: config.rootSelector,
-      frontChecks: styleChecks, viewport: { width: 1440, height: 900 } });
+      frontChecks: styleChecks, settingsReport, viewport: { width: 1440, height: 900 } });
     const writtenColors = await runWrittenColorFrontChecks({ page, rootSelector: config.rootSelector, settingsReport });
     report.checks = attachFrontStyleInstance([...styleChecks, ...designChecks.filter(Boolean), ...writtenColors], report.settingId);
   } finally { await markedRoot.clear().catch(() => {}); }
