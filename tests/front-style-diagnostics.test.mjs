@@ -128,7 +128,7 @@ test('navigation fallback derives link candidates only from the uniquely scoped 
   assert.match(source, /frame\.evaluate\(readInstanceStructure, \{ rootSelector: rootSel \}\)/);
   assert.match(source, /candidateSource = 'instance-root-structural-hierarchy'/);
   assert.doesNotMatch(source, /document\.querySelectorAll\('a, \[role="link"\]'\)/);
-  assert.match(source, /navigation \? 'na' : 'skip'/);
+  assert.match(source, /navigation \|\| item\.id === 'filter-option' && read\.absenceReason \? 'na' : 'skip'/);
   assert.match(source, /no-semantic-link-hierarchy-in-instance/);
   const cap = { styleSpec: { items: [{ id: 'nav-parent', kind: 'nav-parent', selector: '.stale',
     notApplicableReason: 'No semantic links inside the selected instance root.' }] } };

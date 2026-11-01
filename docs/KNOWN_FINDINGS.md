@@ -65,3 +65,16 @@ computed-style assertion.
 - The 47748 pagination size comparison uses the shared size tolerance. A 30px
   measurement against 28px expected is exactly at the configured boundary and
   remains a fail; record the actual measurement rather than rounding it away.
+
+## G71 — captured media unavailable; missing hierarchy/options are state evidence
+
+The new PC/mobile captures for the example product-list instance have 20 img
+nodes with zero natural size and no width/height attributes. Small alt-text
+boxes coexist with larger media frames; no alternative loaded main image is
+present. The offline evidence does not establish why those resources failed or
+whether another machine can load them. Image-ratio conformity remains unknown,
+not a measured ratio defect or a pass derived from the frame. The category
+subtree and selectable field options are absent inside that captured instance;
+later lazy loading/outside-root markup is unproven. G70's loaded SVG substitutes
+and altered option visibility were fixture defects, not evidence of site fixes.
+See `docs/FINDER_CAPTURE_GAP.md` and the G71 offline report for source counts.

@@ -158,7 +158,8 @@ export function readInstanceStructure({ rootSelector, contentContainerSelector, 
     return null;
   };
   const selectedImages = imageSelectors.flatMap((selector) => { try { return [...root.querySelectorAll(selector)]; } catch { return []; } });
-  const images = all.flatMap((node) => {
+  const candidateNodes = new Map();
+  const imageCandidates = all.flatMap((node) => {
     if (!node.matches('img,picture') && getComputedStyle(node).backgroundImage === 'none') { debug('image', node, 'not-an-image-shape', false, false); return []; }
     if (!meaningfulMedia(node)) { debug('image', node, hasBackgroundImage(node) ? 'link-or-container-background-decoration' : 'gradient-not-content-image'); return []; }
     if (node.matches('img') && node.parentElement?.matches('picture')) { debug('image', node, 'picture-source-counted-once'); return []; }
@@ -186,7 +187,12 @@ export function readInstanceStructure({ rootSelector, contentContainerSelector, 
     };
     const measuredWidth = dimension('width'), measuredHeight = dimension('height');
     const width = measuredWidth.value, height = measuredHeight.value;
-    if (!(width > 0 && height > 0)) { debug('image', node, 'image-dimensions-unavailable'); return []; }
+    const loaded = !image || image.naturalWidth > 0 && image.naturalHeight > 0;
+    const declaredDimensions = measuredWidth.source === 'attribute' && measuredHeight.source === 'attribute';
+    const measurable = width > 0 && height > 0 && (loaded || declaredDimensions);
+    // A failed IMG may render only its alt-text line box. That is not image
+    // geometry and must never be compared to a design aspect-ratio oracle.
+    const measurementReason = measurable ? null : image && !loaded ? 'primary-image-not-loaded-no-intrinsic-or-attribute-size' : 'image-dimensions-unavailable';
 
     if (background && /(?:^|\s)-[\d.]+px/.test(style.backgroundPosition)) {
       debug('image', node, 'sprite-background-offset'); return [];
@@ -197,16 +203,60 @@ export function readInstanceStructure({ rootSelector, contentContainerSelector, 
     if (!descriptiveAlt && width <= 32 && height <= 32 && largerCardMedia) {
       debug('image', node, 'ancillary-card-icon'); return [];
     }
-    debug('image', node, 'content-container-recognized', true, true, dimensions);
+    // The primary media slot is the largest image-bearing, text-free region
+    // below this card. This uses structure/geometry, never a class or index.
+    let slot = node, distance = 0, bestDistance = 0;
+    for (let parent = node.parentElement; parent && parent !== content; parent = parent.parentElement) {
+      distance += 1;
+      if (parent.textContent.trim() || parent.querySelector('input,select,button')) break;
+      const box = parent.getBoundingClientRect(), best = slot.getBoundingClientRect();
+      if (box.width * box.height > best.width * best.height) { slot = parent; bestDistance = distance; }
+    }
+    const slotRect = slot.getBoundingClientRect();
+    const area = (w, h) => Math.max(0, w || 0) * Math.max(0, h || 0);
+    const ranking = [area(slotRect.width, slotRect.height), area(rect.width, rect.height),
+      area(width, height), -bestDistance];
+    candidateNodes.set(path(node), { node, content, ranking });
+
     const position = background ? style.backgroundPosition : style.objectPosition;
     const centered = /\bcenter\b/.test(position) || /^50(?:\.0+)?%\s+50(?:\.0+)?%$/.test(position);
     return [{ path: path(node), kind: background ? 'background-image' : node.matches('picture') ? 'picture' : 'img',
       content: Boolean(content), contentContainerPath: content ? path(content) : null, visible: visible(node),
-      width, height, dimensionSource: { width: measuredWidth.source, height: measuredHeight.source }, ratio: width / height, centered,
+      width: measurable ? width : null, height: measurable ? height : null,
+      renderedDimensions: { width: rect.width, height: rect.height },
+      dimensionSource: { width: measuredWidth.source, height: measuredHeight.source },
+      measurementStatus: measurable ? 'measured' : 'unavailable', measurementReason,
+      mediaSlot: { path: path(slot), width: slotRect.width, height: slotRect.height, distance: bestDistance },
+      ratio: measurable ? width / height : null, centered,
       sourceKind: background ? 'background-image' : node.matches('picture') ? 'picture' : 'img',
       positionSource: background ? 'background-position' : 'object-position',
       objectPosition: style.objectPosition, backgroundPosition: style.backgroundPosition, hasLazySource: Boolean(source) }];
   });
+  const cards = new Map();
+  for (const candidate of imageCandidates) {
+    const entries = cards.get(candidate.contentContainerPath) || [];
+    entries.push(candidate); cards.set(candidate.contentContainerPath, entries);
+  }
+  const images = [], ambiguousCards = [];
+  const compareRank = (left, right) => {
+    const a = candidateNodes.get(left.path).ranking, b = candidateNodes.get(right.path).ranking;
+    for (let index = 0; index < a.length; index++) if (a[index] !== b[index]) return b[index] - a[index];
+    return 0;
+  };
+  for (const [cardPath, candidates] of cards) {
+    candidates.sort(compareRank);
+    const ambiguous = candidates.length > 1 && compareRank(candidates[0], candidates[1]) === 0;
+    if (ambiguous) ambiguousCards.push({ cardPath, candidateCount: candidates.length, code: 'primary-media-choice-ambiguous' });
+    for (const [index, candidate] of candidates.entries()) {
+      const selected = !ambiguous && index === 0;
+      debug('image', candidateNodes.get(candidate.path).node, ambiguous ? 'primary-media-choice-ambiguous'
+        : selected ? candidate.measurementReason || 'primary-content-image-recognized' : 'secondary-card-media', selected, true,
+        { renderedDimensions: candidate.renderedDimensions, mediaSlot: candidate.mediaSlot,
+          measurementStatus: candidate.measurementStatus, ranking: candidateNodes.get(candidate.path).ranking });
+      if (selected) images.push(candidate);
+    }
+  }
+  const imageSelection = { cardCount: cards.size, candidateCount: imageCandidates.length, selectedCount: images.length, ambiguousCards };
   const nativeOption = (node) => node.matches('[role=option],option,input[type=checkbox],input[type=radio]');
   const textual = (node) => Boolean(node.textContent.trim()) && !node.querySelector('img,picture,input,select,textarea');
   const binding = (node) => typeof node.onclick === 'function' || node.hasAttribute('onclick')
@@ -242,9 +292,15 @@ export function readInstanceStructure({ rootSelector, contentContainerSelector, 
     bucket.omittedCount = bucket.consideredCount - bucket.decisions.length;
     bucket.decisions.forEach((row) => { delete row.relevant; });
   }
-  return { rootFound: true, rootCount: 1, hierarchy, images,
-    finderDebug, absenceReasons: { hierarchy: hierarchy.length ? null : 'no-hierarchy-depth-evidence-in-instance',
-      images: images.length ? null : 'no-content-images-in-instance', options: options.length ? null : 'no-option-labels-in-instance' },
+  const flatNavigationItems = all.filter((node) => node.matches('li') && !hierarchyExcluded(node)
+    && node.parentElement?.matches('ul,ol') && node.querySelector('a') && !node.querySelector('ul,ol')).length;
+  const textFilterInputCount = all.filter((node) => node.matches('form input:not([type]),form input[type=text],form input[type=search]')).length;
+  return { rootFound: true, rootCount: 1, hierarchy, images, imageSelection,
+    hierarchyEvidence: { flatNavigationItemCount: flatNavigationItems, discoveredLevelCount: new Set(hierarchy.map((item) => item.level)).size },
+    optionEvidence: { textFilterInputCount },
+    finderDebug, absenceReasons: { hierarchy: hierarchy.length ? null : flatNavigationItems ? 'navigation-child-levels-not-in-instance-dom' : 'no-hierarchy-dom-in-instance',
+      images: images.length ? null : ambiguousCards.length ? 'primary-media-choice-ambiguous' : 'no-content-images-in-instance',
+      options: options.length ? null : textFilterInputCount ? 'text-filter-without-option-nodes' : 'no-option-labels-in-instance' },
     options: [...new Map(options.map((item) => [item.path, item])).values()],
     levels, allLevels: [...new Set(hierarchy.map((item) => item.level))].sort((a, b) => a - b),
     maxVisibleLevel: levels.length ? Math.max(...levels) : null, collapsedLevels, collapsedLevelCount: collapsedLevels.length };

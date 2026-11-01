@@ -1,9 +1,10 @@
 {
-  "source": "capture-47498-1793538189",
+  "source": "capture-47498-1793539494",
   "outputs": [
     {
+      "replayObservations": true,
       "sourceCapture": "mobile.json",
-      "sourceSha256": "ade8903a2d2b496899e435397e9e283bc5359f6fe82387d54ecb956eb29b9286",
+      "sourceSha256": "06cbc5c642b7388157294c2c49cf80e146400234383f3a62f3b0fc69d5e79af9",
       "viewport": {
         "label": "mobile",
         "width": 375,
@@ -13,13 +14,15 @@
       "css": "mobile.css",
       "elementCount": 294,
       "limitations": [
+        "Observed-state replay preserves captured geometry/visibility and zero natural image dimensions; unavailable image bytes remain unavailable. CSS layout, animation and SVG internals are not pixel replayed.",
         "Original scripts and event handler bodies are excluded. Listener metadata is in the capture JSON; interaction behavior is not replayed.",
         "Remote resources use inert image placeholders. Rule targets are remapped to captured node identities, so outside-instance ancestors are not required."
       ]
     },
     {
+      "replayObservations": true,
       "sourceCapture": "pc.json",
-      "sourceSha256": "f8f82ef643ddf3b2c5fbb531d4d112e1fdccf9d42a4927a669273349a68511cf",
+      "sourceSha256": "ab3690a8d30f304ae78d993a3a88ed53119ee6439cdd07f00292312a1ac16351",
       "viewport": {
         "label": "pc",
         "width": 1440,
@@ -29,6 +32,7 @@
       "css": "pc.css",
       "elementCount": 294,
       "limitations": [
+        "Observed-state replay preserves captured geometry/visibility and zero natural image dimensions; unavailable image bytes remain unavailable. CSS layout, animation and SVG internals are not pixel replayed.",
         "Original scripts and event handler bodies are excluded. Listener metadata is in the capture JSON; interaction behavior is not replayed.",
         "Remote resources use inert image placeholders. Rule targets are remapped to captured node identities, so outside-instance ancestors are not required."
       ]

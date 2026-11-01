@@ -90,3 +90,25 @@ signals; a lone category arrow, pagination and filter controls do not invent
 levels. Options include native labels and non-navigating, text-bearing JS-bound
 links/labels, without executing their handlers. Empty results expose machine
 absence reasons; selector details stay out of human summaries.
+
+## Observed-state replay (default, G71)
+
+```sh
+node scripts/fixture-from-capture.mjs <capture-dir> <fixture-dir> --replay-observations 1
+```
+
+The CLI defaults to observed-state replay. It preserves captured display,
+visibility and border-box geometry instead of relying on CSS whose original
+selector specificity was lost during remapping. Failed/unloaded img resources
+retain zero natural dimensions; their rendered alt-text boxes never become
+synthetic natural image dimensions. `--replay-observations 0` keeps the older
+CSS-only reconstruction for layout experiments, and must not be treated as
+proof of live measurement availability. Manifests record the mode and source
+capture hashes. SVG internals/animations and original scripts are not replayed.
+
+Finder regression now checks loading/measurement availability as well as
+candidate counts. A card yields one primary image, ranked by its primary media
+slot and rendered/intrinsic area; secondary media and tied choices carry machine
+reasons. An unreadable primary image is not replaced by a badge or by its square
+container for aspect-ratio assertions. Known measured mismatches still fail;
+unknown images prevent a pass. See [the capture/live gap evidence](FINDER_CAPTURE_GAP.md).

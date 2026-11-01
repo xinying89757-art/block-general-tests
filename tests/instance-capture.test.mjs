@@ -104,7 +104,8 @@ test('real browser capture sanitizes DOM/CDP/CSS and the fixture CLI reconstruct
       assert.ok(bucket.decisions.every((row) => typeof row.reason === 'string' && row.path && row.tag));
     }
     assert.equal(structure.finderDebug.finders.interaction, undefined);
-    assert.ok(structure.finderDebug.finders.image.reasonCounts['content-container-recognized'] > 0);
+    assert.ok(structure.finderDebug.finders.image.reasonCounts['primary-image-not-loaded-no-intrinsic-or-attribute-size'] > 0);
+    assert.equal(structure.images[0].measurementStatus, 'unavailable', 'a lazy data-src is not a loaded image');
     assert.ok(structure.finderDebug.finders['nav-leaf'].reasonCounts['hierarchy-item-not-visible'] > 0);
     assert.ok(structure.finderDebug.finders['filter-option'].reasonCounts['no-native-or-aria-option-semantics'] > 0);
     await assert.rejects(execute(process.execPath, ['scripts/fixture-from-capture.mjs', captureDir, captureDir], { cwd: new URL('../', import.meta.url).pathname }), /must not overwrite/);

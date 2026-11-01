@@ -22,9 +22,9 @@ for (const block of ['47498', '47748']) for (const viewport of ['pc', 'mobile'])
     assert.equal(result.rootCount, 1);
     assert.equal(result.images.length, block === '47748' ? 20 : 0);
     assert.ok(result.images.every((entry) => entry.kind === 'img' && entry.content));
-    assert.equal(result.options.length, block === '47498' ? 20 : 0);
+    assert.equal(result.options.length, block === '47498' ? 22 : 0);
     assert.equal(result.hierarchy.length, 0, 'capture has no nested/leveled category DOM; the lone category arrow must not invent child levels');
-    assert.equal(result.absenceReasons.hierarchy, 'no-hierarchy-depth-evidence-in-instance');
+    assert.equal(result.absenceReasons.hierarchy, block === '47748' ? 'navigation-child-levels-not-in-instance-dom' : 'no-hierarchy-dom-in-instance');
     for (const kind of ['nav-parent', 'nav-leaf']) assert.equal(result.finderDebug.finders[kind].acceptedCount, 0);
     assert.equal(result.finderDebug.finders.interaction, undefined);
     for (const type of ['default-expand', 'nav-hierarchy-levels']) {
@@ -62,6 +62,10 @@ test('captured category siblings resolve attribute, class and indentation depth 
   await page.evaluate(() => {
     const list = document.querySelector('[data-capture-node="13"]');
     list.append(list.firstElementChild.cloneNode(true), list.firstElementChild.cloneNode(true));
+    [...list.children].forEach((node) => {
+      node.style.setProperty('position', 'relative', 'important');
+      node.style.setProperty('top', 'auto', 'important'); node.style.setProperty('left', 'auto', 'important');
+    });
     [...list.children].forEach((node, index) => node.setAttribute('data-level', String(index)));
   });
   assert.deepEqual((await read()).allLevels, [1, 2, 3]);
@@ -73,7 +77,7 @@ test('captured category siblings resolve attribute, class and indentation depth 
   assert.deepEqual((await read()).allLevels, [1, 2, 3]);
   await page.evaluate(() => {
     [...document.querySelector('[data-capture-node="13"]').children].forEach((node, index) => {
-      node.classList.remove(`level-${index + 1}`); node.style.paddingInlineStart = `${index * 20}px`;
+      node.classList.remove(`level-${index + 1}`); node.style.setProperty('padding-inline-start', `${index * 20}px`, 'important');
     });
   });
   assert.deepEqual((await read()).allLevels, [1, 2, 3]);

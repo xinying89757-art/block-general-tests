@@ -26,8 +26,8 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
         <ul class="category-tree"><li style="font-weight:700;line-height:45px">Parent category<ul><li style="font-weight:400;line-height:20px"><span>Nested category</span></li></ul></li></ul>
         <div class="clamped" style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">A long text block for line clamp verification</div>
         <div class="scroll-container" style="height:40px;overflow-y:auto"><div class="scroll-row" style="height:30px">one</div><div class="scroll-row" style="height:30px">two</div><div class="scroll-row" style="height:30px">three</div></div>
-        <article class="item-card"><img class="lazy-image" data-src="/lazy.png" style="display:block;width:100px;height:100px;object-position:50% 50%;background-position:0% 0%">
-        <picture style="display:block;width:100px;height:100px"><img data-srcset="/picture.png 1x" style="width:100%;height:100%"></picture></article>
+        <article class="item-card"><img class="lazy-image" width="80" height="80" data-src="/lazy.png" style="display:block;width:80px;height:80px;object-position:50% 50%;background-position:0% 0%">
+        <picture style="display:block;width:100px;height:100px"><img width="100" height="100" data-srcset="/picture.png 1x" style="width:100%;height:100%"></picture></article>
         <img class="banner" data-src="/banner.png" style="width:320px;height:40px">
         <div class="background-image" style="width:320px;height:40px;background-image:url('/background.png');background-position:0% 0%"></div>
         <button class="live-button" style="background-color:#ff0000;line-height:24px;font-size:16px">Actual style</button>
@@ -180,8 +180,8 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     assert.equal(report.checks.find((row) => row.id === 'design-scroll-threshold-fixture')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-truncation-fixture')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-default-expand-fixture')?.status, 'pass');
-    assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.actual.images.length, 2,
-      'each content image/picture participates once; banners and full-width backgrounds do not');
+    assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.actual.images.length, 1,
+      'one main picture per card participates; the smaller peer, banners and full-width backgrounds do not');
     assert.ok(report.humanReview.some((item) => item.id === 'manual-requirement'
       && item.sourceText === 'Exact unsupported source sentence'), 'unsupported source text must remain visible in humanReview');
     assert.ok(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.actual.images

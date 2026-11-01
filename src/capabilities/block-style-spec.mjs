@@ -249,6 +249,7 @@ async function readItem(frame, rootSel, item) {
             try { const node = root.querySelector(entry.path); return node ? [node] : []; } catch { return []; }
           });
           out.candidateSource = 'instance-root-structural-options';
+          out.absenceReason = structure?.absenceReasons?.options;
         }
         out.matchedCount = found.length;
         const els = found.slice(0, item.sample ?? 2);
@@ -260,6 +261,7 @@ async function readItem(frame, rootSel, item) {
         const entries = (structure?.hierarchy || []).filter((entry) => item.kind === 'nav-parent'
           ? entry.level === 1 && entry.hasChildren : entry.level > 1 && !entry.hasChildren);
         out.candidateSource = 'instance-root-structural-hierarchy';
+        out.absenceReason = structure?.absenceReasons?.hierarchy;
         out.structuralCandidateCount = entries.length;
         const nodes = entries.filter((entry) => entry.visible).flatMap((entry) => {
           try { const node = root.querySelector(entry.labelPath || entry.path); return node && vis(node) ? [node] : []; } catch { return []; }
@@ -620,11 +622,11 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability, onProg
       if (read.error) { checks.push(result(checkId, 'skip', read.error, { matchedCount: read.matchedCount ?? 0 })); continue; }
       if (!read.elements.length) {
         const navigation = ['nav-parent', 'nav-leaf'].includes(item.kind);
-        checks.push(result(checkId, navigation ? 'na' : 'skip', '在区块实例范围内没有找到符合画像候选特征的元素。',
+        checks.push(result(checkId, navigation || item.id === 'filter-option' && read.absenceReason ? 'na' : 'skip', '在区块实例范围内没有找到符合画像候选特征的元素。',
           { matchedCount: read.matchedCount ?? 0, candidateSource: read.candidateSource || 'profile-candidates',
             structuralCandidateCount: read.structuralCandidateCount || 0,
-            machineReason: navigation ? read.structuralCandidateCount > 0 ? 'structural-hierarchy-not-rendered'
-              : 'no-semantic-link-hierarchy-in-instance' : 'no-profile-candidate-match' }));
+            machineReason: read.absenceReason || (navigation ? read.structuralCandidateCount > 0 ? 'structural-hierarchy-not-rendered'
+              : 'no-semantic-link-hierarchy-in-instance' : 'no-profile-candidate-match') }));
         continue;
       }
       const diffs = [];

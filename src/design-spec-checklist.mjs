@@ -957,12 +957,17 @@ async function checkImageRatio(requirement, page, rootSelector) {
     imageMode: backgroundImages ? 'background' : 'content', imageSelectors: selectorCandidates,
     contentContainerSelector: requirement.params?.contentContainerSelector });
   if (!actual.rootFound || !actual.images.length) return requirementResult(requirement, 'na', requirement.expected, actual,
-    'image-ratio-elements-unresolved', '实例中没有可测量的图片，需人工复核。');
+    actual.imageSelection?.ambiguousCards?.length ? 'primary-media-choice-ambiguous' : 'image-ratio-elements-unresolved', '实例中没有可唯一测量的主图片。');
   const tolerance = Number(requirement.params?.ratioTolerance ?? 0);
-  const pass = actual.images.every((image) => Math.abs(image.ratio - expectedRatio) <= tolerance
-    && (!requirement.expected.centered || image.centered));
-  return requirementResult(requirement, pass ? 'pass' : 'fail', requirement.expected, actual,
-    pass ? 'image-ratio-matched' : 'image-ratio-mismatch', pass ? '图片比例与清单一致。' : '图片比例或对齐与清单不一致。');
+  const measured = actual.images.filter((image) => image.measurementStatus !== 'unavailable' && Number.isFinite(image.ratio));
+  const mismatches = measured.filter((image) => Math.abs(image.ratio - expectedRatio) > tolerance
+    || requirement.expected.centered && !image.centered);
+  if (mismatches.length) return requirementResult(requirement, 'fail', requirement.expected, actual,
+    'image-ratio-mismatch', '主图片比例或对齐与清单不一致。');
+  if (measured.length !== actual.images.length || actual.imageSelection?.ambiguousCards?.length) return requirementResult(requirement, 'na', requirement.expected, actual,
+    actual.imageSelection?.ambiguousCards?.length ? 'primary-media-choice-ambiguous' : 'primary-image-dimensions-unavailable',
+    '已定位主图片，但图片资源或尺寸不可读，不能用替代文字小框判定图片比例。');
+  return requirementResult(requirement, 'pass', requirement.expected, actual, 'image-ratio-matched', '主图片比例与清单一致。');
 }
 
 export function isCenteredImagePosition(value) {
@@ -978,7 +983,7 @@ async function checkDefaultExpand(requirement, page, rootSelector) {
   const selectorCandidates = [...new Set([requirement.params?.selector, ...(requirement.params?.selectorCandidates || [])].filter(Boolean))];
   const actual = await page.evaluate(readInstanceStructure, { rootSelector, hierarchySelectors: selectorCandidates });
   if (!actual.rootFound || actual.maxVisibleLevel === null) return requirementResult(requirement, 'na', requirement.expected, actual,
-    'default-expand-hierarchy-unresolved', '实例中没有可读取的层级结构，需人工复核。');
+    actual.absenceReasons?.hierarchy || 'default-expand-hierarchy-unresolved', '捕获状态的实例 DOM 没有可读取的子级层级。');
   const collapsedLevel = Number(requirement.expected?.collapsedLevel);
   const collapsedMatches = !Number.isInteger(collapsedLevel) || actual.collapsedLevels?.includes(collapsedLevel);
   const pass = actual.maxVisibleLevel === level && collapsedMatches;
@@ -1029,7 +1034,7 @@ async function checkNavHierarchyLevels(requirement, page, rootSelector) {
   const actual = { rootFound: structure.rootFound, levels: structure.allLevels || structure.levels || [],
     itemCount: structure.hierarchy?.length ?? structure.itemCount ?? 0 };
   if (!actual.rootFound || !actual.levels.length) return requirementResult(requirement, 'na', requirement.expected, actual,
-    'nav-hierarchy-elements-unresolved', '实例中没有可测量的导航层级结构。');
+    structure.absenceReasons?.hierarchy || 'nav-hierarchy-elements-unresolved', '实例 DOM 没有可测量的导航子级结构。');
   const pass = expectedLevels ? JSON.stringify(actual.levels) === JSON.stringify([...new Set(expectedLevels)].sort((a, b) => a - b))
     : actual.levels.at(-1) === expectedMax;
   return requirementResult(requirement, pass ? 'pass' : 'fail', requirement.expected, actual,
