@@ -48,7 +48,11 @@ export async function runFreshStyleChecks(args) {
   const { session, capability, config, frontLink, published } = args;
   const front = frontLink || published?.frontLink;
   if (!front || !session?.context?.newPage) {
-    return Object.keys(NAMES).map((id) => result(id, 'deferred', '发布后无法从当前执行环境打开前台页面；需前台机器运行此能力的既有样式断言。'));
+    return [
+      ...Object.keys(NAMES).map((id) => result(id, 'deferred', '发布后无法从当前执行环境打开前台页面；需前台机器运行此能力的既有样式断言。')),
+      ...(capability?.styleSpec?.recordOnly || []).map((item) => result(`bss-${item.id}`, 'record', item.note,
+        { inventoryCapability: item.inventoryCapability || null, visualOracle: 'unreviewed' }, { name: item.name || item.id })),
+    ];
   }
   let page;
   try {
@@ -58,8 +62,12 @@ export async function runFreshStyleChecks(args) {
     await page.locator(previewSelector(config.blockId)).first().waitFor({ state: 'attached', timeout: config.actionTimeoutMs });
     return await runFrontLayer({ frame: page, previewPage: page, config, capability });
   } catch (error) {
-    return Object.keys(NAMES).map((id) => result(id, 'deferred',
-      `发布后前台样式断言当前不可达（${error.message}）；需前台机器运行此能力的既有样式断言。`));
+    return [
+      ...Object.keys(NAMES).map((id) => result(id, 'deferred',
+        `发布后前台样式断言当前不可达（${error.message}）；需前台机器运行此能力的既有样式断言。`)),
+      ...(capability?.styleSpec?.recordOnly || []).map((item) => result(`bss-${item.id}`, 'record', item.note,
+        { inventoryCapability: item.inventoryCapability || null, visualOracle: 'unreviewed' }, { name: item.name || item.id })),
+    ];
   } finally {
     if (page && !page.isClosed()) await page.close().catch(() => {});
   }
@@ -95,6 +103,11 @@ function compareProps(expected, actual, tolPx) {
   return diffs;
 }
 
+function cssSelectorForItem(item) {
+  return item?.selector || (item?.kind === 'nav-parent' || item?.kind === 'nav-leaf'
+    ? '.pf-cate-wrap a' : item?.kind === 'presence' ? 'a, button, span' : null);
+}
+
 // Read the elements one styleSpec item needs, inside the block root.
 async function readItem(frame, rootSel, item) {
   return frame.evaluate(({ rootSel, item }) => {
@@ -119,7 +132,11 @@ async function readItem(frame, rootSel, item) {
     });
     const centered = (el) => {
       const range = document.createRange();
-      const textNode = [...el.childNodes].find((n) => n.nodeType === 3 && norm(n.textContent));
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let textNode = null;
+      while (walker.nextNode()) {
+        if (norm(walker.currentNode.textContent)) { textNode = walker.currentNode; break; }
+      }
       if (!textNode) return null;
       range.selectNodeContents(textNode);
       const t = range.getBoundingClientRect();
@@ -159,7 +176,7 @@ async function readItem(frame, rootSel, item) {
         break;
       }
       case 'nav-parent': {
-        const links = [...root.querySelectorAll('.pf-cate-wrap a')].filter(vis);
+        const links = [...root.querySelectorAll(item.selector || '.pf-cate-wrap a')].filter(vis);
         const parents = links.filter((a) => {
           const li = a.closest('li');
           return li && li.parentElement?.closest('li') == null && li.querySelector('ul');
@@ -169,19 +186,33 @@ async function readItem(frame, rootSel, item) {
         break;
       }
       case 'nav-leaf': {
-        const links = [...root.querySelectorAll('.pf-cate-wrap a')].filter(vis);
+        const links = [...root.querySelectorAll(item.selector || '.pf-cate-wrap a')].filter(vis);
         const leaves = links.filter((a) => {
           const li = a.closest('li');
-          return li && !li.querySelector('ul');
+          return li && li.parentElement?.closest('li') && !li.querySelector('ul');
         });
         out.matchedCount = leaves.length;
         leaves.slice(0, 2).forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
         break;
       }
       case 'presence': {
-        const found = [...root.querySelectorAll('a, button, span')].filter((el) => norm(el.innerText).toLowerCase() === String(item.text).toLowerCase() && vis(el));
+        const selector = item.selector || 'a, button, span';
+        const needle = String(item.text || '').trim().toLowerCase();
+        const found = [...root.querySelectorAll(selector)].filter((el) => {
+          const candidates = [el.innerText, el.getAttribute('aria-label'), el.getAttribute('title')]
+            .map((value) => norm(value).toLowerCase()).filter(Boolean);
+          return candidates.includes(needle) && vis(el);
+        });
         out.count = found.length;
         out.cardCount = [...root.querySelectorAll('.prodlist-pro-name')].filter(vis).length;
+        out.searchedSources = ['visible text', 'aria-label', 'title'];
+        break;
+      }
+      case 'record-only': {
+        out.recordOnly = true;
+        out.note = item.note || 'No reviewed front-end selector or visual oracle is available.';
+        out.inventoryCapability = item.inventoryCapability || null;
+        out.matchedCount = 0;
         break;
       }
       default:
@@ -204,12 +235,25 @@ async function breakage(frame, rootSel) {
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1 };
     const wrapBox = root.getBoundingClientRect();
     const sticking = [];
+    const selectorPath = (el) => {
+      const parts = [];
+      let node = el;
+      while (node && node !== root) {
+        const tag = node.tagName.toLowerCase();
+        const classes = [...node.classList].slice(0, 3).map((name) => `.${CSS.escape(name)}`).join('');
+        const siblings = node.parentElement ? [...node.parentElement.children].filter((sibling) => sibling.tagName === node.tagName) : [];
+        const nth = siblings.length > 1 ? `:nth-of-type(${siblings.indexOf(node) + 1})` : '';
+        parts.unshift(`${tag}${classes}${nth}`);
+        node = node.parentElement;
+      }
+      return parts.join(' > ') || root.tagName.toLowerCase();
+    };
     for (const el of root.querySelectorAll('*')) {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) continue;
       if (r.right > wrapBox.right + 1.5 || r.left < wrapBox.left - 1.5) {
         const t = norm(el.innerText).slice(0, 30);
-        if (t || el.tagName === 'IMG') sticking.push({ tag: el.tagName, text: t, overRight: Math.round(r.right - wrapBox.right), overLeft: Math.round(wrapBox.left - r.left) });
+        if (t || el.tagName === 'IMG') sticking.push({ tag: el.tagName, selector: selectorPath(el), text: t, overRight: Math.round(r.right - wrapBox.right), overLeft: Math.round(wrapBox.left - r.left) });
         if (sticking.length >= 10) break;
       }
     }
@@ -308,7 +352,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
     if (item.clamp) styleExpectations['bss-product-name-clamp'] = `产品名称最多显示 ${item.clamp} 行，超出部分应隐藏。`;
   }
   const skipAll = (reason) => Object.keys(NAMES).map((id) => result(id, 'skip', reason));
-  if (!spec?.items?.length) return skipAll('未提供设计样式要求，未做样式比对。');
+  if (!spec?.items?.length && !spec?.recordOnly?.length) return skipAll('未提供设计样式要求，未做样式比对。');
   const tolPx = spec.tolerances?.px ?? 0.6;
   const viewports = spec.viewports || { pc: 1440, pad: 768, mobile: 375 };
   const checks = [];
@@ -332,7 +376,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
       await previewPage.setViewportSize({ width: viewports.pc, height: 900 });
       await frame.waitForTimeout(2500);
     }
-    for (const item of spec.items) {
+    for (const item of spec.items || []) {
       const checkId = `bss-${item.id}`;
       if (!NAMES[checkId]) { checks.push(result(checkId, 'skip', `未知检查 ${item.id}`)); continue; }
       // Leaf nav links live in collapsed submenus by default; expand the
@@ -352,7 +396,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
         checks.push(result(checkId, read.count > 0 ? 'pass' : 'fail',
           read.count > 0 ? `${read.cardCount} 张产品卡中找到 ${read.count} 个“${item.text}”链接。`
             : `${read.cardCount} 张产品卡里一张都没找到“${item.text}”链接。`,
-          { found: read.count, cards: read.cardCount }));
+          { found: read.count, cards: read.cardCount, searchedSources: read.searchedSources }));
         continue;
       }
       const read = await readItem(frame, rootSel, item);
@@ -399,6 +443,10 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
           clampDiffs.length ? clampDiffs.join('；') : `产品名最多 ${item.clamp} 行，超出隐藏（设计稿文字说明：居中 最多2行隐藏）。`,
           { matchedCount: clampRead.matchedCount, clamps }));
       }
+    }
+    for (const item of spec.recordOnly || []) {
+      checks.push(result(`bss-${item.id}`, 'record', item.note || 'No reviewed front-end selector or visual oracle is available.',
+        { inventoryCapability: item.inventoryCapability || null, visualOracle: 'unreviewed' }, { name: item.name || item.id }));
     }
     const pcFailed = checks.some((c) => c.status === 'fail');
     const pcBreak = await breakage(frame, rootSel);
@@ -454,11 +502,13 @@ function diagnosticValues(check, item) {
       actual: { horizontalOverflow: Boolean(evidence.horizontalOverflow),
         stickingOut: evidence.stickingOut?.length ?? null, overlaps: evidence.overlaps?.length ?? null,
         textClipped: evidence.textClipped?.length ?? null, imgDistorted: evidence.imgDistorted?.length ?? null,
-        documentWidth: evidence.docScrollWidth ?? null, viewportWidth: evidence.viewportWidth ?? null },
+        documentWidth: evidence.docScrollWidth ?? null, viewportWidth: evidence.viewportWidth ?? null,
+        offendingElementSelectors: (evidence.stickingOut || []).map((entry) => entry.selector).filter(Boolean) },
     };
   }
   if (item?.kind === 'presence') return {
-    expected: { minimumMatches: 1 }, actual: { found: evidence.found ?? null, cards: evidence.cards ?? null },
+    expected: { minimumMatches: 1 }, actual: { found: evidence.found ?? null, cards: evidence.cards ?? null,
+      searchedSources: evidence.searchedSources || ['visible text', 'aria-label', 'title'] },
   };
   if (check.id === 'bss-product-name-clamp') return {
     expected: { lineClamp: item?.clamp ?? null },
@@ -474,6 +524,36 @@ function diagnosticValues(check, item) {
   return { expected, actual };
 }
 
+export function resolveFrontStyleCapability(capability, settingsReport = null) {
+  const spec = capability?.styleSpec;
+  if (!spec) return capability;
+  const values = settingsReport?.block?.currentValues || settingsReport?.currentValues || [];
+  const items = (spec.items || []).map((item) => ({ ...item, props: { ...(item.props || {}) }, resolvedExpectedSources: {} }));
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const resolvedExpectedSources = {};
+  for (const [key, binding] of Object.entries(spec.expectedValueSources || {})) {
+    const [itemId, property] = key.split('.', 2);
+    const item = itemById.get(itemId);
+    if (!item || !property) continue;
+    const candidates = binding.control ? values.filter((entry) =>
+      (binding.control.region === undefined || entry.region === binding.control.region)
+      && (binding.control.label === undefined || entry.label === binding.control.label)
+      && (binding.control.type === undefined || entry.type === binding.control.type)) : [];
+    const match = candidates.length === 1 ? candidates[0] : null;
+    const usable = match && match.value !== null && match.value !== undefined && match.value !== '';
+    const value = usable ? match.value : binding.profileDefault;
+    if (value === undefined) continue;
+    item.props[property] = ['color', 'backgroundColor', 'borderColor'].includes(property)
+      ? normColor(String(value)) : value;
+    const source = usable
+      ? `run-report:block.currentValues[region=${binding.control.region ?? '*'},label=${binding.control.label ?? '*'}]`
+      : `profile-default:${key}${candidates.length > 1 ? ` (ambiguous run values: ${candidates.length})` : ''}`;
+    item.resolvedExpectedSources[property] = source;
+    resolvedExpectedSources[key] = source;
+  }
+  return { ...capability, styleSpec: { ...spec, items, resolvedExpectedSources } };
+}
+
 /** Add structured, value-safe diagnostics without changing a check verdict. */
 export function addStyleFailureReasons(checks, { capability, blockId, viewports } = {}) {
   const spec = capability?.styleSpec || {};
@@ -483,7 +563,9 @@ export function addStyleFailureReasons(checks, { capability, blockId, viewports 
     const item = styleItemForCheck(check.id, items);
     const isBreakage = check.id.startsWith('bss-breakage-');
     const selector = isBreakage ? 'block subtree layout invariants'
-      : item?.selector || item?.kind || 'styleSpec item';
+      : item?.kind === 'nav-parent' ? `${cssSelectorForItem(item)} (top-level items with child list)`
+        : item?.kind === 'nav-leaf' ? `${cssSelectorForItem(item)} (nested list items without child list)`
+          : cssSelectorForItem(item) || item?.kind || 'styleSpec item';
     const locator = `${previewSelector(String(blockId ?? ''))} → ${selector}`;
     const evidence = check.evidence || {};
     const matchedElementCount = Number.isInteger(evidence.matchedCount) ? evidence.matchedCount
@@ -502,6 +584,8 @@ export function addStyleFailureReasons(checks, { capability, blockId, viewports 
         : item?.kind === 'presence' ? ['presence'] : item?.clamp ? ['lineClamp']
           : [...Object.keys(item?.props || {}), ...(item?.geometry?.centered ? ['centered'] : [])],
       expected, actual, viewport: configuredViewport,
+      ...(item?.resolvedExpectedSources && Object.keys(item.resolvedExpectedSources).length
+        ? { expectedSource: item.resolvedExpectedSources } : {}),
       ...(check.screenshot ? { screenshot: check.screenshot } : {}),
       ...(check.errorDiagnostic ? { error: {
         class: String(check.errorDiagnostic.class || 'Error'),
@@ -515,9 +599,11 @@ export function addStyleFailureReasons(checks, { capability, blockId, viewports 
 
 export function styleCheckDescriptors(capability) {
   const items = capability?.styleSpec?.items || [];
-  if (!items.length) return Object.keys(NAMES).map((id) => ({ id, name: NAMES[id], itemId: null }));
+  const recordOnly = capability?.styleSpec?.recordOnly || [];
+  if (!items.length && !recordOnly.length) return Object.keys(NAMES).map((id) => ({ id, name: NAMES[id], itemId: null }));
   const descriptors = items.map((item) => ({ id: `bss-${item.id}`, name: NAMES[`bss-${item.id}`] || item.id,
     itemId: item.id }));
+  descriptors.push(...recordOnly.map((item) => ({ id: `bss-${item.id}`, name: item.name || item.id, itemId: item.id })));
   if (items.some((item) => item.id === 'product-name' && item.clamp)) {
     descriptors.push({ id: 'bss-product-name-clamp', name: NAMES['bss-product-name-clamp'], itemId: 'product-name' });
   }

@@ -16,6 +16,98 @@
     {
       "id": "button-link",
       "status": "candidate"
+    },
+    {
+      "id": "block-style-spec",
+      "status": "record-only",
+      "reason": "Onboarding inventory provides setting units but no reviewed front-end selector or visual oracle.",
+      "styleSpec": {
+        "items": [],
+        "recordOnly": [
+          {
+            "id": "inventory-module-width",
+            "name": "Inventory observation: module-width",
+            "inventoryCapability": "module-width",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          },
+          {
+            "id": "inventory-cff-fields",
+            "name": "Inventory observation: cff-fields",
+            "inventoryCapability": "custom-filter-fields",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          },
+          {
+            "id": "inventory-pld-display-fields",
+            "name": "Inventory observation: pld-display-fields",
+            "inventoryCapability": "product-list-display",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          },
+          {
+            "id": "inventory-pld-pagination",
+            "name": "Inventory observation: pld-pagination",
+            "inventoryCapability": "product-list-display",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          },
+          {
+            "id": "inventory-pld-page-size",
+            "name": "Inventory observation: pld-page-size",
+            "inventoryCapability": "product-list-display",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          },
+          {
+            "id": "inventory-pld-product-count",
+            "name": "Inventory observation: pld-product-count",
+            "inventoryCapability": "product-list-display",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          },
+          {
+            "id": "inventory-pld-compare",
+            "name": "Inventory observation: pld-compare",
+            "inventoryCapability": "product-list-display",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          },
+          {
+            "id": "inventory-pld-data-source",
+            "name": "Inventory observation: pld-data-source",
+            "inventoryCapability": "product-list-display",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          },
+          {
+            "id": "inventory-btn-text",
+            "name": "Inventory observation: btn-text",
+            "inventoryCapability": "button-link",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          },
+          {
+            "id": "inventory-btn-url",
+            "name": "Inventory observation: btn-url",
+            "inventoryCapability": "button-link",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          },
+          {
+            "id": "inventory-btn-target",
+            "name": "Inventory observation: btn-target",
+            "inventoryCapability": "button-link",
+            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
+          }
+        ],
+        "designFrames": [],
+        "breakage": {
+          "viewports": [
+            "pc",
+            "pad",
+            "mobile"
+          ]
+        },
+        "viewports": {
+          "pc": 1440,
+          "pad": 768,
+          "mobile": 375
+        },
+        "notes": [
+          "Record-only entries are derived from onboarding.matched; the inventory does not establish front-end selectors or expected styles."
+        ]
+      }
     }
   ],
   "category": "待人工审核",

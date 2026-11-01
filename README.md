@@ -97,7 +97,9 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 
 ### 前台样式失败原因
 
-`scripts/front-style-only.mjs` 的 JSON 报告在每条非 `pass` 检查上附 `reason`：`stage` 是 `locate`、`read` 或 `compare`；`locator` 和 `matchedElementCount` 说明使用的区块/样式定位方式及命中数；`property`、`expected`、`actual` 用规范化样式值描述比较项；`viewport` 记录视口。`skip`/`na`/`deferred` 还带 `applicability`，异常会带已脱敏的 `error.class` / `error.message`。有失败截图时，`reason.screenshot` 指向对应视口截图。原因里不保存页面正文、Cookie 或带令牌的 URL。外层浏览器/导航错误会作为 `status: "error"` 的逐项 harness 记录，不改写断言结果。
+`scripts/front-style-only.mjs` 的 JSON 报告在每条非 `pass` 检查上附 `reason`：`stage` 是 `locate`、`read` 或 `compare`；`locator` 和 `matchedElementCount` 说明实际 CSS 定位方式及命中数；`property`、`expected`、`actual` 用规范化样式值描述比较项；`viewport` 记录视口。颜色等受区块设置控制的期望值可用 `--run-report reports/fresh-block-<id>-<run>.json` 从本轮的 `block.currentValues` 解析；没有本轮写入值时使用画像中声明的 `profileDefault`。失败原因中的 `expectedSource` 会注明使用了运行报告还是画像默认值。`skip`/`na`/`deferred` 还带 `applicability`，异常会带已脱敏的 `error.class` / `error.message`。有失败截图时，`reason.screenshot` 指向对应视口截图；移动端超框还会列出 offending element 的 CSS 路径。原因里不保存页面正文、Cookie 或带令牌的 URL。外层浏览器/导航错误会作为 `status: "error"` 的逐项 harness 记录，不改写断言结果。
+
+`block-style-spec` 画像中若只有 `recordOnly` 库存项，会按 `record` 输出这些待人工建立前台映射的能力，并继续执行通用视口布局检查。不要把设置库存标签当作前台 DOM 选择器。
 
 ## 安全和恢复的底线
 
