@@ -66,5 +66,45 @@ Written-color evidence separates recovered stylesheet reads from final fetch
 failures and records whether unreadable sheets might apply to the selected
 instance. A readable stylesheet with no matching instance selector is excluded;
 an unreadable relevant sheet makes the result inconclusive rather than absent.
-State exercise stays inside the selected instance and records attempted,
-opened, and restored counts. It does not follow links or submit forms.
+## Spec-targeted states
+
+A front `color-scope` or `typography` requirement may declare:
+
+```json
+{
+  "state": { "kind": "hover", "target": "scope", "timeoutMs": 4000 },
+  "params": { "selector": ".named-button", "property": "backgroundColor" }
+}
+```
+
+`kind` is `hover | focus | selected | expanded | active`. `target` is `scope`
+(the unique scope element) or an instance-relative selector. Scope resolution
+uses ordered candidates in this requirement or its mapped profile style item,
+including editor-learned paths. No selector is borrowed from another profile.
+Multiple matches fail closed. Color checks need a declared `params.property`
+or exactly one property in the mapped style item; typography reads the stated
+fontSize/fontWeight only. The value is read live after activation, never taken
+from earlier functional-check results. Written colors take precedence over spec
+defaults under the existing run-value mapping.
+
+Only that target is activated and read; finally restores focus, hover, scroll,
+pressed state or the original selected/expanded value. `selected` requires
+checked/aria-selected/aria-pressed semantics; `expanded` requires aria-expanded
+or details/summary semantics. For mutually exclusive selections, declare
+`state.restoreTarget` as the instance-relative selector of the original item.
+`active` observes an existing aria-current state or holds mouse-down for CSS
+`:active`, then releases. Click activation/restoration refuses navigation links
+and form controls. Missing semantics or unsuccessful restoration fails with a
+specific string reason. Each action/read/restore has a bounded timeout (default
+4000ms; configurable per item, 100–30000ms). No state field means no interaction.
+State metadata is machine evidence only; human reports do not show selectors.
+
+The importer and design-spec-to-block-checklist notes map 悬停/鼠标经过 → hover,
+聚焦/焦点 → focus, 选中 → selected, 当前/激活 → active, 展开 → expanded, only on
+color/typography scope items. Ambiguous wording does not infer an action; keep
+it unmapped rather than guessing. Mapped selectors stay in profile data.
+
+The retired CLI options `--exercise-states`, `--state-timeout-ms` and
+`--state-action-timeout-ms` print one notice and are ignored. No generic state
+scan or related report fields remain. G68 capture and structural finder
+diagnostics (hierarchy, images, navigation and options) remain available.

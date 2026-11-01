@@ -30,8 +30,25 @@
             ] }
           },
           "checkStage": { "enum": ["editor", "front", "both"] },
+          "state": {
+            "type": "object", "required": ["kind", "target"],
+            "properties": {
+              "kind": { "enum": ["hover", "focus", "selected", "expanded", "active"] },
+              "target": { "type": "string", "minLength": 1 },
+              "timeoutMs": { "type": "integer", "minimum": 100, "maximum": 30000 },
+              "restoreTarget": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          },
           "params": { "type": "object" }
         },
+        "allOf": [{
+          "if": { "required": ["state"] },
+          "then": { "properties": {
+            "checkType": { "enum": ["color-scope", "typography"] },
+            "checkStage": { "const": "front" }
+          } }
+        }],
         "additionalProperties": false
       }
     },

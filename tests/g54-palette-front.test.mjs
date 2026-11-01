@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { paletteWriteReadback } from '../src/capabilities/rail.mjs';
-import { countCssColorMatches, runWrittenColorFrontChecks, runWrittenColorStylesheetSearch,
-  exerciseWrittenColorStates, isSafeStateExerciseTarget } from '../src/design-spec-checklist.mjs';
+import { countCssColorMatches, runWrittenColorFrontChecks, runWrittenColorStylesheetSearch } from '../src/design-spec-checklist.mjs';
 import { dedupeChecksById } from '../src/front-check-utils.mjs';
 
 test('palette write readback compares the actual input value with the value set', () => {
@@ -231,100 +230,6 @@ test('standalone stylesheet evidence is scoped to the instance and is not a pass
   }), []);
 });
 
-test('optional state exercise records attempted states and the first state revealing a written color', async () => {
-  let state = '';
-  const element = { count: async () => 1, nth: () => ({ scrollIntoViewIfNeeded: async () => {},
-    boundingBox: async () => ({ x: 10, y: 10, width: 30, height: 20 }),
-    focus: async () => { state = 'focus'; },
-    evaluate: async () => ({ tag: 'div', visible: true, withinInstance: true, pointerAction: false,
-      hoverAffordance: true, focusable: true, hasHref: false, insideForm: false, submitControl: false,
-      hasExplicitToggle: false, semantic: false, nativeButton: false, hasClickHandler: false,
-      isTab: false, isSelect: false, isDetails: false, expanded: null }),
-    click: async () => {}, getAttribute: async () => null }) };
-  const locator = { locator: () => element, count: async () => 1, nth: element.nth };
-  const page = {
-    locator: () => ({ locator: (selector) => selector === 'details' ? { count: async () => 0 } : locator }),
-    evaluate: async (_fn, arg) => arg?.rootSelector
-      ? { rootCount: 1, styles: state === 'hover' ? [{ color: '#d0b647' }] : [{ color: 'transparent' }] }
-      : undefined,
-    mouse: { move: async () => { state = 'hover'; } },
-  };
-  const result = await exerciseWrittenColorStates(page, '.target', [{ id: 'color-a', value: '#d0b647' }]);
-  assert.deepEqual(result, { states: ['hover', 'focus'], candidateCount: 1, disclosureCount: 0,
-    exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
-      tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 },
-    revealed: { 'color-a': { state: 'hover', matches: 1 } }, candidateDiagnostics: [], notExercised: [],
-    rejectedCandidates: [{ stage: 'disclosure', tag: 'div', rect: null, reason: 'no-safe-disclosure-semantics' }] });
-});
-
-test('a state toggle whose click never resolves is bounded and recorded as not-exercised', async () => {
-  let evaluateCount = 0;
-  const element = { hover: async () => {}, focus: async () => {}, press: async () => {},
-    evaluate: async (fn) => String(fn).includes('element.click()') ? new Promise(() => {}) : ++evaluateCount === 1 ? 'DIV' : ({ tag: 'div', visible: true, hasHref: false, insideForm: false,
-      submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: false, hasClickHandler: false,
-      hiddenSiblingIndexes: [], isTab: false, isSelect: false, isDetails: false, pointerAction: false, expanded: 'false' }),
-    click: () => new Promise(() => {}), getAttribute: async () => null };
-  const locator = { count: async () => 1, nth: () => element };
-  const root = { locator: () => locator };
-  const page = { locator: () => root, evaluate: async () => ({ rootCount: 1, styles: [] }),
-    mouse: { move: async () => {} } };
-  const started = Date.now();
-  const result = await exerciseWrittenColorStates(page, '.target', [{ id: 'color', value: '#123456' }],
-    { actionTimeoutMs: 20, overallTimeoutMs: 100 });
-  assert.ok(Date.now() - started < 500);
-  assert.equal(result.notExercised[0].status, 'not-exercised');
-  assert.equal(result.notExercised[0].reason.code, 'state-exercise-action-timeout');
-  assert.equal(result.candidateDiagnostics[0].trial.status, 'timeout');
-  evaluateCount = 0;
-  const overall = await exerciseWrittenColorStates(page, '.target', [{ id: 'color', value: '#123456' }],
-    { actionTimeoutMs: 500, overallTimeoutMs: 20 });
-  assert.equal(overall.notExercised[0].reason.code, 'state-exercise-overall-timeout');
-});
-
-test('state exercise opens only safe instance controls and records attempted/opened/restored counts', async () => {
-  const actions = [];
-  let panelVisible = false;
-  const toggle = { evaluate: async (fn) => fn.name === 'readStateControlDom'
-    ? (panelVisible ? 'panel-open' : 'panel-closed') : ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
-    submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: true, isTab: false,
-    expanded: 'false', selected: null, hasPopup: true, pointerAction: false, hiddenSiblingIndexes: [1] }),
-    click: async (options = {}) => { if (options.trial) return; panelVisible = !panelVisible; actions.push(panelVisible ? 'open' : 'close'); }, press: async () => { actions.push('escape'); },
-    getAttribute: async () => 'false', hover: async () => {}, focus: async () => {} };
-  const unsafeLink = { evaluate: async () => ({ safe: false, isTab: false }), click: async () => { actions.push('unsafe-link'); },
-    hover: async () => {}, focus: async () => {} };
-  const controls = [toggle, unsafeLink];
-  let allCalls = 0;
-  const page = { locator: () => ({ locator: (selector) => {
-    if (selector === 'details') return { count: async () => 0 };
-    allCalls += 1;
-    const list = allCalls === 2 ? controls : [];
-    return { count: async () => list.length, nth: (index) => list[index] };
-  } }),
-  evaluate: async (_fn, arg) => arg?.rootSelector ? { rootCount: 1, styles: [{ color: 'transparent' }] } : undefined };
-  const result = await exerciseWrittenColorStates(page, '.instance-root', [{ id: 'color-a', value: '#d0b647' }]);
-  assert.deepEqual(actions, ['open', 'close']);
-  assert.equal(result.exerciseCounts.attempted, 1);
-  assert.equal(result.exerciseCounts.opened, 1);
-  assert.equal(result.exerciseCounts.restored, 1);
-  assert.equal(result.exerciseCounts.eligibleCandidates, 1);
-});
-
-test('interactive state target safety excludes navigation, form submission and hidden elements', () => {
-  const base = { visible: true, tag: 'div', hasHref: false, insideForm: false, submitControl: false,
-    hasExplicitToggle: false, semantic: false, nativeButton: false, pointerAction: true };
-  assert.equal(isSafeStateExerciseTarget(base), false, 'pointer affordance alone is not disclosure evidence');
-  assert.equal(isSafeStateExerciseTarget({ ...base, hasDisclosure: true }), true);
-  assert.equal(isSafeStateExerciseTarget({ ...base, tag: 'a', hasDisclosure: true, nonNavigatingAnchor: true }), true);
-  assert.equal(isSafeStateExerciseTarget({ ...base, tag: 'a', hasHref: true }), false);
-  assert.equal(isSafeStateExerciseTarget({ ...base, tag: 'span', navigationAncestor: true }), false);
-  assert.equal(isSafeStateExerciseTarget({ ...base, insideForm: true }), false);
-  assert.equal(isSafeStateExerciseTarget({ ...base, submitControl: true }), false);
-  assert.equal(isSafeStateExerciseTarget({ ...base, visible: false }), false);
-  assert.equal(isSafeStateExerciseTarget({ ...base, pointerAction: false, hasClickHandler: true }), false, 'an arbitrary click handler is not a disclosure');
-  assert.equal(isSafeStateExerciseTarget({ ...base, pointerAction: false, hasClickHandler: true,
-    tag: 'a', hasHref: false }), false);
-});
-
 test('a missing temporary root marker is inconclusive and does not scan stylesheets as absent', async () => {
   let scanned = false;
   const page = { locator: () => ({ count: async () => 0 }), evaluate: async (_fn, arg) => {
@@ -336,7 +241,7 @@ test('a missing temporary root marker is inconclusive and does not scan styleshe
   assert.equal(row.status, 'record');
   assert.equal(row.classification, 'instance-root-missing');
   assert.equal(row.reason.code, 'instance-root-missing');
-  assert.deepEqual(row.actual, { rootCount: 0, stylesheetScan: 'not-run', stateExercise: 'not-run' });
+  assert.deepEqual(row.actual, { rootCount: 0, stylesheetScan: 'not-run' });
   assert.equal(scanned, false);
 });
 
@@ -361,52 +266,13 @@ test('written-color checks rebuild a lost temporary marker from the stable insta
   assert.equal(cleared, true, 'the recovery marker is kept through color reads, then removed');
 });
 
-test('state exercise opens instance-local category toggles and tabs, then restores the selected tab', async () => {
-  const actions = [];
-  let expanded = 'false';
-  let activeTab = 'first';
-  const toggle = { evaluate: async (fn) => fn.name === 'readStateControlDom' ? expanded : ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
-    submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: true, isTab: false,
-    expanded, selected: null, hasPopup: false }),
-    click: async (options = {}) => { if (options.trial) return; expanded = expanded === 'false' ? 'true' : 'false'; actions.push(`toggle:${expanded}`); },
-    getAttribute: async (name) => name === 'aria-expanded' ? expanded : null,
-    press: async () => { actions.push('escape'); } };
-  const tab = (id, selected) => ({ evaluate: async () => ({ tag: 'div', visible: true, hasHref: false, insideForm: false,
-    submitControl: false, hasExplicitToggle: false, semantic: true, nativeButton: false, isTab: true,
-    selected: activeTab === id ? 'true' : 'false', expanded: null, hasPopup: false }),
-    click: async (options = {}) => { if (options.trial) return; activeTab = id; actions.push(`tab:${id}`); } });
-  const controls = [toggle, tab('first', true), tab('second', false)];
-  let allCall = 0;
-  const page = {
-    locator: () => ({ locator: (selector) => {
-      if (selector === 'details') return { count: async () => 0 };
-      if (selector === '*') {
-        allCall += 1;
-        if (allCall === 2) return { count: async () => controls.length, nth: (index) => controls[index] };
-        return { count: async () => 0 };
-      }
-      return { count: async () => 0 };
-    } }),
-    evaluate: async (_fn, arg) => arg?.rootSelector ? { rootCount: 1, styles: [{ color: 'transparent' }] } : undefined,
-  };
-  const result = await exerciseWrittenColorStates(page, '.instance-root', [{ id: 'color-a', value: '#d0b647' }]);
-  assert.ok(result.states.includes('category-expanded'));
-  assert.ok(result.states.includes('tab-selected'));
-  assert.deepEqual(result.exerciseCounts, { eligibleCandidates: 3, attempted: 2, opened: 2, restored: 2, toggleCandidates: 1,
-    togglesOpened: 1, tabCandidates: 2, tabsSelected: 1, detailsCandidates: 0, detailsOpened: 0 });
-  assert.equal(expanded, 'false');
-  assert.equal(activeTab, 'first');
-  assert.deepEqual(actions, ['toggle:true', 'toggle:false', 'tab:second', 'tab:first']);
-});
-
-test('every written-color miss records states exercised and stylesheet scan diagnostics', async () => {
+test('every written-color miss records stylesheet scan diagnostics', async () => {
   const settingsReport = { blockId: 'generic', block: { currentValues: [{ section: '区块配色', type: 'color', value: '#d0b647' }] } };
   let call = 0;
   const emptyLocator = { count: async () => 0 };
   const page = {
     locator: () => ({ locator: () => emptyLocator }),
     evaluate: async (_fn, arg) => {
-      if (_fn.name === 'readInstanceStructure') return { rootFound: true, disclosures: [] };
       if (arg?.declarations) return [];
       if (!arg) return undefined;
       call += 1;
@@ -414,12 +280,8 @@ test('every written-color miss records states exercised and stylesheet scan diag
     },
     mouse: { move: async () => {} },
   };
-  const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '.target', settingsReport, stateExercise: true });
+  const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '.target', settingsReport });
   assert.equal(row.classification, 'absent');
-  assert.deepEqual(row.actual.stateExercise, { enabled: true, states: [], candidateCount: 0, candidateDiagnostics: [],
-    rejectedCandidates: [],
-    disclosureCount: 0, exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
-      tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null, notExercised: [], timedOut: false });
   assert.equal(row.actual.stylesheetEvidence.sheetCount, 0);
   assert.equal(row.actual.stylesheetEvidence.matchCount, 0);
 });
@@ -449,10 +311,6 @@ test('cross-origin linked CSS fetched through context request becomes scoped CSS
   assert.equal(row.actual.stylesheetEvidence.fetchFailureCount, 0);
   assert.equal(row.actual.stylesheetEvidence.matchCount, 1);
   assert.equal(row.actual.stylesheetEvidence.rules[0].properties[0], 'background-image');
-  assert.deepEqual(row.actual.stateExercise, { enabled: false, states: [], candidateCount: 0, candidateDiagnostics: [],
-    rejectedCandidates: [],
-    disclosureCount: 0, exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0,
-      tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealedBy: null, notExercised: [], timedOut: false });
 });
 
 test('front result deduplication is by id and preserves the most conservative verdict', () => {

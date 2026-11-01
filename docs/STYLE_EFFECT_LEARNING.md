@@ -79,13 +79,9 @@ the human-facing summary does not show selector matches or compatibility
 details. Candidate selectors are only drawn from that block's own canvas
 snapshot; they never come from another block's profile.
 
-Front state exercise resolves the actual clickable owner and rejects links and
-their descendants, forms and submit controls before activation. Class/DOM
-snapshots detect disclosure changes and verify restoration, including widgets
-without ARIA expanded state. `--state-action-timeout-ms` defaults to 4000ms;
-the existing overall state limit remains configurable. The real CLI smoke
-includes a nested navigation link, a class-switched disclosure, mobile
-typography, and a color available only in cross-origin instance-scoped CSS.
+State-specific color/typography checks are declared per checklist item. They
+activate only the spec-mapped target and restore it after reading computed
+styles. There is no generic interaction scan. See [the state contract](check-types.md#spec-targeted-states).
 
 Image-ratio discovery targets content images in item/card containers. Profiles
 can declare `params.contentContainerSelector` for their content layout.
@@ -109,9 +105,8 @@ matching instance-scoped CSS rule without a rendered match as
 `instance-scoped-css-only` (record, never pass), or no match as `absent` (fail).
 The CSS-only result records selectors and properties in machine-readable JSON;
 it never substitutes for the computed-style oracle. Use `--include-stylesheets
-0` to disable CSS source inspection. `--exercise-states 1` optionally hovers and
-focuses generic interactive descendants, temporarily opening and restoring
-closed `<details>` elements, and records the state that first revealed a color.
+0` to disable CSS source inspection. Written-color presence checks do not
+interact with page controls; only explicit checklist states activate a target.
 
 Front style dimensions use a default 2 CSS-pixel tolerance with an exclusive
 boundary, configurable per

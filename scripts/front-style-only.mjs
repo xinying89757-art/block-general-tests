@@ -23,7 +23,11 @@ const args = {};
 for (let i = 2; i < process.argv.length; i += 1) {
   const k = process.argv[i];
   if (!k.startsWith('--')) continue;
-  args[k.slice(2)] = process.argv[i + 1]; i += 1;
+  const next = process.argv[i + 1];
+  args[k.slice(2)] = next && !next.startsWith('--') ? process.argv[++i] : '1';
+}
+if (['exercise-states', 'state-timeout-ms', 'state-action-timeout-ms'].some((key) => Object.hasOwn(args, key))) {
+  console.log('[front-style] 通用交互扫描已移除；旧状态扫描参数已忽略。');
 }
 if (!args.block || !args.url) {
   console.error('用法：node scripts/front-style-only.mjs --block <id> --url <前台URL> [--profile <json>] [--run-report <json>] [--out <json>] [--capture-instance <dir>]');
@@ -58,13 +62,7 @@ let exitCode = 0;
 let stage = 'launch-browser';
 let browser;
 const configuredTimeout = Number(args['global-timeout-ms'] || process.env.FRONT_STYLE_TIMEOUT_MS || 480000);
-const configuredStateActionTimeout = Number(args['state-action-timeout-ms'] || 4000);
-const configuredStateOverallTimeout = Number(args['state-timeout-ms'] || 45000);
 const globalTimeoutMs = Number.isFinite(configuredTimeout) && configuredTimeout > 0 ? Math.max(1000, configuredTimeout) : 480000;
-const stateActionTimeoutMs = Number.isFinite(configuredStateActionTimeout) && configuredStateActionTimeout > 0
-  ? Math.max(100, configuredStateActionTimeout) : 4000;
-const stateOverallTimeoutMs = Number.isFinite(configuredStateOverallTimeout) && configuredStateOverallTimeout > 0
-  ? Math.max(stateActionTimeoutMs, configuredStateOverallTimeout) : 45000;
 let abortReason = null;
 const progress = (name) => console.log(`[front-style] stage=${name}`);
 const abortRun = (kind) => {
@@ -102,7 +100,7 @@ try {
   progress('style-checks');
   report.expectedValueSourceReport = args['run-report'] || null;
   try {
-    // Diagnostic snapshots run before any state exercise, while the unique
+    // Diagnostic snapshots run before any checks, while the unique
     // instance marker is alive. Only viewport size changes; restore it below.
     report.finderDebug = {};
     const originalViewport = page.viewportSize();
@@ -147,8 +145,7 @@ try {
     progress(`design-spec-checks-complete count=${designChecks.filter(Boolean).length}`);
     stage = 'written-color-checks'; progress(stage);
     const writtenColors = await runWrittenColorFrontChecks({ page, rootSelector: config.rootSelector, settingsReport,
-      includeStylesheets: args['include-stylesheets'] !== '0', stateExercise: args['exercise-states'] === '1',
-      stateActionTimeoutMs, stateOverallTimeoutMs, onProgress: progress });
+      includeStylesheets: args['include-stylesheets'] !== '0', onProgress: progress });
     report.checks = attachFrontStyleInstance([...report.checks, ...writtenColors], report.settingId);
     progress(`written-color-checks-complete count=${writtenColors.length}`);
     report.finalUrl = sanitizeFrontStyleUrl(page.url());

@@ -2,6 +2,7 @@
 // Generic importer: maps extracted Figma JSON into a profile checklist while
 // preserving source text/values and excluding the original URL field.
 import fs from 'node:fs/promises';
+import { inferSpecState } from '../src/spec-target-state.mjs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -22,6 +23,7 @@ function requirementsFromSpec(spec) {
       params: { sourceNodeId: sourceNode(color.sourceNodeId), semanticRegion: 'block-color-scheme' } });
     for (const [scopeIndex, scope] of textList(color.scopeText).entries()) {
       requirements.push({ id: `${base}-scope-${scopeIndex + 1}`, checkType: 'color-scope', sourceText: String(scope),
+        ...(inferSpecState(scope) ? { state: inferSpecState(scope) } : {}),
         expected: { name: color.name, value: color.default }, checkStage: 'front',
         params: { sourceNodeId: sourceNode(color.sourceNodeId), semanticRegion: 'block-color-scheme' } });
     }
@@ -35,6 +37,7 @@ function requirementsFromSpec(spec) {
     if (type.color != null) expected.color = type.color;
     requirements.push({ id: `typography-${index + 1}-${slug(type.element)}-${type.viewport || 'default'}`,
       checkType: 'typography', sourceText: String(type.element), expected, checkStage: 'front',
+      ...(inferSpecState(type.element) ? { state: inferSpecState(type.element) } : {}),
       params: { viewport: type.viewport || null, sourceNodeId: sourceNode(type.sourceNodeId),
         sourceNodeText: type.sourceNodeId || null } });
   }

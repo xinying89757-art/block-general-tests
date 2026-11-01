@@ -12,17 +12,16 @@ const repo = fileURLToPath(new URL('../', import.meta.url));
 test('front-style-only end-to-end keeps the instance root through mobile checklist and external CSS scan', async () => {
   const cssServer = http.createServer((_request, response) => {
     response.writeHead(200, { 'content-type': 'text/css' });
-    response.end('@media print { [data-id="siteblocks-setting-wrap-setting-smoke"] .palette { color: #d0b647; } }\n.hover-color:hover { color: #12ab34; }');
+    response.end('@media print { [data-id="siteblocks-setting-wrap-setting-smoke"] .palette { color: #d0b647; } }');
   });
   await new Promise((resolve) => cssServer.listen(0, '127.0.0.1', resolve));
   const server = http.createServer((request, response) => {
     response.writeHead(200, { 'content-type': 'text/html' });
     response.end(`<!doctype html><html><head><link rel="stylesheet" href="http://127.0.0.1:${cssServer.address().port}/fixture.css"></head><body>
       <div data-appid="90001" data-id="siteblocks-setting-wrap-setting-smoke" class="fixture" style="width:320px;position:relative">
-        <div class="sample">Style sample</div><div class="palette">palette</div>
+        <button type="button" class="spec-target">Spec hover</button><div class="sample">Style sample</div><div class="palette">palette</div>
         <label style="font-size:14px;font-weight:400;line-height:21px"><input type="checkbox">Option label</label>
         <a href="/away" style="cursor:pointer"><span>Do not follow this nested link</span></a>
-        <button type="button" class="hover-color" style="cursor:pointer">Hover for palette</button>
         <div class="typography-wrapper" style="font-size:12px">Exact leaf label <span style="font-size:16px;font-weight:600;line-height:20px">Exact leaf label</span></div>
         <ul class="category-tree"><li style="font-weight:700;line-height:45px">Parent category<ul><li style="font-weight:400;line-height:20px"><span>Nested category</span></li></ul></li></ul>
         <div class="clamped" style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">A long text block for line clamp verification</div>
@@ -33,8 +32,6 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
         <div class="background-image" style="width:320px;height:40px;background-image:url('/background.png');background-position:0% 0%"></div>
         <button class="live-button" style="background-color:#ff0000;line-height:24px;font-size:16px">Actual style</button>
         <nav class="pagination"><span class="paging-current" style="background-color:#ff0000">1</span></nav>
-        <div class="toggle-wrap"><button type="button" style="cursor:pointer" onclick="document.querySelector('.toggle-panel').classList.toggle('open')"><span>Toggle</span></button>
-          <div class="toggle-panel">Disclosure panel</div></div>
         <div class="clipper" style="position:relative;width:320px;overflow:hidden">
           <span>overlap one</span><span>overlap two</span>
         </div>
@@ -44,10 +41,9 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
         <div class="zero-pair"><i></i><i></i></div>
         <div class="compare-bar" style="display:none;position:absolute;left:0;top:0;width:100%;height:40px"><span>0 items</span><span>Compare</span></div>
       </div><style>
+        .spec-target:hover { background-color:#456abc; }
         .sample { display:block; color:rgb(0, 0, 0); }
         .palette { color:transparent; }
-        .toggle-panel { display:none; color:#ab12cd; }
-        .toggle-panel.open { display:block; }
         .clipper { height:48px; }
         .transparent-pair { opacity:0; }
         .hidden-pair { display:none; }
@@ -82,6 +78,9 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
         { id: 'unread-typography', kind: 'record-only', selectorCandidates: ['.live-button'], props: {} },
       ] } }],
       designSpec: { source: { fileKey: 'fixture', nodeId: '1:1' }, overrides: [], requirements: [
+        { id: 'targeted-hover', checkType: 'color-scope', sourceText: 'Named button hover',
+          expected: { value: '#456abc' }, checkStage: 'front', state: { kind: 'hover', target: 'scope' },
+          params: { selector: '.spec-target', property: 'backgroundColor' } },
         { id: 'mobile-sample', checkType: 'mobile-layout', sourceText: 'sample display',
           expected: { display: 'block' }, checkStage: 'front', params: { viewport: 'mobile', selector: '.sample' } },
         { id: 'leaf-typography', checkType: 'typography', sourceText: 'Exact leaf label', expected: { fontSize: '16px', fontWeight: '600', lineHeight: '20px' },
@@ -114,15 +113,13 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     }));
     fs.writeFileSync(runPath, JSON.stringify({ blockId: '90001', block: { settingId: 'setting-smoke', currentValues: [
       { section: '区块配色', region: 'right-rail-color', type: 'color', value: '#d0b647' },
-      { section: '区块配色', region: 'right-rail-color', type: 'color', value: '#12ab34' },
-      { section: '区块配色', region: 'right-rail-color', type: 'color', value: '#ab12cd' },
       { section: '区块配色', region: 'right-rail-color', type: 'color', value: '#ff0000' },
     ] }, checks: [{ id: 'bss-button-bg', setting: 'palette', status: 'pass', value: '#ff0000', expected: '#ff0000' },
       { id: 'bss-pagination-current', setting: 'palette', status: 'pass', value: '#ff0000', expected: '#ff0000' }] }));
     const result = await new Promise((resolve, reject) => {
       const child = spawn(process.execPath, ['scripts/front-style-only.mjs', '--block', '90001', '--url',
         `http://127.0.0.1:${address.port}/products.html`, '--profile', profilePath, '--run-report', runPath,
-        '--out', outputPath, '--channel', 'chrome', '--exercise-states', '1',
+        '--out', outputPath, '--channel', 'chrome', '--exercise-states', '1', '--state-timeout-ms', '10', '--state-action-timeout-ms', '10',
         '--capture-instance', path.join(temp, 'capture')], { cwd: repo });
       let stdout = '', stderr = '';
       const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('front-style-only fixture child timed out')); }, 45000);
@@ -137,6 +134,8 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
       typeof row.reason?.code === 'string' && row.reason.code && row.reason.code !== '[object Object]'
         && row.reason.code !== 'na-reason-unavailable'), 'all read/locate/compare non-pass checks need a specific string reason');
     assert.equal(report.error, null);
+    assert.equal(report.checks.find((row) => row.id === 'design-targeted-hover')?.status, 'pass');
+    assert.equal(report.checks.find((row) => row.id === 'design-targeted-hover')?.reason.state.restored, true);
     assert.equal(report.instanceCaptures.length, 2);
     for (const capture of report.instanceCaptures) {
       assert.ok(fs.existsSync(capture.jsonPath), 'real CLI writes per-viewport capture JSON');
@@ -146,27 +145,19 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     }
     for (const viewport of ['pc', 'mobile']) {
       assert.equal(report.finderDebug[viewport].rootCount, 1);
-      assert.ok(report.finderDebug[viewport].finders.interaction.decisions.every((row) => row.reason));
+      assert.equal(report.finderDebug[viewport].finders.interaction, undefined);
       assert.ok(report.finderDebug[viewport].finders.image.decisions.length <= 80);
     }
     assert.equal(new URL(report.finalUrl).pathname, '/products.html', 'nested link children must never be activated');
     assert.equal(report.checks.find((row) => row.id === 'design-mobile-sample')?.status, 'pass');
     const color = report.checks.find((row) => row.id === 'written-color-1');
     assert.ok(report.checks.filter((row) => row.id.startsWith('written-color-')).every((row) => row.actual?.rootCount >= 1),
-      'state exercise must preserve the actual instance through the full CLI flow');
+      'all checks must preserve the actual instance through the full CLI flow');
     assert.equal(color?.classification, 'instance-scoped-css-only');
     assert.equal(color?.status, 'record');
     assert.equal(color?.actual.stylesheetEvidence.matchCount, 1);
-    assert.ok(color?.actual.stateExercise.exerciseCounts.attempted > 0);
-    assert.ok(color?.actual.stateExercise.exerciseCounts.opened > 0);
-    assert.ok(color?.actual.stateExercise.exerciseCounts.restored > 0);
-    const hoverColor = report.checks.find((row) => row.id === 'written-color-2');
-    assert.equal(hoverColor?.status, 'pass', 'a visible instance-local hover target reveals the written color');
-    assert.equal(hoverColor?.classification, 'found-on-element');
-    assert.equal(hoverColor?.actual.stateExercise.revealedBy, 'hover');
-    const toggleColor = report.checks.find((row) => row.id === 'written-color-3');
-    assert.equal(toggleColor?.status, 'pass');
-    assert.equal(toggleColor?.actual.stateExercise.revealedBy, 'category-expanded');
+    assert.doesNotMatch(JSON.stringify(report), /stateExercise|revealedByState/);
+    assert.equal((result.stdout.match(/旧状态扫描参数已忽略/g) || []).length, 1);
     assert.equal(report.checks.find((row) => row.id === 'bss-button-bg')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'bss-pagination-current')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-matched-typography-mobile')?.status, 'pass');

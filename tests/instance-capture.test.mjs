@@ -103,7 +103,7 @@ test('real browser capture sanitizes DOM/CDP/CSS and the fixture CLI reconstruct
       assert.equal(bucket.omittedCount, bucket.consideredCount - bucket.decisions.length);
       assert.ok(bucket.decisions.every((row) => typeof row.reason === 'string' && row.path && row.tag));
     }
-    assert.ok(structure.finderDebug.finders.interaction.reasonCounts['no-controlled-or-collapsed-panel'] > 0);
+    assert.equal(structure.finderDebug.finders.interaction, undefined);
     assert.ok(structure.finderDebug.finders.image.reasonCounts['content-container-recognized'] > 0);
     assert.ok(structure.finderDebug.finders['nav-leaf'].reasonCounts['hierarchy-item-not-visible'] > 0);
     assert.ok(structure.finderDebug.finders['filter-option'].reasonCounts['no-native-or-aria-option-semantics'] > 0);

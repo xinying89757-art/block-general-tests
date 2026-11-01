@@ -121,7 +121,7 @@ node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<ru
 
 `block-style-spec` 画像中若只有 `recordOnly` 库存项，会按 `record` 输出这些待人工建立前台映射的能力，并继续执行通用视口布局检查。不要把设置库存标签当作前台 DOM 选择器。
 
-写入色检查统一扫描目标实例内的计算样式（含 `::before`/`::after`、SVG paint、outline、shadow、gradient）和链接/内联 CSS。JSON 结果只有三种颜色结论：`found-on-element` 为通过；`instance-scoped-css-only` 表示目标实例有匹配 CSS 规则但渲染样式未命中（`record`，带机器诊断中的规则选择器和属性，绝不算通过）；`absent` 为失败（已保存的颜色未在前台呈现）。颜色识别支持 rgb/rgba、3/6/8 位 hex、hsl/hsla。可用 `--include-stylesheets 0` 关闭样式表读取。可选 `--exercise-states 1` 会在扫描前对实例内交互元素做 hover/focus，并临时展开再还原原本关闭的 `<details>`；只切换实例内通过安全过滤的按钮/展开控件，不跟随链接、不提交表单，扫描后恢复，报告记录哪种状态首次显出颜色。前台 `checks[]` 按 id 去重，冲突时保留更保守的 fail/error。尺寸比较默认严格小于 2px 的差值才通过，因此 30px 对 28px 仍为 fail；可在画像 `styleSpec.tolerances.sizePx` 调整。颜色仍按精确归一化值比较。分页样式项声明 `scope.containerKind: "pagination"` 后，只在实例内语义分页容器中查找候选元素。
+写入色检查统一扫描目标实例内的计算样式（含 `::before`/`::after`、SVG paint、outline、shadow、gradient）和链接/内联 CSS。JSON 结果只有三种颜色结论：`found-on-element` 为通过；`instance-scoped-css-only` 表示目标实例有匹配 CSS 规则但渲染样式未命中（`record`，带机器诊断中的规则选择器和属性，绝不算通过）；`absent` 为失败（已保存的颜色未在前台呈现）。颜色识别支持 rgb/rgba、3/6/8 位 hex、hsl/hsla。可用 `--include-stylesheets 0` 关闭样式表读取。状态样式由设计清单的 `state` 字段指定，只操作清单映射的单个目标，读取后恢复；不进行实例范围的交互扫描。格式与安全限制见 [检查类型目录](docs/check-types.md#spec-targeted-states)。前台 `checks[]` 按 id 去重，冲突时保留更保守的 fail/error。尺寸比较默认严格小于 2px 的差值才通过，因此 30px 对 28px 仍为 fail；可在画像 `styleSpec.tolerances.sizePx` 调整。颜色仍按精确归一化值比较。分页样式项声明 `scope.containerKind: "pagination"` 后，只在实例内语义分页容器中查找候选元素。
 
 ## 安全和恢复的底线
 

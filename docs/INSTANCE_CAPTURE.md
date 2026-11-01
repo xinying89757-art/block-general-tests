@@ -10,7 +10,7 @@ node scripts/front-style-only.mjs --block <id> --url '<front-page-url>' \
 ```
 
 The block number and settingId come from the same arguments/run report used by
-all front checks. The runner captures PC and mobile before interaction exercise,
+all front checks. The runner captures PC and mobile before checks,
 then restores the PC viewport. It writes `pc.html`, `pc.json`, `pc.css` and the
 corresponding `mobile.*` files. Use a separate directory for each run/instance.
 The front report's `instanceCaptures` lists paths, counts, listener availability
@@ -63,10 +63,10 @@ caused by missing outside-page layout or fonts. This is a finder fixture, not a
 pixel-identical copy of the entire site.
 
 Finder diagnostics are always available in front JSON under `finderDebug.pc`
-and `.mobile`, and disclosure diagnostics also accompany state exercise. Each
+and `.mobile`. Each
 finder records considered/accepted/rejected counts, reason counts and a capped
 list of decisions (80 per finder, maximum configurable 200 in the shared reader),
-with omitted counts. The finders cover interaction/disclosure, content images,
+with omitted counts. The finders cover content images,
 hierarchy, parent/leaf navigation and filter options. Relevant shaped elements
 are retained before generic non-candidates when a list reaches its cap. These
 paths/classes/decisions are machine/debug data only; human summaries do not show

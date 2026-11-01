@@ -5,7 +5,7 @@ import { checkDesignRequirementEditor, checkDesignRequirementFront, extractWritt
 import { importExtractedDesignSpec } from '../scripts/import-design-spec.mjs';
 import { finalizeFrontStyleReport } from '../src/front-style-report.mjs';
 import { addStyleFailureReasons, breakageFindings, isMobileInstanceOverlap, mobileChecklistMode } from '../src/capabilities/block-style-spec.mjs';
-import { isCenteredImagePosition, isVisibleHoverStateTarget, runDesignSpecFrontChecks } from '../src/design-spec-checklist.mjs';
+import { isCenteredImagePosition, runDesignSpecFrontChecks } from '../src/design-spec-checklist.mjs';
 import { buildDesignHumanReview, listUnsupportedDesignRequirements, designCheckSupport, designRequirementPlan } from '../src/design-spec-checklist.mjs';
 
 const requirement = (overrides = {}) => ({ id: 'req-color', checkType: 'color-default', sourceText: 'A color',
@@ -134,13 +134,6 @@ test('image position recognizes centered object-position and background-position
       { ratio: 1, centered: true, backgroundPosition: '50% 50%', positionSource: 'background-position' },
     ] }) } });
   assert.equal(result.status, 'pass');
-});
-
-test('hover candidates must be visible instance descendants with an interaction or hover affordance', () => {
-  assert.equal(isVisibleHoverStateTarget({ visible: true, withinInstance: true, hoverAffordance: true }), true);
-  assert.equal(isVisibleHoverStateTarget({ visible: false, withinInstance: true, hoverAffordance: true }), false);
-  assert.equal(isVisibleHoverStateTarget({ visible: true, withinInstance: false, hoverAffordance: true }), false);
-  assert.equal(isVisibleHoverStateTarget({ visible: true, withinInstance: true }), false);
 });
 
 test('read, locate and compare check paths always receive specific string failure reasons', () => {

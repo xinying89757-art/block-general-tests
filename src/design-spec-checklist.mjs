@@ -1,3 +1,4 @@
+import { readSpecTargetState, specScopeMapping, validateSpecState } from './spec-target-state.mjs';
 import { markUniqueFrontInstance } from './front-instance-root.mjs';
 import { readInstanceStructure } from './front-structure.mjs';
 
@@ -163,7 +164,12 @@ export function validateDesignSpec(spec, profileId = '(unknown)') {
       if (item.expected && typeof item.expected === 'object' && (Object.hasOwn(item.expected, 'lineHeight') || Object.hasOwn(item.expected, 'line-height'))) {
         add(`${path}.expected.lineHeight`, 'line-height is informational only and cannot be a checklist assertion');
       }
-      if (Object.keys(item).some((key) => !['id', 'checkType', 'sourceText', 'expected', 'checkStage', 'params'].includes(key))) add(path, 'contains an unknown property');
+      if (item.state !== undefined) {
+        const invalid = validateSpecState(item.state);
+        if (invalid) add(`${path}.state`, invalid);
+        if (!['color-scope', 'typography'].includes(item.checkType) || item.checkStage !== 'front') add(`${path}.state`, 'state is supported only on front color-scope or typography items');
+      }
+      if (Object.keys(item).some((key) => !['id', 'checkType', 'sourceText', 'expected', 'checkStage', 'params', 'state'].includes(key))) add(path, 'contains an unknown property');
     });
   }
   const checkOverrides = (key, allowedStatus) => {
@@ -1082,6 +1088,40 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
   if (override) return checkResult(requirement, 'na', { classification: 'known-exception',
     detail: `已知例外：${override.reason}`, reason: { code: 'waived', reason: override.reason } });
   if (!['front', 'both'].includes(requirement.checkStage)) return null;
+  if (requirement.state) {
+    if (!page || !rootSelector) return checkResult(requirement, 'na', { detail: '目标区块实例不可用。', reason: { code: 'spec-state-instance-unavailable' } });
+    if (!['color-scope', 'typography'].includes(requirement.checkType)) return checkResult(requirement, 'fail', {
+      detail: '此检查类型不支持状态操作。', reason: { code: 'spec-state-check-type-unsupported' } });
+    const mapping = specScopeMapping(requirement, profile);
+    const typography = requirement.checkType === 'typography';
+    const properties = typography ? TYPOGRAPHY_PROPERTIES.filter((key) => requirement.expected?.[key] !== undefined)
+      : [requirement.params?.property || requirement.expected?.property || (mapping.properties.filter((key) => /color$/i.test(key) || ['fill', 'stroke'].includes(key)).length === 1
+        ? mapping.properties.find((key) => /color$/i.test(key) || ['fill', 'stroke'].includes(key)) : null)].filter(Boolean);
+    if (!properties.length) return checkResult(requirement, 'na', { detail: '状态范围没有明确的比较属性。', reason: { code: 'spec-state-property-unmapped' } });
+    try {
+      const { observation, evidence } = await readSpecTargetState({ page, rootSelector, requirement, profile, properties });
+      if (typography) {
+        const compared = compareTypographyRequirement(requirement.expected, [observation]);
+        return checkResult(requirement, compared.status, { expected: compared.expected, actual: compared.actual,
+          detail: compared.status === 'pass' ? '指定状态下文字属性符合清单。' : '指定状态下文字属性与清单不一致。',
+          reason: { ...compared.reason, state: evidence } });
+      }
+      const written = writtenColorForScope(requirement, settingsReport);
+      if (!written && paletteScopeWasOverwritten(requirement, settingsReport)) return checkResult(requirement, 'na', {
+        actual: observation, detail: '本次改写的配色无法唯一对应此范围。', reason: { code: 'written-scope-color-not-unique', state: evidence } });
+      const expected = written?.value ?? requirement.expected?.value;
+      const readable = properties.every((property) => Boolean(normalizeDesignColor(observation[property])));
+      const pass = readable && properties.every((property) => normalizeDesignColor(observation[property]) === normalizeDesignColor(expected));
+      return checkResult(requirement, readable ? pass ? 'pass' : 'fail' : 'na', {
+        expected: { ...requirement.expected, value: expected }, actual: observation,
+        detail: pass ? '指定状态下颜色符合清单。' : readable ? '指定状态下颜色与期望不一致。' : '指定状态下颜色属性不可读。',
+        reason: { code: pass ? 'spec-state-color-matched' : readable ? 'spec-state-color-mismatch' : 'spec-state-color-unreadable',
+          expectedSource: written?.source || 'designSpec.requirement.expected.value', propertiesChecked: properties, state: evidence } });
+    } catch (error) {
+      return checkResult(requirement, 'fail', { detail: '指定状态检查未能安全完成。', reason: {
+        code: error.code || 'spec-state-action-failed', state: error.evidence || { kind: requirement.state.kind } } });
+    }
+  }
   if (requirement.checkType === 'color-scope' || requirement.checkType === 'typography') {
     if (requirement.checkType === 'typography'
       && !TYPOGRAPHY_PROPERTIES.some((property) => requirement.expected?.[property] !== undefined)
@@ -1263,7 +1303,7 @@ export async function runWrittenColorFrontChecks(options = {}) {
     const code = rootCount === 0 ? 'instance-root-missing' : 'instance-root-not-unique';
     return values.map((item) => ({ id: item.id, name: '本次写入颜色前台回读', status: 'record',
       classification: code, expected: item.value,
-      actual: { rootCount, stylesheetScan: 'not-run', stateExercise: 'not-run' },
+      actual: { rootCount, stylesheetScan: 'not-run' },
       detail: rootCount === 0 ? '目标区块实例根节点不可用，颜色结果无法判为 absent。'
         : '目标区块实例根节点不唯一，颜色结果无法判定。',
       reason: { stage: 'front', code, expectedSource: 'run-report.currentValues', controlIndex: item.controlIndex } }));
@@ -1273,7 +1313,7 @@ export async function runWrittenColorFrontChecks(options = {}) {
 }
 
 async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsReport, includeStylesheets = true,
-  fetchStylesheet, fetchNode, stateExercise = false, stateActionTimeoutMs = 4000, stateOverallTimeoutMs = 45000,
+  fetchStylesheet, fetchNode,
   onProgress }) {
   const values = extractWrittenColorValues(settingsReport);
   if (!values.length) return [{ id: 'written-color-presence', name: '本次写入颜色前台回读', status: 'na',
@@ -1282,13 +1322,6 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
     expected: item.value, detail: '目标区块前台实例不可达。', reason: { stage: 'front', code: 'instance-root-unavailable',
       expectedSource: 'run-report.currentValues', controlIndex: item.controlIndex } }));
   const checks = [];
-  const emptyExerciseCounts = { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
-    tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 };
-  const stateEvidence = stateExercise
-    ? await exerciseWrittenColorStates(page, rootSelector, values, { actionTimeoutMs: stateActionTimeoutMs,
-      overallTimeoutMs: stateOverallTimeoutMs, onProgress }).catch((error) => ({ states: [], candidateCount: 0,
-      disclosureCount: 0, exerciseCounts: emptyExerciseCounts, revealed: {}, error: { class: error?.name || 'Error', code: 'state-exercise-unavailable' } }))
-    : { states: [], candidateCount: 0, disclosureCount: 0, exerciseCounts: emptyExerciseCounts, revealed: {} };
   // Fetch/parse linked CSS before assigning an absent verdict. Cross-origin
   // CSSOM failures are retried through the page context's request client.
   const stylesheetScan = includeStylesheets
@@ -1297,7 +1330,6 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
   for (const item of values) {
     onProgress?.(`written-color-check-start id=${item.id}`);
     const snapshot = await readInstanceColorSnapshot(page, rootSelector);
-    const stateMatch = stateEvidence.revealed[item.id];
     const matches = countInstanceColorMatches(snapshot, item.value);
     const cssEvidence = stylesheetScan.evidenceById[item.id] || { sheetCount: stylesheetScan.sheetCount,
       ruleCount: stylesheetScan.ruleCount, fetchFailureCount: stylesheetScan.fetchFailureCount,
@@ -1311,7 +1343,7 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
       fetchFailures: stylesheetScan.fetchFailures || [], unreadableSheets: stylesheetScan.unreadableSheets || [],
       recoveredFetches: stylesheetScan.recoveredFetches || [], excludedSheets: stylesheetScan.excludedSheets || [],
       matchCount: 0, rules: [] };
-    const foundOnElement = snapshot.rootCount === 1 && (matches > 0 || Boolean(stateMatch));
+    const foundOnElement = snapshot.rootCount === 1 && matches > 0;
     const cssOnly = !foundOnElement && cssEvidence.matchCount > 0;
     // A terminal fetch failure matters only while the sheet could still hold a
     // selector for this instance. Successfully fetched non-matching sheets and
@@ -1321,7 +1353,7 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
       : foundOnElement ? 'found-on-element' : cssOnly ? 'instance-scoped-css-only'
       : stylesheetIncomplete ? 'inconclusive-stylesheet-unavailable' : 'absent';
     const actual = { rootCount: snapshot.rootCount, elementCount: snapshot.styles.length,
-      matches: matches || stateMatch?.matches || 0,
+      matches,
       stylesheetEvidence: { sheetCount: cssEvidence.sheetCount, ruleCount: cssEvidence.ruleCount,
         fetchFailureCount: cssEvidence.fetchFailureCount, recoveredFetchCount: cssEvidence.recoveredFetchCount || 0,
         matchCount: cssEvidence.matchCount,
@@ -1335,18 +1367,8 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
         inlineAttributeCount: cssEvidence.inlineAttributeCount || 0,
         fetchFailures: cssEvidence.fetchFailures || [], unreadableSheets: cssEvidence.unreadableSheets || [],
         recoveredFetches: cssEvidence.recoveredFetches || [], excludedSheets: cssEvidence.excludedSheets || [],
-        ...(cssEvidence.matchCount ? { rules: cssEvidence.rules } : {}) },
-      stateExercise: { enabled: Boolean(stateExercise), states: stateEvidence.states,
-        candidateDiagnostics: stateEvidence.candidateDiagnostics || [],
-        ...(stateEvidence.finderDebug ? { finderDebug: stateEvidence.finderDebug } : {}),
-        rejectedCandidates: stateEvidence.rejectedCandidates || [],
-        notExercised: stateEvidence.notExercised || [], timedOut: Boolean(stateEvidence.timedOut),
-        candidateCount: stateEvidence.candidateCount, disclosureCount: stateEvidence.disclosureCount,
-        exerciseCounts: stateEvidence.exerciseCounts || { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0,
-          toggleCandidates: 0, togglesOpened: 0, tabCandidates: 0, tabsSelected: 0,
-          detailsCandidates: stateEvidence.disclosureCount || 0, detailsOpened: 0 },
-        revealedBy: stateMatch?.state || null,
-        ...(stateEvidence.error ? { error: stateEvidence.error } : {}) } };
+        ...(cssEvidence.matchCount ? { rules: cssEvidence.rules } : {}) } };
+
     checks.push({ id: item.id, name: '本次写入颜色前台回读', status: outcome === 'found-on-element' ? 'pass'
       : ['instance-scoped-css-only', 'inconclusive-stylesheet-unavailable', 'instance-root-missing'].includes(outcome) ? 'record' : 'fail',
       classification: outcome, expected: item.value, actual,
@@ -1358,412 +1380,10 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
       reason: { stage: 'front', code: outcome,
         expectedSource: 'run-report.currentValues', controlIndex: item.controlIndex,
         propertiesChecked: ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'outlineColor', 'boxShadow',
-          'backgroundImage', '::before', '::after'],
-        ...(stateMatch ? { revealedByState: stateMatch.state } : {}) } });
+          'backgroundImage', '::before', '::after'] } });
     onProgress?.(`written-color-check-complete id=${item.id} status=${checks.at(-1).status}`);
   }
   return checks;
-}
-
-export function isSafeStateExerciseTarget(info = {}) {
-  return info.visible === true && (info.tag !== 'a' || info.nonNavigatingAnchor === true) && info.hasHref !== true
-    && info.navigationAncestor !== true
-    && info.insideForm !== true && info.submitControl !== true
-    && Boolean(info.hasExplicitToggle || info.hasDisclosure || info.hiddenSiblingIndexes?.length || info.isTab);
-}
-
-export function isVisibleHoverStateTarget(info = {}) {
-  return info.visible === true && info.withinInstance !== false
-    && Boolean(info.hoverAffordance || info.pointerAction || info.hasClickHandler || info.hasExplicitToggle
-      || info.semantic || info.nativeButton);
-}
-
-// Serialized in the browser: read DOM state rather than waiting for an ARIA
-// attribute that many slideToggle/class-based widgets never implement.
-export function readStateControlDom(element, rootSelector) {
-  const root = rootSelector ? document.querySelector(rootSelector) : null;
-  const owner = element.closest('li,[role="treeitem"]') || element.parentElement;
-  const controlled = (element.getAttribute('aria-controls') || '').split(/\s+/).filter(Boolean).map((id) => document.getElementById(id));
-  const scopes = [element, owner, element.nextElementSibling, owner?.nextElementSibling, ...controlled]
-    .filter((node) => node && (!root || node === root || root.contains(node)));
-  const nodes = [...new Set(scopes.flatMap((node) => [node, ...node.querySelectorAll('*')]))];
-  return JSON.stringify(nodes.map((node) => ({
-    tag: node.tagName, class: String(node.getAttribute('class') || '').trim().split(/\s+/).filter(Boolean).sort().join(' '), expanded: node.getAttribute('aria-expanded'),
-    selected: node.getAttribute('aria-selected'), hidden: node.hidden, ariaHidden: node.getAttribute('aria-hidden'),
-    display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility,
-    width: Math.round(node.getBoundingClientRect().width * 10) / 10,
-    height: Math.round(node.getBoundingClientRect().height * 10) / 10,
-  })));
-}
-
-function beginStateControlObservation(element, rootSelector) {
-  element.__frontStateObservation?.observer.disconnect();
-  const root = document.querySelector(rootSelector);
-  const owner = element.closest('li,[role="treeitem"]') || element.parentElement;
-  const controlled = (element.getAttribute('aria-controls') || '').split(/\s+/).filter(Boolean).map((id) => document.getElementById(id));
-  const scopes = [...new Set([element, owner, element.nextElementSibling, owner?.nextElementSibling, ...controlled])]
-    .filter((node) => node && (node === root || root?.contains(node)));
-  const state = { mutationCount: 0, lastMutation: Date.now(), scopes, observer: null };
-  state.observer = new MutationObserver((records) => { state.mutationCount += records.length; state.lastMutation = Date.now(); });
-  for (const node of scopes) state.observer.observe(node, { subtree: true, attributes: true, childList: true });
-  element.__frontStateObservation = state;
-}
-
-function finishStateControlObservation(element, { animationWaitMs = 250, maxWaitMs = 1000 } = {}) {
-  const state = element.__frontStateObservation;
-  if (!state) return { mutationCount: 0, waitedMs: 0, settled: false };
-  const started = Date.now();
-  return new Promise((resolve) => {
-    let previous = '';
-    const poll = () => {
-      const dimensions = JSON.stringify(state.scopes.map((node) => {
-        const rect = node.getBoundingClientRect(); return [Math.round(rect.width * 10), Math.round(rect.height * 10)];
-      }));
-      const activeAnimations = state.scopes.flatMap((node) => node.getAnimations?.({ subtree: true }) || [])
-        .filter((animation) => animation.playState === 'running').length;
-      const elapsed = Date.now() - started;
-      const settled = elapsed >= animationWaitMs && dimensions === previous && Date.now() - state.lastMutation >= 80 && !activeAnimations;
-      previous = dimensions;
-      if (settled || elapsed >= maxWaitMs) {
-        state.observer.disconnect(); delete element.__frontStateObservation;
-        resolve({ mutationCount: state.mutationCount, waitedMs: elapsed, activeAnimations, settled });
-      } else setTimeout(poll, 40);
-    };
-    poll();
-  });
-}
-
-export async function exerciseWrittenColorStates(page, rootSelector, values, { maxElements = 200,
-  actionTimeoutMs = 4000, overallTimeoutMs = 45000, onProgress } = {}) {
-  let timer;
-  const control = { timedOut: null };
-  const work = exerciseWrittenColorStatesInner(page, rootSelector, values, { maxElements, actionTimeoutMs, control, onProgress });
-  try {
-    return await Promise.race([work, new Promise((resolve) => { timer = setTimeout(() => {
-      control.timedOut = { action: 'overall-timeout', timeoutMs: overallTimeoutMs };
-      resolve({
-      states: [], candidateCount: 0, disclosureCount: 0,
-      exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
-        tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealed: {}, timedOut: true,
-      notExercised: [{ state: 'remaining-states', status: 'not-exercised', reason: {
-        code: 'state-exercise-overall-timeout', timeoutMs: overallTimeoutMs } }],
-    }); }, overallTimeoutMs); })]);
-  } catch (error) {
-    if (!error?.stateActionTimeout) throw error;
-    return { states: [], candidateCount: 0, disclosureCount: 0,
-      exerciseCounts: { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
-        tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 }, revealed: {}, timedOut: true,
-      notExercised: [{ state: 'remaining-states', status: 'not-exercised', reason: {
-        code: 'state-exercise-action-timeout', action: String(error.message || 'unknown').slice(0, 80),
-        timeoutMs: actionTimeoutMs } }] };
-  } finally { clearTimeout(timer); }
-}
-
-async function exerciseWrittenColorStatesInner(page, rootSelector, values, { maxElements = 200, actionTimeoutMs = 4000,
-  control = { timedOut: null }, onProgress } = {}) {
-  let actionTimedOut = null;
-  const timedOut = () => actionTimedOut || control.timedOut;
-  const action = async (name, operation, { recoverable = false, timeoutMs = actionTimeoutMs } = {}) => {
-    if (timedOut()) throw Object.assign(new Error(`State exercise stopped after timed out action: ${timedOut().action}`),
-      { stateActionTimeout: true });
-    let timer;
-    try { return await Promise.race([Promise.resolve().then(operation), new Promise((_, reject) => { timer = setTimeout(() => {
-      if (!recoverable) { actionTimedOut = { action: name, timeoutMs }; control.timedOut = actionTimedOut; }
-      reject(Object.assign(new Error(`State action timed out: ${name}`), { stateActionTimeout: true }));
-    }, timeoutMs); })]); } finally { clearTimeout(timer); }
-  };
-  const root = page.locator(rootSelector);
-  const candidates = root.locator('*');
-  const count = Math.min(await action('count-elements', () => candidates.count()), maxElements);
-  const revealed = {};
-  const states = new Set();
-  const candidateDiagnostics = [];
-  const rejectedCandidates = [];
-  const rejectCandidate = (stage, info, reason) => {
-    if (rejectedCandidates.length < 80) rejectedCandidates.push({ stage, tag: info?.tag || null,
-      rect: info?.rect || info?.candidate?.rect || null, reason });
-  };
-  const notExercised = [];
-  const activate = async (target, diagnostic, restoring = false) => {
-    const prefix = restoring ? 'restore' : 'activate';
-    try {
-      await action(`${prefix}-toggle-trial`, () => target.click({ trial: true, force: false, timeout: actionTimeoutMs, noWaitAfter: true }),
-        { recoverable: true, timeoutMs: actionTimeoutMs + Math.min(100, actionTimeoutMs / 10) });
-      diagnostic[restoring ? 'restoreTrial' : 'trial'] = { status: 'passed' };
-      await action(`${prefix}-toggle`, () => target.click({ force: false, timeout: actionTimeoutMs, noWaitAfter: true }),
-        { recoverable: true, timeoutMs: actionTimeoutMs + Math.min(100, actionTimeoutMs / 10) });
-      diagnostic[restoring ? 'restoreMethod' : 'clickMethod'] = 'playwright';
-    } catch (error) {
-      if (!(error?.stateActionTimeout || error?.name === 'TimeoutError' || /timeout|timed out/i.test(error?.message || ''))) throw error;
-      diagnostic[restoring ? 'restoreTrial' : 'trial'] = { status: 'timeout', errorClass: error?.name || 'Error' };
-      const clicked = await action(`${prefix}-toggle-dom-fallback`, () => target.evaluate((element, rootSelector) => {
-        const root = document.querySelector(rootSelector);
-        const link = element.closest('a[href],area[href]');
-        const navigates = link && !/^\s*(?:javascript:\s*void\s*\(\s*0\s*\)\s*;?)?\s*$/i.test(link.getAttribute('href') || '');
-        if (!root?.contains(element) || navigates || element.closest('form') || element.form
-          || /^(submit|reset|image)$/i.test(element.getAttribute('type') || '')) return false;
-        element.click(); return true;
-      }, rootSelector), { recoverable: true });
-      if (clicked !== true) throw new Error('State DOM click fallback failed the instance/safety check.');
-      diagnostic[restoring ? 'restoreMethod' : 'clickMethod'] = 'dom-click-after-actionability-timeout';
-    }
-  };
-  const exerciseCounts = { eligibleCandidates: 0, attempted: 0, opened: 0, restored: 0, toggleCandidates: 0, togglesOpened: 0,
-    tabCandidates: 0, tabsSelected: 0, detailsCandidates: 0, detailsOpened: 0 };
-  const scan = async (state) => {
-    const snapshot = await action(`scan-${state}`, () => readInstanceColorSnapshot(page, rootSelector));
-    for (const value of values) {
-      const matches = countInstanceColorMatches(snapshot, value.value);
-      if (!revealed[value.id] && matches > 0) revealed[value.id] = { state, matches };
-    }
-  };
-  for (let index = 0; index < count && !timedOut(); index += 1) {
-    const candidate = candidates.nth(index);
-    let hoverEligible = false;
-    let hoverInfo;
-    try {
-      hoverInfo = await action('inspect-hover-target', () => candidate.evaluate((element) => {
-        const tag = element.tagName?.toLowerCase();
-        const style = getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        const visible = element.getClientRects().length > 0 && rect.width > 0 && rect.height > 0
-          && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0;
-        const role = element.getAttribute('role');
-        const explicit = element.hasAttribute('aria-expanded') || element.hasAttribute('aria-haspopup');
-        const parentCursor = element.parentElement ? getComputedStyle(element.parentElement).cursor : '';
-        const pointerAction = style.cursor === 'pointer' && (element.style.cursor === 'pointer' || parentCursor !== 'pointer');
-        const clickHandler = typeof element.onclick === 'function' || element.hasAttribute('onclick');
-        const semantic = ['button', 'tab', 'option', 'combobox'].includes(role);
-        const nativeButton = ['button', 'select', 'summary'].includes(tag);
-        return { tag, role, visible, withinInstance: true, pointerAction, clickHandler,
-          hoverAffordance: pointerAction || explicit || semantic || nativeButton || clickHandler,
-          nativeButton, focusable: element.tabIndex >= 0,
-          tabIndex: element.tabIndex >= 0, explicit, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } };
-      }));
-      hoverEligible = isVisibleHoverStateTarget(hoverInfo);
-    } catch {}
-    if (!hoverEligible) { rejectCandidate('hover', hoverInfo, !hoverInfo ? 'hover-metadata-unreadable'
-      : !hoverInfo.visible ? 'hover-target-not-visible' : 'no-hover-affordance'); continue; }
-    try {
-      // Playwright's locator.hover waits for full actionability and may wait on
-      // scroll/animation indefinitely in complex front-end widgets. Move the
-      // pointer directly after a bounded scroll instead; this does not wait for
-      // navigation and still produces the real CSS :hover state.
-      await action('hover-scroll', () => candidate.scrollIntoViewIfNeeded({ timeout: actionTimeoutMs }));
-      const box = await action('hover-bounds', () => candidate.boundingBox());
-      if (box && page.mouse?.move) {
-        await action('hover-pointer-move', () => page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 2 }));
-        states.add('hover'); await scan('hover');
-      }
-    } catch {}
-    if (hoverInfo?.focusable) try {
-      await action('focus', () => candidate.focus({ timeout: actionTimeoutMs })); states.add('focus'); await scan('focus');
-    } catch {}
-    try {
-      const tagName = await action('read-control-type', () => candidate.evaluate((element) => element.tagName));
-      if (String(tagName).toUpperCase() === 'SELECT') {
-        exerciseCounts.attempted += 1;
-        const opened = await action('open-native-picker', () => candidate.evaluate((element) => {
-          if (typeof element.showPicker !== 'function') return false;
-          element.showPicker();
-          return true;
-        }));
-        if (!opened) continue;
-        exerciseCounts.opened += 1;
-        states.add('select-open');
-        await scan('select-open');
-        await action('close-native-picker', () => candidate.press('Escape', { timeout: Math.min(1000, actionTimeoutMs) }));
-        exerciseCounts.restored += 1;
-      }
-    } catch {}
-    try { await action('neutral-pointer', () => page.mouse?.move(0, 0)); } catch {}
-  }
-
-  // Open only controls rooted in this instance. Never activate links, submit
-  // controls, or anything inside a form. Pointer-only elements are eligible
-  // only when they cannot navigate or submit.
-  const structure = timedOut() ? null : await action('find-disclosures', () => page.evaluate(readInstanceStructure, { rootSelector }));
-  const discovered = Array.isArray(structure?.disclosures) ? structure.disclosures : null;
-  const stateControls = root.locator('*');
-  const stateCount = timedOut() ? 0 : discovered ? Math.min(discovered.length, maxElements)
-    : Math.min(await action('count-state-controls', () => stateControls.count()), maxElements);
-  const selectedTabs = [];
-  const exercisedTargets = new Set();
-  for (let index = 0; index < stateCount && !timedOut(); index += 1) {
-    let control = discovered ? root.locator(discovered[index].path) : stateControls.nth(index);
-    let info;
-    try { info = await action('inspect-toggle', () => control.evaluate((element, { rootSelector, targetToken }) => {
-      const root = document.querySelector(rootSelector);
-      const describe = (node) => { const rect = node.getBoundingClientRect(); return { tag: node.tagName.toLowerCase(),
-        className: String(node.getAttribute('class') || '').slice(0, 180),
-        rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } }; };
-      const candidate = describe(element);
-      // Descendants inherit cursor:pointer from links. Resolve the real action
-      // owner before deciding whether activation is safe; clicking a nested
-      // span in a product/category link would navigate away from the instance.
-      const owner = element.closest('button,a,[role="button"]');
-      if (owner && getComputedStyle(owner).cursor === 'pointer') element = owner;
-      const path = [];
-      for (let node = element; node && node !== root; node = node.parentElement) {
-        path.unshift(`:nth-child(${[...node.parentElement.children].indexOf(node) + 1})`);
-      }
-      const tag = element.tagName.toLowerCase();
-      const role = element.getAttribute('role');
-      const type = element.getAttribute('type');
-      const insideForm = Boolean(element.closest('form') || element.form);
-      const isTab = role === 'tab';
-      const hasExplicitToggle = element.hasAttribute('aria-expanded') || element.hasAttribute('aria-controls');
-      const semantic = ['button', 'tab', 'combobox'].includes(role);
-      const nativeButton = tag === 'button' && !['submit', 'reset'].includes(type) && !insideForm;
-      const pointerAction = getComputedStyle(element).cursor === 'pointer';
-      const hasClickHandler = typeof element.onclick === 'function' || element.hasAttribute('onclick');
-      const hiddenSiblingIndexes = [...(element.parentElement?.children || [])].map((sibling, index) => ({ sibling, index }))
-        .filter(({ sibling }) => {
-        if (sibling === element) return false;
-        const siblingStyle = getComputedStyle(sibling);
-        return sibling.hidden || sibling.getAttribute('aria-hidden') === 'true'
-          || siblingStyle.display === 'none' || siblingStyle.visibility === 'hidden';
-      }).map(({ index }) => index);
-      const submitControl = (tag === 'button' || tag === 'input') && ['submit', 'reset', 'image'].includes(type);
-      const link = element.closest('a[href],area[href]');
-      const navigatingLink = Boolean(link && !/^\s*(?:javascript:\s*void\s*\(\s*0\s*\)\s*;?)?\s*$/i.test(link.getAttribute('href') || ''));
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      const visible = element.getClientRects().length > 0 && rect.width > 0 && rect.height > 0 && style.display !== 'none'
-        && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0;
-      if (root?.contains(element)) element.setAttribute('data-front-state-click-target', targetToken);
-      return { tag, visible: visible && Boolean(root?.contains(element)), targetPath: `:scope > ${path.join(' > ')}`,
-        targetToken, candidate, clickTarget: describe(element),
-        nonNavigatingAnchor: tag === 'a' && !navigatingLink,
-        hasHref: navigatingLink, navigationAncestor: navigatingLink,
-        insideForm, submitControl,
-        hasExplicitToggle, semantic, nativeButton, hasClickHandler, hiddenSiblingIndexes, isTab, isSelect: tag === 'select',
-        isDetails: tag === 'details' || tag === 'summary', pointerAction,
-        expanded: element.getAttribute('aria-expanded'), hasPopup: element.hasAttribute('aria-haspopup'),
-        selected: element.getAttribute('aria-selected'), type };
-    }, { rootSelector, targetToken: `state-${Date.now()}-${index}` })); } catch { continue; }
-    info.hasDisclosure = Boolean(discovered?.[index]?.evidence?.length);
-    info.safe = isSafeStateExerciseTarget(info);
-    if (!info.safe) { rejectCandidate('disclosure', info, info.hasHref || info.navigationAncestor ? 'navigation-link'
-      : info.insideForm || info.submitControl ? 'form-or-submit-control' : !info.visible ? 'click-owner-not-visible'
-        : 'no-safe-disclosure-semantics'); continue; }
-    if (info.targetPath) {
-      if (exercisedTargets.has(info.targetPath)) { rejectCandidate('disclosure', info, 'duplicate-click-owner'); continue; }
-      exercisedTargets.add(info.targetPath);
-      control = root.locator(info.targetToken ? `[data-front-state-click-target="${info.targetToken}"]` : info.targetPath);
-    }
-    try {
-      if (control.scrollIntoViewIfNeeded) await action('disclosure-scroll-into-view', () => control.scrollIntoViewIfNeeded({ timeout: actionTimeoutMs }), { recoverable: true });
-      const current = await action('disclosure-onscreen', () => control.evaluate((element) => {
-        const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
-        return { onScreen: rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.left >= 0
-          && rect.bottom <= innerHeight && rect.right <= innerWidth && style.visibility !== 'hidden'
-          && style.display !== 'none' && Number(style.opacity || 1) > 0,
-        rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } };
-      }));
-      if (current?.onScreen === false) { notExercised.push({ state: 'category-expanded', status: 'not-exercised', reason: { code: 'disclosure-offscreen-after-scroll' } }); continue; }
-      if (current?.rect && info.clickTarget) info.clickTarget.rect = current.rect;
-    } catch { notExercised.push({ state: 'category-expanded', status: 'not-exercised', reason: { code: 'disclosure-scroll-or-visibility-unavailable' } }); continue; }
-    exerciseCounts.eligibleCandidates += 1;
-    const diagnostic = { candidate: info.candidate || { tag: info.tag }, clickTarget: info.clickTarget || { tag: info.tag },
-      status: 'not-exercised', disclosureEvidence: discovered?.[index]?.evidence || [] };
-    candidateDiagnostics.push(diagnostic);
-    onProgress?.(`state-candidate ${JSON.stringify({ candidate: diagnostic.candidate, clickTarget: diagnostic.clickTarget })}`);
-    if (info.isSelect || info.isDetails) continue; // handled without choosing/changing a value below
-    if (info.isTab) {
-      exerciseCounts.tabCandidates += 1;
-      if (info.selected === 'true') { diagnostic.status = 'already-selected'; selectedTabs.push({ control, diagnostic }); continue; }
-      try {
-        exerciseCounts.attempted += 1;
-        const before = await action('read-tab-dom', () => control.evaluate(readStateControlDom, rootSelector));
-        await action('observe-tab', () => control.evaluate(beginStateControlObservation, rootSelector));
-        await activate(control, diagnostic);
-        await action('settle-tab-animation', () => control.evaluate(finishStateControlObservation, {
-          animationWaitMs: Math.min(1500, actionTimeoutMs / 2), maxWaitMs: Math.min(1800, actionTimeoutMs * 0.8) }));
-        const after = await action('read-tab-dom-change', () => control.evaluate(readStateControlDom, rootSelector));
-        if (JSON.stringify(before) !== JSON.stringify(after)) {
-          diagnostic.status = 'opened'; exerciseCounts.opened += 1;
-          states.add('tab-selected'); exerciseCounts.tabsSelected += 1; await scan('tab-selected');
-        } else diagnostic.reason = 'no-controlled-or-sibling-panel-change';
-      } catch {}
-      continue;
-    }
-    exerciseCounts.toggleCandidates += 1;
-    let before;
-    let changed = false;
-    try {
-      if (info.expanded === 'true') { diagnostic.status = 'already-open'; await scan('category-expanded'); continue; }
-      exerciseCounts.attempted += 1;
-      before = await action('read-toggle-dom', () => control.evaluate(readStateControlDom, rootSelector));
-      await action('observe-toggle', () => control.evaluate(beginStateControlObservation, rootSelector));
-      await activate(control, diagnostic);
-      const observation = await action('settle-toggle-animation', () => control.evaluate(finishStateControlObservation, {
-        animationWaitMs: Math.min(1500, actionTimeoutMs / 2), maxWaitMs: Math.min(1800, actionTimeoutMs * 0.8) }));
-      diagnostic.observation = { mutationCount: observation?.mutationCount || 0, waitedMs: observation?.waitedMs || 0,
-        settled: observation?.settled === true };
-      const after = await action('read-toggle-dom-change', () => control.evaluate(readStateControlDom, rootSelector));
-      changed = JSON.stringify(before) !== JSON.stringify(after);
-      if (changed) {
-        exerciseCounts.opened += 1;
-        diagnostic.status = 'opened';
-        states.add('category-expanded'); exerciseCounts.togglesOpened += 1;
-        await scan('category-expanded');
-      } else {
-        diagnostic.reason = 'no-controlled-or-sibling-panel-change';
-        notExercised.push({ state: 'category-expanded', status: 'not-exercised', reason: { code: diagnostic.reason } });
-      }
-    } catch (error) {
-      diagnostic.status = 'not-exercised';
-      diagnostic.reason = error?.stateActionTimeout || error?.name === 'TimeoutError' ? 'state-exercise-action-timeout' : 'state-exercise-activation-error';
-      diagnostic.errorClass = error?.name || 'Error';
-      notExercised.push({ state: 'category-expanded', status: 'not-exercised', reason: { code: diagnostic.reason } });
-    } finally {
-      if (changed && !timedOut()) try {
-        await action('observe-toggle-restore', () => control.evaluate(beginStateControlObservation, rootSelector));
-        await activate(control, diagnostic, true);
-        await action('settle-toggle-restore', () => control.evaluate(finishStateControlObservation, {
-          animationWaitMs: Math.min(1500, actionTimeoutMs / 2), maxWaitMs: Math.min(1800, actionTimeoutMs * 0.8) }));
-        const restored = await action('read-restored-dom', () => control.evaluate(readStateControlDom, rootSelector));
-        diagnostic.restored = JSON.stringify(restored) === JSON.stringify(before);
-        if (diagnostic.restored) exerciseCounts.restored += 1;
-      } catch { diagnostic.restored = false; }
-    }
-  }
-  for (const selected of selectedTabs) try {
-    if (timedOut()) break;
-    await activate(selected.control, selected.diagnostic, true);
-    exerciseCounts.restored += 1;
-  } catch {}
-
-  const details = root.locator('details');
-  const detailsCount = timedOut() ? 0 : Math.min(await action('count-disclosures', () => details.count()), maxElements);
-  exerciseCounts.detailsCandidates = detailsCount;
-  for (let index = 0; index < detailsCount && !timedOut(); index += 1) {
-    const item = details.nth(index);
-    try {
-      const state = await action('read-disclosure-state', () => item.evaluate((element) => ({ open: element.open,
-        visible: getComputedStyle(element).display !== 'none' && getComputedStyle(element).visibility !== 'hidden' })));
-      if (!state.visible || state.open) continue;
-      await action('open-disclosure', () => item.evaluate((element) => { element.open = true; }));
-      states.add('disclosure-open');
-      exerciseCounts.detailsOpened += 1;
-      exerciseCounts.attempted += 1;
-      exerciseCounts.opened += 1;
-      await scan('disclosure-open');
-      await action('close-disclosure', () => item.evaluate((element) => { element.open = false; }));
-      if (!(await action('verify-disclosure-restored', () => item.evaluate((element) => element.open)))) exerciseCounts.restored += 1;
-    } catch { try { await action('restore-disclosure-after-error', () => item.evaluate((element) => { element.open = false; })); } catch {} }
-  }
-  if (!timedOut()) try { await action('clear-focus', () => page.evaluate(() => document.activeElement?.blur?.())); } catch {}
-  if (!timedOut()) try { await action('clear-state-markers', () => root.locator('[data-front-state-click-target]').evaluateAll((nodes) => {
-    for (const node of nodes) { node.__frontStateObservation?.observer.disconnect(); delete node.__frontStateObservation;
-      node.removeAttribute('data-front-state-click-target'); }
-  })); } catch {}
-  return { states: [...states], candidateCount: count, disclosureCount: detailsCount, exerciseCounts, revealed, candidateDiagnostics,
-    ...(structure?.finderDebug ? { finderDebug: structure.finderDebug } : {}), rejectedCandidates,
-    ...(timedOut() ? { timedOut: true } : {}),
-    notExercised: [...notExercised, ...(timedOut() ? [{ state: 'remaining-states', status: 'not-exercised', reason: {
-      code: timedOut().action === 'overall-timeout' ? 'state-exercise-overall-timeout' : 'state-exercise-action-timeout', ...timedOut() } }] : [])] };
 }
 
 export async function runDesignSpecEditorChecks(profile, inventory) {

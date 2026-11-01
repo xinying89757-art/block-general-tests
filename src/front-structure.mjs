@@ -2,7 +2,7 @@
 // and geometry/state metadata; profiles continue to own expected values.
 export function readInstanceStructure({ rootSelector, contentContainerSelector, imageMode = 'all', imageSelectors = [], hierarchySelectors = [], debugLimit = 80 } = {}) {
   const roots = document.querySelectorAll(rootSelector);
-  if (roots.length !== 1) return { rootFound: false, rootCount: roots.length, hierarchy: [], images: [], options: [], disclosures: [] };
+  if (roots.length !== 1) return { rootFound: false, rootCount: roots.length, hierarchy: [], images: [], options: [] };
   const root = roots[0];
   const all = [...root.querySelectorAll('*')];
   const path = (node) => {
@@ -140,57 +140,13 @@ export function readInstanceStructure({ rootSelector, contentContainerSelector, 
       ? 'option-label-outside-instance' : !visible(target) ? 'option-label-not-visible' : 'option-label-recognized',
     Boolean(isOption && target && root.contains(target) && visible(target)), Boolean(isOption));
   }
-  const disclosures = new Map();
-  const navigates = (node) => { const link = node.closest('a[href],area[href]');
-    return Boolean(link && !/^\s*(?:javascript:\s*void\s*\(\s*0\s*\)\s*;?)?\s*$/i.test(link.getAttribute('href') || '')); };
-  for (const original of all) {
-    let target = original;
-    if (target.matches('svg,path,use,g,polygon,polyline,circle,line')) target = target.closest('span,li,button,a,[role="button"]');
-    if (!target || !visible(target) || navigates(target) || target.closest('form') || target.form) {
-      debug('interaction', original, !target ? 'click-owner-unresolved' : !visible(target) ? 'click-owner-not-visible'
-        : navigates(target) ? 'navigation-link' : 'form-control', false, /^(button|span|svg|path|a|li)$/i.test(original.tagName)); continue;
-    }
-    const descriptor = [target.id, target.getAttribute('class'), target.getAttribute('aria-label'),
-      (target.textContent || '').trim().slice(0, 60)].join(' ');
-    if (/reset|clear|submit|重置|清空|清除/i.test(descriptor) || /^(submit|reset|image)$/i.test(target.getAttribute('type') || '')) { debug('interaction', original, 'reset-clear-or-submit-control'); continue; }
-    const explicit = target.hasAttribute('aria-expanded') || target.hasAttribute('aria-controls');
-    const handler = typeof target.onclick === 'function' || target.hasAttribute('onclick');
-    const handlerTargetsPanel = handler && /next|sibling|parent|children|toggle|slide|expand|collapse|aria|classList|display|height/i.test(
-      target.getAttribute('onclick') || String(target.onclick));
-    const pointer = getComputedStyle(target).cursor === 'pointer';
-    const tab = target.getAttribute('role') === 'tab';
-    if (!explicit && !handler && !pointer && !target.matches('button,summary') && !tab) { debug('interaction', original, 'no-action-affordance', false, false); continue; }
-    const owner = target.closest('li,[role="treeitem"]') || target.parentElement;
-    const controlled = (target.getAttribute('aria-controls') || '').split(/\s+/).filter(Boolean).map((id) => document.getElementById(id));
-    const possible = [...controlled, ...target.children, ...(owner?.children || []), target.nextElementSibling, owner?.nextElementSibling];
-    const panels = [...new Set(possible)].filter((node) => node && node !== target && node !== root && root.contains(node)
-      && !node.contains(target) && (group(node) || node.matches('[role="tabpanel"],[role="menu"]')
-        || /panel|dropdown|collapse|submenu/i.test(node.getAttribute('class') || '')));
-    const collapsed = (node) => { const style = getComputedStyle(node); return !visible(node) || node.hidden
-      || node.getAttribute('aria-hidden') === 'true' || node.getBoundingClientRect().height < 1
-      || /collapsed|closed/i.test(node.getAttribute('class') || '') || style.display === 'none'; };
-    const icon = Boolean(target.querySelector('svg,i,[aria-hidden="true"]')) || /^[+−–▶▷▸▹▾▼⌄⌃]$/.test(target.textContent.trim());
-    const evidence = [explicit && 'aria-disclosure', tab && panels.length > 0 && 'tab-panel',
-      panels.some(collapsed) && 'collapsed-panel', icon && panels.some(group) && 'icon-next-to-list',
-      pointer && handlerTargetsPanel && panels.length > 0 && 'pointer-handler-with-panel'].filter(Boolean);
-    if (!evidence.length) { debug('interaction', original, 'no-controlled-or-collapsed-panel', false, true, { panelCount: panels.length, pointer, handler, explicit }); continue; }
-    // A list item containing a dedicated arrow is not an extra click target.
-    // Its span/SVG descendants resolve to the arrow itself below.
-    if (target.tagName === 'LI' && !handler && !explicit) { debug('interaction', original, 'container-has-dedicated-arrow'); continue; }
-    debug('interaction', original, disclosures.has(path(target)) ? 'duplicate-click-owner' : 'disclosure-recognized', !disclosures.has(path(target)), true,
-      { clickTargetPath: path(target), evidence, panelCount: panels.length });
-    const rect = target.getBoundingClientRect();
-    disclosures.set(path(target), { path: path(target), evidence, panelPaths: panels.map(path),
-      tag: target.tagName.toLowerCase(), className: String(target.getAttribute('class') || '').slice(0, 180),
-      rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } });
-  }
   const levels = hierarchy.filter((item) => item.visible).map((item) => item.level);
   const collapsedLevels = hierarchy.filter((item) => item.collapsed).map((item) => item.level);
   for (const bucket of Object.values(finderDebug.finders)) {
     bucket.omittedCount = bucket.consideredCount - bucket.decisions.length;
     bucket.decisions.forEach((row) => { delete row.relevant; });
   }
-  return { rootFound: true, rootCount: 1, hierarchy, images, disclosures: [...disclosures.values()],
+  return { rootFound: true, rootCount: 1, hierarchy, images,
     finderDebug,
     options: [...new Map(options.map((item) => [item.path, item])).values()],
     levels, allLevels: [...new Set(hierarchy.map((item) => item.level))].sort((a, b) => a - b),
