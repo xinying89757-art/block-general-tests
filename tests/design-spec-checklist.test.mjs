@@ -343,6 +343,12 @@ test('typography design checks compare only spec font properties, excluding pale
     reason: { actual: [{ fontSize: 14 }] } }] });
   assert.equal(incomplete.status, 'na');
   assert.equal(incomplete.reason.code, 'design-typography-properties-unavailable');
+  assert.deepEqual(mismatch.dependsOn, ['pagination-other']);
+  const combined = finalizeFrontStyleReport({ checks: [
+    { id: 'pagination-other', status: 'fail', reason: { code: 'style-assertion-mismatch' } },
+    mismatch, { ...mismatch, id: 'design-pagination-mobile' },
+  ] });
+  assert.equal(combined.summary.fail, 1, 'PC/mobile typography dependent observations must not recount their root failure');
 });
 
 test('written 区块配色 checks use only report current values and accept any matching descendant', async () => {

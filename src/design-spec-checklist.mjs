@@ -223,11 +223,22 @@ async function readInstanceColorSnapshot(page, rootSelector) {
   return page.evaluate(({ rootSelector }) => {
     const root = document.querySelector(rootSelector);
     if (!root) return { rootCount: 0, styles: [] };
-    const nodes = [root, ...root.querySelectorAll('*')];
+    const nodes = [root, ...root.querySelectorAll('*')].filter((node) => {
+      const box = node.getBoundingClientRect();
+      if (!box.width || !box.height) return false;
+      for (let ancestor = node; ancestor; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse'
+          || Number(style.opacity || 1) === 0) return false;
+        if (ancestor === root) break;
+      }
+      return true;
+    });
     const properties = ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'outlineColor',
       'boxShadow', 'backgroundImage'];
     const readStyle = (node, pseudo = null) => {
       const style = getComputedStyle(node, pseudo);
+      if (pseudo && (['none', 'normal'].includes(style.content) || style.display === 'none')) return {};
       const svgPaint = node.namespaceURI === 'http://www.w3.org/2000/svg';
       return Object.fromEntries(properties.map((property) => [property,
         (property === 'fill' || property === 'stroke') && !svgPaint ? null : style[property] || null]));
@@ -711,8 +722,9 @@ async function readTypographyByFeatures(page, rootSelector, requirement, profile
   const declaredIds = requirement.params?.styleCheckIds || (requirement.params?.styleCheckId ? [requirement.params.styleCheckId] : []);
   const learnedSelectors = (profile?.capabilities || []).flatMap((capability) => capability.styleSpec?.items || [])
     .filter((item) => declaredIds.includes(item.id) || declaredIds.includes(`bss-${item.id}`))
-    .flatMap((item) => Object.values(item.learnedSelectors || {}).flatMap((entries) =>
-      (Array.isArray(entries) ? entries : []).map((entry) => entry?.selector).filter(Boolean)));
+    .flatMap((item) => [item.selector, ...(item.selectorCandidates || []),
+      ...Object.values(item.learnedSelectors || {}).flatMap((entries) =>
+        (Array.isArray(entries) ? entries : []).map((entry) => entry?.selector))].filter(Boolean));
   const featureRequirement = { ...requirement, params: { ...requirement.params,
     selectorCandidates: [...new Set([...(requirement.params?.selectorCandidates || []), ...learnedSelectors])] } };
   return page.evaluate(({ rootSelector, requirement, tokens }) => {
@@ -795,38 +807,49 @@ async function checkImageRatio(requirement, page, rootSelector) {
     'image-ratio-expected-unavailable', '清单没有提供可解析的宽高比，需人工复核。');
   const expectedRatio = Number(parts[1]) / Number(parts[2]);
   const selectorCandidates = [...new Set([requirement.params?.selector, ...(requirement.params?.selectorCandidates || [])].filter(Boolean))];
-  const actual = await page.evaluate(({ rootSelector, selectorCandidates }) => {
+  const backgroundImages = requirement.params?.imageKind === 'background';
+  const actual = await page.evaluate(({ rootSelector, selectorCandidates, backgroundImages, contentContainerSelector }) => {
     const root = document.querySelector(rootSelector);
     if (!root) return { rootFound: false, images: [] };
     let images = [];
     for (const selector of selectorCandidates) { try { images.push(...root.querySelectorAll(selector)); } catch {} }
-    if (!selectorCandidates.length) images = [...root.querySelectorAll('img,picture,*')];
+    if (!selectorCandidates.length) images = [...root.querySelectorAll(backgroundImages ? '*' : 'img,picture')];
     const candidates = [...new Set(images.flatMap((node) => node.tagName?.toLowerCase() === 'picture'
       ? [node, ...node.querySelectorAll('img')] : [node]))];
     return { rootFound: true, images: candidates.flatMap((node) => {
       const r = node.getBoundingClientRect(), s = getComputedStyle(node);
       const tag = node.tagName?.toLowerCase();
       const img = tag === 'picture' ? node.querySelector('img') : tag === 'img' ? node : null;
+      let card = null;
+      if (contentContainerSelector) {
+        try { card = node.closest(contentContainerSelector); } catch {}
+      } else for (let parent = node.parentElement; parent && parent !== root; parent = parent.parentElement) {
+        const descriptor = `${parent.id} ${typeof parent.className === 'string' ? parent.className : ''}`;
+        if (['LI', 'ARTICLE'].includes(parent.tagName) || parent.getAttribute('role') === 'listitem'
+          || /(?:^|[\s_-])(?:card|item|product)(?:[\s_-]|$)/i.test(descriptor)) { card = parent; break; }
+      }
+      if (!backgroundImages && (!img || !card || card === root || !root.contains(card))) return [];
       const lazySource = img?.getAttribute('data-src') || img?.getAttribute('data-srcset')
         || img?.getAttribute('srcset') || img?.getAttribute('src') || img?.currentSrc || null;
       const hasBackground = Boolean(s.backgroundImage && s.backgroundImage !== 'none');
       const visible = r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'
         && Number(s.opacity || 1) > 0;
-      const hasImage = tag === 'picture' || (tag === 'img' && (img.complete && img.naturalWidth > 0
-        || Boolean(lazySource))) || hasBackground;
+      const hasImage = backgroundImages ? hasBackground : tag === 'picture' || (tag === 'img' && (img.complete && img.naturalWidth > 0
+        || Boolean(lazySource)));
       if (!visible || !hasImage) return [];
       const width = img?.naturalWidth || r.width, height = img?.naturalHeight || r.height;
-      const position = tag === 'img' || tag === 'picture' ? s.objectPosition : s.backgroundPosition;
+      const imageStyle = img ? getComputedStyle(img) : s;
+      const position = backgroundImages ? s.backgroundPosition : imageStyle.objectPosition;
       const positionParts = String(position || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
       const centered = /\bcenter\b/.test(positionParts.join(' '))
         || (positionParts.length >= 2 && /^50(?:\.0+)?%$/.test(positionParts[0])
           && /^50(?:\.0+)?%$/.test(positionParts[1]));
-      return [{ ratio: width / height, objectPosition: s.objectPosition, backgroundPosition: s.backgroundPosition,
-        positionSource: tag === 'img' || tag === 'picture' ? 'object-position' : 'background-position', centered,
+      return [{ ratio: width / height, objectPosition: imageStyle.objectPosition, backgroundPosition: s.backgroundPosition,
+        positionSource: backgroundImages ? 'background-position' : 'object-position', centered,
         sourceKind: tag === 'picture' ? 'picture' : tag === 'img' ? 'img' : 'background-image',
         hasLazySource: Boolean(lazySource), hasBackgroundImage: hasBackground }];
     }) };
-  }, { rootSelector, selectorCandidates });
+  }, { rootSelector, selectorCandidates, backgroundImages, contentContainerSelector: requirement.params?.contentContainerSelector });
   if (!actual.rootFound || !actual.images.length) return requirementResult(requirement, 'na', requirement.expected, actual,
     'image-ratio-elements-unresolved', '实例中没有可测量的图片，需人工复核。');
   const tolerance = Number(requirement.params?.ratioTolerance ?? 0);
@@ -988,7 +1011,7 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
       ? '本区块没有可执行的对应样式结果，需人工复核。' : requirement.checkType === 'typography' && requirement.expected?.fontSize
         ? status === 'pass' ? '前台字体大小符合设计规范。' : '前台字体大小与设计规范不一致。'
         : '按本区块画像中映射的功能样式检查执行。',
-      actual, dependsOn: requirement.checkType === 'color-scope' ? dependencyCheckIds(requirement, frontChecks) : undefined,
+      actual, dependsOn: dependencyCheckIds(requirement, frontChecks),
       reason: { ...reason, ...(scopeOverride ? { resolvedScope: scopeOverride.resolvedScope,
       mappingReason: scopeOverride.reason } : {}) } });
   }
@@ -1094,7 +1117,7 @@ export async function runWrittenColorFrontChecks(options = {}) {
 }
 
 async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsReport, includeStylesheets = true,
-  fetchStylesheet, fetchNode, stateExercise = false, stateActionTimeoutMs = 1500, stateOverallTimeoutMs = 45000,
+  fetchStylesheet, fetchNode, stateExercise = false, stateActionTimeoutMs = 4000, stateOverallTimeoutMs = 45000,
   onProgress }) {
   const values = extractWrittenColorValues(settingsReport);
   if (!values.length) return [{ id: 'written-color-presence', name: '本次写入颜色前台回读', status: 'na',
@@ -1185,6 +1208,7 @@ async function runWrittenColorFrontChecksForRoot({ page, rootSelector, settingsR
 
 export function isSafeStateExerciseTarget(info = {}) {
   return info.visible === true && info.tag !== 'a' && info.hasHref !== true
+    && info.navigationAncestor !== true
     && info.insideForm !== true && info.submitControl !== true
     && Boolean(info.hasExplicitToggle || info.semantic || info.nativeButton || info.pointerAction || info.hasClickHandler);
 }
@@ -1195,8 +1219,19 @@ export function isVisibleHoverStateTarget(info = {}) {
       || info.semantic || info.nativeButton);
 }
 
+// Serialized in the browser: read DOM state rather than waiting for an ARIA
+// attribute that many slideToggle/class-based widgets never implement.
+export function readStateControlDom(element) {
+  const nodes = [element, ...(element.parentElement?.querySelectorAll('*') || [])];
+  return JSON.stringify(nodes.map((node) => ({
+    tag: node.tagName, class: node.getAttribute('class'), expanded: node.getAttribute('aria-expanded'),
+    selected: node.getAttribute('aria-selected'), hidden: node.hidden, ariaHidden: node.getAttribute('aria-hidden'),
+    display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility,
+  })));
+}
+
 export async function exerciseWrittenColorStates(page, rootSelector, values, { maxElements = 200,
-  actionTimeoutMs = 1500, overallTimeoutMs = 45000 } = {}) {
+  actionTimeoutMs = 4000, overallTimeoutMs = 45000 } = {}) {
   let timer;
   const control = { timedOut: null };
   const work = exerciseWrittenColorStatesInner(page, rootSelector, values, { maxElements, actionTimeoutMs, control });
@@ -1221,7 +1256,7 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
   } finally { clearTimeout(timer); }
 }
 
-async function exerciseWrittenColorStatesInner(page, rootSelector, values, { maxElements = 200, actionTimeoutMs = 1500,
+async function exerciseWrittenColorStatesInner(page, rootSelector, values, { maxElements = 200, actionTimeoutMs = 4000,
   control = { timedOut: null } } = {}) {
   let actionTimedOut = null;
   const timedOut = () => actionTimedOut || control.timedOut;
@@ -1316,10 +1351,21 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
   const stateControls = root.locator('*');
   const stateCount = timedOut() ? 0 : Math.min(await action('count-state-controls', () => stateControls.count()), maxElements);
   const selectedTabs = [];
+  const exercisedTargets = new Set();
   for (let index = 0; index < stateCount && !timedOut(); index += 1) {
-    const control = stateControls.nth(index);
+    let control = stateControls.nth(index);
     let info;
-    try { info = await action('inspect-toggle', () => control.evaluate((element) => {
+    try { info = await action('inspect-toggle', () => control.evaluate((element, rootSelector) => {
+      const root = document.querySelector(rootSelector);
+      // Descendants inherit cursor:pointer from links. Resolve the real action
+      // owner before deciding whether activation is safe; clicking a nested
+      // span in a product/category link would navigate away from the instance.
+      const owner = element.closest('button,a,[role="button"]');
+      if (owner && getComputedStyle(owner).cursor === 'pointer') element = owner;
+      const path = [];
+      for (let node = element; node && node !== root; node = node.parentElement) {
+        path.unshift(`:nth-child(${[...node.parentElement.children].indexOf(node) + 1})`);
+      }
       const tag = element.tagName.toLowerCase();
       const role = element.getAttribute('role');
       const type = element.getAttribute('type');
@@ -1341,14 +1387,21 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
       const style = getComputedStyle(element);
       const visible = element.getClientRects().length > 0 && style.display !== 'none'
         && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0;
-      return { tag, visible, hasHref: element.hasAttribute('href'), insideForm, submitControl,
+      return { tag, visible: visible && Boolean(root?.contains(element)), targetPath: `:scope > ${path.join(' > ')}`,
+        hasHref: element.hasAttribute('href'), navigationAncestor: Boolean(element.closest('a[href],area[href]')),
+        insideForm, submitControl,
         hasExplicitToggle, semantic, nativeButton, hasClickHandler, hiddenSiblingIndexes, isTab, isSelect: tag === 'select',
         isDetails: tag === 'details' || tag === 'summary', pointerAction,
         expanded: element.getAttribute('aria-expanded'), hasPopup: element.hasAttribute('aria-haspopup'),
         selected: element.getAttribute('aria-selected'), type };
-    })); } catch { continue; }
+    }, rootSelector)); } catch { continue; }
     info.safe = isSafeStateExerciseTarget(info);
     if (!info.safe) continue;
+    if (info.targetPath) {
+      if (exercisedTargets.has(info.targetPath)) continue;
+      exercisedTargets.add(info.targetPath);
+      control = root.locator(info.targetPath);
+    }
     exerciseCounts.eligibleCandidates += 1;
     if (info.isSelect || info.isDetails) continue; // handled without choosing/changing a value below
     if (info.isTab) {
@@ -1356,7 +1409,7 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
       if (info.selected === 'true') { selectedTabs.push(control); continue; }
       try {
         exerciseCounts.attempted += 1;
-        await action('select-tab', () => control.click({ timeout: actionTimeoutMs }));
+        await action('select-tab', () => control.click({ timeout: actionTimeoutMs, noWaitAfter: true }));
         exerciseCounts.opened += 1;
         states.add('tab-selected'); exerciseCounts.tabsSelected += 1;
         await scan('tab-selected');
@@ -1367,36 +1420,16 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
     try {
       if (info.expanded === 'true') { await scan('category-expanded'); continue; }
       exerciseCounts.attempted += 1;
-      await action('activate-toggle', () => control.click({ timeout: actionTimeoutMs }));
-      const expanded = await action('read-expanded-state', () => control.getAttribute('aria-expanded'));
-      const siblingPanelOpened = (info.hiddenSiblingIndexes || []).length > 0 && await action('read-toggle-panel', () => control.evaluate((element, indexes) => {
-        const siblings = [...(element.parentElement?.children || [])];
-        return indexes.some((index) => {
-          const sibling = siblings[index];
-          if (!sibling) return false;
-          const style = getComputedStyle(sibling);
-          return !sibling.hidden && sibling.getAttribute('aria-hidden') !== 'true'
-            && style.display !== 'none' && style.visibility !== 'hidden';
-        });
-      }, info.hiddenSiblingIndexes)).catch(() => false);
-      if (expanded === 'true' || info.expanded !== expanded || siblingPanelOpened) {
+      const before = await action('read-toggle-dom', () => control.evaluate(readStateControlDom));
+      await action('activate-toggle', () => control.click({ timeout: actionTimeoutMs, noWaitAfter: true }));
+      const after = await action('read-toggle-dom-change', () => control.evaluate(readStateControlDom));
+      if (JSON.stringify(before) !== JSON.stringify(after)) {
         exerciseCounts.opened += 1;
         states.add('category-expanded'); exerciseCounts.togglesOpened += 1;
         await scan('category-expanded');
-        if (expanded === 'true' || siblingPanelOpened) await action('restore-toggle', () => control.click({ timeout: actionTimeoutMs }));
-        else await action('dismiss-toggle', () => control.press('Escape', { timeout: Math.min(1000, actionTimeoutMs) }));
-        const after = await action('read-restored-state', () => control.getAttribute('aria-expanded'));
-        const panelRestored = siblingPanelOpened ? await action('verify-panel-restored', () => control.evaluate((element, indexes) => {
-          const siblings = [...(element.parentElement?.children || [])];
-          return indexes.every((index) => {
-            const sibling = siblings[index];
-            if (!sibling) return true;
-            const style = getComputedStyle(sibling);
-            return sibling.hidden || sibling.getAttribute('aria-hidden') === 'true'
-              || style.display === 'none' || style.visibility === 'hidden';
-          });
-        }, info.hiddenSiblingIndexes)).catch(() => false) : true;
-        if (panelRestored && (after === info.expanded || (info.expanded === null && after === null))) exerciseCounts.restored += 1;
+        await action('restore-toggle', () => control.click({ timeout: actionTimeoutMs, noWaitAfter: true }));
+        const restored = await action('read-restored-dom', () => control.evaluate(readStateControlDom));
+        if (JSON.stringify(restored) === JSON.stringify(before)) exerciseCounts.restored += 1;
       }
     } catch {}
   }
@@ -1427,6 +1460,7 @@ async function exerciseWrittenColorStatesInner(page, rootSelector, values, { max
   }
   if (!timedOut()) try { await action('clear-focus', () => page.evaluate(() => document.activeElement?.blur?.())); } catch {}
   return { states: [...states], candidateCount: count, disclosureCount: detailsCount, exerciseCounts, revealed,
+    ...(timedOut() ? { timedOut: true } : {}),
     notExercised: timedOut() ? [{ state: 'remaining-states', status: 'not-exercised', reason: {
       code: timedOut().action === 'overall-timeout' ? 'state-exercise-overall-timeout' : 'state-exercise-action-timeout', ...timedOut() } }] : [] };
 }

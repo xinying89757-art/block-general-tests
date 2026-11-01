@@ -32,9 +32,10 @@ Example shape (all values here are illustrative):
 }
 ```
 
-If no declared property changes, selector candidates are retained as a
-fallback inventory only and the associated style check is `na`; its JSON
-contains a machine reason code. A human-facing result does not include which
+If no declared property changes, an existing profile-owned candidate can still
+locate the functional element and compare its computed values with the written
+value. Without a readable candidate, the check is `na` with a JSON machine
+reason. A human-facing result does not include which
 candidate matched. The setting's existing editor assertion remains unchanged.
 Color controls in the editor's `区块配色` section are detected by control shape
 and section metadata. Font-size controls are not discovered as settings:
@@ -76,7 +77,20 @@ pending effects by region and control identity.
 An unlearned automatic check is `na` in the machine report with its reason;
 the human-facing summary does not show selector matches or compatibility
 details. Candidate selectors are only drawn from that block's own canvas
-snapshot and are not used as a substitute for the learned effect assertion.
+snapshot; they never come from another block's profile.
+
+Front state exercise resolves the actual clickable owner and rejects links and
+their descendants, forms and submit controls before activation. Class/DOM
+snapshots detect disclosure changes and verify restoration, including widgets
+without ARIA expanded state. `--state-action-timeout-ms` defaults to 4000ms;
+the existing overall state limit remains configurable. The real CLI smoke
+includes a nested navigation link, a class-switched disclosure, mobile
+typography, and a color available only in cross-origin instance-scoped CSS.
+
+Image-ratio discovery targets content images in item/card containers. Profiles
+can declare `params.contentContainerSelector` for their content layout.
+Background images participate only when `params.imageKind` is `background`;
+an ordinary image's background-position does not determine its centering.
 
 ## Palette readback and optional CSS-source diagnostics
 

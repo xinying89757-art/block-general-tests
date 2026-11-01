@@ -56,11 +56,11 @@ let exitCode = 0;
 let stage = 'launch-browser';
 let browser;
 const configuredTimeout = Number(args['global-timeout-ms'] || process.env.FRONT_STYLE_TIMEOUT_MS || 480000);
-const configuredStateActionTimeout = Number(args['state-action-timeout-ms'] || 1500);
+const configuredStateActionTimeout = Number(args['state-action-timeout-ms'] || 4000);
 const configuredStateOverallTimeout = Number(args['state-timeout-ms'] || 45000);
 const globalTimeoutMs = Number.isFinite(configuredTimeout) && configuredTimeout > 0 ? Math.max(1000, configuredTimeout) : 480000;
 const stateActionTimeoutMs = Number.isFinite(configuredStateActionTimeout) && configuredStateActionTimeout > 0
-  ? Math.max(100, configuredStateActionTimeout) : 1500;
+  ? Math.max(100, configuredStateActionTimeout) : 4000;
 const stateOverallTimeoutMs = Number.isFinite(configuredStateOverallTimeout) && configuredStateOverallTimeout > 0
   ? Math.max(stateActionTimeoutMs, configuredStateOverallTimeout) : 45000;
 let abortReason = null;
@@ -125,6 +125,7 @@ try {
       stateActionTimeoutMs, stateOverallTimeoutMs, onProgress: progress });
     report.checks = attachFrontStyleInstance([...report.checks, ...writtenColors], report.settingId);
     progress(`written-color-checks-complete count=${writtenColors.length}`);
+    report.finalUrl = sanitizeFrontStyleUrl(page.url());
   } finally { await markedRoot.clear().catch(() => {}); }
   const shots = fs.readdirSync('screenshots').filter((f) => f.startsWith(`style-${blockId}-`));
   report.screenshots = shots.map((f) => `screenshots/${f}`);

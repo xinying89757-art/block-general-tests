@@ -283,9 +283,8 @@ test('a state toggle whose click never resolves is bounded and recorded as not-e
 test('state exercise opens only safe instance controls and records attempted/opened/restored counts', async () => {
   const actions = [];
   let panelVisible = false;
-  let panelStateReads = 0;
-  const toggle = { evaluate: async (_fn, indexes) => indexes
-    ? (++panelStateReads === 1 ? panelVisible : !panelVisible) : ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
+  const toggle = { evaluate: async (fn) => fn.name === 'readStateControlDom'
+    ? (panelVisible ? 'panel-open' : 'panel-closed') : ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
     submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: true, isTab: false,
     expanded: 'false', selected: null, hasPopup: true, pointerAction: false, hiddenSiblingIndexes: [1] }),
     click: async () => { panelVisible = !panelVisible; actions.push(panelVisible ? 'open' : 'close'); }, press: async () => { actions.push('escape'); },
@@ -314,6 +313,7 @@ test('interactive state target safety excludes navigation, form submission and h
     hasExplicitToggle: false, semantic: false, nativeButton: false, pointerAction: true };
   assert.equal(isSafeStateExerciseTarget(base), true);
   assert.equal(isSafeStateExerciseTarget({ ...base, tag: 'a', hasHref: true }), false);
+  assert.equal(isSafeStateExerciseTarget({ ...base, tag: 'span', navigationAncestor: true }), false);
   assert.equal(isSafeStateExerciseTarget({ ...base, insideForm: true }), false);
   assert.equal(isSafeStateExerciseTarget({ ...base, submitControl: true }), false);
   assert.equal(isSafeStateExerciseTarget({ ...base, visible: false }), false);
@@ -362,7 +362,7 @@ test('state exercise opens instance-local category toggles and tabs, then restor
   const actions = [];
   let expanded = 'false';
   let activeTab = 'first';
-  const toggle = { evaluate: async () => ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
+  const toggle = { evaluate: async (fn) => fn.name === 'readStateControlDom' ? expanded : ({ tag: 'button', visible: true, hasHref: false, insideForm: false,
     submitControl: false, hasExplicitToggle: true, semantic: false, nativeButton: true, isTab: false,
     expanded, selected: null, hasPopup: false }),
     click: async () => { expanded = expanded === 'false' ? 'true' : 'false'; actions.push(`toggle:${expanded}`); },

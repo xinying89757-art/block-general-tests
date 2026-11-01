@@ -264,6 +264,8 @@ async function readItem(frame, rootSel, item) {
           const li = a.closest('li');
           return li && li.parentElement?.closest('li') == null && li.querySelector('ul');
         });
+        if (!parents.length) parents = [...selectionRoot.querySelectorAll('li,[role="treeitem"],[aria-level]')].filter((node) => vis(node)
+          && (node.querySelector('ul,ol,[role="group"]') || Number(node.getAttribute('aria-level') || 0) === 1));
         out.matchedCount = parents.length;
         parents.slice(0, 2).forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
         break;
@@ -284,6 +286,10 @@ async function readItem(frame, rootSel, item) {
         leaves ||= links.filter((a) => {
           const li = a.closest('li');
           return li && li.parentElement?.closest('li') && !li.querySelector('ul');
+        });
+        if (!leaves.length) leaves = [...selectionRoot.querySelectorAll('li,[role="treeitem"],[aria-level]')].filter((node) => {
+          if (!vis(node) || node.querySelector('ul,ol,[role="group"]')) return false;
+          return Number(node.getAttribute('aria-level') || 0) > 1 || Boolean(node.closest('ul,ol')?.parentElement?.closest('li'));
         });
         out.matchedCount = leaves.length;
         leaves.slice(0, 2).forEach((el) => push(el, norm(el.innerText).slice(0, 24)));
@@ -569,7 +575,8 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability, onProg
           code: 'profile-selector-not-resolvable', details: String(item.notApplicableReason).slice(0, 240) } }));
         continue;
       }
-      if (item.learnedSelectorRequired && item.selectorLearningUnavailable) {
+      if (item.learnedSelectorRequired && item.selectorLearningUnavailable
+        && !item.selector && !item.selectorCandidates?.length) {
         checks.push(result(checkId, 'na', '未应用该样式检查。', { machineReason: {
           code: 'no-style-effect-learned', fallbackCandidateCount: item.selectorCandidates?.length || 0 } }));
         continue;
@@ -722,8 +729,9 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability, onProg
             read.error || (diffs.length ? diffs.join('；') : `移动视口下与清单一致（${actual.length} 个元素）。`),
             { ...read, viewport: 'mobile' }));
         }
-        const responsiveChecklistChecks = await runDesignSpecFrontChecks({ designSpec: capability.designSpec }, {
+        const responsiveChecklistChecks = await runDesignSpecFrontChecks({ designSpec: capability.designSpec, capabilities: [capability] }, {
           page: frame, rootSelector: rootSel, frontChecks: mobileStyleChecks, viewport: { label: 'mobile', width: viewports.mobile, height: 667 },
+          settingsReport: config.settingsReport,
         });
         checks.push(...responsiveChecklistChecks.filter(Boolean));
       }
@@ -857,8 +865,8 @@ export function resolveFrontStyleCapability(capability, settingsReport = null) {
       item.learnedSelectorResolved = true;
       item.selectorLearningUnavailable = false;
     } else if (item.learnedSelectorRequired) {
-      // Keep the profile's ordered candidates for machine diagnostics/fallback
-      // inventory, but do not assert without an effect scope learned this run.
+      // A declared profile candidate remains an executable scope when no
+      // editor effect was learned. Read its actual values before comparing.
       item.selector = item.selectorCandidates?.[0] || item.selector || null;
       item.learnedSelectorResolved = false;
       item.selectorLearningUnavailable = true;
