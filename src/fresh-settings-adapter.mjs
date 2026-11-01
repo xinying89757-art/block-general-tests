@@ -9,6 +9,7 @@
  * outside adapted definitions are reported as unverified instead of silently
  * becoming persistence assertions.
  */
+import { discoverProfileFrontUnits, runFrontSettingUnits } from './setting-units.mjs';
 export const FRESH_LIFECYCLE_KINDS = Object.freeze(['settings-dialog', 'canvas-popover', 'right-rail-flyout']);
 
 /**
@@ -68,6 +69,18 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
     const persistedControls = [];
     const preparedModules = new Map();
     const postPublishDefinitions = [];
+    const profileUnits = await discoverProfileFrontUnits(mergedContext.profile, {
+      frontAvailable: Boolean(mergedContext.frontAvailable),
+      readFrontValue: mergedContext.readFrontValue,
+      readFrontProducts: mergedContext.readFrontProducts,
+      profileEditorAdapter: mergedContext.profileEditorAdapter,
+    });
+    staticResults.push(...profileUnits.results);
+    if (profileUnits.editorSettings.length) {
+      settings.push(...profileUnits.editorSettings);
+      capabilityResults.push({ capability: 'profile-settings', status: 'adapted',
+        settingIds: profileUnits.editorSettings.map((unit) => unit.id) });
+    }
     for (const { id, item, definition } of modules) {
       if (definition?.status === 'check-only' && typeof definition.runPostPublish === 'function') {
         postPublishDefinitions.push({ id, item, definition });
@@ -141,10 +154,16 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
           const prepareSave = created.prepareSave || definition.prepareSave;
           await prepareSave?.({ ...mergedContext, reason: info?.reason, capability: id });
         }
+        if (pendingCapabilities.has('profile-settings')) {
+          await mergedContext.profileEditorAdapter?.prepareSave?.(info);
+        }
         await mergedContext.save(info);
         for (const [id, { definition, created }] of active) {
           const afterSave = created.afterSave || definition.afterSave;
           await afterSave?.({ ...mergedContext, reason: info?.reason, capability: id });
+        }
+        if (pendingCapabilities.has('profile-settings')) {
+          await mergedContext.profileEditorAdapter?.afterSave?.(info);
         }
         pendingCapabilities.clear();
         pendingLifecycles.clear();
@@ -163,6 +182,10 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
           if (!Array.isArray(outcome)) throw new Error(`Check-only capability ${item.id} did not return a checks array.`);
           checks.push(...outcome);
         }
+        checks.push(...await runFrontSettingUnits(profileUnits.units, {
+          ...mergedContext, ...runtime,
+          frontAvailable: Boolean(runtime.frontAvailable ?? mergedContext.frontAvailable),
+        }));
         return checks;
       } };
     return prepared;

@@ -3,6 +3,7 @@ import { blockSelector } from './shared.mjs';
 import { normalizeColor } from './rail.mjs';
 import { savePage, openPreview } from '../editor.mjs';
 import { fixedRequirementValues } from './signatures.mjs';
+import { registerFreshSettingsCapability } from '../setting-units.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { widgetSession, probeControls, persistControl, radioPersist, poll, TIMEOUT, previewSelector, checkReportText, readBackWithRetry, isFieldCheckbox, fixtureCategoryState, findControl } from './shared.mjs';
 
@@ -40,7 +41,7 @@ const TEXT = {
   ],
 };
 const SUITE = 'capability:custom-filter-fields';
-export const freshSettings = Object.freeze({ status: 'adapted', createDefinitions: createFreshDefinitions });
+export const freshSettings = registerFreshSettingsCapability('custom-filter-fields', createFreshDefinitions);
 const NAMES = {
   'cff-settings-fields': '可选自定义筛选字段与勾选状态',
   'cff-settings-state': '筛选逻辑、触发与产品范围当前值',

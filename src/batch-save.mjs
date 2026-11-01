@@ -2,6 +2,10 @@ const asSet = (value) => new Set(Array.isArray(value) ? value : []);
 
 export function settingsConflict(left, right, metadata = {}) {
   if (left.key === right.key) return true;
+  const leftDependencies = asSet(left.dependencies);
+  const rightDependencies = asSet(right.dependencies);
+  if ([right.id, right.key].some((value) => leftDependencies.has(value))
+    || [left.id, left.key].some((value) => rightDependencies.has(value))) return true;
   const leftMeta = metadata[left.key] || {};
   const rightMeta = metadata[right.key] || {};
   return asSet([...asSet(leftMeta.dependsOn), ...asSet(leftMeta.interferesWith)]).has(right.key)

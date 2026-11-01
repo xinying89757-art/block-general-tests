@@ -10,9 +10,10 @@ import { savePage, openPreview } from '../editor.mjs';
 import { TIMEOUT, previewSelector, checkReportText, readBackWithRetry } from './shared.mjs';
 import { RAIL, openRailPanel, readModuleWidth, setModuleWidth, saveWidthPanel, cancelWidthPanel } from './rail.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
+import { registerFreshSettingsCapability } from '../setting-units.mjs';
 
 const SUITE = 'capability:module-width';
-export const freshSettings = Object.freeze({ status: 'adapted', createDefinitions: createFreshDefinitions });
+export const freshSettings = registerFreshSettingsCapability('module-width', createFreshDefinitions);
 const NAMES = {
   'mw-state': '模块宽度当前值',
   'mw-width-persist': '模块宽度保存回读与恢复',
