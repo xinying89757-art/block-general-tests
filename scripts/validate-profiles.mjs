@@ -107,6 +107,10 @@ export function validateProfile(profile, template, { capabilities } = {}) {
             || !effect.candidateSelectors.every((selector) => typeof selector === 'string' && selector.trim()))) {
             errors.push(`${label}.styleEffect.candidateSelectors 必须是非空选择器字符串数组`);
           }
+          if (effect?.valueSource !== 'alternateValue'
+            && (!effect?.valueMap || typeof effect.valueMap !== 'object' || Array.isArray(effect.valueMap))) {
+            errors.push(`${label}.styleEffect 必须声明 valueSource=alternateValue 或 valueMap`);
+          }
         }
       });
     }

@@ -343,6 +343,7 @@
         "id": "color-scheme",
         "styleEffect": {
           "properties": ["color", "backgroundColor", "accentColor", "borderColor"],
+          "valueSource": "alternateValue",
           "checks": [
             { "property": "backgroundColor", "checkId": "button-bg" },
             { "property": "backgroundColor", "checkId": "pagination-current" }

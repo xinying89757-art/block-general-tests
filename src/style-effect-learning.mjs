@@ -43,15 +43,22 @@ export function normalizeStyleValue(property, value) {
 export function deriveStyleEffectPaths(before = [], after = [], styleEffect = {}) {
   const properties = [...new Set(styleEffect.properties || [])];
   if (!properties.length) return { status: 'na', reason: 'no-style-properties-declared', effects: [] };
+  if (styleEffect.expectedValues === null) return { status: 'na', reason: 'written-style-value-not-mapped', effects: [] };
+  const expectedValues = styleEffect.expectedValues || {};
   const beforeByPath = new Map(before.map((item) => [item.path, item]));
   const effects = [];
+  let anyChanged = false;
   for (const current of after) {
     const prior = beforeByPath.get(current.path);
     if (!prior) continue;
     const changedProperties = properties.filter((property) => {
       const oldValue = normalizeStyleValue(property, prior.styles?.[property]);
       const newValue = normalizeStyleValue(property, current.styles?.[property]);
-      return oldValue !== null && newValue !== null && oldValue !== newValue;
+      const expected = Object.hasOwn(expectedValues, property)
+        ? normalizeStyleValue(property, expectedValues[property]) : undefined;
+      const changed = oldValue !== null && newValue !== null && oldValue !== newValue;
+      if (changed) anyChanged = true;
+      return changed && (expected === undefined || newValue === expected);
     });
     if (!changedProperties.length) continue;
     const selector = current.pathFeatures?.length ? stableRelativeSelectorPath(current.pathFeatures) : ':scope';
@@ -63,7 +70,21 @@ export function deriveStyleEffectPaths(before = [], after = [], styleEffect = {}
   const result = [...unique.values()];
   return result.length
     ? { status: 'learned', effects: result }
-    : { status: 'na', reason: 'no-computed-style-property-changed', effects: [] };
+    : { status: 'na', reason: anyChanged ? 'changed-style-did-not-match-written-value'
+      : 'no-computed-style-property-changed', effects: [] };
+}
+
+export function resolveSettingStyleEffect(setting) {
+  const effect = setting?.styleEffect;
+  if (!effect) return null;
+  if (effect.valueSource === 'alternateValue') {
+    return { ...effect, expectedValues: Object.fromEntries(effect.properties.map((property) => [property, setting.alternateValue])) };
+  }
+  if (effect.valueMap && typeof effect.valueMap === 'object') {
+    const expectedValues = effect.valueMap[JSON.stringify(setting.alternateValue)];
+    return { ...effect, expectedValues: expectedValues && typeof expectedValues === 'object' ? expectedValues : null };
+  }
+  throw new Error(`Setting ${setting.id} styleEffect must declare valueSource=alternateValue or a valueMap.`);
 }
 
 /** Convert one browser snapshot into profile-owned selectors and diagnostics. */

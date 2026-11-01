@@ -11,7 +11,7 @@
  */
 import { discoverProfileFrontUnits, runFrontSettingUnits } from './setting-units.mjs';
 import { applyLearnedStyleEffects, clearLearnedStyleEffects, deriveSelectorCandidatesFromDom,
-  deriveStyleEffectPaths, snapshotInstanceComputedStyles } from './style-effect-learning.mjs';
+  deriveStyleEffectPaths, resolveSettingStyleEffect, snapshotInstanceComputedStyles } from './style-effect-learning.mjs';
 export const FRESH_LIFECYCLE_KINDS = Object.freeze(['settings-dialog', 'canvas-popover', 'right-rail-flyout']);
 
 /**
@@ -153,19 +153,20 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         if (typeof setting.apply !== 'function') throw new Error(`Setting ${setting.id} has no apply definition.`);
         await activateSurface(setting);
         if (setting.styleEffect) {
-          const cleared = clearLearnedStyleEffects(mergedContext.profile, setting.styleEffect);
+          const styleEffect = resolveSettingStyleEffect(setting);
+          const cleared = clearLearnedStyleEffects(mergedContext.profile, styleEffect);
           if (cleared) await mergedContext.persistProfile?.(mergedContext.profile);
           try {
             const before = await snapshotInstanceComputedStyles(mergedContext.canvas || mergedContext.frame, {
               blockId: mergedContext.blockId || mergedContext.config?.blockId,
               settingId: mergedContext.config?.freshSettingId || mergedContext.instance?.settingId,
-              properties: setting.styleEffect.properties,
+              properties: styleEffect.properties,
               timeoutMs: mergedContext.config?.actionTimeoutMs,
             });
-            pendingStyleCaptures.set(setting.id, before.status === 'ok' ? { before, setting, phase, cleared }
-              : { error: new Error(before.reason || 'before-snapshot-unavailable'), setting, phase, cleared });
+            pendingStyleCaptures.set(setting.id, before.status === 'ok' ? { before, setting, styleEffect, phase, cleared }
+              : { error: new Error(before.reason || 'before-snapshot-unavailable'), setting, styleEffect, phase, cleared });
           } catch (error) {
-            pendingStyleCaptures.set(setting.id, { error, setting, phase, cleared });
+            pendingStyleCaptures.set(setting.id, { error, setting, styleEffect, phase, cleared });
           }
         }
         await setting.captureEffect?.({ ...mergedContext, ...phase, setting });
@@ -208,14 +209,14 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
               const after = await snapshotInstanceComputedStyles(mergedContext.canvas || mergedContext.frame, {
                 blockId: mergedContext.blockId || mergedContext.config?.blockId,
                 settingId: mergedContext.config?.freshSettingId || mergedContext.instance?.settingId,
-                properties: setting.styleEffect.properties,
+                properties: capture.styleEffect.properties,
                 timeoutMs: mergedContext.config?.actionTimeoutMs,
               });
               if (after.status !== 'ok') throw new Error(after.reason || 'after-snapshot-unavailable');
-              const learned = deriveStyleEffectPaths(capture.before.elements || [], after.elements || [], setting.styleEffect);
+              const learned = deriveStyleEffectPaths(capture.before.elements || [], after.elements || [], capture.styleEffect);
               learned.candidateSelectors = deriveSelectorCandidatesFromDom(capture.before.elements || [])
                 .slice(0, 100).map((entry) => entry.selector);
-              const applied = applyLearnedStyleEffects(mergedContext.profile, setting.styleEffect, learned);
+              const applied = applyLearnedStyleEffects(mergedContext.profile, capture.styleEffect, learned);
               const expectedValues = {};
               for (const item of applied.applied) {
                 const checkId = `bss-${item.checkId}`;
@@ -234,7 +235,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
           styleScopeDiagnostics.push({ settingId, capability: setting.capability, status: outcome.status,
             reason: outcome.reason, changedElementCount: outcome.changedElementCount || 0,
             mappedCheckCount: outcome.mappedCheckCount || 0,
-            fallbackCandidateCount: outcome.candidateCount || setting.styleEffect.candidateSelectors?.length || 0,
+            fallbackCandidateCount: outcome.candidateCount || capture.styleEffect.candidateSelectors?.length || 0,
             expectedValues: outcome.expectedValues || {},
             phase: capture.phase?.phase || 'batch' });
         }

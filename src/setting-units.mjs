@@ -40,6 +40,10 @@ export function createSettingUnit(input) {
       throw new Error(`Setting unit ${unit.id} styleEffect requires a non-empty CSS property list.`);
     }
     if (!Array.isArray(unit.styleEffect.checks)) throw new Error(`Setting unit ${unit.id} styleEffect requires checks array.`);
+    if (unit.styleEffect.valueSource !== 'alternateValue'
+      && (!unit.styleEffect.valueMap || typeof unit.styleEffect.valueMap !== 'object' || Array.isArray(unit.styleEffect.valueMap))) {
+      throw new Error(`Setting unit ${unit.id} styleEffect requires valueSource=alternateValue or valueMap.`);
+    }
   }
   if (!Array.isArray(unit.frontRequires)) throw new Error(`Setting unit ${unit.id} requires frontRequires array.`);
   return Object.freeze(unit);

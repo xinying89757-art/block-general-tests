@@ -5,7 +5,8 @@ import { createFreshSettingsAdapter } from '../src/fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../src/setting-units.mjs';
 import { resolveInstanceRootIndexes } from '../src/front-instance-root.mjs';
 import { applyLearnedStyleEffects, deriveSelectorCandidatesFromDom, deriveStyleEffectPaths,
-  chooseSelectorCandidate, normalizeStyleValue, snapshotInstanceComputedStyles, stableRelativeSelectorPath } from '../src/style-effect-learning.mjs';
+  chooseSelectorCandidate, normalizeStyleValue, resolveSettingStyleEffect, snapshotInstanceComputedStyles,
+  stableRelativeSelectorPath } from '../src/style-effect-learning.mjs';
 
 test('computed-style diff learns only changed properties and omits generated block-number classes', () => {
   const learned = deriveStyleEffectPaths(fixture.before, fixture.after, { properties: ['backgroundColor'] });
@@ -15,6 +16,16 @@ test('computed-style diff learns only changed properties and omits generated blo
   ]);
   assert.doesNotMatch(JSON.stringify(learned), /blockCon47748/);
   assert.equal(normalizeStyleValue('backgroundColor', '#f00'), 'rgb(255,0,0)');
+});
+
+test('effect scope requires the computed property to equal the style value written by the setting', () => {
+  const effect = resolveSettingStyleEffect({ alternateValue: '#ff0000', styleEffect: {
+    properties: ['backgroundColor'], valueSource: 'alternateValue', checks: [],
+  } });
+  assert.deepEqual(effect.expectedValues, { backgroundColor: '#ff0000' });
+  const mismatch = deriveStyleEffectPaths(fixture.before, fixture.after, { ...effect,
+    expectedValues: { backgroundColor: '#0000ff' } });
+  assert.deepEqual(mismatch, { status: 'na', reason: 'changed-style-did-not-match-written-value', effects: [] });
 });
 
 test('unchanged editor canvas styles return machine-readable na instead of guessing', () => {
@@ -81,13 +92,13 @@ test('canvas style snapshots request the exact block and settingId root', async 
 test('fresh batch adapter snapshots before and after apply, persists learned profile path, and omits paths from diagnostics', async () => {
   let snapshotIndex = 0;
   const canvas = { locator() { return { evaluate: async () => ({ status: 'ok', elements: snapshotIndex++ === 0 ? fixture.before : fixture.after }) }; } };
-  const requirement = { id: 'scheme-setting', styleEffect: { properties: ['backgroundColor'],
+  const requirement = { id: 'scheme-setting', styleEffect: { properties: ['backgroundColor'], valueSource: 'alternateValue',
     checks: [{ property: 'backgroundColor', checkId: 'button-bg' }] } };
   const profile = { requirements: { capabilities: [requirement] }, capabilities: [{ id: 'block-style-spec',
     styleSpec: { items: [{ id: 'button-bg', learnedSelectorRequired: true }] } }] };
   let persisted = 0;
   const freshSettings = registerFreshSettingsCapability('sample-style', async () => ({ settings: [{
-    id: 'scheme-color', key: 'scheme-setting', initialValue: '#111111', value: '#ff0000',
+    id: 'scheme-color', key: 'scheme-setting', initialValue: '#111111', value: '#ff0000', alternateValue: '#ff0000',
     apply: async () => {}, check: async () => ({ status: 'pass' }), restore: async () => {},
   }], persistedControls: [] }));
   const adapter = await createFreshSettingsAdapter({ capabilities: ['sample-style'], context: {
