@@ -11,6 +11,7 @@
  */
 import { discoverProfileFrontUnits, runFrontSettingUnits } from './setting-units.mjs';
 import { createDiscoveredStyleSettingUnits } from './discovered-style-settings.mjs';
+import { runDesignSpecEditorChecks } from './design-spec-checklist.mjs';
 import { applyLearnedStyleEffects, clearLearnedStyleEffects, deriveSelectorCandidatesFromDom,
   deriveStyleEffectPaths, resolveSettingStyleEffect, snapshotInstanceComputedStyles } from './style-effect-learning.mjs';
 export const FRESH_LIFECYCLE_KINDS = Object.freeze(['settings-dialog', 'canvas-popover', 'right-rail-flyout']);
@@ -105,6 +106,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
     const styleScopeDiagnostics = [];
     const pendingStyleCaptures = new Map();
     const inventoryErrors = (mergedContext.inventory || []).filter((region) => region?.inventoryError);
+    staticResults.push(...await runDesignSpecEditorChecks(mergedContext.profile, mergedContext.inventory || []));
     const profileUnits = await discoverProfileFrontUnits(mergedContext.profile, {
       frontAvailable: Boolean(mergedContext.frontAvailable),
       readFrontValue: mergedContext.readFrontValue,
@@ -304,7 +306,9 @@ export function currentValuesFromInventory(inventory) {
       const identityValue = sensitive ? '[redacted]' : (control.value || '');
       values.push({ controlIdentity: `${region.type}:${region.wrapIndex}:${region.title || region.kind || ''}:${control.type}:${control.label || ''}:${identityValue}:${index}`,
         controlIndex: control.index ?? index,
-        region: region.title || region.kind || region.type, label: control.label || '', type: control.type, value,
+        region: region.regionKey || region.title || region.kind || region.type,
+        ...(control.section || region.section ? { section: control.section || region.section } : {}),
+        label: control.label || '', type: control.type, value,
         ...(control.inventoryNote ? { inventoryNote: control.inventoryNote } : {}),
         ...(control.role ? { role: control.role } : {}),
         ...(control.position !== undefined ? { position: control.position } : {}),

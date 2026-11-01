@@ -23,7 +23,8 @@ test('style-value inference uses unit type and CSS value shape, never setting na
   assert.equal(inferStyleValueKind({ id: 'arbitrary-a', value: '#aabbcc' }), 'color');
   assert.equal(inferStyleValueKind({ id: 'arbitrary-b', type: 'font-size', value: 18 }), 'font-size');
   assert.equal(inferStyleValueKind({ id: 'color-named-setting', value: '18' }), null);
-  assert.equal(inferStyleValueKind({ id: 'size-setting', value: '1.25rem' }), 'font-size');
+  assert.equal(inferStyleValueKind({ id: 'size-setting', value: '1.25rem' }), null);
+  assert.equal(inferStyleValueKind({ id: 'explicit-size-setting', type: 'font-size', value: '1.25rem' }), 'font-size');
   assert.equal(inferStyleValueKind({ id: 'unrelated-dimension', styleProperty: 'width', value: '1200px' }), null);
 });
 

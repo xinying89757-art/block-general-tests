@@ -91,7 +91,7 @@
       "自定义字段筛选（多选） 205:2"
     ],
     "status": "provided",
-    "url": "https://www.figma.com/design/AbJ42nodCsTvedlqH2FdqC/%E9%94%A6%E5%87%8C%E7%94%B5%E5%AD%90%E5%8C%BA%E5%9D%97%E8%AE%BE%E8%AE%A1%E7%A8%BF--Copy-?node-id=0-1&p=f&t=go8WyMEen18jZ38q-0"
+    "url": "https://www.figma.com/design/AbJ42nodCsTvedlqH2FdqC/%E9%94%A6%E5%87%8C%E7%94%B5%E5%AD%90%E5%8C%BA%E5%9D%97%E8%AE%BE%E8%AE%A1%E7%A8%BF--Copy-?node-id=0-1&p=f"
   },
   "knownInteractions": [
     "select-filter",
@@ -175,6 +175,436 @@
     ],
     "notes": [
       "40838 无模块宽度设置（2026-10-30 用户确认），不列入需求。"
+    ]
+  },
+  "designSpec": {
+    "source": {
+      "fileKey": "AbJ42nodCsTvedlqH2FdqC",
+      "nodeId": "0:1143"
+    },
+    "requirements": [
+      {
+        "id": "color-1-1-7-default",
+        "checkType": "color-default",
+        "sourceText": "配色1 浅蓝色 7%透明度",
+        "expected": {
+          "name": "配色1 浅蓝色 7%透明度",
+          "value": "#044F9F @7%"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "0:1143",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "color-1-1-7-scope-1",
+        "checkType": "color-scope",
+        "sourceText": "内容区背景配色",
+        "expected": {
+          "name": "配色1 浅蓝色 7%透明度",
+          "value": "#044F9F @7%"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "0:1143",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "color-2-2-default",
+        "checkType": "color-default",
+        "sourceText": "配色2 蓝色",
+        "expected": {
+          "name": "配色2 蓝色",
+          "value": "#044F9F"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "0:1143",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "color-2-2-scope-1",
+        "checkType": "color-scope",
+        "sourceText": "自定义字段标题配色",
+        "expected": {
+          "name": "配色2 蓝色",
+          "value": "#044F9F"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "0:1143",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "color-2-2-scope-2",
+        "checkType": "color-scope",
+        "sourceText": "选中复选框配色",
+        "expected": {
+          "name": "配色2 蓝色",
+          "value": "#044F9F"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "0:1143",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "color-2-2-scope-3",
+        "checkType": "color-scope",
+        "sourceText": "Reset按钮文字颜色配色",
+        "expected": {
+          "name": "配色2 蓝色",
+          "value": "#044F9F"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "0:1143",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "color-2-2-scope-4",
+        "checkType": "color-scope",
+        "sourceText": "滚动条配色",
+        "expected": {
+          "name": "配色2 蓝色",
+          "value": "#044F9F"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "0:1143",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "color-2-2-scope-5",
+        "checkType": "color-scope",
+        "sourceText": "按钮背景配色",
+        "expected": {
+          "name": "配色2 蓝色",
+          "value": "#044F9F"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "0:1143",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "typography-1-series-pc",
+        "checkType": "typography",
+        "sourceText": "自定义字段标题(Series等)",
+        "expected": {
+          "fontSize": "16px",
+          "fontWeight": "Open Sans Semibold",
+          "color": "白字/蓝底"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "0:58",
+          "sourceNodeText": "0:58"
+        }
+      },
+      {
+        "id": "typography-2-item-pc",
+        "checkType": "typography",
+        "sourceText": "搜索框占位",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "Open Sans Regular",
+          "color": "#afafaf"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "0:63",
+          "sourceNodeText": "0:63"
+        }
+      },
+      {
+        "id": "typography-3-item-pc",
+        "checkType": "typography",
+        "sourceText": "字段选项",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "Open Sans Regular",
+          "color": "#333"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "0:68",
+          "sourceNodeText": "0:68"
+        }
+      },
+      {
+        "id": "typography-4-reset-pc",
+        "checkType": "typography",
+        "sourceText": "Reset",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "Open Sans Regular",
+          "color": "#044f9f"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "0:178",
+          "sourceNodeText": "0:178"
+        }
+      },
+      {
+        "id": "typography-5-clear-filters-search-pc",
+        "checkType": "typography",
+        "sourceText": "Clear Filters / Search 按钮",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "Open Sans Regular"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "0:214",
+          "sourceNodeText": "0:214"
+        }
+      },
+      {
+        "id": "typography-6-item-pc",
+        "checkType": "typography",
+        "sourceText": "已选标签",
+        "expected": {
+          "fontWeight": "Open Sans Regular",
+          "color": "#333"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": null,
+          "sourceNodeText": null
+        }
+      },
+      {
+        "id": "typography-7-item-mobile",
+        "checkType": "typography",
+        "sourceText": "自定义字段标题",
+        "expected": {
+          "fontSize": "16px",
+          "fontWeight": "Open Sans Semibold"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "0:844",
+          "sourceNodeText": "0:844"
+        }
+      },
+      {
+        "id": "typography-8-item-mobile",
+        "checkType": "typography",
+        "sourceText": "搜索框占位",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "Open Sans Regular",
+          "color": "#afafaf"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "0:846",
+          "sourceNodeText": "0:846"
+        }
+      },
+      {
+        "id": "typography-9-item-mobile",
+        "checkType": "typography",
+        "sourceText": "字段选项",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "Open Sans Regular",
+          "color": "#333"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "0:849",
+          "sourceNodeText": "0:849"
+        }
+      },
+      {
+        "id": "typography-10-reset-mobile",
+        "checkType": "typography",
+        "sourceText": "Reset",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "Open Sans Regular",
+          "color": "#044f9f"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "0:894",
+          "sourceNodeText": "0:894"
+        }
+      },
+      {
+        "id": "typography-11-item-mobile",
+        "checkType": "typography",
+        "sourceText": "已选标签",
+        "expected": {
+          "fontSize": "12px",
+          "fontWeight": "Open Sans Regular",
+          "color": "#333"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "0:904",
+          "sourceNodeText": "0:904"
+        }
+      },
+      {
+        "id": "typography-12-clear-filters-mobile",
+        "checkType": "typography",
+        "sourceText": "Clear Filters",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "Open Sans Regular"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "0:929",
+          "sourceNodeText": "0:929"
+        }
+      },
+      {
+        "id": "other-1-item",
+        "checkType": "module-width",
+        "sourceText": "默认宽度1440px，支持模块行展开功能",
+        "expected": {
+          "expandable": true,
+          "default": "1440px"
+        },
+        "checkStage": "editor",
+        "params": {
+          "sourceKey": "区块宽度"
+        }
+      },
+      {
+        "id": "other-2-item",
+        "checkType": "manual",
+        "sourceText": "文字大小与设计稿保持一致",
+        "expected": {
+          "verbatim": "文字大小与设计稿保持一致"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "文字"
+        }
+      },
+      {
+        "id": "other-3-item-vertical",
+        "checkType": "overflow-threshold",
+        "sourceText": "自定义字段超过8个出现滚动条可以纵向滚动，且每个自定义字段下有搜索框可以搜索当前自定义字段下方内容。",
+        "expected": {
+          "threshold": 8,
+          "direction": "vertical"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "样式"
+        }
+      },
+      {
+        "id": "other-4-item-search",
+        "checkType": "search-box-per-field",
+        "sourceText": "自定义字段超过8个出现滚动条可以纵向滚动，且每个自定义字段下有搜索框可以搜索当前自定义字段下方内容。",
+        "expected": {
+          "requiredPerField": true
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "样式"
+        }
+      },
+      {
+        "id": "other-5-item-rule-1",
+        "checkType": "text-truncation",
+        "sourceText": "自定义字段名称长度不超过1行，超出省略展示，字段不超过2行，超出省略展示。",
+        "expected": {
+          "maxLines": 1,
+          "overflow": "ellipsis",
+          "sourceOrder": 1
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "样式"
+        }
+      },
+      {
+        "id": "other-6-item-rule-2",
+        "checkType": "text-truncation",
+        "sourceText": "自定义字段名称长度不超过1行，超出省略展示，字段不超过2行，超出省略展示。",
+        "expected": {
+          "maxLines": 2,
+          "overflow": "ellipsis",
+          "sourceOrder": 2
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "样式"
+        }
+      },
+      {
+        "id": "other-7-item-horizontal",
+        "checkType": "overflow-threshold",
+        "sourceText": "筛选列表下方有横向滚动条，超出5个字段筛选即可横向滚动",
+        "expected": {
+          "threshold": 5,
+          "direction": "horizontal"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "样式"
+        }
+      },
+      {
+        "id": "other-8-item",
+        "checkType": "selected-tag-behaviour",
+        "sourceText": "筛选字段平铺在表格下方展示，字段背景为白色且有14%透明度黑色的投影，字段后面有叉号可以删除所选项，最下方的按钮可以清除所有的所选项",
+        "expected": {
+          "verbatim": "筛选字段平铺在表格下方展示，字段背景为白色且有14%透明度黑色的投影，字段后面有叉号可以删除所选项，最下方的按钮可以清除所有的所选项"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "样式"
+        }
+      },
+      {
+        "id": "other-9-item",
+        "checkType": "mobile-layout",
+        "sourceText": "7.) 一行展示一个多横向滚动展示，相比于pc端文字、按钮大小会一些，具体以设计稿样式为准",
+        "expected": {
+          "verbatim": "7.) 一行展示一个多横向滚动展示，相比于pc端文字、按钮大小会一些，具体以设计稿样式为准"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "手机端"
+        }
+      }
+    ],
+    "overrides": [
+      {
+        "requirementId": "other-1-item",
+        "status": "waived",
+        "reason": "设计稿写可行展开，但后来取消了模块宽度设置项（Xinying 2026-11-01）"
+      }
     ]
   }
 }

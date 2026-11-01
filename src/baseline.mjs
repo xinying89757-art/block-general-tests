@@ -21,6 +21,7 @@ import { savePage } from './editor.mjs';
 import { readButtonPopover, writeButtonPopover } from './capabilities/button-link.mjs';
 import { matchControl, matchingControls, normalizeControlIdentity } from './baseline-identity.mjs';
 import { uiWaitConfig, waitForStable, waitForEditorLoadingToClear } from './ui-waits.mjs';
+import { annotateControlSections } from './control-sections.mjs';
 import { makeFixtureSelectionRule, fixtureSelectionDiff } from './site-baseline.mjs';
 import { retryClosedRestoreStep } from './baseline-recovery.mjs';
 import fs from 'node:fs/promises';
@@ -94,7 +95,8 @@ async function readDialogTitle(dialog) {
   return text.split('\n').map((line) => line.trim()).find(Boolean) || '';
 }
 
-export async function inventorySettings({ page, canvas, config, blockId, onProgress, degradeInventoryErrors = false }) {
+export async function inventorySettings({ page, canvas, config, blockId, onProgress, degradeInventoryErrors = false,
+  includeControlSections = false }) {
   await waitForEditorLoadingToClear(canvas);
   const wrapLocator = canvas.locator(
     `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(blockId))}] .backstage-blocksEditor-wrap`);
@@ -153,6 +155,7 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
       region.title = title;
       session = widgetSession({ page, canvas, config, type, title, wrapIndex });
       region.controls = await session.read();
+      if (includeControlSections) region.controls = await annotateControlSections(session.root, region.controls);
       await session.cancel();
     } catch (error) {
       region.skipped = /Timeout.*exceeded/.test(error.message)

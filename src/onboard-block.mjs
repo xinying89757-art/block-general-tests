@@ -77,8 +77,10 @@ export function buildDraftProfile(template, { blockId, page, mapping, observedAt
   profile.requirements = { capabilities: structuredClone(mapping.requirements), displayFieldTypes: [] };
   const pendingStyleEffects = mapping.matched.flatMap((match) => (match.evidence || []).flatMap((evidence, index) => {
     const kind = inferStyleValueKind({ type: evidence.type, value: evidence.value });
-    if (!kind) return [];
-    const properties = kind === 'font-size' ? ['fontSize'] : ['color', 'backgroundColor', 'borderColor', 'outlineColor',
+    // The editor has no font-size setting controls; typography remains a
+    // design-spec-only assertion, so onboarding learns effects for colors only.
+    if (kind !== 'color') return [];
+    const properties = ['color', 'backgroundColor', 'borderColor', 'outlineColor',
       'textDecorationColor', 'accentColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke'];
     return properties.map((property) => ({ requirementId: match.id, evidenceIndex: index,
       regionType: match.type || null, wrapIndex: Number.isInteger(match.wrapIndex) ? match.wrapIndex : null,

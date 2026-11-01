@@ -16,7 +16,9 @@ function cssValueKind(value, typeHints = []) {
   if (typeof value === 'number' && /font[\s_-]*size|fontsize/.test(hints)) return 'font-size';
   const text = typeof value === 'string' ? value.trim() : '';
   if (/^(?:#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})|(?:rgb|hsl|hwb|lab|lch|oklab|oklch|color)\s*\(|transparent\b|currentcolor\b)/i.test(text)) return 'color';
-  if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:px|rem|em|ex|ch|lh|rlh|vw|vh|vmin|vmax|%|pt|pc|cm|mm|in)$/i.test(text)) return 'font-size';
+  // A CSS length alone cannot identify font size (it may be width, padding,
+  // height, or another dimension). Font-size is inferred only from explicit
+  // unit/property metadata or a supplied design-spec check.
   return null;
 }
 

@@ -11,6 +11,7 @@ import { inspectActiveModuleLibraryOpener, probeModuleLibraryModes,
 import { RAIL, openRailPanel, readSchemeColor, setSchemeColor, saveColorPanel, readModuleWidth,
   cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
 import { waitForEditorLoadingToClear } from './ui-waits.mjs';
+import { annotateControlSections, openControlSection } from './control-sections.mjs';
 
 const wrapSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 
@@ -69,7 +70,7 @@ export function freshRailInventoryRegions(color, width) {
     inventoryNote: control.inventoryNote || (!control.identifiable ? 'Color input identity is ambiguous; skipped for setting mapping.' : undefined),
   }));
   return [
-    { title: 'right-rail-color', type: 'rail:color-scheme', wrapIndex: 0, kind: 'right-rail-flyout',
+    { title: 'right-rail-color', section: '区块配色', regionKey: 'right-rail-color', type: 'rail:color-scheme', wrapIndex: 0, kind: 'right-rail-flyout',
       controls: colorControls, ...(color?.notes?.length ? { notes: color.notes } : {}) },
     { title: 'right-rail-width', type: 'rail:module-width', wrapIndex: 0, kind: 'right-rail-flyout', controls: widthControls },
   ];
@@ -78,7 +79,8 @@ export function freshRailInventoryRegions(color, width) {
 function uniqueStyleControl(controls, target) {
   const found = (controls || []).filter((item) => item.index === target.controlIndex
     && item.type === target.type && (target.tag == null || item.tag === target.tag)
-    && (item.name || '') === (target.name || '') && (item.label || '') === (target.label || ''));
+    && (item.name || '') === (target.name || '') && (item.label || '') === (target.label || '')
+    && (!target.section || item.section === target.section));
   if (found.length !== 1) throw new Error(`Discovered style control identity resolved ${found.length} controls; expected exactly one.`);
   return found[0];
 }
@@ -104,14 +106,15 @@ function createStyleControlBrowserAdapter({ page, canvas, config }) {
       }
       const session = widgetSession({ page, canvas, config, type: reference.regionType,
         title: reference.regionTitle, wrapIndex: reference.wrapIndex });
+      const readControls = async () => annotateControlSections(session.root, await session.read());
       return createFreshLifecycle('settings-dialog', {
-        open: () => session.open(),
+        open: async () => { await session.open(); if (reference.section) await openControlSection(session.root, reference.section); },
         read: async (target) => {
-          const controls = await session.read();
+          const controls = await readControls();
           return uniqueStyleControl(controls, target).value;
         },
         apply: async (target, value) => {
-          const controls = await session.read();
+          const controls = await readControls();
           await session.set(uniqueStyleControl(controls, target), value);
         },
         commit: () => session.save(),
@@ -146,7 +149,8 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     // Keep the button popover last: its verified close operation confirms
     // unchanged values when no non-saving dismissal is available.
     return [...freshRailInventoryRegions(color, width),
-      ...await inventorySettings({ page, canvas: frame, config, blockId: config.blockId, degradeInventoryErrors: true })];
+      ...await inventorySettings({ page, canvas: frame, config, blockId: config.blockId,
+        degradeInventoryErrors: true, includeControlSections: true })];
   };
   const selectedCreated = (instance) => ({ blockId: String(config.blockId), settingId: instance.settingId,
     ordinal: instance.ordinal, position: instance.position });

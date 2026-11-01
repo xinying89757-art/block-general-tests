@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { isColorControlSurfaceVisible } from '../src/capabilities/rail.mjs';
 import { identifyColorPanelInputs, planColorPanelWrites } from '../src/capabilities/rail.mjs';
 import { alternateStyleControlValue, createDiscoveredStyleSettingUnits,
-  discoverStyleControlCandidates, styleControlKind } from '../src/discovered-style-settings.mjs';
+  discoverStyleControlCandidates, isColorSchemeInventoryRegion, styleControlKind } from '../src/discovered-style-settings.mjs';
 import { createFreshSettingsAdapter } from '../src/fresh-settings-adapter.mjs';
 import { freshRailInventoryRegions } from '../src/fresh-block-browser-adapter.mjs';
 
@@ -75,6 +75,18 @@ test('color control shapes are discovered without labels and become writable lea
   assert.ok(prepared.settings.every((unit) => /^#[0-9a-f]{6}$/i.test(unit.alternateValue)));
 });
 
+test('each discovered 区块配色 control receives a distinct alternate written value', async () => {
+  const inventory = [{ type: 'rail:color-scheme', title: 'right-rail-color', controls: [
+    { index: 0, type: 'color', identity: 'position:0', position: 0, value: '#123456' },
+    { index: 1, type: 'color', identity: 'position:1', position: 1, value: '#123456' },
+    { index: 2, type: 'color', identity: 'position:2', position: 2, value: '#123456' },
+  ] }];
+  const prepared = await createDiscoveredStyleSettingUnits({ inventory,
+    styleControlAdapter: { createLifecycle: async () => mockLifecycle({}, []) } });
+  assert.equal(prepared.settings.length, 3);
+  assert.equal(new Set(prepared.settings.map((unit) => unit.alternateValue.toLowerCase())).size, 3);
+});
+
 test('shared fresh adapter composes discovered style controls even when no capability maps them', async () => {
   const inventory = [{ type: 'rail:color-scheme', title: 'right-rail-color', wrapIndex: 0,
     kind: 'right-rail-flyout', controls: [
@@ -95,17 +107,23 @@ test('shared fresh adapter composes discovered style controls even when no capab
   assert.equal(persisted, 1);
 });
 
-test('font-size dimensions become units while explicit non-font CSS properties do not', async () => {
+test('font-size shaped controls are not inferred as settings; width is not treated as font size', async () => {
   const inventory = [{ type: 'phoenix_blocks_text', title: 'Typography controls', wrapIndex: 0,
     kind: 'widget-dialog', controls: [
       { index: 0, tag: 'INPUT', type: 'text', name: 'control-a', label: 'Control A', value: '18px', readOnly: false },
       { index: 1, tag: 'INPUT', type: 'text', name: 'control-b', label: 'Control B', value: '1440px', styleProperty: 'width' },
     ] }];
-  assert.equal(styleControlKind(inventory[0].controls[0]), 'font-size');
+  assert.equal(styleControlKind(inventory[0].controls[0]), null);
   assert.equal(styleControlKind(inventory[0].controls[1]), null);
-  assert.deepEqual(discoverStyleControlCandidates(inventory).map((item) => item.kind), ['font-size']);
+  assert.deepEqual(discoverStyleControlCandidates(inventory).map((item) => item.kind), []);
   assert.equal(alternateStyleControlValue('font-size', '18px'), '19px');
   assert.equal(alternateStyleControlValue('font-size', '1.25rem'), '2.25rem');
+});
+
+test('color controls are discovered only from the 区块配色 section or shared rail surface', () => {
+  assert.equal(isColorSchemeInventoryRegion({ type: 'rail:color-scheme' }), true);
+  assert.equal(isColorSchemeInventoryRegion({ type: 'widget', title: 'Block settings' }, { section: '区块配色' }), true);
+  assert.equal(isColorSchemeInventoryRegion({ type: 'widget', title: 'Other settings' }, { value: '#112233' }), false);
 });
 
 test('ambiguous or read-only style controls fail closed instead of producing units', () => {

@@ -16,6 +16,7 @@
 import { checkReportText } from './shared.mjs';
 import { markUniqueFrontInstance } from '../front-instance-root.mjs';
 import { chooseSelectorCandidate } from '../style-effect-learning.mjs';
+import { extractWrittenColorValues, runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../design-spec-checklist.mjs';
 
 const SUITE = 'capability:block-style-spec';
 export const freshSettings = Object.freeze({ status: 'check-only', runPostPublish: runFreshStyleChecks });
@@ -48,10 +49,14 @@ const NAMES = {
 };
 
 export async function runFreshStyleChecks(args) {
-  const { session, capability, config, frontLink, published, settingsReport, instance } = args;
+  const { session, capability, config, frontLink, published, settingsReport, instance, profile } = args;
   const front = frontLink || published?.frontLink;
   if (!front || !session?.context?.newPage) {
-    return unavailableStyleResults(capability, '发布后无法从当前执行环境打开前台页面；需前台机器运行此能力的既有样式断言。');
+    const unavailable = unavailableStyleResults(capability, '发布后无法从当前执行环境打开前台页面；需前台机器运行此能力的既有样式断言。');
+    const design = await runDesignSpecFrontChecks(profile, { page: null, rootSelector: null, frontChecks: unavailable });
+    const written = extractWrittenColorValues(settingsReport).length
+      ? await runWrittenColorFrontChecks({ page: null, rootSelector: null, settingsReport }) : [];
+    return [...unavailable, ...design.filter(Boolean), ...written];
   }
   let page;
   let markedRoot;
@@ -62,8 +67,12 @@ export async function runFreshStyleChecks(args) {
     markedRoot = await markUniqueFrontInstance(page, { blockId: config.blockId, settingId: instance?.settingId });
     const rootSelector = markedRoot.selector;
     await page.locator(rootSelector).waitFor({ state: 'attached', timeout: config.actionTimeoutMs });
-    return await runFrontLayer({ frame: page, previewPage: page,
+    const styleChecks = await runFrontLayer({ frame: page, previewPage: page,
       config: { ...config, rootSelector, settingId: instance?.settingId, settingsReport }, capability });
+    const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector, frontChecks: styleChecks });
+    const writtenColorChecks = extractWrittenColorValues(settingsReport).length
+      ? await runWrittenColorFrontChecks({ page, rootSelector, settingsReport }) : [];
+    return [...styleChecks, ...designChecks.filter(Boolean), ...writtenColorChecks];
   } catch (error) {
     return unavailableStyleResults(capability,
       `发布后前台样式断言当前不可达（${error.message}）；需前台机器运行此能力的既有样式断言。`);

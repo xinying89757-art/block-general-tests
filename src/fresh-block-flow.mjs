@@ -468,7 +468,9 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
       if (typeof prepared?.runPostPublishChecks === 'function') {
         try {
           const postPublishChecks = await prepared.runPostPublishChecks({ published,
-            frontLink: published.frontLink || opened.frontLink, config, instance: fresh });
+            frontLink: published.frontLink || opened.frontLink, config, instance: fresh,
+            settingsReport: { block: { settingId: fresh.settingId, currentValues: values },
+              checks: batch.results, styleScopeLearning: prepared.styleScopeDiagnostics || [] } });
           batch.results.push(...postPublishChecks);
           await onProgress({ stage: 'post-publish-checks-finished', checkCount: postPublishChecks.length });
         } catch (error) {

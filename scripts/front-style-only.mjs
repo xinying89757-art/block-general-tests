@@ -14,6 +14,7 @@ import { chromium } from 'playwright-core';
 import { runFrontLayer, resolveFrontStyleCapability } from '../src/capabilities/block-style-spec.mjs';
 import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 import { markUniqueFrontInstance } from '../src/front-instance-root.mjs';
+import { runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../src/design-spec-checklist.mjs';
 
 const args = {};
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -29,7 +30,7 @@ const blockId = String(args.block);
 const profilePath = args.profile || `profiles/${blockId}.json`;
 const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
 const capability = (profile.capabilities || []).find((c) => c.id === 'block-style-spec');
-if (!capability) { console.error(`${profilePath} 没有 block-style-spec 能力`); process.exit(2); }
+if (!capability && !profile.designSpec) { console.error(`${profilePath} 没有 block-style-spec 或 designSpec`); process.exit(2); }
 const settingsReport = args['run-report'] ? JSON.parse(fs.readFileSync(args['run-report'], 'utf8')) : null;
 if (settingsReport && String(settingsReport.blockId ?? '') !== blockId) {
   console.error(`运行报告区块 ID 与目标不一致：预期 ${blockId}，实际 ${settingsReport.blockId ?? 'missing'}`);
@@ -40,7 +41,7 @@ if (settingsReport?.block?.settingId && args['setting-id']
   console.error('运行报告 settingId 与 --setting-id 不一致。');
   process.exit(2);
 }
-const resolvedCapability = resolveFrontStyleCapability(capability, settingsReport);
+const resolvedCapability = capability ? resolveFrontStyleCapability(capability, settingsReport) : null;
 const stamp = Date.now();
 const out = args.out || `reports/front-style-${blockId}-${stamp}.json`;
 fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -70,8 +71,12 @@ try {
   stage = 'read-style';
   report.expectedValueSourceReport = args['run-report'] || null;
   try {
-    report.checks = attachFrontStyleInstance(
-      await runFrontLayer({ frame: page, previewPage: page, config, capability: resolvedCapability }), report.settingId);
+    const styleChecks = capability && (capability.styleSpec?.items?.length || capability.styleSpec?.recordOnly?.length)
+      ? await runFrontLayer({ frame: page, previewPage: page, config, capability: resolvedCapability }) : [];
+    const designChecks = await runDesignSpecFrontChecks(profile, { page, rootSelector: config.rootSelector,
+      frontChecks: styleChecks, viewport: { width: 1440, height: 900 } });
+    const writtenColors = await runWrittenColorFrontChecks({ page, rootSelector: config.rootSelector, settingsReport });
+    report.checks = attachFrontStyleInstance([...styleChecks, ...designChecks.filter(Boolean), ...writtenColors], report.settingId);
   } finally { await markedRoot.clear().catch(() => {}); }
   const shots = fs.readdirSync('screenshots').filter((f) => f.startsWith(`style-${blockId}-`));
   report.screenshots = shots.map((f) => `screenshots/${f}`);

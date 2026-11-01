@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://block-general-tests.local/schemas/design-checklist.schema.json",
+  "title": "Per-block design checklist",
+  "type": "object",
+  "required": ["source", "requirements", "overrides"],
+  "properties": {
+    "source": {
+      "type": "object",
+      "required": ["fileKey", "nodeId"],
+      "properties": {
+        "fileKey": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
+        "nodeId": { "type": "string", "pattern": "^[0-9]+:[0-9]+$" }
+      },
+      "additionalProperties": false
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "checkType", "sourceText", "expected", "checkStage", "params"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+          "checkType": { "enum": ["color-default", "color-scope", "typography", "module-width", "height-fit", "text-truncation", "image-ratio", "overflow-threshold", "search-box-per-field", "default-expand", "selected-tag-behaviour", "mobile-layout", "manual"] },
+          "sourceText": { "type": "string", "minLength": 1 },
+          "expected": {},
+          "checkStage": { "enum": ["editor", "front", "both"] },
+          "params": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["requirementId", "status", "reason"],
+        "properties": {
+          "requirementId": { "type": "string" },
+          "status": { "const": "waived" },
+          "reason": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "scopeOverrides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["requirementId", "sourceText", "resolvedScope", "reason"],
+        "properties": {
+          "requirementId": { "type": "string" },
+          "sourceText": { "type": "string", "minLength": 1 },
+          "resolvedScope": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

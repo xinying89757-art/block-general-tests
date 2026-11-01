@@ -15,10 +15,19 @@ export function styleControlKind(control = {}) {
   const kind = inferStyleValueKind({ value: valueForControl(control), valueKind: control.valueKind,
     kind: control.kind, type: control.type, role: control.role,
     styleProperty: control.styleProperty, cssProperty: control.cssProperty });
-  if (!kind) return null;
-  if (control.styleProperty && kind === 'font-size' && control.styleProperty !== 'fontSize') return null;
-  if (control.styleProperty && kind === 'color' && !COLOR_PROPERTIES.has(control.styleProperty)) return null;
-  return kind;
+  // The editor exposes no font-size setting. Font sizes are design-spec
+  // assertions or record-only observations; arbitrary CSS dimensions (width,
+  // padding, etc.) must never become inferred setting units.
+  if (kind !== 'color') return null;
+  if (control.styleProperty && !COLOR_PROPERTIES.has(control.styleProperty)) return null;
+  if (control.cssProperty && !COLOR_PROPERTIES.has(control.cssProperty)) return null;
+  return 'color';
+}
+
+export function isColorSchemeInventoryRegion(region = {}, control = {}) {
+  return region.type === 'rail:color-scheme'
+    || [control.section, control.group, region.section, region.group, region.title].some((value) =>
+      String(value || '').replace(/\s+/g, '').includes('区块配色'));
 }
 
 export function alternateStyleControlValue(kind, initialValue) {
@@ -41,11 +50,25 @@ export function alternateStyleControlValue(kind, initialValue) {
   throw new Error(`Unsupported style control kind: ${kind}`);
 }
 
+function distinctAlternateValue(kind, initialValue, usedValues) {
+  let value = alternateStyleControlValue(kind, initialValue);
+  if (kind !== 'color') return value;
+  const normalize = (candidate) => normalizeColor(candidate).toLowerCase();
+  let rgb = Number.parseInt(normalize(value).slice(1), 16);
+  const initial = normalize(initialValue);
+  while (usedValues.has(normalize(value)) || normalize(value) === initial) {
+    rgb = (rgb + 1) & 0xffffff;
+    value = `#${rgb.toString(16).padStart(6, '0')}`;
+  }
+  usedValues.add(normalize(value));
+  return value;
+}
+
 function referenceFor(region, control, index, kind) {
   const controlIndex = Number.isInteger(control.index) ? control.index : index;
   const value = valueForControl(control);
   const type = control.type || (kind === 'color' ? 'color' : 'text');
-  const regionName = region.title || region.type;
+  const regionName = region.regionKey || (region.type === 'rail:color-scheme' ? 'right-rail-color' : region.title || region.type);
   const token = `${SAFE_TOKEN(region.type)}-${region.wrapIndex ?? 0}-${controlIndex}-${kind}`;
   const requirementId = `discovered-style-${token}`;
   return {
@@ -55,6 +78,7 @@ function referenceFor(region, control, index, kind) {
       wrapIndex: Number.isInteger(region.wrapIndex) ? region.wrapIndex : 0,
       controlIndex, type, tag: control.tag || null, name: control.name || '', label: control.label || '',
       role: control.role || null, identity: control.identity || null,
+      section: control.section || region.section || region.group || null,
       position: Number.isInteger(control.position) ? control.position : null,
       styleProperty: control.styleProperty || (kind === 'font-size' ? 'fontSize' : null) },
   };
@@ -78,7 +102,7 @@ function addProfileRequirement(profile, candidate) {
       wrapIndex: candidate.reference.wrapIndex, index: candidate.reference.controlIndex,
       tag: candidate.reference.tag, type: candidate.reference.type, name: candidate.reference.name,
       label: candidate.reference.label, role: candidate.reference.role, identity: candidate.reference.identity,
-      position: candidate.reference.position } });
+      section: candidate.reference.section, position: candidate.reference.position } });
 }
 
 export function discoverStyleControlCandidates(inventory = [], persistedControls = []) {
@@ -88,6 +112,7 @@ export function discoverStyleControlCandidates(inventory = [], persistedControls
       if (control.disabled || control.readOnly || control.inventoryNote) continue;
       const kind = styleControlKind(control);
       if (!kind) continue;
+      if (kind === 'color' && !isColorSchemeInventoryRegion(region, control)) continue;
       const candidate = referenceFor(region, control, index, kind);
       if (!alreadyCovered(candidate, persistedControls)) candidates.push(candidate);
     }
@@ -115,10 +140,11 @@ export async function createDiscoveredStyleSettingUnits({ inventory = [], persis
   const lifecycleByRegion = new Map();
   const settings = [];
   const controls = [];
+  const writtenColorValues = new Set();
   let requirementsAdded = false;
   for (const candidate of candidates) {
     if (candidate.initialValue === null || candidate.initialValue === undefined || candidate.initialValue === '') continue;
-    const alternateValue = alternateStyleControlValue(candidate.kind, candidate.initialValue);
+    const alternateValue = distinctAlternateValue(candidate.kind, candidate.initialValue, writtenColorValues);
     const lifecycleKey = `${candidate.reference.regionType}:${candidate.reference.regionTitle}:${candidate.reference.wrapIndex}`;
     let lifecycle = lifecycleByRegion.get(lifecycleKey);
     if (!lifecycle) {
