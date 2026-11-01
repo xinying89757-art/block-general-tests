@@ -1,3 +1,5 @@
+import { ensureStyleEffectProfileEntries, styleEffectForSetting } from './style-effect-learning.mjs';
+
 /**
  * Canonical per-setting unit contract used by capability fresh adapters.
  * Locators point back to a profile requirement; they never contain a site or
@@ -18,6 +20,7 @@ const aliases = Object.freeze({
 
 export function createSettingUnit(input) {
   const unit = { ...input };
+  unit.styleEffect = styleEffectForSetting(unit) || unit.styleEffect || undefined;
   const requiredStrings = ['id', 'capability', 'requirementId'];
   for (const key of requiredStrings) {
     if (typeof unit[key] !== 'string' || !unit[key].trim()) throw new Error(`Setting unit requires ${key}.`);
@@ -80,7 +83,9 @@ export function adaptCapabilityDefinitions({ capability, created, profile, metad
       return [];
     });
     const batchMeta = metadata[setting.key] || {};
-    return createSettingUnit({
+    const styleEffect = styleEffectForSetting({ ...setting,
+      styleEffect: setting.styleEffect || requirement?.styleEffect });
+    const unit = createSettingUnit({
       ...setting,
       capability,
       requirementId,
@@ -95,9 +100,19 @@ export function adaptCapabilityDefinitions({ capability, created, profile, metad
       editorCheck: setting.check,
       frontCheck: setting.frontCheck || null,
       frontRequires: setting.frontRequires || [],
-      ...(requirement?.styleEffect ? { styleEffect: structuredClone(requirement.styleEffect) } : {}),
+      ...(styleEffect ? { styleEffect } : {}),
       restore: setting.restore,
     });
+    if (styleEffect) {
+      ensureStyleEffectProfileEntries(profile, unit, styleEffect);
+      for (const pending of profile?.onboarding?.pendingStyleEffects || []) {
+        if (pending.requirementId === requirementId && pending.kind === (styleEffect.properties.includes('fontSize') ? 'font-size' : 'color')) {
+          pending.settingUnitId = unit.id;
+          pending.checkIds = styleEffect.checks.map((check) => check.checkId);
+        }
+      }
+    }
+    return unit;
   });
   return { ...created, settings };
 }
@@ -134,7 +149,7 @@ export function assertAutotestTotalCount({ fixtureNames, actualNames, quantity }
 }
 
 /** Build a generic radio setting from option identities declared in a profile. */
-export async function createProfileRadioSettingUnit(requirement, editorAdapter) {
+export async function createProfileRadioSettingUnit(requirement, editorAdapter, { profile } = {}) {
   if (!requirement?.id || requirement?.editorControl?.type !== 'radio'
     || !Array.isArray(requirement.editorControl.options) || requirement.editorControl.options.length < 2) {
     throw new Error('Profile radio unit requires an id and at least two declared radio options.');
@@ -151,7 +166,7 @@ export async function createProfileRadioSettingUnit(requirement, editorAdapter) 
     throw new Error(`Profile radio unit ${requirement.id} current value is not a declared option.`);
   }
   const persistedControls = requirement.persistedControls || [];
-  return createSettingUnit({
+  const unit = createSettingUnit({
     id: requirement.unitId || requirement.id,
     capability: requirement.capability || 'profile-settings',
     requirementId: requirement.id,
@@ -176,7 +191,19 @@ export async function createProfileRadioSettingUnit(requirement, editorAdapter) 
       : null,
     initialValue: original,
     key: requirement.key || requirement.id,
+    ...(requirement.valueKind ? { valueKind: requirement.valueKind } : {}),
+    ...(requirement.styleProperty ? { styleProperty: requirement.styleProperty } : {}),
   });
+  if (unit.styleEffect) {
+    ensureStyleEffectProfileEntries(profile, unit, unit.styleEffect);
+    for (const pending of profile?.onboarding?.pendingStyleEffects || []) {
+      if (pending.requirementId === requirement.id && pending.kind === (unit.styleEffect.properties.includes('fontSize') ? 'font-size' : 'color')) {
+        pending.settingUnitId = unit.id;
+        pending.checkIds = unit.styleEffect.checks.map((check) => check.checkId);
+      }
+    }
+  }
+  return unit;
 }
 
 /**
@@ -202,7 +229,7 @@ export async function discoverProfileFrontUnits(profile, { frontAvailable = fals
         actual: 'No common editor adapter or profile option inventory is available.',
         detail: requirement.editorControl ? 'Profile declares the setting; this runner has no generic profile editor adapter.'
           : 'Profile setting declaration lacks an editorControl option inventory.' });
-    } else editorSettings.push(await createProfileRadioSettingUnit(requirement, profileEditorAdapter));
+    } else editorSettings.push(await createProfileRadioSettingUnit(requirement, profileEditorAdapter, { profile }));
   }
   const countRequirement = declared.get('pld-product-count');
   if (countRequirement) {

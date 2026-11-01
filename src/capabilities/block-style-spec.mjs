@@ -23,7 +23,8 @@ let styleExpectations = {};
 
 function result(id, status, detail, evidence, textFields = {}) {
   return {
-    id, name: NAMES[id], suite: SUITE, status, detail, ...checkReportText(NAMES[id] || id, status, detail, evidence, id),
+    id, name: NAMES[id] || (id.startsWith('bss-auto-style-') ? '自动样式值检查' : id), suite: SUITE, status, detail,
+    ...checkReportText(NAMES[id] || (id.startsWith('bss-auto-style-') ? '自动样式值检查' : id), status, detail, evidence, id),
     ...(styleExpectations[id] ? { expected: styleExpectations[id] } : {}), ...textFields,
     ...(evidence === undefined ? {} : { evidence }),
   };
@@ -406,7 +407,6 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
     }
     for (const item of spec.items || []) {
       const checkId = `bss-${item.id}`;
-      if (!NAMES[checkId]) { checks.push(result(checkId, 'skip', `未知检查 ${item.id}`)); continue; }
       if (item.notApplicableReason) {
         checks.push(result(checkId, 'na', '未应用该样式检查。', { machineReason: {
           code: 'profile-selector-not-resolvable', details: String(item.notApplicableReason).slice(0, 240) } }));
@@ -417,7 +417,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
           code: 'no-style-effect-learned', fallbackCandidateCount: item.selectorCandidates?.length || 0 } }));
         continue;
       }
-      if (Array.isArray(item.selectorCandidates) && item.selectorCandidates.length) {
+      if (Array.isArray(item.selectorCandidates) && item.selectorCandidates.length && !item.learnedSelectorResolved) {
         const candidates = [...new Set([item.selector, ...item.selectorCandidates].filter(Boolean))];
         let counts = [];
         try { counts = await frame.locator(rootSel).evaluate((root, selectors) => selectors.map((selector) => {
@@ -639,12 +639,16 @@ export function resolveFrontStyleCapability(capability, settingsReport = null) {
     const learned = (item.learnedSelectorRequired && settingsReport && !currentLearning)
       ? [] : Object.values(item.learnedSelectors || {}).flat();
     if (learned.length) {
-      item.selector = [...new Set(learned.map((entry) => entry.selector).filter(Boolean))].join(', ');
+      const paths = [...new Set(learned.map((entry) => entry.selector).filter(Boolean))];
+      item.selectorCandidates = paths;
+      item.selector = paths.join(', ');
+      item.learnedSelectorResolved = true;
       item.selectorLearningUnavailable = false;
     } else if (item.learnedSelectorRequired) {
       // Keep the profile's ordered candidates for machine diagnostics/fallback
       // inventory, but do not assert without an effect scope learned this run.
       item.selector = item.selectorCandidates?.[0] || item.selector || null;
+      item.learnedSelectorResolved = false;
       item.selectorLearningUnavailable = true;
     } else if (!item.selector && item.selectorCandidates?.length) item.selector = item.selectorCandidates[0];
     const runExpected = learnedByCheck.get(`bss-${item.id}`);
@@ -738,7 +742,7 @@ export function addStyleFailureReasons(checks, { capability, blockId, rootSelect
     const { expected, actual } = diagnosticValues(check, item);
     const configuredViewport = styleViewport(check.id, { ...spec, ...(viewports ? { viewports } : {}) });
     if (Number.isInteger(evidence.viewportWidth)) configuredViewport.width = evidence.viewportWidth;
-    return { ...check, reason: {
+    return { ...check, name: check.name || item?.name || NAMES[check.id] || check.id, reason: {
       stage, locator, matchedElementCount,
       property: isBreakage ? ['horizontalOverflow', 'stickingOut', 'overlaps', 'textClipped', 'imgDistorted']
         : item?.kind === 'presence' ? ['presence'] : item?.clamp ? ['lineClamp']
@@ -761,7 +765,7 @@ export function styleCheckDescriptors(capability) {
   const items = capability?.styleSpec?.items || [];
   const recordOnly = capability?.styleSpec?.recordOnly || [];
   if (!items.length && !recordOnly.length) return Object.keys(NAMES).map((id) => ({ id, name: NAMES[id], itemId: null }));
-  const descriptors = items.map((item) => ({ id: `bss-${item.id}`, name: NAMES[`bss-${item.id}`] || item.id,
+  const descriptors = items.map((item) => ({ id: `bss-${item.id}`, name: item.name || NAMES[`bss-${item.id}`] || item.id,
     itemId: item.id }));
   descriptors.push(...recordOnly.map((item) => ({ id: `bss-${item.id}`, name: item.name || item.id, itemId: item.id })));
   if (items.some((item) => item.id === 'product-name' && item.clamp)) {

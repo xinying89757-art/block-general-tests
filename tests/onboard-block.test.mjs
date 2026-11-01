@@ -63,6 +63,24 @@ test('generated profile is a draft with only detected capabilities and no guesse
   assert.deepEqual(validateProfile(profile, template, { capabilities: new Set(['button-link']) }), []);
 });
 
+test('onboarding records color and font-size style effects as pending without selectors or labels', () => {
+  const mapping = { requirements: [{ id: 'btn-text' }], capabilities: [{ id: 'button-link', status: 'candidate' }],
+    unmapped: [], matched: [{ id: 'btn-text', capability: 'button-link', evidence: [
+      { type: 'color', label: 'ignored-control-label', value: '#123456' },
+      { type: 'text', label: 'another-ignored-label', value: '18px' },
+      { type: 'number', label: 'unrelated', value: '18' },
+    ] }] };
+  const profile = buildDraftProfile(template, { blockId: 'generic-456', page: { kind: 'system', id: 'page-id' }, mapping });
+  assert.ok(profile.capabilities.some((entry) => entry.id === 'block-style-spec'));
+  assert.deepEqual(profile.onboarding.pendingStyleEffects.map(({ kind, property, status }) => [kind, property, status]), [
+    ...['color', 'backgroundColor', 'borderColor', 'outlineColor', 'textDecorationColor', 'accentColor',
+      'caretColor', 'columnRuleColor', 'fill', 'stroke'].map((property) => ['color', property, 'pending']),
+    ['font-size', 'fontSize', 'pending'],
+  ]);
+  assert.doesNotMatch(JSON.stringify(profile.onboarding.pendingStyleEffects), /selector|ignored-control-label/);
+  assert.deepEqual(validateProfile(profile, template, { capabilities: new Set(['button-link', 'block-style-spec']) }), []);
+});
+
 test('reviewed profiles cannot be overwritten without an explicit flag', () => {
   assert.throws(() => assertOnboardingOverwriteAllowed({ blockId: 'other' }), /explicit overwrite approval/);
   assert.equal(assertOnboardingOverwriteAllowed({ onboarding: { status: 'draft-unreviewed' } }), true);

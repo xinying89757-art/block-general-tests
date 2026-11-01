@@ -14,6 +14,36 @@ import { applyLearnedStyleEffects, clearLearnedStyleEffects, deriveSelectorCandi
   deriveStyleEffectPaths, resolveSettingStyleEffect, snapshotInstanceComputedStyles } from './style-effect-learning.mjs';
 export const FRESH_LIFECYCLE_KINDS = Object.freeze(['settings-dialog', 'canvas-popover', 'right-rail-flyout']);
 
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function learnAppliedStyleEffect({ capture, context }) {
+  if (capture.error) return { status: 'na', reason: 'before-snapshot-unavailable', learned: { effects: [] }, applied: { applied: [], candidateCount: 0 } };
+  let after;
+  let learned = { status: 'na', reason: 'no-computed-style-property-changed', effects: [] };
+  const attempts = Math.max(1, Math.min(12, Number(context.config?.styleEffectSnapshotAttempts) || 8));
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    after = await snapshotInstanceComputedStyles(context.canvas || context.frame, {
+      blockId: context.blockId || context.config?.blockId,
+      settingId: context.config?.freshSettingId || context.instance?.settingId,
+      properties: capture.styleEffect.properties,
+      expectedValues: capture.styleEffect.expectedValues,
+      timeoutMs: context.config?.actionTimeoutMs,
+    });
+    if (after.status === 'ok') {
+      const effectWithResolvedValues = { ...capture.styleEffect,
+        expectedValues: after.resolvedExpectedValues || capture.styleEffect.expectedValues };
+      learned = deriveStyleEffectPaths(capture.before.elements || [], after.elements || [], effectWithResolvedValues);
+      if (learned.status === 'learned') break;
+    } else learned = { status: 'na', reason: after.reason || 'after-snapshot-unavailable', effects: [] };
+    if (attempt + 1 < attempts) await pause(Number(context.config?.styleEffectSnapshotIntervalMs) || 125);
+  }
+  if (after?.status !== 'ok') return { status: 'na', reason: learned.reason || 'after-snapshot-unavailable', learned, applied: { applied: [], candidateCount: 0 } };
+  learned.candidateSelectors = deriveSelectorCandidatesFromDom(capture.before.elements || [])
+    .slice(0, 100).map((entry) => entry.selector);
+  const applied = applyLearnedStyleEffects(context.profile, capture.styleEffect, learned);
+  return { status: applied.status, reason: applied.reason || learned.reason || null, learned, applied };
+}
+
 /**
  * Shared lifecycle wrapper for non-dialog capability surfaces. Capability
  * modules provide verified UI operations; this contract enforces open-state
@@ -171,6 +201,8 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         }
         await setting.captureEffect?.({ ...mergedContext, ...phase, setting });
         await setting.apply({ ...mergedContext, ...phase, setting });
+        const capture = pendingStyleCaptures.get(setting.id);
+        if (capture) capture.outcome = await learnAppliedStyleEffect({ capture, context: mergedContext });
         pendingCapabilities.add(setting.capability);
       },
       restore: async (setting, phase) => {
@@ -202,35 +234,18 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         }
         for (const [settingId, capture] of pendingStyleCaptures) {
           const setting = capture.setting;
-          let outcome;
-          if (capture.error) outcome = { status: 'na', reason: 'before-snapshot-unavailable' };
-          else {
-            try {
-              const after = await snapshotInstanceComputedStyles(mergedContext.canvas || mergedContext.frame, {
-                blockId: mergedContext.blockId || mergedContext.config?.blockId,
-                settingId: mergedContext.config?.freshSettingId || mergedContext.instance?.settingId,
-                properties: capture.styleEffect.properties,
-                timeoutMs: mergedContext.config?.actionTimeoutMs,
-              });
-              if (after.status !== 'ok') throw new Error(after.reason || 'after-snapshot-unavailable');
-              const learned = deriveStyleEffectPaths(capture.before.elements || [], after.elements || [], capture.styleEffect);
-              learned.candidateSelectors = deriveSelectorCandidatesFromDom(capture.before.elements || [])
-                .slice(0, 100).map((entry) => entry.selector);
-              const applied = applyLearnedStyleEffects(mergedContext.profile, capture.styleEffect, learned);
-              const expectedValues = {};
-              for (const item of applied.applied) {
-                const checkId = `bss-${item.checkId}`;
-                expectedValues[checkId] ||= {};
-                if (Object.hasOwn(item, 'expectedValue')) expectedValues[checkId][item.property] = item.expectedValue;
-              }
-              outcome = { status: applied.status, reason: applied.reason || learned.reason || null,
-                changedElementCount: new Set(learned.effects.map((effect) => effect.selector)).size,
-                mappedCheckCount: applied.applied.length,
-                candidateCount: applied.candidateCount,
-                expectedValues };
-              if (capture.cleared || applied.applied.length || applied.candidateCount) await mergedContext.persistProfile?.(mergedContext.profile);
-            } catch (error) { outcome = { status: 'na', reason: 'after-snapshot-unavailable' }; }
+          let outcome = capture.outcome || { status: 'na', reason: 'style-effect-snapshot-not-completed', learned: { effects: [] }, applied: { applied: [], candidateCount: 0 } };
+          const expectedValues = {};
+          for (const item of outcome.applied?.applied || []) {
+            const checkId = `bss-${item.checkId}`;
+            expectedValues[checkId] ||= {};
+            if (Object.hasOwn(item, 'expectedValue')) expectedValues[checkId][item.property] = item.expectedValue;
           }
+          outcome = { status: outcome.status, reason: outcome.reason,
+            changedElementCount: new Set((outcome.learned?.effects || []).map((effect) => effect.selector)).size,
+            mappedCheckCount: outcome.applied?.applied?.length || 0,
+            candidateCount: outcome.applied?.candidateCount || 0, expectedValues };
+          if (capture.cleared || outcome.mappedCheckCount || outcome.candidateCount) await mergedContext.persistProfile?.(mergedContext.profile);
           if (capture.error && capture.cleared) await mergedContext.persistProfile?.(mergedContext.profile);
           styleScopeDiagnostics.push({ settingId, capability: setting.capability, status: outcome.status,
             reason: outcome.reason, changedElementCount: outcome.changedElementCount || 0,

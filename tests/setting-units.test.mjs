@@ -67,13 +67,40 @@ test('real 47748 profile requirement ids anchor every migrated capability unit',
   }
 });
 
-test('profile style-effect metadata is lifted onto the existing color setting unit', () => {
-  const requirement = profile47748.requirements.capabilities.find((item) => item.id === 'color-scheme');
-  const output = adaptCapabilityDefinitions({ capability: 'block-color-scheme', profile: profile47748,
+test('profile style-effect overrides stay intact and automatic checks cover other color properties', () => {
+  const profile = structuredClone(profile47748);
+  const requirement = profile.requirements.capabilities.find((item) => item.id === 'color-scheme');
+  const output = adaptCapabilityDefinitions({ capability: 'block-color-scheme', profile,
     created: { settings: [{ id: 'bcs-color-persist', key: 'scheme-color', initialValue: '#111111', value: '#ff0000',
       apply: async () => {}, check: async () => ({ status: 'pass' }), restore: async () => {} }], persistedControls: [] } });
-  assert.deepEqual(output.settings[0].styleEffect, requirement.styleEffect);
+  assert.deepEqual(output.settings[0].styleEffect.properties, ['color', 'backgroundColor', 'accentColor', 'borderColor',
+    'outlineColor', 'textDecorationColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke']);
+  assert.deepEqual(output.settings[0].styleEffect.checks.slice(0, 2), requirement.styleEffect.checks);
+  assert.equal(output.settings[0].styleEffect.settingUnitId, 'bcs-color-persist');
+  assert.equal(output.settings[0].styleEffect.checks.length, 11);
   assert.equal(output.settings[0].styleEffect.checks[0].checkId, 'button-bg');
+  assert.ok(profile.capabilities.find((entry) => entry.id === 'block-style-spec').styleSpec.items
+    .some((item) => item.autoLearned && item.settingUnitId === 'bcs-color-persist'));
+});
+
+test('color and font-size setting values automatically receive generic style effects and pending profile checks', () => {
+  const profile = { requirements: { capabilities: [{ id: 'color-control' }, { id: 'size-control' }] }, capabilities: [] };
+  const settings = [
+    { id: 'color-setting', key: 'color-control', type: 'text', initialValue: '#000000', value: '#ff0000',
+      apply: async () => {}, check: async () => ({ status: 'pass' }), restore: async () => {} },
+    { id: 'size-setting', key: 'size-control', type: 'font-size', initialValue: '12px', value: '18px',
+      apply: async () => {}, check: async () => ({ status: 'pass' }), restore: async () => {} },
+  ];
+  const output = adaptCapabilityDefinitions({ capability: 'style-controls', profile,
+    created: { settings, persistedControls: [] } });
+  assert.deepEqual(output.settings[0].styleEffect.properties, ['color', 'backgroundColor', 'borderColor', 'outlineColor',
+    'textDecorationColor', 'accentColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke']);
+  assert.deepEqual(output.settings[1].styleEffect.properties, ['fontSize']);
+  const items = profile.capabilities.find((entry) => entry.id === 'block-style-spec').styleSpec.items;
+  assert.deepEqual(items.map((entry) => entry.settingUnitId), ['color-setting', 'color-setting', 'color-setting', 'color-setting',
+    'color-setting', 'color-setting', 'color-setting', 'color-setting', 'color-setting', 'color-setting', 'size-setting']);
+  assert.ok(items.every((entry) => entry.selectorLearningPending && entry.learnedSelectorRequired));
+  assert.ok(items.every((entry) => !Object.hasOwn(entry, 'selector')));
 });
 
 test('whole-list definitions are represented as one unit and keep existing callbacks unchanged', () => {

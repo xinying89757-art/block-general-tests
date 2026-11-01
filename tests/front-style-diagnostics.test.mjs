@@ -127,6 +127,29 @@ test('editor-learned instance-relative selector and value override profile candi
   assert.doesNotMatch(JSON.stringify(resolved.styleSpec.resolvedExpectedSources), /selector/);
 });
 
+test('automatic style checks use all learned instance paths and stay selector-free in result diagnostics', () => {
+  const source = { id: 'block-style-spec', styleSpec: { items: [{ id: 'auto-style-setting-font-size',
+    name: '自动样式值检查', kind: 'sample', sample: 500, learnedSelectorRequired: true, autoLearned: true,
+    selectorLearningPending: true, styleProperty: 'fontSize', props: { fontSize: null }, learnedSelectors: {
+      fontSize: [{ selector: 'div.card > a.title', expectedValue: '18px' }, { selector: 'p.name', expectedValue: '18px' }],
+    } }] } };
+  const resolved = resolveFrontStyleCapability(source, { styleScopeLearning: [{ status: 'learned', expectedValues: {
+    'bss-auto-style-setting-font-size': { fontSize: '18px' },
+  } }] });
+  const item = resolved.styleSpec.items[0];
+  assert.deepEqual(item.selectorCandidates, ['div.card > a.title', 'p.name']);
+  assert.equal(item.selector, 'div.card > a.title, p.name');
+  assert.equal(item.learnedSelectorResolved, true);
+  assert.equal(item.props.fontSize, '18px');
+  assert.ok(styleCheckDescriptors(resolved).some((entry) => entry.id === 'bss-auto-style-setting-font-size'));
+  const [check] = addStyleFailureReasons([{ id: 'bss-auto-style-setting-font-size', status: 'fail',
+    detail: 'computed value mismatch', evidence: { matchedCount: 1, elements: [{ fontSize: 16 }] } }],
+  { capability: resolved, blockId: 'generic' });
+  assert.equal(check.status, 'fail');
+  assert.equal(check.name, '自动样式值检查');
+  assert.doesNotMatch(JSON.stringify(check), /div\.card|p\.name/);
+});
+
 test('ambiguous or unwritten setting values do not fall back to profile defaults with a run report', () => {
   const capability = { styleSpec: { items: [{ id: 'button-bg', props: { backgroundColor: '#111111' } }],
     expectedValueSources: { 'button-bg.backgroundColor': {

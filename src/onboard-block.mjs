@@ -1,4 +1,5 @@
 import { signatures, matchCapabilities } from './capabilities/signatures.mjs';
+import { inferStyleValueKind } from './style-effect-learning.mjs';
 
 const matchesRule = (pattern, value) => pattern == null
   || (pattern instanceof RegExp ? pattern.test(String(value ?? '')) : pattern === value);
@@ -74,10 +75,24 @@ export function buildDraftProfile(template, { blockId, page, mapping, observedAt
     pageKind: page.kind, ...(page.id ? { pageId: String(page.id) } : {}), ...(page.url ? { pageUrl: page.url } : {}),
     ...(page.name ? { pageName: page.name } : {}), pageKindNote: '由 onboarding 命令显式指定；草稿需人工审核。' };
   profile.requirements = { capabilities: structuredClone(mapping.requirements), displayFieldTypes: [] };
+  const pendingStyleEffects = mapping.matched.flatMap((match) => (match.evidence || []).flatMap((evidence, index) => {
+    const kind = inferStyleValueKind({ type: evidence.type, value: evidence.value });
+    if (!kind) return [];
+    const properties = kind === 'font-size' ? ['fontSize'] : ['color', 'backgroundColor', 'borderColor', 'outlineColor',
+      'textDecorationColor', 'accentColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke'];
+    return properties.map((property) => ({ requirementId: match.id, evidenceIndex: index, kind, property,
+      status: 'pending', reason: 'awaiting-setting-unit-and-editor-effect-snapshot' }));
+  }));
+  if (pendingStyleEffects.length && !profile.capabilities.some((item) => item.id === 'block-style-spec')) {
+    profile.capabilities.push({ id: 'block-style-spec', status: 'candidate', styleSpec: {
+      items: [], recordOnly: [], viewports: { pc: 1440, pad: 768, mobile: 375 },
+    } });
+  }
   profile.testData = { requirements: [], status: 'unreviewed-no-fixture-oracle' };
   profile.specificChecks = [];
   profile.onboarding = { status: 'draft-unreviewed', discoveredAt: observedAt,
     matched: structuredClone(mapping.matched), unmapped: structuredClone(mapping.unmapped),
+    pendingStyleEffects,
     ...(mapping.inventoryErrors?.length ? { inventoryErrors: structuredClone(mapping.inventoryErrors) } : {}),
     note: '自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。' };
   return profile;

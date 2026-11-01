@@ -36,5 +36,26 @@ If no declared property changes, selector candidates are retained as a
 fallback inventory only and the associated style check is `na`; its JSON
 contains a machine reason code. A human-facing result does not include which
 candidate matched. The setting's existing editor assertion remains unchanged.
-Capabilities without a profile `styleEffect` keep their existing setting and
-style-check behavior.
+Color and font-size setting units are also detected automatically from their
+declared unit/value kind or the written CSS value shape (for example a CSS
+color token or a length unit). Unless a profile supplies an explicit
+`styleEffect` override, the shared adapter derives the observable CSS
+properties and creates one generic style check per setting/property. These
+checks use the setting-unit id and property; their human name describes only
+the function being checked.
+
+For each write, the adapter now captures the target instance before and after
+that individual apply, before the batch save, so two style settings in one
+batch cannot claim each other's effects. The after snapshot resolves the
+written CSS value in the editor canvas (including relative font sizes) and
+learns only elements whose computed property changed to that value. Every
+changed element path for that property is retained in the profile and checked
+on the front. When onboarding sees a color/font-size-shaped inventory value,
+the draft records a `pendingStyleEffects` entry; the setting adapter connects
+it to its actual setting-unit id, then marks it learned or leaves it pending
+with a machine reason.
+
+An unlearned automatic check is `na` in the machine report with its reason;
+the human-facing summary does not show selector matches or compatibility
+details. Candidate selectors are only drawn from that block's own canvas
+snapshot and are not used as a substitute for the learned effect assertion.

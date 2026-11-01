@@ -140,8 +140,11 @@ export function validateProfile(profile, template, { capabilities } = {}) {
           }
         }
         for (const [itemIndex, item] of (capability.styleSpec.items || []).entries()) {
-          if (!Array.isArray(item.selectorCandidates) || !item.selectorCandidates.length
-            || !item.selectorCandidates.every((selector) => typeof selector === 'string' && selector.trim())) {
+          const hasLearnedSelectors = Object.values(item.learnedSelectors || {}).some((entries) =>
+            Array.isArray(entries) && entries.some((entry) => typeof entry?.selector === 'string' && entry.selector.trim()));
+          if ((!Array.isArray(item.selectorCandidates) || !item.selectorCandidates.length)
+            && !(item.autoLearned === true && item.learnedSelectorRequired === true
+              && (item.selectorLearningPending === true || hasLearnedSelectors))) {
             errors.push(`${location}.styleSpec.items[${itemIndex}].selectorCandidates 必须是非空候选数组`);
           }
           if ((item.selectorCandidates || []).some((selector) => /blockCon\d+/i.test(selector))) {

@@ -5,7 +5,8 @@ import { createFreshSettingsAdapter } from '../src/fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../src/setting-units.mjs';
 import { resolveInstanceRootIndexes } from '../src/front-instance-root.mjs';
 import { applyLearnedStyleEffects, deriveSelectorCandidatesFromDom, deriveStyleEffectPaths,
-  chooseSelectorCandidate, normalizeStyleValue, resolveSettingStyleEffect, snapshotInstanceComputedStyles,
+  chooseSelectorCandidate, ensureStyleEffectProfileEntries, inferStyleValueKind, normalizeStyleValue,
+  resolveSettingStyleEffect, snapshotInstanceComputedStyles,
   stableRelativeSelectorPath } from '../src/style-effect-learning.mjs';
 
 test('computed-style diff learns only changed properties and omits generated block-number classes', () => {
@@ -16,6 +17,13 @@ test('computed-style diff learns only changed properties and omits generated blo
   ]);
   assert.doesNotMatch(JSON.stringify(learned), /blockCon47748/);
   assert.equal(normalizeStyleValue('backgroundColor', '#f00'), 'rgb(255,0,0)');
+});
+
+test('style-value inference uses unit type and CSS value shape, never setting names', () => {
+  assert.equal(inferStyleValueKind({ id: 'arbitrary-a', value: '#aabbcc' }), 'color');
+  assert.equal(inferStyleValueKind({ id: 'arbitrary-b', type: 'font-size', value: 18 }), 'font-size');
+  assert.equal(inferStyleValueKind({ id: 'color-named-setting', value: '18' }), null);
+  assert.equal(inferStyleValueKind({ id: 'size-setting', value: '1.25rem' }), 'font-size');
 });
 
 test('effect scope requires the computed property to equal the style value written by the setting', () => {
@@ -61,13 +69,30 @@ test('profile selectors are mapped automatically and candidates can be derived f
     checks: [{ property: 'backgroundColor', checkId: 'pagination-current' }] });
   const result = applyLearnedStyleEffects(profile, { checks: [{ property: 'backgroundColor', checkId: 'pagination-current' }] }, learned);
   assert.equal(result.status, 'learned');
-  assert.ok(profile.capabilities[0].styleSpec.items[0].learnedSelectors.backgroundColor[0].selector.includes('nav'));
+  assert.ok(profile.capabilities[0].styleSpec.items[0].learnedSelectors.backgroundColor
+    .some((entry) => entry.selector.includes('nav')));
   assert.deepEqual(deriveSelectorCandidatesFromDom([{ feature: 'pagination', pathFeatures: fixture.after[1].pathFeatures }])
     .map((entry) => entry.feature), ['pagination-structure']);
   assert.deepEqual(chooseSelectorCandidate(['first', 'second'], [0, 2]), { status: 'resolved', index: 1, matchCount: 2 });
   assert.deepEqual(chooseSelectorCandidate(['first', 'second'], [0, 0]), {
     status: 'unresolved', reason: 'no-profile-selector-candidate-matched', attemptedCount: 2,
   });
+});
+
+test('one setting keeps every changed element in its learned scope and marks onboarding entries learned', () => {
+  const profile = { onboarding: { pendingStyleEffects: [{ settingUnitId: 'setting-a', property: 'backgroundColor', status: 'pending' }] },
+    capabilities: [{ id: 'block-style-spec', styleSpec: { items: [{ id: 'auto-check', autoLearned: true,
+      props: {}, learnedSelectorRequired: true }] } }] };
+  const result = applyLearnedStyleEffects(profile, { settingUnitId: 'setting-a', checks: [
+    { property: 'backgroundColor', checkId: 'auto-check' },
+  ] }, { effects: [
+    { selector: 'a.first', property: 'backgroundColor', expectedValue: 'rgb(255, 0, 0)' },
+    { selector: 'a.second', property: 'backgroundColor', expectedValue: 'rgb(255, 0, 0)' },
+  ] });
+  assert.equal(result.status, 'learned');
+  assert.deepEqual(profile.capabilities[0].styleSpec.items[0].learnedSelectors.backgroundColor.map((entry) => entry.selector), ['a.first', 'a.second']);
+  assert.equal(profile.capabilities[0].styleSpec.items[0].selectorLearningPending, false);
+  assert.equal(profile.onboarding.pendingStyleEffects[0].status, 'learned');
 });
 
 test('front root resolution requires block number and settingId and fails closed on duplicates', () => {
@@ -108,6 +133,7 @@ test('fresh batch adapter snapshots before and after apply, persists learned pro
   const prepared = await adapter.prepare();
   const [setting] = prepared.settings;
   await prepared.batchAdapter.apply(setting, { phase: 'batch' });
+  assert.equal(snapshotIndex, 2, 'both snapshots bracket apply before the batch save');
   await prepared.batchAdapter.save({ reason: 'test' });
   assert.equal(persisted, 1);
   const stored = profile.capabilities[0].styleSpec.items[0].learnedSelectors.backgroundColor[0];
