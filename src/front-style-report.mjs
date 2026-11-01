@@ -1,4 +1,5 @@
 import { addStyleFailureReasons, styleCheckDescriptors } from './capabilities/block-style-spec.mjs';
+import { dedupeChecksById } from './front-check-utils.mjs';
 
 export function sanitizeFrontStyleUrl(input) {
   try {
@@ -41,6 +42,15 @@ export function resolveFrontStyleInstance(instances, requestedSettingId = null) 
 
 export function attachFrontStyleInstance(checks, settingId) {
   return (checks || []).map((check) => ({ ...check, settingId: settingId || null }));
+}
+
+/** Final report boundary: dedupe the complete mixed check list, then recount its summary. */
+export function finalizeFrontStyleReport(report) {
+  const checks = dedupeChecksById(report?.checks || []);
+  const count = (status) => checks.filter((check) => check.status === status).length;
+  return { ...report, checks,
+    summary: { pass: count('pass'), fail: count('fail'), na: count('na') + count('skip'),
+      other: checks.length - count('pass') - count('fail') - count('na') - count('skip') } };
 }
 
 export function buildFrontStyleExecutionErrors({ capability, blockId, stage, error, viewport }) {

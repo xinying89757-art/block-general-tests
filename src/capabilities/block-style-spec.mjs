@@ -310,11 +310,16 @@ async function breakage(frame, rootSel) {
     const root = document.querySelector(rootSel);
     if (!root) return { error: 'no root' };
     const rootBox = root.getBoundingClientRect();
+    const pageLevelOverflow = document.documentElement.scrollWidth > window.innerWidth + 1;
+    const instanceOverflow = root.scrollWidth > root.clientWidth + 1 || rootBox.left < -1 || rootBox.right > window.innerWidth + 1;
     const res = { viewportWidth: window.innerWidth, docScrollWidth: document.documentElement.scrollWidth,
       rootMatchedCount: document.querySelectorAll(rootSel).length,
-      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
-      horizontalOverflowScope: document.documentElement.scrollWidth > window.innerWidth + 1 ? 'page-wide' : 'none',
-      blockOverflow: root.scrollWidth > root.clientWidth + 1 || rootBox.left < -1 || rootBox.right > window.innerWidth + 1,
+      horizontalOverflow: pageLevelOverflow,
+      horizontalOverflowScope: pageLevelOverflow ? 'page-wide' : 'none',
+      blockOverflow: instanceOverflow,
+      overflowAttribution: { pageLevel: pageLevelOverflow, instance: instanceOverflow,
+        source: pageLevelOverflow && instanceOverflow ? 'page-and-instance'
+          : pageLevelOverflow ? 'page-level-outside-instance' : instanceOverflow ? 'instance-only' : 'none' },
       blockRoot: rootSel };
     const wrapBox = root.getBoundingClientRect();
     const sticking = [];
@@ -402,7 +407,8 @@ async function breakage(frame, rootSel) {
 
 function breakageFindings(b) {
   const f = [];
-  if (b.horizontalOverflow) f.push(`页面横向溢出（文档宽 ${b.docScrollWidth} > 视口宽 ${b.viewportWidth}）`);
+  if (b.horizontalOverflow) f.push(`页面级横向溢出（文档宽 ${b.docScrollWidth} > 视口宽 ${b.viewportWidth}；目标实例${b.blockOverflow ? '也' : '未'}溢出）`);
+  else if (b.blockOverflow) f.push('目标区块实例内部横向溢出（页面文档未超出视口）');
   if (b.stickingOut?.length) f.push(`超框 ${b.stickingOut.length} 处：${b.stickingOut.map((x) => x.text || x.tag).join('、')}`);
   if (b.overlaps?.length) f.push(`重叠 ${b.overlaps.length} 处：${b.overlaps.map((x) => `「${x.a}」压「${x.b}」`).join('、')}`);
   if (b.textClipped?.length) f.push(`文字被截 ${b.textClipped.length} 处：${b.textClipped.map((x) => x.text).join('、')}`);
@@ -662,6 +668,10 @@ function diagnosticValues(check, item) {
         textClipped: evidence.textClipped?.length ?? null, imgDistorted: evidence.imgDistorted?.length ?? null,
         documentWidth: evidence.docScrollWidth ?? null, viewportWidth: evidence.viewportWidth ?? null,
         overflowScope: evidence.horizontalOverflowScope || 'unknown', blockOverflow: Boolean(evidence.blockOverflow),
+        overflowAttribution: evidence.overflowAttribution || { pageLevel: Boolean(evidence.horizontalOverflow),
+          instance: Boolean(evidence.blockOverflow), source: evidence.blockOverflow && evidence.horizontalOverflow
+            ? 'page-and-instance' : evidence.blockOverflow ? 'instance-only'
+              : evidence.horizontalOverflow ? 'page-level-outside-instance' : 'none' },
         blockRoot: evidence.blockRoot || null,
         offendingElementSelectors: (evidence.stickingOut || []).map((entry) => entry.selector).filter(Boolean),
         overlapElementSelectors: (evidence.overlaps || []).map((entry) => [entry.aSelector, entry.bSelector].filter(Boolean)),

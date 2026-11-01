@@ -31,9 +31,12 @@ test('the unified scanner distinguishes instance CSS-only from absent and elemen
   let matchedRules = [];
   let evaluations = 0;
   const page = { evaluate: async (_fn, arg) => {
-    if (arg?.declarations) return matchedRules;
+    if (arg?.declarations) return arg.declarations.flatMap((rule) => {
+      const match = matchedRules.find((candidate) => candidate.selector === rule.selector);
+      return match ? [{ ...rule, ...match }] : [];
+    });
     evaluations += 1;
-    if (evaluations === 2) return { links: ['https://assets.test/style.css?secret=never-log'], inline: ['.x{--palette: #d0b647}'] };
+    if (evaluations === 1) return { links: ['https://assets.test/style.css?secret=never-log'], inline: ['.x{--palette: #d0b647}'] };
     return { rootCount: 1, styles: [{ color: 'transparent', backgroundColor: 'transparent' }] };
   }, request: { get: async () => ({ ok: () => true, text: async () => '.x{background: rgba(208, 182, 71, .5); stroke:#d0b647}' }) } };
   matchedRules = [{ selector: '.x', properties: ['background', 'stroke'], source: 'external-0', matchedSelectors: ['.x'] }];
@@ -41,8 +44,8 @@ test('the unified scanner distinguishes instance CSS-only from absent and elemen
   assert.equal(cssOnly[0].status, 'record');
   assert.equal(cssOnly[0].classification, 'instance-scoped-css-only');
   assert.equal(cssOnly[0].reason.code, 'instance-scoped-css-only');
-  assert.deepEqual(cssOnly[0].actual.rules[0].properties, ['background', 'stroke']);
-  assert.deepEqual(cssOnly[0].actual.rules[0].matchedSelectors, ['.x']);
+  assert.deepEqual(cssOnly[0].actual.stylesheetEvidence.rules[0].properties, ['background', 'stroke']);
+  assert.deepEqual(cssOnly[0].actual.stylesheetEvidence.rules[0].matchedSelectors, ['.x']);
   matchedRules = [];
   const absent = await runWrittenColorFrontChecks({ page, rootSelector: '.target', settingsReport,
     includeStylesheets: false });
@@ -64,14 +67,14 @@ test('CSS-only classification carries matching target-scoped selectors and exact
     if (arg?.declarations) return arg.declarations.filter((rule) => rule.selector.includes('.target'))
       .map((rule) => ({ ...rule, matchedSelectors: rule.selectors.filter((selector) => selector.includes('.target')) }));
     call += 1;
-    if (call === 1) return { rootCount: 1, styles: [{ color: 'transparent' }] };
-    return { links: [], inline: ['.target :is(.card, .tile)::before { background-image: linear-gradient(#d0b647, transparent); fill: #d0b647 } .other { color: #d0b647 }'] };
+    if (call === 1) return { links: [], inline: ['.target :is(.card, .tile)::before { background-image: linear-gradient(#d0b647, transparent); fill: #d0b647 } .other { color: #d0b647 }'] };
+    return { rootCount: 1, styles: [{ color: 'transparent' }] };
   } };
   const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '.target', settingsReport });
   assert.equal(row.classification, 'instance-scoped-css-only');
-  assert.equal(row.actual.rules[0].selector, '.target :is(.card, .tile)::before');
-  assert.deepEqual(row.actual.rules[0].properties, ['background-image', 'fill']);
-  assert.deepEqual(row.actual.rules.map((rule) => rule.selector), ['.target :is(.card, .tile)::before']);
+  assert.equal(row.actual.stylesheetEvidence.rules[0].selector, '.target :is(.card, .tile)::before');
+  assert.deepEqual(row.actual.stylesheetEvidence.rules[0].properties, ['background-image', 'fill']);
+  assert.deepEqual(row.actual.stylesheetEvidence.rules.map((rule) => rule.selector), ['.target :is(.card, .tile)::before']);
 });
 
 test('standalone stylesheet evidence is scoped to the instance and is not a pass', async () => {
@@ -94,7 +97,7 @@ test('standalone stylesheet evidence is scoped to the instance and is not a pass
   }), []);
 });
 
-test('optional state exercise records the first generic interactive state revealing a written color', async () => {
+test('optional state exercise records attempted states and the first state revealing a written color', async () => {
   let state = '';
   const locator = { count: async () => 1, nth: () => ({ hover: async () => { state = 'hover'; }, focus: async () => { state = 'focus'; } }) };
   const page = {
@@ -105,7 +108,59 @@ test('optional state exercise records the first generic interactive state reveal
     mouse: { move: async () => { state = ''; } },
   };
   const result = await exerciseWrittenColorStates(page, '.target', [{ id: 'color-a', value: '#d0b647' }]);
-  assert.deepEqual(result, { 'color-a': { state: 'hover', matches: 1 } });
+  assert.deepEqual(result, { states: ['hover', 'focus'], candidateCount: 1, disclosureCount: 0,
+    revealed: { 'color-a': { state: 'hover', matches: 1 } } });
+});
+
+test('every written-color miss records states exercised and stylesheet scan diagnostics', async () => {
+  const settingsReport = { blockId: 'generic', block: { currentValues: [{ section: '区块配色', type: 'color', value: '#d0b647' }] } };
+  let call = 0;
+  const emptyLocator = { count: async () => 0 };
+  const page = {
+    locator: () => ({ locator: () => emptyLocator }),
+    evaluate: async (_fn, arg) => {
+      if (arg?.declarations) return [];
+      if (!arg) return undefined;
+      call += 1;
+      return call === 1 ? { links: [], inline: [] } : { rootCount: 1, styles: [{ color: 'transparent' }] };
+    },
+    mouse: { move: async () => {} },
+  };
+  const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '.target', settingsReport, stateExercise: true });
+  assert.equal(row.classification, 'absent');
+  assert.deepEqual(row.actual.stateExercise, { enabled: true, states: [], candidateCount: 0,
+    disclosureCount: 0, revealedBy: null });
+  assert.deepEqual(row.actual.stylesheetEvidence, { sheetCount: 0, ruleCount: 0,
+    fetchFailureCount: 0, matchCount: 0 });
+});
+
+test('cross-origin linked CSS fetched through context request becomes scoped CSS-only evidence', async () => {
+  const settingsReport = { blockId: 'generic', block: { settingId: 'instance-a', currentValues: [
+    { section: '区块配色', type: 'color', value: '#d0b647' },
+  ] } };
+  let evaluateCount = 0;
+  let fetched = 0;
+  const page = {
+    context: () => ({ request: { get: async (url) => {
+      assert.match(url, /^https:\/\/cdn\.invalid\//); fetched += 1;
+      return { ok: () => true, text: async () => '.instance-a .palette-item::before{background-image:linear-gradient(#d0b647, transparent)}' };
+    } } }),
+    evaluate: async (_fn, arg) => {
+      if (arg?.declarations) return arg.declarations.map((rule) => ({ ...rule, matchedSelectors: ['.instance-a .palette-item::before'] }));
+      evaluateCount += 1;
+      return evaluateCount === 1 ? { links: ['https://cdn.invalid/site.css'], inline: [] }
+        : { rootCount: 1, styles: [{ color: 'transparent' }] };
+    },
+  };
+  const [row] = await runWrittenColorFrontChecks({ page, rootSelector: '[data-target-instance="yes"]', settingsReport });
+  assert.equal(fetched, 1);
+  assert.equal(row.classification, 'instance-scoped-css-only');
+  assert.equal(row.actual.stylesheetEvidence.sheetCount, 1);
+  assert.equal(row.actual.stylesheetEvidence.fetchFailureCount, 0);
+  assert.equal(row.actual.stylesheetEvidence.matchCount, 1);
+  assert.equal(row.actual.stylesheetEvidence.rules[0].properties[0], 'background-image');
+  assert.deepEqual(row.actual.stateExercise, { enabled: false, states: [], candidateCount: 0,
+    disclosureCount: 0, revealedBy: null });
 });
 
 test('front result deduplication is by id and preserves the most conservative verdict', () => {

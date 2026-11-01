@@ -12,10 +12,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { runFrontLayer, resolveFrontStyleCapability } from '../src/capabilities/block-style-spec.mjs';
-import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
+import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, finalizeFrontStyleReport, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 import { markUniqueFrontInstance } from '../src/front-instance-root.mjs';
 import { runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../src/design-spec-checklist.mjs';
-import { dedupeChecksById } from '../src/front-check-utils.mjs';
 
 const args = {};
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -78,7 +77,7 @@ try {
       frontChecks: styleChecks, settingsReport, viewport: { width: 1440, height: 900 } });
     const writtenColors = await runWrittenColorFrontChecks({ page, rootSelector: config.rootSelector, settingsReport,
       includeStylesheets: args['include-stylesheets'] !== '0', stateExercise: args['exercise-states'] === '1' });
-    report.checks = attachFrontStyleInstance(dedupeChecksById([...styleChecks, ...designChecks.filter(Boolean), ...writtenColors]), report.settingId);
+    report.checks = attachFrontStyleInstance([...styleChecks, ...designChecks.filter(Boolean), ...writtenColors], report.settingId);
   } finally { await markedRoot.clear().catch(() => {}); }
   const shots = fs.readdirSync('screenshots').filter((f) => f.startsWith(`style-${blockId}-`));
   report.screenshots = shots.map((f) => `screenshots/${f}`);
@@ -101,9 +100,7 @@ try {
 } finally {
   if (browser) await browser.close().catch(() => {});
 }
-report.checks = dedupeChecksById(report.checks);
-const dedupedCount = (s) => report.checks.filter((c) => c.status === s).length;
-report.summary = { pass: dedupedCount('pass'), fail: dedupedCount('fail'), na: dedupedCount('na') + dedupedCount('skip'), other: report.checks.length - dedupedCount('pass') - dedupedCount('fail') - dedupedCount('na') - dedupedCount('skip') };
+Object.assign(report, finalizeFrontStyleReport(report));
 report.finishedAt = new Date().toISOString();
 fs.writeFileSync(out, JSON.stringify(report, null, 2));
 console.log(`[front-style] ${blockId} pass=${report.summary.pass} fail=${report.summary.fail} na=${report.summary.na}${report.error ? ' error=' + report.error : ''} -> ${out}`);

@@ -257,6 +257,10 @@ function cssColorDeclarations(cssText, expected) {
   return matches;
 }
 
+function countCssRules(cssText) {
+  return [...String(cssText || '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((match) => !match[1].trim().startsWith('@')).length;
+}
+
 function splitCssSelectorList(selectorList) {
   const selectors = [];
   let depth = 0, quote = '', start = 0;
@@ -272,29 +276,56 @@ function splitCssSelectorList(selectorList) {
   return selectors.filter(Boolean);
 }
 
-async function scopedCssMatches(page, rootSelector, declarations) {
+async function scopedCssMatches(page, rootSelector, declarations, { blockId, settingId } = {}) {
   if (!declarations.length) return [];
-  return page.evaluate(({ rootSelector, declarations }) => {
+  return page.evaluate(({ rootSelector, declarations, blockId, settingId }) => {
     const root = document.querySelector(rootSelector);
     if (!root) return [];
+    const rootClasses = [...root.classList];
+    const identities = [...new Set([root.id, settingId, `siteblocks-setting-wrap-${settingId}`,
+      ...rootClasses.filter((name) => blockId && name.includes(String(blockId))), ...rootClasses].filter(Boolean))];
+    const hasIdentity = (selector) => identities.some((identity) =>
+      selector.includes(`#${identity}`) || selector.includes(`.${identity}`)
+      || selector.includes(`="${identity}"`) || selector.includes(`='${identity}'`));
     return declarations.flatMap((declaration) => {
       const matchedSelectors = declaration.selectors.filter((selector) => {
         const base = selector.replace(/::(?:before|after|marker|placeholder)\b/g, '')
           .replace(/:(?:hover|focus|focus-visible|active|checked|open)\b/g, '');
-        try { return root.matches(base) || Boolean(root.querySelector(base)); } catch { return false; }
+        try {
+          if (root.matches(base) || root.querySelector(base)) return true;
+          if (!hasIdentity(base)) return false;
+          const identityMatches = identities.map((identity) => ({ identity, tokenIndex: Math.max(
+            base.indexOf(`.${identity}`), base.indexOf(`#${identity}`), base.indexOf(`="${identity}"`), base.indexOf(`='${identity}'`)) }))
+            .filter((item) => item.tokenIndex >= 0).sort((a, b) => b.tokenIndex - a.tokenIndex);
+          for (const item of identityMatches) {
+            const token = base.slice(item.tokenIndex).match(/^(?:\.[\w-]+|#[\w-]+|=["'][^"']+["'])/);
+            if (!token) continue;
+            let tail = base.slice(item.tokenIndex + token[0].length).replace(/^\s*[>+~]?\s*/, '').trim();
+            if (!tail) return true;
+            try { if (root.querySelector(tail)) return true; } catch {}
+          }
+          return false;
+        } catch { return false; }
       });
       return matchedSelectors.length ? [{ ...declaration, matchedSelectors }] : [];
     });
-  }, { rootSelector, declarations });
+  }, { rootSelector, declarations, blockId: String(blockId || ''), settingId: String(settingId || '') });
 }
 
-export async function runWrittenColorStylesheetSearch({ page, rootSelector, settingsReport, elementChecks = [], fetchStylesheet } = {}) {
+async function scanWrittenColorStylesheets({ page, rootSelector, settingsReport, fetchStylesheet } = {}) {
   const values = extractWrittenColorValues(settingsReport);
-  if (!page || !rootSelector || !values.length) return [];
+  if (!page || !rootSelector || !values.length) return { evidenceById: {}, sheetCount: 0, ruleCount: 0, fetchFailureCount: 0 };
   const inventory = await page.evaluate(({ rootSelector }) => {
-    const root = document.documentElement;
     const links = [...document.querySelectorAll('link[rel~="stylesheet"][href]')].map((item) => item.href);
     const inline = [...document.querySelectorAll('style')].map((item) => item.textContent || '');
+    const linkRules = [];
+    let crossOriginUnreadableCount = 0;
+    for (const sheet of [...document.styleSheets]) {
+      const href = sheet.href;
+      if (!href) continue;
+      try { linkRules.push({ href, text: [...sheet.cssRules].map((rule) => rule.cssText).join('\n') }); }
+      catch { crossOriginUnreadableCount += 1; }
+    }
     const inlineRules = [];
     const target = document.querySelector(rootSelector);
     const relativePath = (node) => {
@@ -310,41 +341,55 @@ export async function runWrittenColorStylesheetSearch({ page, rootSelector, sett
       const style = item.getAttribute('style');
       if (style) inlineRules.push({ selector: relativePath(item), text: style });
     }
-    return { links, inline, inlineRules };
+    return { links, inline, inlineRules, linkRules, crossOriginUnreadableCount };
   }, { rootSelector });
   const sheets = [...inventory.inline.map((text, index) => ({ source: `inline-${index}`, text }))];
   for (const [index, item] of (inventory.inlineRules || []).entries())
     sheets.push({ source: `inline-attr-${index}`, text: `${item.selector}{${item.text}}` });
+  const alreadyRead = new Map((inventory.linkRules || []).map((item) => [item.href, item.text]));
   for (const [index, href] of inventory.links.entries()) {
+    if (alreadyRead.has(href)) { sheets.push({ source: `linked-${index}`, text: alreadyRead.get(href) }); continue; }
     try {
+      const request = page.context?.()?.request || page.request;
+      if (!fetchStylesheet && !request?.get) throw new Error('stylesheet-fetch-unavailable');
       const text = fetchStylesheet ? await fetchStylesheet(href) : await (async () => {
-        if (!page.request?.get) throw new Error('stylesheet-fetch-unavailable');
-        const response = await page.request.get(href, { timeout: 15000 });
+        const response = await request.get(href, { timeout: 20000 });
         if (!response.ok()) throw new Error(`stylesheet-http-${response.status()}`);
         return response.text();
       })();
-      sheets.push({ source: `external-${index}`, text });
+      sheets.push({ source: `linked-${index}`, text });
     } catch {
-      // External stylesheet fetch failures are counted but never printed with
-      // hrefs, which may contain query tokens.
-      sheets.push({ source: `external-${index}`, text: '', unavailable: true });
+      sheets.push({ source: `linked-${index}`, text: '', unavailable: true });
     }
   }
-  const rows = [];
+  const evidenceById = {};
   for (const item of values) {
-    const elementResult = elementChecks.find((check) => check.id === item.id);
-    if (elementResult?.status === 'pass') continue;
     const declarations = sheets.flatMap((sheet) => cssColorDeclarations(sheet.text, item.value)
       .map((declaration) => ({ ...declaration, source: sheet.source })));
-    const scoped = await scopedCssMatches(page, rootSelector, declarations);
-    if (scoped.length) rows.push({ id: item.id, name: '本次写入颜色前台回读', status: 'record',
-      classification: 'instance-scoped-css-only', expected: item.value,
-      actual: { outcome: 'instance-scoped-css-only', rules: scoped,
-        unavailableStylesheetCount: sheets.filter((sheet) => sheet.unavailable).length },
-      detail: '颜色已保存，但只在匹配目标实例的 CSS 规则中出现，未在前台计算样式中呈现；不计为通过。',
-      reason: { stage: 'front', code: 'instance-scoped-css-only', expectedSource: 'run-report.currentValues' } });
+    const scoped = await scopedCssMatches(page, rootSelector, declarations,
+      { blockId: settingsReport?.blockId, settingId: settingsReport?.block?.settingId });
+    evidenceById[item.id] = { sheetCount: sheets.length, ruleCount: sheets.reduce((sum, sheet) => sum + countCssRules(sheet.text), 0),
+      fetchFailureCount: sheets.filter((sheet) => sheet.unavailable).length,
+      cssRulesUnreadableCount: inventory.crossOriginUnreadableCount || 0,
+      matchCount: scoped.length, rules: scoped };
   }
-  return rows;
+  return { evidenceById, sheetCount: sheets.length,
+    ruleCount: sheets.reduce((sum, sheet) => sum + countCssRules(sheet.text), 0),
+    fetchFailureCount: sheets.filter((sheet) => sheet.unavailable).length };
+}
+
+export async function runWrittenColorStylesheetSearch(options = {}) {
+  const scan = await scanWrittenColorStylesheets(options);
+  const settingsReport = options.settingsReport;
+  return extractWrittenColorValues(settingsReport).flatMap((item) => {
+    const evidence = scan.evidenceById[item.id];
+    if (!evidence?.matchCount) return [];
+    return [{ id: item.id, name: '本次写入颜色前台回读', status: 'record',
+      classification: 'instance-scoped-css-only', expected: item.value,
+      actual: { outcome: 'instance-scoped-css-only', ...evidence },
+      detail: '颜色已保存，但只在匹配目标实例的 CSS 规则中出现；不计为通过。',
+      reason: { stage: 'front', code: 'instance-scoped-css-only', expectedSource: 'run-report.currentValues' } }];
+  });
 }
 
 export function countInstanceColorMatches(snapshot, expected) {
@@ -494,30 +539,46 @@ export async function runWrittenColorFrontChecks({ page, rootSelector, settingsR
     expected: item.value, detail: '目标区块前台实例不可达。', reason: { stage: 'front', code: 'instance-root-unavailable',
       expectedSource: 'run-report.currentValues', controlIndex: item.controlIndex } }));
   const checks = [];
-  const stateRevealed = stateExercise ? await exerciseWrittenColorStates(page, rootSelector, values) : {};
+  const stateEvidence = stateExercise
+    ? await exerciseWrittenColorStates(page, rootSelector, values).catch((error) => ({ states: [], candidateCount: 0,
+      disclosureCount: 0, revealed: {}, error: { class: error?.name || 'Error', code: 'state-exercise-unavailable' } }))
+    : { states: [], candidateCount: 0, disclosureCount: 0, revealed: {} };
+  // Fetch/parse linked CSS before assigning an absent verdict. Cross-origin
+  // CSSOM failures are retried through the page context's request client.
+  const stylesheetScan = includeStylesheets
+    ? await scanWrittenColorStylesheets({ page, rootSelector, settingsReport, fetchStylesheet })
+    : { evidenceById: {}, sheetCount: 0, ruleCount: 0, fetchFailureCount: 0 };
   for (const item of values) {
     const snapshot = await readInstanceColorSnapshot(page, rootSelector);
-    const stateMatch = stateRevealed[item.id];
+    const stateMatch = stateEvidence.revealed[item.id];
     const matches = countInstanceColorMatches(snapshot, item.value);
+    const cssEvidence = stylesheetScan.evidenceById[item.id] || { sheetCount: stylesheetScan.sheetCount,
+      ruleCount: stylesheetScan.ruleCount, fetchFailureCount: stylesheetScan.fetchFailureCount,
+      cssRulesUnreadableCount: 0, matchCount: 0, rules: [] };
+    const foundOnElement = snapshot.rootCount === 1 && (matches > 0 || Boolean(stateMatch));
+    const cssOnly = !foundOnElement && cssEvidence.matchCount > 0;
+    const outcome = foundOnElement ? 'found-on-element' : cssOnly ? 'instance-scoped-css-only' : 'absent';
     const actual = { rootCount: snapshot.rootCount, elementCount: snapshot.styles.length,
-      matches: matches || stateMatch?.matches || 0, ...(stateMatch ? { stateScan: stateMatch.state } : {}) };
-    const pass = actual.rootCount === 1 && (matches > 0 || Boolean(stateMatch));
-    const outcome = pass ? 'found-on-element' : 'absent';
-    checks.push({ id: item.id, name: '本次写入颜色前台回读', status: pass ? 'pass' : 'fail',
-      classification: pass ? 'found-on-element' : 'absent', expected: item.value, actual,
-      detail: pass ? '目标区块内存在呈现本次写入颜色的元素。' : '已保存的颜色未在目标实例前台呈现。',
+      matches: matches || stateMatch?.matches || 0,
+      stylesheetEvidence: { sheetCount: cssEvidence.sheetCount, ruleCount: cssEvidence.ruleCount,
+        fetchFailureCount: cssEvidence.fetchFailureCount, matchCount: cssEvidence.matchCount,
+        ...(cssEvidence.cssRulesUnreadableCount ? { cssRulesUnreadableCount: cssEvidence.cssRulesUnreadableCount } : {}),
+        ...(cssEvidence.matchCount ? { rules: cssEvidence.rules } : {}) },
+      stateExercise: { enabled: Boolean(stateExercise), states: stateEvidence.states,
+        candidateCount: stateEvidence.candidateCount, disclosureCount: stateEvidence.disclosureCount,
+        revealedBy: stateMatch?.state || null,
+        ...(stateEvidence.error ? { error: stateEvidence.error } : {}) } };
+    checks.push({ id: item.id, name: '本次写入颜色前台回读', status: outcome === 'found-on-element' ? 'pass'
+      : outcome === 'instance-scoped-css-only' ? 'record' : 'fail',
+      classification: outcome, expected: item.value, actual,
+      detail: outcome === 'found-on-element' ? '目标区块内存在呈现本次写入颜色的元素。'
+        : outcome === 'instance-scoped-css-only' ? '已保存的颜色只出现在目标实例相关 CSS 规则中，未在计算样式中呈现。'
+          : '已保存的颜色未在目标实例前台呈现。',
       reason: { stage: 'front', code: outcome,
         expectedSource: 'run-report.currentValues', controlIndex: item.controlIndex,
         propertiesChecked: ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'outlineColor', 'boxShadow',
           'backgroundImage', '::before', '::after'],
         ...(stateMatch ? { revealedByState: stateMatch.state } : {}) } });
-  }
-  if (includeStylesheets) {
-    const cssRows = await runWrittenColorStylesheetSearch({ page, rootSelector, settingsReport, elementChecks: checks, fetchStylesheet });
-    for (const row of cssRows) {
-      const index = checks.findIndex((check) => check.id === row.id);
-      if (index >= 0) checks[index] = row;
-    }
   }
   return checks;
 }
@@ -527,6 +588,7 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
   const candidates = root.locator('a,button,[role="button"],[role="link"],[role="option"],[role="menuitem"],[role="tab"],[aria-haspopup],summary,details,input,select,textarea');
   const count = Math.min(await candidates.count(), maxElements);
   const revealed = {};
+  const states = new Set();
   const scan = async (state) => {
     const snapshot = await readInstanceColorSnapshot(page, rootSelector);
     for (const value of values) {
@@ -536,12 +598,13 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
   };
   for (let index = 0; index < count; index += 1) {
     const candidate = candidates.nth(index);
-    try { await candidate.hover({ timeout: 1500 }); await scan('hover'); } catch {}
-    try { await candidate.focus({ timeout: 1500 }); await scan('focus'); } catch {}
+    try { await candidate.hover({ timeout: 1500 }); states.add('hover'); await scan('hover'); } catch {}
+    try { await candidate.focus({ timeout: 1500 }); states.add('focus'); await scan('focus'); } catch {}
     try {
       const tagName = await candidate.evaluate((element) => element.tagName);
       if (String(tagName).toUpperCase() === 'SELECT') {
         await candidate.evaluate((element) => element.showPicker?.());
+        states.add('select-open');
         await scan('select-open');
         await candidate.press('Escape', { timeout: 1000 });
       }
@@ -556,12 +619,13 @@ export async function exerciseWrittenColorStates(page, rootSelector, values, { m
       const wasOpen = await item.evaluate((element) => element.open);
       if (wasOpen) continue;
       await item.evaluate((element) => { element.open = true; });
+      states.add('disclosure-open');
       await scan('disclosure-open');
       await item.evaluate((element) => { element.open = false; });
     } catch { try { await item.evaluate((element) => { element.open = false; }); } catch {} }
   }
   try { await page.evaluate(() => document.activeElement?.blur?.()); } catch {}
-  return revealed;
+  return { states: [...states], candidateCount: count, disclosureCount: detailsCount, revealed };
 }
 
 export async function runDesignSpecEditorChecks(profile, inventory) {

@@ -99,6 +99,7 @@ test('mobile reason distinguishes page overflow and lists overflow, overlap and 
   assert.equal(check.status, 'fail');
   assert.deepEqual(check.reason.actual.offendingElementSelectors, ['.card:nth-of-type(2) > img']);
   assert.equal(check.reason.actual.overflowScope, 'page-wide');
+  assert.deepEqual(check.reason.actual.overflowAttribution, { pageLevel: true, instance: true, source: 'page-and-instance' });
   assert.equal(check.reason.actual.blockRoot, '[data-front-style-target="selected"]');
   assert.deepEqual(check.reason.actual.overlapElementSelectors, [['.selection-count', '.remove-all']]);
   assert.deepEqual(check.reason.actual.clippedElementSelectors, ['.summary > span']);
