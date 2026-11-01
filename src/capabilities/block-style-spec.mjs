@@ -45,32 +45,37 @@ const NAMES = {
 };
 
 export async function runFreshStyleChecks(args) {
-  const { session, capability, config, frontLink, published } = args;
+  const { session, capability, config, frontLink, published, settingsReport } = args;
   const front = frontLink || published?.frontLink;
   if (!front || !session?.context?.newPage) {
-    return [
-      ...Object.keys(NAMES).map((id) => result(id, 'deferred', '发布后无法从当前执行环境打开前台页面；需前台机器运行此能力的既有样式断言。')),
-      ...(capability?.styleSpec?.recordOnly || []).map((item) => result(`bss-${item.id}`, 'record', item.note,
-        { inventoryCapability: item.inventoryCapability || null, visualOracle: 'unreviewed' }, { name: item.name || item.id })),
-    ];
+    return unavailableStyleResults(capability, '发布后无法从当前执行环境打开前台页面；需前台机器运行此能力的既有样式断言。');
   }
   let page;
   try {
     page = await session.context.newPage();
     const url = /^https?:\/\//i.test(front) ? front : new URL(front, `https://${config.siteDomain}`).href;
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });
-    await page.locator(previewSelector(config.blockId)).first().waitFor({ state: 'attached', timeout: config.actionTimeoutMs });
-    return await runFrontLayer({ frame: page, previewPage: page, config, capability });
+    const rootSelector = config.rootSelector || previewSelector(config.blockId);
+    await page.locator(rootSelector).waitFor({ state: 'attached', timeout: config.actionTimeoutMs });
+    return await runFrontLayer({ frame: page, previewPage: page,
+      config: { ...config, rootSelector, settingsReport }, capability });
   } catch (error) {
-    return [
-      ...Object.keys(NAMES).map((id) => result(id, 'deferred',
-        `发布后前台样式断言当前不可达（${error.message}）；需前台机器运行此能力的既有样式断言。`)),
-      ...(capability?.styleSpec?.recordOnly || []).map((item) => result(`bss-${item.id}`, 'record', item.note,
-        { inventoryCapability: item.inventoryCapability || null, visualOracle: 'unreviewed' }, { name: item.name || item.id })),
-    ];
+    return unavailableStyleResults(capability,
+      `发布后前台样式断言当前不可达（${error.message}）；需前台机器运行此能力的既有样式断言。`);
   } finally {
     if (page && !page.isClosed()) await page.close().catch(() => {});
   }
+}
+
+function unavailableStyleResults(capability, reason) {
+  const records = new Map((capability?.styleSpec?.recordOnly || []).map((item) => [item.id, item]));
+  return styleCheckDescriptors(capability).map(({ id, name }) => {
+    const itemId = id.replace(/^bss-/, '');
+    const record = records.get(itemId);
+    return record
+      ? result(id, 'record', record.note, { inventoryCapability: record.inventoryCapability || null, visualOracle: 'unreviewed' }, { name: record.name || name })
+      : result(id, 'deferred', reason, undefined, { name });
+  });
 }
 
 const normColor = (c) => {
@@ -154,6 +159,13 @@ async function readItem(frame, rootSel, item) {
       out.elements.push(entry);
     };
     switch (item.kind) {
+      case 'text-content': {
+        const needle = norm(item.text);
+        const matches = [...root.querySelectorAll('*')].filter((el) => norm(el.innerText) === needle && vis(el));
+        out.matchedCount = matches.length;
+        out.elements = matches.slice(0, item.sample ?? 2).map((el) => ({ label: needle, ...styleOf(el) }));
+        break;
+      }
       case 'text': {
         const matches = [...root.querySelectorAll(item.selector)].filter((x) => norm(x.innerText) === item.text);
         out.matchedCount = matches.length;
@@ -230,9 +242,13 @@ async function breakage(frame, rootSel) {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const root = document.querySelector(rootSel);
     if (!root) return { error: 'no root' };
+    const rootBox = root.getBoundingClientRect();
     const res = { viewportWidth: window.innerWidth, docScrollWidth: document.documentElement.scrollWidth,
       rootMatchedCount: document.querySelectorAll(rootSel).length,
-      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1 };
+      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      horizontalOverflowScope: document.documentElement.scrollWidth > window.innerWidth + 1 ? 'page-wide' : 'none',
+      blockOverflow: root.scrollWidth > root.clientWidth + 1 || rootBox.left < -1 || rootBox.right > window.innerWidth + 1,
+      blockRoot: rootSel };
     const wrapBox = root.getBoundingClientRect();
     const sticking = [];
     const selectorPath = (el) => {
@@ -269,7 +285,7 @@ async function breakage(frame, rootSel) {
       if (!r.width || !r.height) continue;
       const s = getComputedStyle(node);
       if (s.visibility === 'hidden' || s.display === 'none') continue;
-      leaves.push({ text: norm(node.innerText).slice(0, 24), box: r });
+      leaves.push({ text: norm(node.innerText).slice(0, 24), box: r, element: node });
     }
     const overlaps = [];
     for (let i = 0; i < leaves.length; i++) {
@@ -280,7 +296,9 @@ async function breakage(frame, rootSel) {
         const inter = ix * iy;
         const smaller = Math.min(a.width * a.height, b.width * b.height);
         if (smaller > 0 && inter / smaller > 0.3) {
-          overlaps.push({ a: leaves[i].text, b: leaves[j].text, ratio: +(inter / smaller).toFixed(2) });
+          overlaps.push({ a: leaves[i].text, b: leaves[j].text,
+            aSelector: selectorPath(leaves[i].element), bSelector: selectorPath(leaves[j].element),
+            ratio: +(inter / smaller).toFixed(2) });
           if (overlaps.length >= 10) break;
         }
       }
@@ -292,7 +310,7 @@ async function breakage(frame, rootSel) {
       if (el.scrollWidth > el.clientWidth + 1) {
         const s = getComputedStyle(el);
         if (s.overflowX === 'hidden' || s.overflowX === 'clip' || s.textOverflow === 'ellipsis') {
-          clipped.push({ tag: el.tagName, text: norm(el.innerText).slice(0, 30) });
+          clipped.push({ tag: el.tagName, selector: selectorPath(el), text: norm(el.innerText).slice(0, 30) });
           if (clipped.length >= 10) break;
         }
       }
@@ -349,6 +367,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
         : values;
       styleExpectations[id] = `${item.text ? `“${item.text}”` : (NAMES[id] || '元素').replace(/(?:背景)?样式$/, '')}${dimensionPair.join('、')}。`;
     }
+    if (item.kind === 'text-content') styleExpectations[id] = `区块内应显示精确文本“${item.text}”。`;
     if (item.clamp) styleExpectations['bss-product-name-clamp'] = `产品名称最多显示 ${item.clamp} 行，超出部分应隐藏。`;
   }
   const skipAll = (reason) => Object.keys(NAMES).map((id) => result(id, 'skip', reason));
@@ -356,7 +375,7 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
   const tolPx = spec.tolerances?.px ?? 0.6;
   const viewports = spec.viewports || { pc: 1440, pad: 768, mobile: 375 };
   const checks = [];
-  const rootSel = previewSelector(config.blockId);
+  const rootSel = config.rootSelector || previewSelector(config.blockId);
   const shots = [];
   const shot = async (name) => {
     if (!previewPage) return;
@@ -379,6 +398,24 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
     for (const item of spec.items || []) {
       const checkId = `bss-${item.id}`;
       if (!NAMES[checkId]) { checks.push(result(checkId, 'skip', `未知检查 ${item.id}`)); continue; }
+      if (item.notApplicableReason) {
+        checks.push(result(checkId, 'na', item.notApplicableReason, { matchedCount: 0, selectorEvidence: 'none' }));
+        continue;
+      }
+      const applicability = resolveItemApplicability(item, config.settingsReport);
+      if (!applicability.applicable) {
+        checks.push(result(checkId, 'na', applicability.reason || '画像开关值表明此项不适用。',
+          { applicabilitySource: applicability.source || null }));
+        continue;
+      }
+      const notSetProperties = Object.entries(item.resolvedExpectedSources || {})
+        .filter(([, source]) => source === 'not set this run').map(([property]) => property);
+      if (notSetProperties.length) {
+        checks.push(result(checkId, 'na', 'not set this run', {
+          notSetProperties, expectedValueSource: 'run report contains no successful write for this setting',
+        }, { name: item.name || NAMES[checkId] }));
+        continue;
+      }
       // Leaf nav links live in collapsed submenus by default; expand the
       // first parent before reading them (the arrow toggles the submenu,
       // it does not navigate).
@@ -397,6 +434,15 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
           read.count > 0 ? `${read.cardCount} 张产品卡中找到 ${read.count} 个“${item.text}”链接。`
             : `${read.cardCount} 张产品卡里一张都没找到“${item.text}”链接。`,
           { found: read.count, cards: read.cardCount, searchedSources: read.searchedSources }));
+        continue;
+      }
+      if (item.kind === 'text-content') {
+        const read = await readItem(frame, rootSel, item);
+        const found = read.matchedCount > 0;
+        checks.push(result(checkId, found ? 'pass' : 'fail', found
+          ? `区块内找到预期文本“${item.text}”。` : `区块内没有找到预期文本“${item.text}”。`,
+        { matchedCount: read.matchedCount, expectedText: item.text, selector: item.selector || 'block subtree text nodes' },
+        { name: item.name || NAMES[checkId] }));
         continue;
       }
       const read = await readItem(frame, rootSel, item);
@@ -496,6 +542,9 @@ function styleItemForCheck(checkId, items) {
 
 function diagnosticValues(check, item) {
   const evidence = check.evidence || {};
+  if (check.status === 'na' && (evidence.notSetProperties || evidence.applicabilitySource)) {
+    return { expected: { notSetThisRun: evidence.notSetProperties || [] }, actual: { compared: false } };
+  }
   if (check.id.startsWith('bss-breakage-')) {
     return {
       expected: { horizontalOverflow: false, stickingOut: 0, overlaps: 0, textClipped: 0, imgDistorted: 0 },
@@ -503,12 +552,19 @@ function diagnosticValues(check, item) {
         stickingOut: evidence.stickingOut?.length ?? null, overlaps: evidence.overlaps?.length ?? null,
         textClipped: evidence.textClipped?.length ?? null, imgDistorted: evidence.imgDistorted?.length ?? null,
         documentWidth: evidence.docScrollWidth ?? null, viewportWidth: evidence.viewportWidth ?? null,
-        offendingElementSelectors: (evidence.stickingOut || []).map((entry) => entry.selector).filter(Boolean) },
+        overflowScope: evidence.horizontalOverflowScope || 'unknown', blockOverflow: Boolean(evidence.blockOverflow),
+        blockRoot: evidence.blockRoot || null,
+        offendingElementSelectors: (evidence.stickingOut || []).map((entry) => entry.selector).filter(Boolean),
+        overlapElementSelectors: (evidence.overlaps || []).map((entry) => [entry.aSelector, entry.bSelector].filter(Boolean)),
+        clippedElementSelectors: (evidence.textClipped || []).map((entry) => entry.selector).filter(Boolean) },
     };
   }
   if (item?.kind === 'presence') return {
     expected: { minimumMatches: 1 }, actual: { found: evidence.found ?? null, cards: evidence.cards ?? null,
       searchedSources: evidence.searchedSources || ['visible text', 'aria-label', 'title'] },
+  };
+  if (item?.kind === 'text-content') return {
+    expected: { exactText: item.text }, actual: { matchedCount: evidence.matchedCount ?? null },
   };
   if (check.id === 'bss-product-name-clamp') return {
     expected: { lineClamp: item?.clamp ?? null },
@@ -541,21 +597,55 @@ export function resolveFrontStyleCapability(capability, settingsReport = null) {
       && (binding.control.type === undefined || entry.type === binding.control.type)) : [];
     const match = candidates.length === 1 ? candidates[0] : null;
     const usable = match && match.value !== null && match.value !== undefined && match.value !== '';
-    const value = usable ? match.value : binding.profileDefault;
-    if (value === undefined) continue;
+    const written = settingWasWritten(settingsReport, binding);
+    const value = usable && written ? match.value : settingsReport ? undefined : binding.profileDefault;
+    if (value === undefined) {
+      item.resolvedExpectedSources[property] = 'not set this run';
+      delete item.props[property];
+      resolvedExpectedSources[key] = 'not set this run';
+      continue;
+    }
     item.props[property] = ['color', 'backgroundColor', 'borderColor'].includes(property)
       ? normColor(String(value)) : value;
-    const source = usable
+    const source = usable && written
       ? `run-report:block.currentValues[region=${binding.control.region ?? '*'},label=${binding.control.label ?? '*'}]`
-      : `profile-default:${key}${candidates.length > 1 ? ` (ambiguous run values: ${candidates.length})` : ''}`;
+      : `profile-default:${key}`;
     item.resolvedExpectedSources[property] = source;
     resolvedExpectedSources[key] = source;
   }
   return { ...capability, styleSpec: { ...spec, items, resolvedExpectedSources } };
 }
 
+function settingWasWritten(report, binding) {
+  if (!report) return true;
+  const required = binding?.settingCheckIds || [];
+  if (!required.length) return false;
+  const checks = new Map((report.checks || []).map((check) => [check.id, check]));
+  return required.every((id) => ['pass', 'fail'].includes(checks.get(id)?.status));
+}
+
+function valueAtPath(object, path) {
+  return String(path || '').split('.').filter(Boolean).reduce((value, key) => value?.[key], object);
+}
+
+export function resolveItemApplicability(item, report) {
+  const rule = item.applicability;
+  if (!rule) return item.requireApplicableToggle
+    ? { applicable: false, reason: 'profile did not declare an applicability toggle; not set this run' }
+    : { applicable: true };
+  if (!report) return { applicable: false, reason: '未提供运行报告，无法读取画像声明的适用性开关。', source: rule.checkId };
+  const check = (report.checks || []).find((entry) => entry.id === rule.checkId);
+  if (!check || !['pass', 'fail', 'record'].includes(check.status)) {
+    return { applicable: false, reason: 'not set this run', source: rule.checkId };
+  }
+  const actual = valueAtPath(check, rule.valuePath || 'actual');
+  return actual === rule.equals
+    ? { applicable: true, source: rule.checkId }
+    : { applicable: false, reason: '画像开关值表明此项不适用。', source: rule.checkId };
+}
+
 /** Add structured, value-safe diagnostics without changing a check verdict. */
-export function addStyleFailureReasons(checks, { capability, blockId, viewports } = {}) {
+export function addStyleFailureReasons(checks, { capability, blockId, rootSelector, viewports } = {}) {
   const spec = capability?.styleSpec || {};
   const items = spec.items || [];
   return checks.map((check) => {
@@ -566,7 +656,7 @@ export function addStyleFailureReasons(checks, { capability, blockId, viewports 
       : item?.kind === 'nav-parent' ? `${cssSelectorForItem(item)} (top-level items with child list)`
         : item?.kind === 'nav-leaf' ? `${cssSelectorForItem(item)} (nested list items without child list)`
           : cssSelectorForItem(item) || item?.kind || 'styleSpec item';
-    const locator = `${previewSelector(String(blockId ?? ''))} → ${selector}`;
+    const locator = `${rootSelector || previewSelector(String(blockId ?? ''))} → ${selector}`;
     const evidence = check.evidence || {};
     const matchedElementCount = Number.isInteger(evidence.matchedCount) ? evidence.matchedCount
       : Number.isInteger(evidence.found) ? evidence.found
@@ -616,5 +706,6 @@ export function styleCheckDescriptors(capability) {
 export async function runFrontLayer(args) {
   const checks = await runFrontLayerRaw(args);
   return addStyleFailureReasons(checks, { capability: args.capability, blockId: args.config?.blockId,
+    rootSelector: args.config?.rootSelector,
     viewports: args.capability?.styleSpec?.viewports });
 }

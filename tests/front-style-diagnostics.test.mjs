@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { addStyleFailureReasons, resolveFrontStyleCapability, styleCheckDescriptors } from '../src/capabilities/block-style-spec.mjs';
-import { buildFrontStyleExecutionErrors, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
+import { addStyleFailureReasons, resolveFrontStyleCapability, resolveItemApplicability, styleCheckDescriptors } from '../src/capabilities/block-style-spec.mjs';
+import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, resolveFrontStyleInstance, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 
 const capability = { id: 'block-style-spec', styleSpec: { viewports: { pc: 1440, pad: 768, mobile: 375 }, items: [
   { id: 'button-bg', kind: 'first', selector: 'a.action', props: { backgroundColor: '#1c4587', borderRadius: 3 } },
@@ -63,38 +63,55 @@ test('navigation diagnostic locators are CSS selectors with explicit hierarchy f
   assert.equal(leaf.status, 'fail');
 });
 
-test('mobile overflow reason includes selectors for the offending elements', () => {
-  const [check] = addStyleFailureReasons([{ id: 'bss-breakage-mobile', status: 'fail', detail: 'overflow',
-    evidence: { viewportWidth: 375, docScrollWidth: 505, rootMatchedCount: 1, horizontalOverflow: true,
-      stickingOut: [{ selector: '.card:nth-of-type(2) > img' }], overlaps: [], textClipped: [], imgDistorted: [] } }], { capability, blockId: '777' });
-  assert.equal(check.status, 'fail');
-  assert.deepEqual(check.reason.actual.offendingElementSelectors, ['.card:nth-of-type(2) > img']);
+test('selectors without offline DOM snapshots remain na and do not guess replacements', () => {
+  const cap = { styleSpec: { items: [{ id: 'nav-parent', kind: 'nav-parent', selector: '.old-selector',
+    notApplicableReason: 'No offline DOM snapshot.' }] } };
+  const [check] = addStyleFailureReasons([{ id: 'bss-nav-parent', status: 'na', detail: 'No offline DOM snapshot.',
+    evidence: { matchedCount: 0 } }], { capability: cap, blockId: '1' });
+  assert.equal(check.status, 'na');
+  assert.equal(check.reason.applicability, 'No offline DOM snapshot.');
 });
 
-test('run-written style values override profile defaults and diagnostics identify the source', () => {
+test('mobile reason distinguishes page overflow and lists overflow, overlap and clipped selectors', () => {
+  const [check] = addStyleFailureReasons([{ id: 'bss-breakage-mobile', status: 'fail', detail: 'overflow',
+    evidence: { viewportWidth: 375, docScrollWidth: 505, rootMatchedCount: 1, horizontalOverflow: true,
+      horizontalOverflowScope: 'page-wide', blockOverflow: true, blockRoot: '[data-front-style-target="selected"]',
+      stickingOut: [{ selector: '.card:nth-of-type(2) > img' }],
+      overlaps: [{ aSelector: '.selection-count', bSelector: '.remove-all' }],
+      textClipped: [{ selector: '.summary > span' }], imgDistorted: [] } }], { capability, blockId: '777' });
+  assert.equal(check.status, 'fail');
+  assert.deepEqual(check.reason.actual.offendingElementSelectors, ['.card:nth-of-type(2) > img']);
+  assert.equal(check.reason.actual.overflowScope, 'page-wide');
+  assert.equal(check.reason.actual.blockRoot, '[data-front-style-target="selected"]');
+  assert.deepEqual(check.reason.actual.overlapElementSelectors, [['.selection-count', '.remove-all']]);
+  assert.deepEqual(check.reason.actual.clippedElementSelectors, ['.summary > span']);
+});
+
+test('run-written style values override defaults only when their setting check ran', () => {
   const sourceCapability = { id: 'block-style-spec', styleSpec: { items: [
     { id: 'button-bg', kind: 'first', selector: 'a.action', props: { backgroundColor: '#000000' } },
     { id: 'pagination-other', kind: 'sample', selector: '.pagination a', props: { color: '#111111' } },
   ], expectedValueSources: {
-    'button-bg.backgroundColor': { control: { region: 'right-rail-color', label: 'scheme' }, profileDefault: '#000000' },
-    'pagination-other.color': { profileDefault: '#898989' },
+    'button-bg.backgroundColor': { control: { region: 'right-rail-color', label: 'scheme' }, profileDefault: '#000000', settingCheckIds: ['color-write'] },
+    'pagination-other.color': { profileDefault: '#898989', settingCheckIds: ['pagination-color-write'] },
   } } };
   const resolved = resolveFrontStyleCapability(sourceCapability, { block: { currentValues: [
     { region: 'right-rail-color', label: 'scheme', type: 'text', value: 'rgb(242, 242, 245)' },
-  ] } });
+  ] }, checks: [{ id: 'color-write', status: 'pass' }] });
   assert.equal(resolved.styleSpec.items[0].props.backgroundColor, '#f2f2f5');
-  assert.equal(resolved.styleSpec.items[1].props.color, '#898989');
+  assert.equal(resolved.styleSpec.items[1].props.color, undefined);
+  assert.equal(resolved.styleSpec.items[1].resolvedExpectedSources.color, 'not set this run');
   const [dynamic, fallback] = addStyleFailureReasons([
     { id: 'bss-button-bg', status: 'fail', evidence: { matchedCount: 1, elements: [{ backgroundColor: '#fff' }] } },
-    { id: 'bss-pagination-other', status: 'fail', evidence: { matchedCount: 1, elements: [{ color: '#000' }] } },
+    { id: 'bss-pagination-other', status: 'na', detail: 'not set this run', evidence: { notSetProperties: ['color'] } },
   ], { capability: resolved, blockId: '777' });
   assert.equal(dynamic.reason.expected.backgroundColor, '#f2f2f5');
   assert.match(dynamic.reason.expectedSource.backgroundColor, /^run-report:block\.currentValues\[/);
-  assert.equal(fallback.reason.expected.color, '#898989');
-  assert.equal(fallback.reason.expectedSource.color, 'profile-default:pagination-other.color');
+  assert.deepEqual(fallback.reason.expected, { notSetThisRun: ['color'] });
+  assert.equal(fallback.detail, 'not set this run');
 });
 
-test('ambiguous setting values fail closed to the explicit profile default', () => {
+test('ambiguous or unwritten setting values do not fall back to profile defaults with a run report', () => {
   const capability = { styleSpec: { items: [{ id: 'button-bg', props: { backgroundColor: '#111111' } }],
     expectedValueSources: { 'button-bg.backgroundColor': {
       control: { region: 'rail', label: 'color' }, profileDefault: '#222222',
@@ -103,8 +120,39 @@ test('ambiguous setting values fail closed to the explicit profile default', () 
     { region: 'rail', label: 'color', value: '#333333' },
     { region: 'rail', label: 'color', value: '#444444' },
   ] } });
+  assert.equal(resolved.styleSpec.items[0].props.backgroundColor, undefined);
+  assert.equal(resolved.styleSpec.items[0].resolvedExpectedSources.backgroundColor, 'not set this run');
+});
+
+test('profile defaults are available only when no run report is supplied', () => {
+  const capability = { styleSpec: { items: [{ id: 'button-bg', props: { backgroundColor: '#111111' } }],
+    expectedValueSources: { 'button-bg.backgroundColor': { profileDefault: '#222222', control: { region: 'rail' } } } } };
+  const resolved = resolveFrontStyleCapability(capability, null);
   assert.equal(resolved.styleSpec.items[0].props.backgroundColor, '#222222');
-  assert.match(resolved.styleSpec.items[0].resolvedExpectedSources.backgroundColor, /ambiguous run values: 2/);
+  assert.equal(resolved.styleSpec.items[0].resolvedExpectedSources.backgroundColor, 'profile-default:button-bg.backgroundColor');
+});
+
+test('details applicability follows the profile-declared toggle check from the run report', () => {
+  const item = { applicability: { checkId: 'details-toggle', valuePath: 'actual', equals: true } };
+  assert.equal(resolveItemApplicability(item, { checks: [{ id: 'details-toggle', status: 'pass', actual: true }] }).applicable, true);
+  assert.equal(resolveItemApplicability(item, { checks: [{ id: 'details-toggle', status: 'pass', actual: false }] }).applicable, false);
+  assert.equal(resolveItemApplicability(item, { checks: [{ id: 'details-toggle', status: 'skip' }] }).reason, 'not set this run');
+  assert.match(resolveItemApplicability({ requireApplicableToggle: true }, {}).reason, /not set this run/);
+});
+
+test('front instance scope uses settingId, detects one instance, and refuses ambiguous matches', () => {
+  const rows = [{ identities: ['siteblocks-setting-wrap-other'] }, { identities: ['siteblocks-setting-wrap-target'] }];
+  assert.deepEqual(resolveFrontStyleInstance(rows, 'target'), {
+    instanceCount: 2, matchCount: 1, index: 1, settingId: 'target', resolution: 'settingId',
+  });
+  assert.equal(resolveFrontStyleInstance([{ identities: ['siteblocks-setting-wrap-single'] }]).settingId, 'single');
+  assert.equal(resolveFrontStyleInstance(rows).index, null);
+});
+
+test('every front-style result row carries the report or detected settingId', () => {
+  assert.deepEqual(attachFrontStyleInstance([{ id: 'bss-a' }, { id: 'bss-b', settingId: 'old' }], 'instance-1'),
+    [{ id: 'bss-a', settingId: 'instance-1' }, { id: 'bss-b', settingId: 'instance-1' }]);
+  assert.equal(attachFrontStyleInstance([{ id: 'bss-a' }], null)[0].settingId, null);
 });
 
 test('thrown style errors retain a bounded class/message while keeping the locator stage', () => {
@@ -131,12 +179,18 @@ test('inventory-derived uncertain style items are exposed as record-only checks'
   ]);
 });
 
-test('the onboarding profile exposes every discovered setting group as record-only style inventory', () => {
+test('the onboarding profile asserts its known button text and keeps other unreviewed inventory record-only', () => {
   const profile = JSON.parse(fs.readFileSync(new URL('../profiles/47498.json', import.meta.url), 'utf8'));
   const style = profile.capabilities.find((entry) => entry.id === 'block-style-spec')?.styleSpec;
   assert.ok(style);
-  assert.deepEqual(style.recordOnly.map((entry) => entry.inventoryCapability), profile.onboarding.matched.map((entry) => entry.capability));
+  const reviewedIds = new Set(style.items.map((entry) => entry.id));
+  assert.deepEqual(style.recordOnly.map((entry) => entry.inventoryCapability), profile.onboarding.matched
+    .filter((entry) => !reviewedIds.has(`inventory-${entry.id}`)).map((entry) => entry.capability));
   assert.ok(style.recordOnly.every((entry) => /No front-end selector/.test(entry.note)));
+  const text = style.items.find((entry) => entry.id === 'inventory-btn-text');
+  assert.equal(text.kind, 'text-content');
+  assert.equal(text.text, profile.onboarding.matched.find((entry) => entry.id === 'btn-text').evidence.find((entry) => entry.label === '按钮文本').value);
+  assert.equal(styleCheckDescriptors({ styleSpec: style }).some((entry) => entry.id === 'bss-inventory-btn-text'), true);
 });
 
 test('profile button style shares the CSS target without requiring stale button copy', () => {

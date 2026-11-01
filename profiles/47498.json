@@ -22,7 +22,17 @@
       "status": "record-only",
       "reason": "Onboarding inventory provides setting units but no reviewed front-end selector or visual oracle.",
       "styleSpec": {
-        "items": [],
+        "items": [
+          {
+            "id": "inventory-btn-text",
+            "name": "按钮文字（已盘点值）",
+            "kind": "text-content",
+            "selector": "*",
+            "text": "分类按钮",
+            "valueSource": "onboarding.matched[btn-text].evidence[按钮文本]",
+            "note": "Exact persisted inventory value is checked as visible text within the target block; uses no block-specific class selector."
+          }
+        ],
         "recordOnly": [
           {
             "id": "inventory-module-width",
@@ -73,12 +83,6 @@
             "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
           },
           {
-            "id": "inventory-btn-text",
-            "name": "Inventory observation: btn-text",
-            "inventoryCapability": "button-link",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          },
-          {
             "id": "inventory-btn-url",
             "name": "Inventory observation: btn-url",
             "inventoryCapability": "button-link",
@@ -105,7 +109,8 @@
           "mobile": 375
         },
         "notes": [
-          "Record-only entries are derived from onboarding.matched; the inventory does not establish front-end selectors or expected styles."
+          "Record-only entries are derived from onboarding.matched; the inventory does not establish front-end selectors or expected styles.",
+          "Inventory entries with an explicit scalar value and a generic text-content oracle become assertions; other inventory entries remain record-only until a front selector and expected value are evidenced."
         ]
       }
     }

@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { runFrontLayer, resolveFrontStyleCapability } from '../src/capabilities/block-style-spec.mjs';
-import { buildFrontStyleExecutionErrors, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
+import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, resolveFrontStyleInstance, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 import { previewSelector } from '../src/capabilities/shared.mjs';
 
 const args = {};
@@ -47,7 +47,8 @@ fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.mkdirSync('screenshots', { recursive: true });
 const config = { blockId, actionTimeoutMs: 30000, navigationTimeoutMs: 60000 };
 
-const report = { flow: 'front-style-only', blockId, url: sanitizeFrontStyleUrl(args.url), settingId: args['setting-id'] || null,
+const report = { flow: 'front-style-only', blockId, url: sanitizeFrontStyleUrl(args.url),
+  settingId: args['setting-id'] || settingsReport?.block?.settingId || null,
   startedAt: new Date().toISOString(), host: process.platform, checks: [], error: null };
 let exitCode = 0;
 let stage = 'launch-browser';
@@ -61,17 +62,37 @@ try {
   const root = page.locator(previewSelector(blockId));
   stage = 'locate-block';
   await root.first().waitFor({ state: 'attached', timeout: config.actionTimeoutMs });
-  report.blockInstances = await root.count();
+  const rootRows = await page.evaluate((selector) => {
+    const roots = [...document.querySelectorAll(selector)];
+    const identity = (el) => [el.id, el.getAttribute('data-id'), el.getAttribute('data-setting-id'),
+      el.getAttribute('data-settingid'), el.getAttribute('data-instance-id')].filter(Boolean);
+    return roots.map((el) => ({ identities: identity(el) }));
+  }, previewSelector(blockId));
+  const rootInfo = resolveFrontStyleInstance(rootRows, args['setting-id'] || settingsReport?.block?.settingId || null);
+  if (rootInfo.index !== null) {
+    await page.evaluate((args) => {
+      const root = [...document.querySelectorAll(args.selector)][args.index];
+      if (root) root.setAttribute('data-front-style-target', 'selected');
+    }, { selector: previewSelector(blockId), index: rootInfo.index });
+  }
+  rootInfo.selector = '[data-front-style-target="selected"]';
+  report.blockInstances = rootInfo.instanceCount;
+  report.settingId = rootInfo.settingId;
+  report.instanceResolution = rootInfo.resolution;
+  if (rootInfo.matchCount !== 1) throw new Error(`无法唯一圈定目标区块实例：实例数 ${rootInfo.instanceCount}，身份匹配数 ${rootInfo.matchCount}`);
+  config.rootSelector = rootInfo.selector;
+  config.settingId = rootInfo.settingId;
   stage = 'read-style';
   report.expectedValueSourceReport = args['run-report'] || null;
-  report.checks = await runFrontLayer({ frame: page, previewPage: page, config, capability: resolvedCapability });
+  report.checks = attachFrontStyleInstance(
+    await runFrontLayer({ frame: page, previewPage: page, config, capability: resolvedCapability }), report.settingId);
   const shots = fs.readdirSync('screenshots').filter((f) => f.startsWith(`style-${blockId}-`));
   report.screenshots = shots.map((f) => `screenshots/${f}`);
 } catch (error) {
   const safe = sanitizeFrontStyleError(error);
   report.error = safe.message; exitCode = 1;
-  report.checks = buildFrontStyleExecutionErrors({ capability, blockId, stage, error: safe,
-    viewport: capability.styleSpec?.viewports });
+  report.checks = attachFrontStyleInstance(buildFrontStyleExecutionErrors({ capability, blockId, stage, error: safe,
+    viewport: capability.styleSpec?.viewports }), report.settingId);
   try {
     const pg = browser?.contexts()[0]?.pages()[0];
     if (pg) {

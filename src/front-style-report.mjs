@@ -19,6 +19,30 @@ export function sanitizeFrontStyleError(error) {
   return { class: String(error?.class || error?.name || error?.constructor?.name || 'Error'), message };
 }
 
+export function resolveFrontStyleInstance(instances, requestedSettingId = null) {
+  const rows = Array.isArray(instances) ? instances : [];
+  const normalized = (value) => String(value || '').replace(/^siteblocks-setting-wrap-/, '');
+  let candidates = requestedSettingId
+    ? rows.map((row, index) => ({ row, index })).filter(({ row }) =>
+      (row.identities || []).some((identity) => normalized(identity) === String(requestedSettingId)))
+    : [];
+  let resolution = requestedSettingId ? 'settingId' : 'single-instance';
+  if (!candidates.length && rows.length === 1) {
+    candidates = [{ row: rows[0], index: 0 }];
+    resolution = requestedSettingId ? 'settingId-report + unique block instance' : 'single-instance';
+  }
+  if (candidates.length !== 1) return { instanceCount: rows.length, matchCount: candidates.length, index: null, settingId: null, resolution: null };
+  const { row, index } = candidates[0];
+  const detected = (row.identities || []).map((identity) => String(identity || '').match(/^siteblocks-setting-wrap-(.+)$/)?.[1])
+    .find((value) => /^[\w-]{5,}$/.test(value || '')) || null;
+  return { instanceCount: rows.length, matchCount: 1, index,
+    settingId: requestedSettingId || detected, resolution };
+}
+
+export function attachFrontStyleInstance(checks, settingId) {
+  return (checks || []).map((check) => ({ ...check, settingId: settingId || null }));
+}
+
 export function buildFrontStyleExecutionErrors({ capability, blockId, stage, error, viewport }) {
   const safe = sanitizeFrontStyleError(error);
   const reasonStage = ['navigate', 'locate-block', 'launch-browser'].includes(stage) ? 'locate' : 'read';

@@ -103,7 +103,8 @@
               "fontWeight": 700,
               "lineHeight": 45
             },
-            "selector": ".pf-cate-wrap a"
+            "selector": ".pf-cate-wrap a",
+            "notApplicableReason": "离线可用输入中没有该页面的原始 DOM 快照；现有画像选择器在本次前台报告中匹配 0 项，因此不猜测替代选择器。"
           },
           {
             "id": "nav-leaf",
@@ -114,7 +115,8 @@
               "fontWeight": 400,
               "lineHeight": 44.8
             },
-            "selector": ".pf-cate-wrap a"
+            "selector": ".pf-cate-wrap a",
+            "notApplicableReason": "离线可用输入中没有该页面的原始 DOM 快照；现有画像选择器在本次前台报告中匹配 0 项，因此不猜测替代选择器。"
           },
           {
             "id": "filter-title",
@@ -140,7 +142,8 @@
               "lineHeight": 21
             },
             "sample": 2,
-            "selector": ".pf-field-group label"
+            "selector": ".pf-field-group label",
+            "notApplicableReason": "离线可用输入中没有该页面的原始 DOM 快照；现有画像选择器在本次前台报告中匹配 0 项，因此不猜测替代选择器。"
           },
           {
             "clamp": 2,
@@ -161,7 +164,8 @@
             "kind": "presence",
             "note": "设计稿每张卡下有 details 链接；默认与 hover 后预览里均无",
             "text": "details",
-            "selector": "a, button, span"
+            "selector": "a, button, span",
+            "requireApplicableToggle": true
           },
           {
             "id": "pagination-current",
@@ -209,16 +213,29 @@
               "region": "right-rail-color",
               "label": "配色方案"
             },
-            "profileDefault": "#1c4587"
+            "profileDefault": "#1c4587",
+            "settingCheckIds": [
+              "bcs-color-persist"
+            ]
           },
           "pagination-current.backgroundColor": {
             "control": {
               "region": "right-rail-color",
               "label": "配色方案"
             },
-            "profileDefault": "#1c4587"
+            "profileDefault": "#1c4587",
+            "settingCheckIds": [
+              "bcs-color-persist"
+            ]
           },
           "pagination-other.color": {
+            "control": {
+              "region": "right-rail-color",
+              "label": "配色方案"
+            },
+            "settingCheckIds": [
+              "bcs-color-persist"
+            ],
             "profileDefault": "#898989"
           }
         }
