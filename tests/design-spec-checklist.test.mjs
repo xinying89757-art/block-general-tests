@@ -6,6 +6,7 @@ import { importExtractedDesignSpec } from '../scripts/import-design-spec.mjs';
 import { finalizeFrontStyleReport } from '../src/front-style-report.mjs';
 import { addStyleFailureReasons, breakageFindings, isMobileInstanceOverlap, mobileChecklistMode } from '../src/capabilities/block-style-spec.mjs';
 import { isCenteredImagePosition, isVisibleHoverStateTarget, runDesignSpecFrontChecks } from '../src/design-spec-checklist.mjs';
+import { buildDesignHumanReview, listUnsupportedDesignRequirements, designCheckSupport, designRequirementPlan } from '../src/design-spec-checklist.mjs';
 
 const requirement = (overrides = {}) => ({ id: 'req-color', checkType: 'color-default', sourceText: 'A color',
   expected: { value: '#1c4587' }, checkStage: 'front', params: {}, ...overrides });
@@ -63,6 +64,18 @@ test('module-width editor check requires the setting and the specified default',
   assert.equal(custom.actual.defaultValue, '1440px');
   assert.equal(checkDesignRequirementEditor(item, { profile: p, inventory: [{ ...customWidth,
     controls: customWidth.controls.map((control) => control.styleProperty === 'width' ? { ...control, value: '1600' } : control) }] }).status, 'fail');
+  const waived = checkDesignRequirementEditor(item, { profile: profile([item], {
+    overrides: [{ requirementId: 'width', status: 'waived', reason: 'Removed setting.' }] }), inventory: [] });
+  assert.equal(waived.status, 'na');
+  assert.equal(waived.reason.code, 'waived');
+});
+
+test('fixed support registry exposes implemented editor/front stages and dry-run unsupported stages', () => {
+  assert.equal(designCheckSupport('module-width', 'editor'), 'run');
+  assert.equal(designCheckSupport('module-width', 'front'), 'unsupported');
+  assert.equal(designCheckSupport('manual', 'front'), 'unsupported');
+  assert.deepEqual(designRequirementPlan({ id: 'overflow', checkType: 'overflow-threshold', checkStage: 'front', expected: { threshold: 4, direction: 'vertical' }, params: {} })
+    .stages[0], { stage: 'front', status: 'incomplete', missing: ['params.containerSelector', 'params.itemSelector'] });
 });
 
 test('spec color matches any element in the instance and fails when none match', async () => {
@@ -279,6 +292,51 @@ test('text truncation, image ratio, and default expand use checklist parameters 
   assert.equal(unresolved.status, 'na');
   assert.equal(unresolved.reason.humanReviewRequired, true);
   assert.equal(typeof unresolved.reason.code, 'string');
+  const truncationNa = await checkDesignRequirementFront({ ...truncation, expected: {} }, { profile: profile([truncation]), page: pageReturning({}), rootSelector: '.i' });
+  assert.equal(truncationNa.status, 'na');
+  const ratioFail = await checkDesignRequirementFront(ratio, { profile: profile([ratio]),
+    page: pageReturning({ rootFound: true, images: [{ ratio: 1.5, centered: false }] }), rootSelector: '.i' });
+  assert.equal(ratioFail.status, 'fail');
+  const ratioNa = await checkDesignRequirementFront({ ...ratio, expected: { ratio: '?' } }, { profile: profile([ratio]), page: pageReturning({}), rootSelector: '.i' });
+  assert.equal(ratioNa.status, 'na');
+  const expandFail = await checkDesignRequirementFront(expand, { profile: profile([expand]),
+    page: pageReturning({ rootFound: true, maxVisibleLevel: 2, levels: [1, 2] }), rootSelector: '.i' });
+  assert.equal(expandFail.status, 'fail');
+  const expandNa = await checkDesignRequirementFront({ ...expand, expected: {} }, { profile: profile([expand]), page: pageReturning({}), rootSelector: '.i' });
+  assert.equal(expandNa.status, 'na');
+});
+
+test('scrollbar threshold checker covers pass, fail and na from checklist selectors', async () => {
+  const item = { id: 'scroll', checkType: 'overflow-threshold', sourceText: 'Scroll after threshold',
+    expected: { threshold: 2, direction: 'vertical' }, checkStage: 'front', params: { containerSelector: '.list', itemSelector: '.row' } };
+  const p = profile([item]);
+  const page = (value) => ({ evaluate: async () => value });
+  const result = (value) => checkDesignRequirementFront(item, { profile: p, rootSelector: '.instance', page: page(value) });
+  assert.equal((await result({ rootFound: true, containerCount: 1, clientExtent: 40, scrollExtent: 80, itemCount: 3, scrollable: true })).status, 'pass');
+  assert.equal((await result({ rootFound: true, containerCount: 1, clientExtent: 40, scrollExtent: 40, itemCount: 3, scrollable: false })).status, 'fail');
+  assert.equal((await result({ rootFound: true, containerCount: 0, itemCount: 0, scrollable: null })).status, 'na');
+  assert.equal((await checkDesignRequirementFront({ ...item, params: {} }, { profile: p, rootSelector: '.instance', page: page({}) })).status, 'na');
+});
+
+test('navigation hierarchy checker covers pass, fail and na from nested-list levels', async () => {
+  const item = { id: 'hierarchy', checkType: 'nav-hierarchy-levels', sourceText: 'Navigation has two levels',
+    expected: { levels: [1, 2] }, checkStage: 'front', params: { itemSelector: 'li' } };
+  const p = profile([item]);
+  const page = (value) => ({ evaluate: async () => value });
+  assert.equal((await checkDesignRequirementFront(item, { profile: p, page: page({ rootFound: true, levels: [1, 2], itemCount: 4 }), rootSelector: '.i' })).status, 'pass');
+  assert.equal((await checkDesignRequirementFront(item, { profile: p, page: page({ rootFound: true, levels: [1], itemCount: 2 }), rootSelector: '.i' })).status, 'fail');
+  assert.equal((await checkDesignRequirementFront(item, { profile: p, page: page({ rootFound: true, levels: [], itemCount: 0 }), rootSelector: '.i' })).status, 'na');
+  assert.equal((await checkDesignRequirementFront({ ...item, expected: {} }, { profile: p, page: page({}), rootSelector: '.i' })).status, 'na');
+});
+
+test('unsupported requirements keep their verbatim source text in humanReview', () => {
+  const unsupported = { id: 'manual-layout', checkType: 'manual', sourceText: 'Exact original unsupported requirement',
+    expected: {}, checkStage: 'front', params: {} };
+  const p = profile([unsupported], { unsupportedRequirements: [{ id: 'unmapped-spec', sourceText: 'Another verbatim item', reason: 'No catalog type.' }] });
+  assert.equal(validateDesignSpec(p.designSpec).length, 0);
+  const review = buildDesignHumanReview(p, [{ id: 'design-manual-layout', status: 'na', reason: { code: 'unsupported-requirement-human-review', humanReviewRequired: true } }]);
+  assert.deepEqual(review.map((item) => item.sourceText).sort(), ['Another verbatim item', 'Exact original unsupported requirement']);
+  assert.equal(listUnsupportedDesignRequirements(p).length, 2);
 });
 
 test('mobile checklist selects spec comparison when mobile items exist; otherwise checks instance integrity only', () => {

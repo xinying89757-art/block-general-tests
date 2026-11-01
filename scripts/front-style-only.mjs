@@ -15,7 +15,7 @@ import { runFrontLayer, resolveFrontStyleCapability } from '../src/capabilities/
 import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, finalizeFrontStyleReport, preservePartialFrontStyleReport,
   sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 import { markUniqueFrontInstance } from '../src/front-instance-root.mjs';
-import { runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../src/design-spec-checklist.mjs';
+import { buildDesignHumanReview, runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../src/design-spec-checklist.mjs';
 
 const args = {};
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -153,6 +153,7 @@ try {
   if (browser) await browser.close().catch(() => {});
 }
 Object.assign(report, finalizeFrontStyleReport(report));
+report.humanReview = buildDesignHumanReview(profile, report.checks);
 report.finishedAt = new Date().toISOString();
 fs.writeFileSync(out, JSON.stringify(report, null, 2));
 console.log(`[front-style] ${blockId} pass=${report.summary.pass} fail=${report.summary.fail} na=${report.summary.na}${report.error ? ' error=' + report.error : ''} -> ${out}`);

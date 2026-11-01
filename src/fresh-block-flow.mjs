@@ -127,7 +127,7 @@ export async function writeFreshDefaultsSnapshot(file, snapshot) {
 export function buildFreshReport({ runId, siteHost, blockId, page, instance, capabilities = [],
   defaults, batch, currentValues, publishedReadback = null, editorLink, frontLink, publishedAt,
   editorPublishSucceeded = false, frontVerification = null,
-  deletedSettingIds = [], moduleLibraryPreflight = null, flowErrors = [], styleScopeLearning = [] }) {
+  deletedSettingIds = [], moduleLibraryPreflight = null, flowErrors = [], styleScopeLearning = [], humanReview = [] }) {
   const failures = batch.results.filter((item) => item.status === 'fail').map((item) => ({
     checkId: item.id,
     setting: item.setting || item.id,
@@ -147,6 +147,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
     lifecycle: { deletedSettingIds: [...deletedSettingIds], addedSettingId: instance.settingId || null },
     moduleLibraryPreflight,
     defaults, capabilities, batches: batch.batches, checks: batch.results, failures,
+    humanReview: [...humanReview],
     retainedFailures: batch.timing.retainedFailures || { selectedIds: [], suppressed: [] },
     timing: batch.timing, settingsMode: 'BATCH_SAVE / retain-tested-values', flowErrors,
     // Diagnostics intentionally omit matched selector paths; the profile owns
@@ -493,7 +494,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     editorPublishSucceeded: publishAttempt?.publishSignal?.status === 'confirmed',
     publishedAt: published?.publishedAt || null,
     deletedSettingIds, moduleLibraryPreflight: config.moduleLibraryPreflight || null, flowErrors,
-    styleScopeLearning: prepared?.styleScopeDiagnostics || [] });
+    styleScopeLearning: prepared?.styleScopeDiagnostics || [], humanReview: prepared?.humanReview || [] });
   await adapter.writeReport?.(report);
   await onProgress({ stage: 'report-written' });
   return report;

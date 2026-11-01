@@ -794,7 +794,8 @@ test('fresh report carries links, current values, failure evidence, and default 
     defaults: { firstCapture: false, changes: [{ kind: 'changed' }] },
     batch: { batches: [], results: [{ id: 'check', status: 'fail', batchResult: { expected: 'yes', actual: 'no', screenshot: 'shot.png' } }],
       timing: { retainedFailures: { selectedIds: ['check'], suppressed: [] } } },
-    currentValues: [{ key: 'x', value: 'v' }], editorLink: '/e', frontLink: '/f', publishedAt: 'time' });
+    currentValues: [{ key: 'x', value: 'v' }], editorLink: '/e', frontLink: '/f', publishedAt: 'time',
+    humanReview: [{ id: 'manual', sourceText: 'Verbatim item', reason: 'No checker.' }] });
   assert.equal(report.block.settingId, 'sid');
   assert.deepEqual(report.block.currentValues, [{ key: 'x', value: 'v' }]);
   assert.equal(report.failures[0].expected, 'yes');
@@ -804,6 +805,7 @@ test('fresh report carries links, current values, failure evidence, and default 
   assert.deepEqual(report.capabilities, [{ capability: 'unsupported', status: 'not-adapted' }]);
   assert.deepEqual(report.lifecycle, { deletedSettingIds: [], addedSettingId: 'sid' });
   assert.equal(report.moduleLibraryPreflight, null);
+  assert.deepEqual(report.humanReview, [{ id: 'manual', sourceText: 'Verbatim item', reason: 'No checker.' }]);
   assert.equal(report.settingsMode, 'BATCH_SAVE / retain-tested-values');
 });
 

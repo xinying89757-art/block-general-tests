@@ -24,6 +24,8 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
         <button type="button" class="hover-color" style="cursor:pointer">Hover for palette</button>
         <div class="typography-wrapper" style="font-size:12px">Exact leaf label <span style="font-size:16px;font-weight:600;line-height:20px">Exact leaf label</span></div>
         <ul class="category-tree"><li>Parent category<ul><li>Nested category</li></ul></li></ul>
+        <div class="clamped" style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">A long text block for line clamp verification</div>
+        <div class="scroll-container" style="height:40px;overflow-y:auto"><div class="scroll-row" style="height:30px">one</div><div class="scroll-row" style="height:30px">two</div><div class="scroll-row" style="height:30px">three</div></div>
         <article class="item-card"><img class="lazy-image" data-src="/lazy.png" style="display:block;width:100px;height:100px;object-position:50% 50%;background-position:0% 0%">
         <picture style="display:block;width:100px;height:100px"><img data-srcset="/picture.png 1x" style="width:100%;height:100%"></picture></article>
         <img class="banner" data-src="/banner.png" style="width:320px;height:40px">
@@ -84,9 +86,20 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
           checkStage: 'front', params: {} },
         { id: 'image-ratio-fixture', checkType: 'image-ratio', sourceText: 'Images square', expected: { ratio: '1:1', centered: true },
           checkStage: 'front', params: {} },
+        { id: 'hierarchy-fixture', checkType: 'nav-hierarchy-levels', sourceText: 'Navigation has two levels',
+          expected: { levels: [1, 2] }, checkStage: 'front', params: { itemSelector: '.category-tree li' } },
+        { id: 'scroll-threshold-fixture', checkType: 'overflow-threshold', sourceText: 'Scroll after two items',
+          expected: { threshold: 2, direction: 'vertical' }, checkStage: 'front',
+          params: { containerSelector: '.scroll-container', itemSelector: '.scroll-row' } },
+        { id: 'truncation-fixture', checkType: 'text-truncation', sourceText: 'Clamp to two lines',
+          expected: { maxLines: 2, overflow: 'ellipsis' }, checkStage: 'front', params: { selector: '.clamped' } },
+        { id: 'default-expand-fixture', checkType: 'default-expand', sourceText: 'Default hierarchy has two levels',
+          expected: { level: 2 }, checkStage: 'front', params: { selector: '.category-tree li' } },
         { id: 'matched-typography-mobile', checkType: 'typography', sourceText: 'Unmatched design label',
           expected: { fontSize: '16px', lineHeight: '24px' }, checkStage: 'front',
           params: { viewport: 'mobile', styleCheckId: 'unread-typography' } },
+        { id: 'manual-requirement', checkType: 'manual', sourceText: 'Exact unsupported source sentence',
+          expected: { verbatim: 'Exact unsupported source sentence' }, checkStage: 'front', params: {} },
       ] },
     }));
     fs.writeFileSync(runPath, JSON.stringify({ blockId: '90001', block: { settingId: 'setting-smoke', currentValues: [
@@ -140,8 +153,14 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
       functionalChecks: [{ label: 'Exact leaf label', role: 'span', fontSize: '16px', fontWeight: '600', lineHeight: '20px' }],
     });
     assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.status, 'pass');
+    assert.equal(report.checks.find((row) => row.id === 'design-hierarchy-fixture')?.status, 'pass');
+    assert.equal(report.checks.find((row) => row.id === 'design-scroll-threshold-fixture')?.status, 'pass');
+    assert.equal(report.checks.find((row) => row.id === 'design-truncation-fixture')?.status, 'pass');
+    assert.equal(report.checks.find((row) => row.id === 'design-default-expand-fixture')?.status, 'pass');
     assert.equal(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.actual.images.length, 3,
       'only the content image and picture sources participate; banners and full-width backgrounds do not');
+    assert.ok(report.humanReview.some((item) => item.id === 'manual-requirement'
+      && item.sourceText === 'Exact unsupported source sentence'), 'unsupported source text must remain visible in humanReview');
     assert.ok(report.checks.find((row) => row.id === 'design-image-ratio-fixture')?.actual.images
       .every((image) => image.positionSource === 'object-position'));
     assert.ok(report.checks.find((row) => row.id === 'bss-category-parent')?.evidence.matchedCount >= 1);

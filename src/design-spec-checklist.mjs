@@ -2,9 +2,94 @@ import { markUniqueFrontInstance } from './front-instance-root.mjs';
 
 export const DESIGN_CHECK_TYPES = Object.freeze([
   'color-default', 'color-scope', 'typography', 'module-width', 'height-fit',
-  'text-truncation', 'image-ratio', 'overflow-threshold', 'search-box-per-field',
+  'text-truncation', 'image-ratio', 'overflow-threshold', 'nav-hierarchy-levels', 'search-box-per-field',
   'default-expand', 'selected-tag-behaviour', 'mobile-layout', 'manual',
 ]);
+
+// The fixed catalog is shared by the dry-run planner and report assembly.
+// Profile-specific selectors/thresholds remain checklist data.
+export const DESIGN_CHECK_SUPPORT = Object.freeze({
+  'color-default': { front: 'implemented', needs: ['expected.value'] },
+  'color-scope': { front: 'implemented', needs: ['params.styleCheckId(s) or learned scope'] },
+  typography: { front: 'implemented', needs: ['expected typography properties', 'profile-scoped mapping'] },
+  'module-width': { editor: 'implemented', needs: ['expected.expandable', 'expected.default'] },
+  'height-fit': { front: 'unsupported', needs: ['human review'] },
+  'text-truncation': { front: 'implemented', needs: ['expected.maxLines', 'params.selectorCandidates (optional)'] },
+  'image-ratio': { front: 'implemented', needs: ['expected.ratio', 'content image inside item/card'] },
+  'overflow-threshold': { front: 'implemented', needs: ['expected.threshold/direction', 'params.containerSelector/itemSelector'] },
+  'nav-hierarchy-levels': { front: 'implemented', needs: ['expected.levels or expected.maxLevel', 'params.itemSelector (optional)'] },
+  'search-box-per-field': { front: 'unsupported', needs: ['human review'] },
+  'default-expand': { front: 'implemented', needs: ['expected.level', 'hierarchy controls'] },
+  'selected-tag-behaviour': { front: 'unsupported', needs: ['human review'] },
+  'mobile-layout': { front: 'implemented', needs: ['structured expected values', 'mobile viewport'] },
+  manual: { front: 'unsupported', needs: ['human review'] },
+});
+
+export function designCheckSupport(type, stage) {
+  const support = DESIGN_CHECK_SUPPORT[type]?.[stage];
+  return support === 'implemented' ? 'run' : 'unsupported';
+}
+
+export function designRequirementPlan(requirement) {
+  const stages = requirement.checkStage === 'both' ? ['editor', 'front'] : [requirement.checkStage];
+  const stagePlans = stages.map((stage) => {
+    if (designCheckSupport(requirement.checkType, stage) === 'unsupported') return { stage, status: 'unsupported' };
+    const expected = requirement.expected || {}, params = requirement.params || {};
+    let missing = [];
+    if (requirement.checkType === 'module-width' && expected.expandable && !expected.default) missing = ['expected.default'];
+    if (requirement.checkType === 'text-truncation' && !(Number(expected.maxLines) >= 1)) missing = ['expected.maxLines'];
+    if (requirement.checkType === 'image-ratio' && !/^\d+(?:\.\d+)?:\d+(?:\.\d+)?$/.test(String(expected.ratio || ''))) missing = ['expected.ratio'];
+    if (requirement.checkType === 'default-expand' && !(Number.isInteger(Number(expected.level)) && Number(expected.level) > 0)) missing = ['expected.level'];
+    if (requirement.checkType === 'overflow-threshold') missing = [
+      ...(!(Number.isInteger(Number(expected.threshold)) && Number(expected.threshold) >= 0) ? ['expected.threshold'] : []),
+      ...(!['horizontal', 'vertical'].includes(expected.direction) ? ['expected.direction'] : []),
+      ...(!params.containerSelector ? ['params.containerSelector'] : []), ...(!params.itemSelector ? ['params.itemSelector'] : []),
+    ];
+    if (requirement.checkType === 'nav-hierarchy-levels'
+      && !((Array.isArray(expected.levels) && expected.levels.length) || (Number.isInteger(Number(expected.maxLevel)) && Number(expected.maxLevel) > 0))) {
+      missing = ['expected.levels or expected.maxLevel'];
+    }
+    return missing.length ? { stage, status: 'incomplete', missing } : { stage, status: 'run' };
+  });
+  return { id: requirement.id, checkType: requirement.checkType, stages: stagePlans };
+}
+
+export function listUnsupportedDesignRequirements(profile) {
+  const requirements = profile?.designSpec?.requirements || [];
+  const overrides = profile?.designSpec?.overrides || [];
+  const fromRequirements = requirements.flatMap((requirement) => {
+    if (overrides.some((entry) => entry.requirementId === requirement.id && entry.status === 'waived')) return [];
+    const stages = requirement.checkStage === 'both' ? ['editor', 'front'] : [requirement.checkStage];
+    const unsupportedStages = stages.filter((stage) => designCheckSupport(requirement.checkType, stage) === 'unsupported');
+    return unsupportedStages.length ? [{ id: requirement.id, checkType: requirement.checkType,
+      sourceText: requirement.sourceText, stages: unsupportedStages,
+      reason: 'No automated checker is registered for this requirement type/stage.' }] : [];
+  });
+  const explicit = (profile?.designSpec?.unsupportedRequirements || []).map((item) => ({
+    id: item.id, checkType: 'unsupported', sourceText: item.sourceText, stages: ['human-review'], reason: item.reason,
+  }));
+  const seen = new Set();
+  return [...fromRequirements, ...explicit].filter((item) => {
+    const key = `${item.id}:${item.sourceText}`;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+}
+
+export function buildDesignHumanReview(profile, checks = []) {
+  const listed = listUnsupportedDesignRequirements(profile);
+  const byId = new Map((profile?.designSpec?.requirements || []).map((item) => [item.id, item]));
+  for (const check of checks || []) {
+    if (!check || check.status !== 'na' || check.reason?.humanReviewRequired !== true) continue;
+    const requirementId = String(check.id || '').replace(/^design-/, '');
+    const requirement = byId.get(requirementId);
+    if (!requirement) continue;
+    listed.push({ id: requirement.id, checkType: requirement.checkType, sourceText: requirement.sourceText,
+      stages: [check.reason?.stage || requirement.checkStage], reason: String(check.reason?.code || 'checker-returned-na') });
+  }
+  const unique = new Map(listed.map((item) => [`${item.id}:${item.sourceText}`, item]));
+  return [...unique.values()].map((item) => ({ ...item, sourceText: String(item.sourceText || '') }));
+}
 
 const TYPE_SET = new Set(DESIGN_CHECK_TYPES);
 const NODE_ID = /^[0-9]+:[0-9]+$/;
@@ -78,7 +163,7 @@ export function validateDesignSpec(spec, profileId = '(unknown)') {
     });
   }
   const checkOverrides = (key, allowedStatus) => {
-    if (spec[key] === undefined && key === 'scopeOverrides') return;
+    if (spec[key] === undefined && key !== 'overrides') return;
     if (!Array.isArray(spec[key])) { add(`.${key}`, 'must be an array'); return; }
     const requirementIds = new Set((spec.requirements || []).map((item) => item?.id));
     spec[key].forEach((item, index) => {
@@ -97,7 +182,18 @@ export function validateDesignSpec(spec, profileId = '(unknown)') {
   };
   checkOverrides('overrides', 'waived');
   checkOverrides('scopeOverrides');
-  if (Object.keys(spec).some((key) => !['source', 'requirements', 'overrides', 'scopeOverrides'].includes(key))) add('', 'contains an unknown property');
+  if (spec.unsupportedRequirements !== undefined) {
+    if (!Array.isArray(spec.unsupportedRequirements)) add('.unsupportedRequirements', 'must be an array');
+    else spec.unsupportedRequirements.forEach((item, index) => {
+      const path = `.unsupportedRequirements[${index}]`;
+      if (!item || typeof item !== 'object' || Array.isArray(item)) { add(path, 'must be an object'); return; }
+      if (typeof item.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(item.id)) add(`${path}.id`, 'must be a lowercase identifier');
+      if (typeof item.sourceText !== 'string' || !item.sourceText.trim()) add(`${path}.sourceText`, 'must preserve non-empty original spec text');
+      if (typeof item.reason !== 'string' || !item.reason.trim()) add(`${path}.reason`, 'must be non-empty');
+      if (Object.keys(item).some((key) => !['id', 'sourceText', 'reason'].includes(key))) add(path, 'contains an unknown property');
+    });
+  }
+  if (Object.keys(spec).some((key) => !['source', 'requirements', 'overrides', 'scopeOverrides', 'unsupportedRequirements'].includes(key))) add('', 'contains an unknown property');
   return errors;
 }
 
@@ -900,6 +996,71 @@ async function checkDefaultExpand(requirement, page, rootSelector) {
     pass ? 'default-expand-level-matched' : 'default-expand-level-mismatch', pass ? '默认展开层级符合清单。' : '默认展开层级与清单不一致。');
 }
 
+async function checkOverflowThreshold(requirement, page, rootSelector) {
+  const threshold = Number(requirement.expected?.threshold);
+  const direction = requirement.expected?.direction;
+  const containerSelector = requirement.params?.containerSelector;
+  const itemSelector = requirement.params?.itemSelector;
+  if (!Number.isInteger(threshold) || threshold < 0 || !['horizontal', 'vertical'].includes(direction)
+    || !containerSelector || !itemSelector) return requirementResult(requirement, 'na', requirement.expected, null,
+    'overflow-threshold-checklist-incomplete', '清单需要提供非负 threshold、滚动方向、容器和条目选择器。');
+  const actual = await page.evaluate(({ rootSelector, containerSelector, itemSelector, direction }) => {
+    const root = document.querySelector(rootSelector);
+    if (!root) return { rootFound: false, containerCount: 0, itemCount: 0, scrollable: null };
+    let containers = [];
+    try { containers = [...root.querySelectorAll(containerSelector)]; } catch {}
+    if (containers.length !== 1) return { rootFound: true, containerCount: containers.length, itemCount: 0, scrollable: null };
+    const container = containers[0];
+    let items = [];
+    try { items = [...container.querySelectorAll(itemSelector)]; } catch {}
+    const client = direction === 'vertical' ? container.clientHeight : container.clientWidth;
+    const scroll = direction === 'vertical' ? container.scrollHeight : container.scrollWidth;
+    const overflow = getComputedStyle(container)[direction === 'vertical' ? 'overflowY' : 'overflowX'];
+    return { rootFound: true, containerCount: 1, itemCount: items.length, clientExtent: client,
+      scrollExtent: scroll, overflow, scrollable: scroll > client + 1 };
+  }, { rootSelector, containerSelector, itemSelector, direction });
+  if (!actual.rootFound || actual.containerCount !== 1 || actual.clientExtent === undefined) return requirementResult(requirement,
+    'na', requirement.expected, actual, 'overflow-threshold-container-unresolved', '目标滚动容器无法唯一读取。');
+  const shouldScroll = actual.itemCount > threshold;
+  const pass = actual.scrollable === shouldScroll;
+  return requirementResult(requirement, pass ? 'pass' : 'fail', requirement.expected, actual,
+    pass ? 'overflow-threshold-matched' : 'overflow-threshold-mismatch', pass
+      ? '条目数量与滚动阈值行为符合清单。' : '条目数量与滚动阈值行为不一致。');
+}
+
+async function checkNavHierarchyLevels(requirement, page, rootSelector) {
+  const expectedLevels = Array.isArray(requirement.expected?.levels)
+    ? requirement.expected.levels.map(Number).filter(Number.isFinite) : null;
+  const expectedMax = Number(requirement.expected?.maxLevel);
+  if (!expectedLevels?.length && (!Number.isInteger(expectedMax) || expectedMax < 1)) return requirementResult(requirement,
+    'na', requirement.expected, null, 'nav-hierarchy-expected-unavailable', '清单没有提供 levels 或 maxLevel。');
+  const itemSelector = requirement.params?.itemSelector;
+  const actual = await page.evaluate(({ rootSelector, itemSelector }) => {
+    const root = document.querySelector(rootSelector);
+    if (!root) return { rootFound: false, levels: [] };
+    let nodes = [];
+    if (itemSelector) { try { nodes = [...root.querySelectorAll(itemSelector)]; } catch {} }
+    else nodes = [...root.querySelectorAll('[aria-level],[role="treeitem"],li,details')];
+    const depth = (node) => {
+      const ariaLevel = Number(node.getAttribute('aria-level'));
+      if (Number.isInteger(ariaLevel) && ariaLevel > 0) return ariaLevel;
+      let level = 1;
+      for (let parent = node.parentElement; parent && parent !== root; parent = parent.parentElement) {
+        if (parent.matches('[role="treeitem"],li,details')) level += 1;
+      }
+      return level;
+    };
+    return { rootFound: true, levels: [...new Set(nodes.map(depth))].sort((a, b) => a - b), itemCount: nodes.length };
+  }, { rootSelector, itemSelector });
+  if (!actual.rootFound || !actual.levels.length) return requirementResult(requirement, 'na', requirement.expected, actual,
+    'nav-hierarchy-elements-unresolved', '实例中没有可测量的导航层级结构。');
+  const pass = expectedLevels ? JSON.stringify(actual.levels) === JSON.stringify([...new Set(expectedLevels)].sort((a, b) => a - b))
+    : actual.levels.at(-1) === expectedMax;
+  return requirementResult(requirement, pass ? 'pass' : 'fail', requirement.expected, actual,
+    pass ? 'nav-hierarchy-levels-matched' : 'nav-hierarchy-levels-mismatch', pass
+      ? '导航层级符合清单。' : '导航层级与清单不一致。');
+}
+
 async function checkMobileLayout(requirement, page, rootSelector) {
   const expected = requirement.expected || {};
   const supported = ['visible', 'display', 'flexDirection', 'columns', 'width', 'maxWidth', 'fontSize', 'fontWeight', 'lineHeight']
@@ -1039,6 +1200,8 @@ export async function checkDesignRequirementFront(requirement, { profile, page, 
   if (requirement.checkType === 'text-truncation') return checkTextTruncation(requirement, page, rootSelector);
   if (requirement.checkType === 'image-ratio') return checkImageRatio(requirement, page, rootSelector);
   if (requirement.checkType === 'default-expand') return checkDefaultExpand(requirement, page, rootSelector);
+  if (requirement.checkType === 'overflow-threshold') return checkOverflowThreshold(requirement, page, rootSelector);
+  if (requirement.checkType === 'nav-hierarchy-levels') return checkNavHierarchyLevels(requirement, page, rootSelector);
   if (requirement.checkType === 'mobile-layout') return checkMobileLayout(requirement, page, rootSelector);
   return checkResult(requirement, 'na', { detail: '该检查类型尚无安全的自动化 oracle。',
     reason: { code: 'unsupported-requirement-human-review', checkType: requirement.checkType, humanReviewRequired: true } });

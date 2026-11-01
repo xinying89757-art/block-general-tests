@@ -14,6 +14,7 @@
     "check:imports": "node scripts/check-relative-imports.mjs",
     "check:profiles": "node scripts/validate-profiles.mjs",
     "check:design-spec": "node scripts/check-design-spec.mjs",
+    "plan:design-checklist": "node scripts/plan-design-checklist.mjs",
     "import:design-spec": "node scripts/import-design-spec.mjs",
     "ci": "npm run check:syntax && npm run check:imports && npm run check:profiles && npm run check:design-spec && npm run check:signatures && npm test",
     "check:signatures": "node scripts/check-signatures.mjs"

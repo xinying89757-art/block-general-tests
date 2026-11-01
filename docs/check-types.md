@@ -1,61 +1,67 @@
 # Design checklist check types
 
-`profile.designSpec.requirements` uses this fixed, versioned catalog. A profile
-may attach profile-local selector/check mappings in `params`; code never
-selects a different block's selectors. Selector details are machine evidence
-only and are not copied into the human summary.
+The catalog is intentionally fixed in `schemas/design-checklist.schema.json` and
+`DESIGN_CHECK_TYPES` in `src/design-spec-checklist.mjs`. The checklist carries
+the per-block expected values and selectors; checkers contain reusable logic.
+`npm run plan:design-checklist -- <block-id>` reads a profile only and shows
+what each requirement can run at its declared stage, which checklist rows are
+incomplete, and which rows need human review. It does not launch a browser.
 
-| Check type | Intended check | Current generic execution |
-|---|---|---|
-| `color-default` | A stated default color is present in the target instance | Front: compare computed text/background/border colors against the exact stated color only when that palette value was not changed by the run. If the run wrote another value, report `na` (`palette-default-overridden-this-run`); the independent written-color check verifies the value actually set. |
-| `color-scope` | A stated color applies to a stated functional scope | Front: use profile-local `styleCheckIds`; missing mappings return `na`. A `分页文字` scope maps to current-page text unless the spec explicitly says otherwise. |
-| `typography` | Typography stated in the design source | Front: compare only stated `fontSize`, `fontWeight`, and `lineHeight` properties against values observed by a profile-local functional check. Color and geometry are excluded; missing typography observations return `na`, observed mismatches fail. Unmapped scopes return `na`. Font-size controls are not discovered or written. |
-| `module-width` | Full-row expansion setting exists with the stated default | Editor: inspect the module-width inventory; absence or wrong default fails unless waived. |
-| `height-fit` | Height adapts to content | `na` until a profile supplies a repeatable content-growth oracle. |
-| `text-truncation` | Text is limited to a stated number of lines | Front: profile selectors when supplied, otherwise instance elements with a rendered line clamp; compares the stated maximum and ellipsis behavior. No evidence is `na` for human review. |
-| `image-ratio` | Image ratio and alignment | Front: profile selectors when supplied, otherwise measurable images inside the instance; compares the stated ratio and optional centering. |
-| `overflow-threshold` | Overflow appears beyond a stated count | `na` until a profile supplies the relevant list and threshold. |
-| `search-box-per-field` | Each field has a search control | `na` until a profile maps the field and search scopes. |
-| `default-expand` | Default expanded level/state | Front: reads accessible hierarchy levels and disclosure state inside the instance; compares the stated default level. No readable hierarchy is `na` for human review. |
-| `selected-tag-behaviour` | Selected-tag display/removal behavior | `na` until a profile maps the selected-tag interaction. |
-| `mobile-layout` | Stated mobile-specific difference/layout | Structured checklist values (visibility, display/flex direction, columns, dimensions, typography) are compared inside the instance at mobile width. If there are no mobile checklist items, only instance-integrity checks run: internal overflow, clipped text, overlap, and elements spilling outside their boxes. Page-level overflow is informational only. |
-| `manual` | Written requirement without a safe automatic oracle | Always `na` with a machine reason; values are never inferred. |
+| Check type | Editor checker | Front checker | Checklist data needed |
+| --- | --- | --- | --- |
+| `color-default` | — | Yes | `expected.value`; palette must be untouched in the run |
+| `color-scope` | — | Yes | `expected` and profile-scoped `params.styleCheckId(s)` or learned scope |
+| `typography` | — | Yes | expected font properties and profile mapping (`styleCheckId(s)`, selectors/structure as available) |
+| `module-width` | Yes | — | `expected.expandable`, `expected.default`; an `overrides` waiver records the reason |
+| `height-fit` | — | Unsupported / human review | preserve exact item in `designSpec.unsupportedRequirements` until a reusable oracle exists |
+| `text-truncation` | — | Yes | `expected.maxLines`; optional `params.selectorCandidates` |
+| `image-ratio` | — | Yes | `expected.ratio`, optional centering; only content images inside item/card containers are measured |
+| `overflow-threshold` | — | Yes | `expected.threshold`, `expected.direction`; `params.containerSelector` and `params.itemSelector` |
+| `nav-hierarchy-levels` | — | Yes | `expected.levels` or `expected.maxLevel`; optional `params.itemSelector` |
+| `search-box-per-field` | — | Unsupported / human review | preserve original text in `designSpec.unsupportedRequirements` until a reusable oracle exists |
+| `default-expand` | — | Yes | `expected.level` and optional `expected.collapsedLevel`; profile selectors optional |
+| `selected-tag-behaviour` | — | Unsupported / human review | preserve original text in `designSpec.unsupportedRequirements` until a reusable oracle exists |
+| `mobile-layout` | — | Yes | structured expected properties and `params.selectorCandidates`, role, or structure; run at mobile viewport |
+| `manual` | — | Unsupported / human review | preserve original text and why it is not automated in `designSpec.unsupportedRequirements` |
 
-Supported results are `pass`, `fail`, and `na`. Waived requirements use
-`status: na`, `classification: known-exception`, and the profile's exact
-override reason; the human renderer labels these `已知例外`.
+Every emitted verdict carries `reason.code` as a string. A supported type may
+still return `na` when its checklist lacks the data or the instance scope cannot
+be resolved. That `na` includes a machine reason. Explicit unsupported rows and
+unsupported catalog type/stage pairs are listed under report `humanReview` with
+their original `sourceText`; they are never silently discarded. A waiver emits
+an `na` verdict named `已知例外` with its recorded reason.
 
-Without a design-spec default, every written color from the `区块配色` control
-group gets a separate front check based on `run-report.currentValues`. Any
-matching computed `color`, `backgroundColor`, or `borderColor` inside the
-unique block-number + `settingId` instance root passes. No element selector is
-required for this presence check. If a profile candidate has no match, the
-runner can derive link candidates from semantic list hierarchy inside the
-unique instance root. No evidence means `na`, not a guessed selector.
+`overflow-threshold` compares the number of checklist-selected items with the
+declared threshold and checks whether the uniquely selected instance container
+has scroll extent in the declared direction exactly when the count exceeds the
+threshold. `nav-hierarchy-levels` reads ARIA levels when present, otherwise
+counts nested tree/list/details levels within the instance root. No selectors or
+expected values are inferred across profiles.
 
-Auto-learned per-property placeholders with null expected values are not emitted
-as front checks. The written-color presence check is the applicable oracle for
-those palette writes. Requirements without a safe oracle remain `na` with a
-string machine reason code and `humanReviewRequired: true`; they remain visible
-for human review and are never coerced into a pass.
+## Existing oracle details
 
-## Diagnostic evidence for written colors and mobile integrity
+`color-default` compares the specified default against the unique instance's
+computed styles only when the run did not overwrite that palette value. If the
+run did overwrite it, the default row is `na` with
+`palette-default-overridden-this-run`; the separate written-color check uses
+`run-report.currentValues`. `color-scope` uses profile-owned functional check
+IDs. The profile can map an ambiguous scope in `scopeOverrides`; a `分页文字`
+scope refers to current-page text unless the source explicitly says otherwise.
 
-The written-color JSON evidence separates terminal `fetchFailures` from
-`recoveredFetches`; `fetchFailureCount` equals the terminal failure array
-length. Readable stylesheets with no selector matching the selected instance
-are listed in `excludedSheets`, as are recognizable font-only resources.
-Unreadable resources make a color result `inconclusive-stylesheet-unavailable`
-only while their contents could still include a rule for the instance. If all
-potentially relevant sheets were read and the color is absent from rendered
-styles, the result remains `absent` (fail).
+Typography compares only properties stated in the checklist among
+`fontSize`, `fontWeight`, and `lineHeight`. It does not mix palette color or
+profile geometry into the verdict. Missing observations remain `na`.
+`image-ratio` only uses content images inside item/card containers; banners and
+full-width backgrounds are excluded unless a checklist explicitly declares a
+background-image requirement. `mobile-layout` compares checklist requirements
+at the mobile viewport. When no mobile items exist, the mobile integrity path
+checks only the instance itself; page-wide overflow is informational.
 
-State exercise is restricted to the selected instance. It can inspect
-accessible disclosure/toggle/tab/combobox controls, native selects and
-`details`, plus pointer controls that cannot navigate or submit. It records
-attempted, opened and restored counts; it never follows links or submits forms.
-On mobile without mobile-specific checklist requirements, overlap pairs count
-only when both visible elements are inside the instance bounds and neither is
-fixed/sticky. Instance-internal overflow and clipping remain findings; page-only
-overflow is informational. Overlap selector identifiers in diagnostic JSON
-are serialized as readable strings.
+## Diagnostic evidence
+
+Written-color evidence separates recovered stylesheet reads from final fetch
+failures and records whether unreadable sheets might apply to the selected
+instance. A readable stylesheet with no matching instance selector is excluded;
+an unreadable relevant sheet makes the result inconclusive rather than absent.
+State exercise stays inside the selected instance and records attempted,
+opened, and restored counts. It does not follow links or submit forms.

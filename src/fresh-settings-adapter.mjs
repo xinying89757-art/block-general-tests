@@ -11,7 +11,7 @@
  */
 import { discoverProfileFrontUnits, runFrontSettingUnits } from './setting-units.mjs';
 import { createDiscoveredStyleSettingUnits } from './discovered-style-settings.mjs';
-import { runDesignSpecEditorChecks } from './design-spec-checklist.mjs';
+import { buildDesignHumanReview, runDesignSpecEditorChecks } from './design-spec-checklist.mjs';
 import { applyLearnedStyleEffects, clearLearnedStyleEffects, deriveSelectorCandidatesFromDom,
   deriveStyleEffectPaths, resolveSettingStyleEffect, snapshotInstanceComputedStyles } from './style-effect-learning.mjs';
 export const FRESH_LIFECYCLE_KINDS = Object.freeze(['settings-dialog', 'canvas-popover', 'right-rail-flyout']);
@@ -282,6 +282,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
       },
     };
     prepared = { settings, metadata, capabilityResults, staticResults, persistedControls, batchAdapter, styleScopeDiagnostics,
+      humanReview: buildDesignHumanReview(mergedContext.profile, staticResults),
       runPostPublishChecks: async (runtime = {}) => {
         const checks = [];
         for (const { definition, item } of postPublishDefinitions) {
