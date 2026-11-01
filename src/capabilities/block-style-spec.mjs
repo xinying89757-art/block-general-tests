@@ -178,6 +178,11 @@ async function readItem(frame, rootSel, item) {
     };
     switch (item.kind) {
       case 'text-content': {
+        if (item.text === null || item.text === undefined || String(item.text) === '') {
+          out.matchedCount = 0;
+          out.error = item.valueResolutionReason || 'expected-text-unresolved';
+          break;
+        }
         const needle = norm(item.text);
         const matches = [...root.querySelectorAll('*')].filter((el) => norm(el.innerText) === needle && vis(el));
         out.matchedCount = matches.length;
@@ -399,7 +404,9 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
         : values;
       styleExpectations[id] = `${item.text ? `“${item.text}”` : (NAMES[id] || '元素').replace(/(?:背景)?样式$/, '')}${dimensionPair.join('、')}。`;
     }
-    if (item.kind === 'text-content') styleExpectations[id] = `区块内应显示精确文本“${item.text}”。`;
+    if (item.kind === 'text-content') styleExpectations[id] = item.runValueSource
+      ? `区块内应显示运行报告中唯一读取到的设置值${item.text ? `“${item.text}”` : ''}。`
+      : `区块内应显示精确文本“${item.text}”。`;
     if (item.clamp) styleExpectations['bss-product-name-clamp'] = `产品名称最多显示 ${item.clamp} 行，超出部分应隐藏。`;
   }
   const skipAll = (reason) => Object.keys(NAMES).map((id) => result(id, 'skip', reason));
@@ -489,6 +496,13 @@ async function runFrontLayerRaw({ frame, previewPage, config, capability }) {
         continue;
       }
       if (item.kind === 'text-content') {
+        const oracle = textContentOracle(item);
+        if (oracle.status !== 'resolved') {
+          checks.push(result(checkId, 'na', oracle.reason || 'expected-text-unresolved',
+            { matchedCount: 0, machineReason: 'expected-text-unresolved' },
+            { name: item.name || NAMES[checkId] }));
+          continue;
+        }
         const read = await readItem(frame, rootSel, item);
         const found = read.matchedCount > 0;
         checks.push(result(checkId, found ? 'pass' : 'fail', found
@@ -597,6 +611,14 @@ function styleItemForCheck(checkId, items) {
   return items.find((item) => `bss-${item.id}` === checkId);
 }
 
+export function textContentOracle(item) {
+  if (item?.kind !== 'text-content') return { status: 'not-applicable' };
+  if (item.text === null || item.text === undefined || String(item.text) === '') {
+    return { status: 'na', reason: item.valueResolutionReason || 'expected-text-unresolved' };
+  }
+  return { status: 'resolved', expected: String(item.text), source: item.resolvedExpectedSources?.text || 'profile' };
+}
+
 function diagnosticValues(check, item) {
   const evidence = check.evidence || {};
   if (check.status === 'na' && (evidence.notSetProperties || evidence.applicabilitySource)) {
@@ -688,6 +710,28 @@ export function resolveFrontStyleCapability(capability, settingsReport = null) {
         item.resolvedExpectedSources[property] = 'run-written-editor-style-effect';
         resolvedExpectedSources[sourceKey] = 'run-written-editor-style-effect';
       }
+    }
+  }
+  for (const item of items) {
+    if (item.kind !== 'text-content' || !item.runValueSource) continue;
+    const binding = item.runValueSource;
+    const candidates = values.filter((entry) =>
+      (binding.control?.region === undefined || entry.region === binding.control.region)
+      && (binding.control?.label === undefined || entry.label === binding.control.label)
+      && (binding.control?.type === undefined || entry.type === binding.control.type));
+    const usable = candidates.length === 1 && candidates[0].value !== null
+      && candidates[0].value !== undefined && String(candidates[0].value) !== '';
+    const written = settingWasWritten(settingsReport, binding);
+    if (usable && written) {
+      item.text = String(candidates[0].value);
+      item.resolvedExpectedSources.text = `run-report:block.currentValues[region=${binding.control?.region ?? '*'},label=${binding.control?.label ?? '*'}]`;
+      item.valueResolutionReason = null;
+    } else {
+      item.text = null;
+      item.valueResolutionReason = !settingsReport ? 'run-report-not-provided'
+        : candidates.length !== 1 ? 'run-control-value-not-unique' : 'setting-value-not-written-this-run';
+      item.resolvedExpectedSources.text = item.valueResolutionReason;
+      resolvedExpectedSources[`${item.id}.text`] = item.valueResolutionReason;
     }
   }
   for (const [key, binding] of Object.entries(spec.expectedValueSources || {})) {

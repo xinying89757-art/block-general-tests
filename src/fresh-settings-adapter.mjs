@@ -19,7 +19,9 @@ export const FRESH_LIFECYCLE_KINDS = Object.freeze(['settings-dialog', 'canvas-p
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function learnAppliedStyleEffect({ capture, context }) {
-  if (capture.error) return { status: 'na', reason: 'before-snapshot-unavailable', learned: { effects: [] }, applied: { applied: [], candidateCount: 0 } };
+  if (capture.error) return { status: 'na', reason: capture.reason || 'before-snapshot-unavailable',
+    learned: { status: 'na', reason: capture.reason || 'before-snapshot-unavailable', effects: [] },
+    applied: { applied: [], candidateCount: 0 } };
   let after;
   let learned = { status: 'na', reason: 'no-computed-style-property-changed', effects: [] };
   const attempts = Math.max(1, Math.min(12, Number(context.config?.styleEffectSnapshotAttempts) || 8));
@@ -193,7 +195,6 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
       capture: async (items) => new Map(items.map((setting) => [setting.id, setting.initialValue])),
       apply: async (setting, phase) => {
         if (typeof setting.apply !== 'function') throw new Error(`Setting ${setting.id} has no apply definition.`);
-        await activateSurface(setting);
         if (setting.styleEffect) {
           const styleEffect = resolveSettingStyleEffect(setting);
           const cleared = clearLearnedStyleEffects(mergedContext.profile, styleEffect);
@@ -206,11 +207,15 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
               timeoutMs: mergedContext.config?.actionTimeoutMs,
             });
             pendingStyleCaptures.set(setting.id, before.status === 'ok' ? { before, setting, styleEffect, phase, cleared }
-              : { error: new Error(before.reason || 'before-snapshot-unavailable'), setting, styleEffect, phase, cleared });
-          } catch (error) {
-            pendingStyleCaptures.set(setting.id, { error, setting, styleEffect, phase, cleared });
+              : { error: true, reason: before.reason || 'before-snapshot-unavailable', setting, styleEffect, phase, cleared });
+          } catch {
+            pendingStyleCaptures.set(setting.id, { error: true, reason: 'before-snapshot-threw',
+              setting, styleEffect, phase, cleared });
           }
         }
+        // Snapshot before opening a settings surface: opening a rail/dialog can
+        // temporarily replace or cover the editor canvas subtree being measured.
+        await activateSurface(setting);
         await setting.captureEffect?.({ ...mergedContext, ...phase, setting });
         await setting.apply({ ...mergedContext, ...phase, setting });
         const capture = pendingStyleCaptures.get(setting.id);

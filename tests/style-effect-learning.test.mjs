@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fixture from './fixtures/style-effect-snapshots.json' with { type: 'json' };
-import { createFreshSettingsAdapter } from '../src/fresh-settings-adapter.mjs';
+import { createFreshLifecycle, createFreshSettingsAdapter } from '../src/fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../src/setting-units.mjs';
 import { resolveInstanceRootIndexes } from '../src/front-instance-root.mjs';
 import { applyLearnedStyleEffects, deriveSelectorCandidatesFromDom, deriveStyleEffectPaths,
   chooseSelectorCandidate, ensureStyleEffectProfileEntries, inferStyleValueKind, normalizeStyleValue,
-  resolveSettingStyleEffect, snapshotInstanceComputedStyles,
+  resolveCanvasInstanceRootIndex, resolveSettingStyleEffect, snapshotInstanceComputedStyles,
   stableRelativeSelectorPath } from '../src/style-effect-learning.mjs';
 
 test('computed-style diff learns only changed properties and omits generated block-number classes', () => {
@@ -104,21 +104,52 @@ test('front root resolution requires block number and settingId and fails closed
   assert.equal(resolveInstanceRootIndexes([...records, records[1]], { blockId: 'A', settingId: 'two' }).status, 'unavailable');
 });
 
+test('editor canvas root resolution uses only the target block wrapper and settingId', () => {
+  const rows = [
+    { blockId: 'other', settingIds: ['same'] },
+    { blockId: '47498', settingIds: ['siteblocks-setting-wrap-target'] },
+  ];
+  assert.deepEqual(resolveCanvasInstanceRootIndex(rows, { blockId: '47498', settingId: 'target' }), {
+    status: 'resolved', index: 1, matchCount: 1, reason: null,
+  });
+  assert.equal(resolveCanvasInstanceRootIndex(rows, { blockId: '47498', settingId: 'missing' }).matchCount, 0);
+  assert.equal(resolveCanvasInstanceRootIndex([...rows, rows[1]], { blockId: '47498', settingId: 'target' }).matchCount, 2);
+});
+
 test('canvas style snapshots request the exact block and settingId root', async () => {
   const calls = [];
   const canvas = { locator(selector) { assert.equal(selector, 'body'); return { evaluate: async (_fn, args) => {
-    calls.push(args); return { status: 'ok', elements: fixture.before };
+    calls.push(args);
+    if (calls.length === 1) return [{ blockId: 'instance-type', settingIds: ['siteblocks-setting-wrap-instance-1'] }];
+    return { status: 'ok', elements: fixture.before };
   } }; } };
   const snapshot = await snapshotInstanceComputedStyles(canvas, { blockId: 'instance-type', settingId: 'instance-1',
     properties: ['backgroundColor'] });
-  assert.equal(calls[0].blockId, 'instance-type');
-  assert.equal(calls[0].settingId, 'instance-1');
+  assert.equal(calls[1].wrapperIndex, 0);
   assert.equal(snapshot.elements[0].path, fixture.before[0].path);
+});
+
+test('canvas style snapshot re-resolves the same instance after a transient wrapper detach', async () => {
+  let call = 0;
+  const canvas = { locator() { return { evaluate: async () => {
+    call += 1;
+    if (call === 1 || call === 3) return [{ blockId: 'block', settingIds: ['target'] }];
+    if (call === 2) return { status: 'unavailable', reason: 'target-wrapper-detached', matchCount: 0, elements: [] };
+    return { status: 'ok', elements: fixture.before };
+  } }; } };
+  const snapshot = await snapshotInstanceComputedStyles(canvas, { blockId: 'block', settingId: 'target',
+    properties: ['color'], timeoutMs: 500 });
+  assert.equal(snapshot.status, 'ok');
+  assert.equal(call, 4);
 });
 
 test('fresh batch adapter snapshots before and after apply, persists learned profile path, and omits paths from diagnostics', async () => {
   let snapshotIndex = 0;
-  const canvas = { locator() { return { evaluate: async () => ({ status: 'ok', elements: snapshotIndex++ === 0 ? fixture.before : fixture.after }) }; } };
+  let callIndex = 0;
+  const canvas = { locator() { return { evaluate: async () => {
+    if (callIndex++ % 2 === 0) return [{ blockId: 'block-type', settingIds: ['setting-42'] }];
+    return { status: 'ok', elements: snapshotIndex++ === 0 ? fixture.before : fixture.after };
+  } }; } };
   const requirement = { id: 'scheme-setting', styleEffect: { properties: ['backgroundColor'], valueSource: 'alternateValue',
     checks: [{ property: 'backgroundColor', checkId: 'button-bg' }] } };
   const profile = { requirements: { capabilities: [requirement] }, capabilities: [{ id: 'block-style-spec',
@@ -142,4 +173,34 @@ test('fresh batch adapter snapshots before and after apply, persists learned pro
   assert.equal(stored.expectedValue, 'rgb(255, 0, 0)');
   assert.doesNotMatch(JSON.stringify(prepared.styleScopeDiagnostics), /selector|path/);
   assert.equal(prepared.styleScopeDiagnostics[0].status, 'learned');
+});
+
+test('style before-snapshot runs before opening the first setting surface and before apply writes', async () => {
+  const order = [];
+  let snapshotIndex = 0;
+  let callIndex = 0;
+  const canvas = { locator() { return { evaluate: async () => {
+    order.push(callIndex++ % 2 === 0 ? 'identity-scan' : 'snapshot');
+    if (callIndex % 2 === 1) return [{ blockId: 'block', settingIds: ['setting'] }];
+    return { status: 'ok', elements: snapshotIndex++ === 0 ? fixture.before : fixture.after };
+  } }; } };
+  const lifecycle = createFreshLifecycle('right-rail-flyout', { open: async () => { order.push('surface-open'); },
+    read: async () => '#111111', apply: async () => {}, commit: async () => { order.push('surface-commit'); },
+    cancel: async () => {} });
+  const freshSettings = registerFreshSettingsCapability('surface-order', async () => ({ settings: [{
+    id: 'color-unit', key: 'color-unit', lifecycle, alternateValue: '#ff0000', initialValue: '#111111',
+    styleEffect: { properties: ['backgroundColor'], valueSource: 'alternateValue', expectedValues: { backgroundColor: '#ff0000' },
+      checks: [{ property: 'backgroundColor', checkId: 'color-effect' }] },
+    apply: async () => { order.push('write'); }, check: async () => ({ status: 'pass' }),
+    restore: async () => {},
+  }], persistedControls: [] }));
+  const adapter = await createFreshSettingsAdapter({ capabilities: ['surface-order'], context: {
+    blockId: 'block', config: { blockId: 'block', freshSettingId: 'setting', actionTimeoutMs: 1000 }, canvas,
+    profile: { capabilities: [{ id: 'block-style-spec', styleSpec: { items: [{ id: 'color-effect' }] } }] },
+    save: async () => {},
+  }, loadCapability: async () => ({ freshSettings }) });
+  const prepared = await adapter.prepare();
+  await prepared.batchAdapter.apply(prepared.settings[0], { phase: 'batch' });
+  assert.deepEqual(order.slice(0, 4), ['identity-scan', 'snapshot', 'surface-open', 'write']);
+  assert.equal(order.filter((item) => item === 'snapshot').length, 2);
 });

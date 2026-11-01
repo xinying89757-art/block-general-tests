@@ -47,12 +47,17 @@ adapter derives observable CSS properties for color writes and creates generic
 style checks. These checks use the setting-unit id and property; their human
 name describes only the function being checked.
 
-For each color write, the adapter captures the target instance before and
-after that individual apply, before the batch save, so two palette settings in
-one batch cannot claim each other's effects. Editor-canvas diff learning is
+For each color write, the adapter captures the target instance before opening
+that setting's editor surface and before its individual apply, then again
+after the apply but before the batch save, so opening a panel cannot hide the
+initial canvas and two palette settings in one batch cannot claim each other's
+effects. Canvas roots use the editor's generic `.siteblocks-setting-wrap`
+wrapper, matched by block number and settingId, and fail closed unless unique.
+Editor-canvas diff learning is
 diagnostic only; the front assertion for a written `区块配色` value succeeds
 when any element in the uniquely identified block instance has that computed
-color. Font sizes are hardcoded, not writable settings; onboarding does not
+color in text, background, border, outline, SVG fill/stroke, shadow, gradient,
+or `::before`/`::after` styles. Font sizes are hardcoded, not writable settings; onboarding does not
 create pending font-size effects. Font size checks come only from a stated
 design-spec requirement and a profile-owned functional mapping.
 

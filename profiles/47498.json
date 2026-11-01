@@ -30,8 +30,16 @@
             "selectorCandidates": [
               "*"
             ],
-            "text": "分类按钮",
-            "valueSource": "onboarding.matched[btn-text].evidence[按钮文本]",
+            "text": null,
+            "runValueSource": {
+              "control": {
+                "region": "button-popover",
+                "label": "按钮文本"
+              },
+              "settingCheckIds": [
+                "btn-text-persist"
+              ]
+            },
             "note": "Exact persisted inventory value is checked as visible text within the target block; uses no block-specific class selector."
           },
           {

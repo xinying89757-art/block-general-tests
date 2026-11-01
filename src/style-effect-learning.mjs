@@ -237,60 +237,104 @@ export function clearLearnedStyleEffects(profile, styleEffect) {
   return cleared;
 }
 
+const normalizeCanvasSettingId = (value) => String(value || '').replace(/^siteblocks-setting-wrap-/, '');
+
+/** Resolve the generic editor wrapper inventory by block number and settingId. */
+export function resolveCanvasInstanceRootIndex(records = [], { blockId, settingId } = {}) {
+  if (!blockId || !settingId) return { status: 'unavailable', index: null, matchCount: 0,
+    reason: 'block-number-and-settingId-required' };
+  const matches = (records || []).flatMap((record, index) =>
+    String(record.blockId) === String(blockId)
+      && (record.settingIds || []).some((id) => normalizeCanvasSettingId(id) === normalizeCanvasSettingId(settingId))
+      ? [index] : []);
+  return { status: matches.length === 1 ? 'resolved' : 'unavailable', index: matches.length === 1 ? matches[0] : null,
+    matchCount: matches.length, reason: matches.length === 1 ? null : 'target-instance-identity-not-unique' };
+}
+
 /** Browser-evaluated snapshot: identify by block number + settingId, then inspect its descendants. */
 export async function snapshotInstanceComputedStyles(canvas, { blockId, settingId, properties, expectedValues, timeoutMs = 10_000 } = {}) {
   if (!canvas?.locator || !blockId || !settingId || !Array.isArray(properties) || !properties.length) {
     throw new Error('Computed-style snapshot requires canvas, blockId, settingId, and properties.');
   }
-  const snapshot = await canvas.locator('body').evaluate(({ blockId, settingId, properties, expectedValues }) => {
-    const isIdentity = (element) => [...element.attributes].some((attribute) => (/setting.?id/i.test(attribute.name)
-      || (attribute.name === 'data-id' && String(attribute.value).startsWith('siteblocks-setting-wrap-')))
-      && String(attribute.value).replace(/^siteblocks-setting-wrap-/, '') === String(settingId).replace(/^siteblocks-setting-wrap-/, ''));
-    const roots = [...document.querySelectorAll('[data-appid]')].filter((element) =>
-      String(element.getAttribute('data-appid')) === String(blockId)
-      && (isIdentity(element) || [...element.querySelectorAll('*')].some(isIdentity)));
-    if (roots.length !== 1) return { status: 'unavailable', reason: 'target-instance-identity-not-unique', matchCount: roots.length, elements: [] };
-    const root = roots[0];
-    const resolvedExpectedValues = {};
-    for (const [property, value] of Object.entries(expectedValues || {})) {
-      const probe = document.createElement('span');
-      const cssName = property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-      const cssValue = property === 'fontSize' && /^\d+(?:\.\d+)?$/.test(String(value).trim()) ? `${value}px` : String(value);
-      probe.style.setProperty(cssName, cssValue);
-      root.appendChild(probe);
-      resolvedExpectedValues[property] = getComputedStyle(probe)[property] || null;
-      probe.remove();
+  const deadline = Date.now() + timeoutMs;
+  let snapshot = null;
+  let lastResolution = null;
+  while (Date.now() <= deadline) {
+    const body = canvas.locator('body');
+    const remainingMs = Math.max(1, deadline - Date.now());
+    const wrappers = await body.evaluate((bodyNode) =>
+      [...bodyNode.querySelectorAll('.siteblocks-setting-wrap[data-appid]')].map((element) => {
+        const attributes = [...element.attributes, ...[...element.querySelectorAll('*')]
+          .flatMap((child) => [...child.attributes])];
+        return { blockId: element.getAttribute('data-appid'), settingIds: attributes.filter((attribute) =>
+          /setting.?id/i.test(attribute.name)
+            || (attribute.name === 'data-id' && String(attribute.value).startsWith('siteblocks-setting-wrap-')))
+          .map((attribute) => attribute.value) };
+      }), undefined, { timeout: remainingMs });
+    const resolution = resolveCanvasInstanceRootIndex(wrappers, { blockId, settingId });
+    lastResolution = { ...resolution, wrapperCount: wrappers.length };
+    if (resolution.status !== 'resolved') {
+      snapshot = { status: 'unavailable', reason: resolution.reason, matchCount: resolution.matchCount,
+        wrapperCount: wrappers.length, elements: [] };
+      if (resolution.matchCount > 0 || Date.now() + 100 > deadline) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      continue;
     }
-    const all = [root, ...root.querySelectorAll('*')];
-    const pathFeatures = (element) => {
-      const parts = [];
-      let node = element;
-      while (node && node !== root) {
-        const parent = node.parentElement;
-        if (!parent) return [];
-        const sameType = [...parent.children].filter((sibling) => sibling.tagName === node.tagName);
-        parts.unshift({ tag: node.tagName.toLowerCase(), classes: [...node.classList], nthOfType: sameType.indexOf(node) + 1 });
-        node = parent;
+    snapshot = await body.evaluate((bodyNode, { wrapperIndex, properties, expectedValues }) => {
+      const root = bodyNode.querySelectorAll('.siteblocks-setting-wrap[data-appid]')[wrapperIndex];
+      if (!root) return { status: 'unavailable', reason: 'target-wrapper-detached', matchCount: 0, elements: [] };
+      const resolvedExpectedValues = {};
+      for (const [property, value] of Object.entries(expectedValues || {})) {
+        const probe = root.ownerDocument.createElement('span');
+        const cssName = property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+        const cssValue = property === 'fontSize' && /^\d+(?:\.\d+)?$/.test(String(value).trim()) ? `${value}px` : String(value);
+        probe.style.setProperty(cssName, cssValue);
+        root.appendChild(probe);
+        resolvedExpectedValues[property] = getComputedStyle(probe)[property] || null;
+        probe.remove();
       }
-      if (element === root) return [];
-      return parts;
-    };
-    const elements = all.map((element) => {
-      const computed = getComputedStyle(element);
-      const ancestry = [];
-      for (let node = element; node && node !== root; node = node.parentElement) ancestry.push(node);
-      const classFeatures = ancestry.flatMap((node) => [...node.classList]);
-      const role = element.getAttribute('role') || '';
-      const hasLink = element.tagName === 'A' && Boolean(element.getAttribute('href'));
-      const pagination = role === 'navigation' || element.tagName === 'NAV'
-        || classFeatures.some((name) => /pagination|pager/i.test(name));
-      const hasText = Boolean((element.textContent || '').replace(/\s+/g, ' ').trim());
-      return { pathFeatures: pathFeatures(element), features: { link: hasLink, pagination, text: hasText },
-        styles: Object.fromEntries(properties.map((property) => [property, computed[property] || null])) };
-    });
-    return { status: 'ok', elements, resolvedExpectedValues };
-  }, { blockId: String(blockId), settingId: String(settingId), properties, expectedValues: expectedValues || {} }, { timeout: timeoutMs });
-  if (snapshot?.status !== 'ok') return snapshot;
+      const all = [root, ...root.querySelectorAll('*')];
+      const pathFeatures = (element) => {
+        const parts = [];
+        let node = element;
+        while (node && node !== root) {
+          const parent = node.parentElement;
+          if (!parent) return [];
+          const sameType = [...parent.children].filter((sibling) => sibling.tagName === node.tagName);
+          parts.unshift({ tag: node.tagName.toLowerCase(), classes: [...node.classList], nthOfType: sameType.indexOf(node) + 1 });
+          node = parent;
+        }
+        if (element === root) return [];
+        return parts;
+      };
+      const elements = all.map((element) => {
+        const computed = getComputedStyle(element);
+        const ancestry = [];
+        for (let node = element; node && node !== root; node = node.parentElement) ancestry.push(node);
+        const classFeatures = ancestry.flatMap((node) => [...node.classList]);
+        const role = element.getAttribute('role') || '';
+        const hasLink = element.tagName === 'A' && Boolean(element.getAttribute('href'));
+        const pagination = role === 'navigation' || element.tagName === 'NAV'
+          || classFeatures.some((name) => /pagination|pager/i.test(name));
+        const hasText = Boolean((element.textContent || '').replace(/\s+/g, ' ').trim());
+        const readPseudo = (pseudo) => {
+          const style = getComputedStyle(element, pseudo);
+          return Object.fromEntries(properties.map((property) => [property, style[property] || null]));
+        };
+        return { pathFeatures: pathFeatures(element), features: { link: hasLink, pagination, text: hasText },
+          styles: Object.fromEntries(properties.map((property) => [property, computed[property] || null])),
+          pseudoStyles: { before: readPseudo('::before'), after: readPseudo('::after') } };
+      });
+      return { status: 'ok', elements, resolvedExpectedValues };
+    }, { wrapperIndex: resolution.index, properties, expectedValues: expectedValues || {} },
+    { timeout: Math.max(1, deadline - Date.now()) });
+    if (snapshot?.status === 'ok' || snapshot?.reason !== 'target-wrapper-detached') break;
+    if (Date.now() + 100 > deadline) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  if (snapshot?.status !== 'ok') return { ...(snapshot || { status: 'unavailable', reason: lastResolution?.reason
+    || 'target-instance-identity-not-unique' }), ...(lastResolution ? { matchCount: lastResolution.matchCount,
+    wrapperCount: lastResolution.wrapperCount } : {}) };
   return { ...snapshot, elements: (snapshot.elements || []).map((entry) => ({ ...entry,
     path: entry.pathFeatures?.length ? stableRelativeSelectorPath(entry.pathFeatures) : ':scope' })) };
 }

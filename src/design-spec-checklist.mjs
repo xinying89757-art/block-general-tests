@@ -164,18 +164,35 @@ async function readInstanceColorSnapshot(page, rootSelector) {
     const root = document.querySelector(rootSelector);
     if (!root) return { rootCount: 0, styles: [] };
     const nodes = [root, ...root.querySelectorAll('*')];
-    return { rootCount: 1, styles: nodes.map((node) => {
-      const style = getComputedStyle(node);
-      return { color: style.color, backgroundColor: style.backgroundColor, borderColor: style.borderColor };
-    }) };
+    const properties = ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'outlineColor',
+      'boxShadow', 'backgroundImage'];
+    const readStyle = (node, pseudo = null) => {
+      const style = getComputedStyle(node, pseudo);
+      const svgPaint = node.namespaceURI === 'http://www.w3.org/2000/svg';
+      return Object.fromEntries(properties.map((property) => [property,
+        (property === 'fill' || property === 'stroke') && !svgPaint ? null : style[property] || null]));
+    };
+    return { rootCount: 1, styles: nodes.map((node) => ({ ...readStyle(node),
+      before: readStyle(node, '::before'), after: readStyle(node, '::after') })) };
   }, { rootSelector });
+}
+
+function cssColors(value) {
+  const text = String(value ?? '');
+  const found = [];
+  for (const match of text.matchAll(/rgba?\([^)]*\)|#[\da-f]{3,8}\b/gi)) found.push(match[0]);
+  return found;
 }
 
 export function countInstanceColorMatches(snapshot, expected) {
   const expectedColor = normalizeDesignColor(expected);
   const styles = snapshot?.styles || [];
-  return styles.filter((style) => ['color', 'backgroundColor', 'borderColor']
-    .some((property) => normalizeDesignColor(style?.[property]) === expectedColor)).length;
+  const colorProperties = ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'outlineColor'];
+  const compositeProperties = ['boxShadow', 'backgroundImage'];
+  return styles.filter((style) => [style, style?.before, style?.after].filter(Boolean).some((computed) =>
+    colorProperties.some((property) => normalizeDesignColor(computed?.[property]) === expectedColor)
+      || compositeProperties.some((property) => cssColors(computed?.[property])
+        .some((color) => normalizeDesignColor(color) === expectedColor)))).length;
 }
 
 const TYPOGRAPHY_PROPERTIES = Object.freeze(['fontSize', 'fontWeight', 'lineHeight']);

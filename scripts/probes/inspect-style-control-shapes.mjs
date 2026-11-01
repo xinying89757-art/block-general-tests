@@ -9,6 +9,7 @@ import { launchSession } from '../../src/browser.mjs';
 import { openEditor, gotoFreshTargetPage } from '../../src/editor.mjs';
 import { inventorySettings } from '../../src/baseline.mjs';
 import { RAIL, openRailPanel, readSchemeColor, cancelColorPanel } from '../../src/capabilities/rail.mjs';
+import { snapshotInstanceComputedStyles } from '../../src/style-effect-learning.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const config = loadConfig();
@@ -50,12 +51,70 @@ try {
   const instances = await canvas.locator('body').evaluate((body, blockId) =>
     [...body.querySelectorAll(`.siteblocks-setting-wrap[data-appid="${CSS.escape(blockId)}"]`)].map((node) => {
       const attrs = [...node.attributes, ...[...node.querySelectorAll('*')].flatMap((child) => [...child.attributes])];
-      return { settingId: attrs.find((item) => /setting.?id/i.test(item.name))?.value || '' };
+      return { settingId: attrs.find((item) => /setting.?id/i.test(item.name))?.value || '',
+        identityAttributes: attrs.filter((item) => /setting.?id/i.test(item.name)
+          || (item.name === 'data-id' && String(item.value).startsWith('siteblocks-setting-wrap-')))
+          .map((item) => ({ name: item.name, value: item.value })) };
     }), String(config.blockId));
   if (instances.length !== 1 || !instances[0].settingId || (targetSettingId && instances[0].settingId !== targetSettingId)) {
     throw new Error(`Target instance identity guard failed: found ${instances.length} instance(s); no panel was opened.`);
   }
   report.targetSettingId = instances[0].settingId;
+  report.canvasIdentityDiagnostics = await canvas.locator('body').evaluate((body, { blockId, settingId }) => {
+    const appRoots = [...body.querySelectorAll('[data-appid]')].filter((node) => node.getAttribute('data-appid') === blockId);
+    const wrappers = [...body.querySelectorAll('.siteblocks-setting-wrap[data-appid]')]
+      .filter((node) => node.getAttribute('data-appid') === blockId);
+    const matches = wrappers.filter((node) => {
+      const attrs = [...node.attributes, ...[...node.querySelectorAll('*')].flatMap((child) => [...child.attributes])];
+      return attrs.some((item) => (/setting.?id/i.test(item.name)
+        || (item.name === 'data-id' && String(item.value).startsWith('siteblocks-setting-wrap-')))
+        && String(item.value).replace(/^siteblocks-setting-wrap-/, '')
+          === String(settingId).replace(/^siteblocks-setting-wrap-/, ''));
+    });
+    return { dataAppIdRootCount: appRoots.length, settingWrapperCount: wrappers.length,
+      identityMatchCount: matches.length, targetIdentityAttributes: instancesSafe(matches[0]) };
+    function instancesSafe(node) {
+      if (!node) return [];
+      return [...node.attributes, ...[...node.querySelectorAll('*')].flatMap((child) => [...child.attributes])]
+        .filter((item) => /setting.?id/i.test(item.name)
+          || (item.name === 'data-id' && String(item.value).startsWith('siteblocks-setting-wrap-')))
+        .map((item) => ({ name: item.name, value: item.value }));
+    }
+  }, { blockId: String(config.blockId), settingId: String(report.targetSettingId) });
+
+  // Read computed style values on the exact canvas instance before opening
+  // controls. This is observational only; no page or setting write occurs.
+  const canvasStyleSnapshot = await snapshotInstanceComputedStyles(canvas, { blockId: config.blockId,
+    settingId: report.targetSettingId, properties: ['color', 'backgroundColor', 'borderColor', 'outlineColor',
+      'fill', 'stroke', 'boxShadow', 'backgroundImage'] });
+  report.canvasStyleSnapshot = canvasStyleSnapshot.status === 'ok'
+    ? { status: 'ok', elementCount: canvasStyleSnapshot.elements.length,
+      computedStyles: canvasStyleSnapshot.elements.map((entry) => ({ ...entry.styles, pseudo: entry.pseudoStyles })) }
+    : { status: canvasStyleSnapshot.status || 'unavailable', reason: canvasStyleSnapshot.reason || 'snapshot-unavailable',
+      instanceMatchCount: canvasStyleSnapshot.matchCount ?? null };
+  if (report.canvasIdentityDiagnostics.identityMatchCount === 1) {
+    report.editorCanvasStylesByTargetRoot = await canvas.locator('body').evaluate((body, { blockId, settingId }) => {
+      const wrappers = [...body.querySelectorAll('.siteblocks-setting-wrap[data-appid]')]
+        .filter((node) => node.getAttribute('data-appid') === blockId);
+      const matches = wrappers.filter((node) => [...node.attributes, ...[...node.querySelectorAll('*')]
+        .flatMap((child) => [...child.attributes])].some((item) => /setting.?id/i.test(item.name)
+          && String(item.value).replace(/^siteblocks-setting-wrap-/, '')
+            === String(settingId).replace(/^siteblocks-setting-wrap-/, '')));
+      if (matches.length !== 1) return { status: 'unavailable', matchCount: matches.length };
+      const properties = ['color', 'backgroundColor', 'borderColor', 'outlineColor', 'fill', 'stroke',
+        'boxShadow', 'backgroundImage'];
+      const read = (node, pseudo = null) => {
+        const style = getComputedStyle(node, pseudo);
+        const svgPaint = node.namespaceURI === 'http://www.w3.org/2000/svg';
+        return Object.fromEntries(properties.map((property) => [property,
+          (property === 'fill' || property === 'stroke') && !svgPaint ? null : style[property] || null]));
+      };
+      const root = matches[0];
+      const nodes = [root, ...root.querySelectorAll('*')];
+      return { status: 'ok', elementCount: nodes.length, computedStyles: nodes.map((node) => ({
+        ...read(node), before: read(node, '::before'), after: read(node, '::after') })) };
+    }, { blockId: String(config.blockId), settingId: String(report.targetSettingId) });
+  }
 
   await openRailPanel(canvas, config.blockId, RAIL.colorIcon, RAIL.colorPanel);
   try {
@@ -101,7 +160,9 @@ try {
     const read = await readSchemeColor(canvas);
     report.colorPanel.readResult = typeof read === 'string' ? safeStyleValue(read) : {
       status: read?.status || 'unresolved', visibleInputCount: read?.controls?.length || 0,
-      noteCount: read?.notes?.length || 0 };
+      noteCount: read?.notes?.length || 0,
+      controls: (read?.controls || []).map((control, index) => ({ index,
+        value: safeStyleValue(control.value), identity: String(control.identity || '').slice(0, 100) })) };
   } finally { await cancelColorPanel(canvas); }
 
   const inventory = await inventorySettings({ page: session.page, canvas, config,

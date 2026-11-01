@@ -78,6 +78,22 @@ test('spec color matches any element in the instance and fails when none match',
   assert.equal(countInstanceColorMatches({ styles: [{ color: 'rgba(4,79,159,0.07)' }] }, '#044F9F @7%'), 1);
 });
 
+test('written color search includes SVG paint, outline, shadows, gradients and pseudo-elements', () => {
+  const snapshot = { styles: [
+    { fill: 'rgb(208, 182, 71)' },
+    { stroke: '#0d0d0a' },
+    { outlineColor: 'rgba(17, 13, 9, 1)' },
+    { boxShadow: '0 1px 3px rgba(13,13,10,1)' },
+    { backgroundImage: 'linear-gradient(90deg, #d0b647 0%, rgb(0, 0, 0) 100%)' },
+    { before: { color: 'rgb(17,13,9)' } },
+    { after: { backgroundColor: 'rgb(208,182,71)' } },
+  ] };
+  assert.equal(countInstanceColorMatches(snapshot, '#d0b647'), 3);
+  assert.equal(countInstanceColorMatches(snapshot, '#0d0d0a'), 2);
+  assert.equal(countInstanceColorMatches(snapshot, '#110d09'), 2);
+  assert.equal(countInstanceColorMatches(snapshot, '#ff0000'), 0);
+});
+
 test('palette default is not asserted against a value written by this run', async () => {
   const item = requirement({ expected: { name: 'Palette', value: '#1c4587' } });
   const p = profile([item]);

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { addStyleFailureReasons, resolveFrontStyleCapability, resolveItemApplicability, styleCheckDescriptors } from '../src/capabilities/block-style-spec.mjs';
+import { addStyleFailureReasons, resolveFrontStyleCapability, resolveItemApplicability, styleCheckDescriptors,
+  textContentOracle } from '../src/capabilities/block-style-spec.mjs';
 import { attachFrontStyleInstance, buildFrontStyleExecutionErrors, resolveFrontStyleInstance, sanitizeFrontStyleError, sanitizeFrontStyleUrl } from '../src/front-style-report.mjs';
 
 const capability = { id: 'block-style-spec', styleSpec: { viewports: { pc: 1440, pad: 768, mobile: 375 }, items: [
@@ -254,8 +255,44 @@ test('the onboarding profile asserts its known button text and keeps other unrev
   assert.ok(style.recordOnly.every((entry) => /No front-end selector/.test(entry.note)));
   const text = style.items.find((entry) => entry.id === 'inventory-btn-text');
   assert.equal(text.kind, 'text-content');
-  assert.equal(text.text, profile.onboarding.matched.find((entry) => entry.id === 'btn-text').evidence.find((entry) => entry.label === '按钮文本').value);
+  assert.equal(text.text, null);
+  assert.deepEqual(text.runValueSource.control, { region: 'button-popover', label: '按钮文本' });
+  assert.deepEqual(text.runValueSource.settingCheckIds, ['btn-text-persist']);
+  const resolved = resolveFrontStyleCapability(profile.capabilities.find((entry) => entry.id === 'block-style-spec'), {
+    block: { currentValues: [{ region: 'button-popover', label: '按钮文本', type: 'text', value: 'AUTOTEST-BTN' }] },
+    checks: [{ id: 'btn-text-persist', status: 'pass' }],
+  });
+  assert.equal(resolved.styleSpec.items.find((entry) => entry.id === 'inventory-btn-text').text, 'AUTOTEST-BTN');
   assert.equal(styleCheckDescriptors({ styleSpec: style }).some((entry) => entry.id === 'bss-inventory-btn-text'), true);
+});
+
+test('inventory text oracle resolves from the uniquely bound value written this run', () => {
+  const source = { id: 'block-style-spec', styleSpec: { items: [{ id: 'inventory-button-label', kind: 'text-content',
+    text: 'stale-default', runValueSource: { control: { region: 'button-popover', label: 'Button label' },
+      settingCheckIds: ['button-label-persist'] } }] } };
+  const report = { block: { currentValues: [{ region: 'button-popover', label: 'Button label', type: 'text', value: 'AUTOTEST-BTN' }] },
+    checks: [{ id: 'button-label-persist', status: 'pass' }] };
+  const resolved = resolveFrontStyleCapability(source, report);
+  assert.equal(resolved.styleSpec.items[0].text, 'AUTOTEST-BTN');
+  assert.deepEqual(textContentOracle(resolved.styleSpec.items[0]), { status: 'resolved', expected: 'AUTOTEST-BTN',
+    source: resolved.styleSpec.items[0].resolvedExpectedSources.text });
+  assert.match(resolved.styleSpec.items[0].resolvedExpectedSources.text, /^run-report:block\.currentValues/);
+});
+
+test('inventory text oracle does not guess when the run value is missing or ambiguous', () => {
+  const source = { styleSpec: { items: [{ id: 'inventory-label', kind: 'text-content', text: 'stale',
+    runValueSource: { control: { region: 'button-popover', label: 'Button label' },
+      settingCheckIds: ['button-label-persist'] } }] } };
+  const missing = resolveFrontStyleCapability(source, { block: { currentValues: [] }, checks: [] });
+  assert.equal(missing.styleSpec.items[0].text, null);
+  assert.equal(missing.styleSpec.items[0].valueResolutionReason, 'run-control-value-not-unique');
+  assert.deepEqual(textContentOracle(missing.styleSpec.items[0]), { status: 'na', reason: 'run-control-value-not-unique' });
+  const ambiguous = resolveFrontStyleCapability(source, { block: { currentValues: [
+    { region: 'button-popover', label: 'Button label', value: 'A' },
+    { region: 'button-popover', label: 'Button label', value: 'B' },
+  ] }, checks: [{ id: 'button-label-persist', status: 'pass' }] });
+  assert.equal(ambiguous.styleSpec.items[0].text, null);
+  assert.equal(ambiguous.styleSpec.items[0].valueResolutionReason, 'run-control-value-not-unique');
 });
 
 test('profile button style shares the CSS target without requiring stale button copy', () => {
