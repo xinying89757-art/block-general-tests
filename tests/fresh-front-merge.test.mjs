@@ -130,12 +130,14 @@ test('front display-field verdict replaces only the canvas checker limitation', 
   assert.equal(rows.get('pld-display-field-persist').selectedSource, 'box');
 });
 
-function displayFieldReports(frontStatus, { expected = true, actual = true } = {}) {
+function displayFieldReports(frontStatus, { expected = true, actual = true,
+  effectStatus = 'skip', effectDetail = '展示字段对应位置无法唯一识别' } = {}) {
   const boxReport = { ...box, lifecycle: { addedSettingId: 'instance-new' }, checks: [
     { id: 'field-persist-check', setting: 'display-field', capability: 'product-list-display', status: 'fail',
-      expected, actual, batchResult: { status: 'fail', detail: '展示字段静态内容暂时读不到' },
+      expected, actual, batchResult: { status: 'fail', detail: effectStatus === 'fail' ? effectDetail : '展示字段静态内容暂时读不到',
+        expected, actual, evidence: { effectCheck: { status: effectStatus, detail: effectDetail } } },
       rerunAloneResult: { status: 'pass', expected, actual,
-        evidence: { effectCheck: { status: 'skip', detail: '展示字段对应位置无法唯一识别' } } } },
+        evidence: { effectCheck: { status: effectStatus, detail: effectDetail } } } },
   ] };
   const frontReport = { ...front, settingId: 'instance-new', blockInstances: 1,
     instanceResolution: 'block-number+settingId', url: 'https://test.invalid/page?t=127',
@@ -159,6 +161,18 @@ test('display-field canvas limitation plus front fail becomes one front-sourced 
   assert.deepEqual(merged.merge.frontResolvedIds, ['field-persist-check']);
 });
 
+test('display-field canvas effect mismatch plus front fail becomes one front-sourced failure', () => {
+  const { boxReport, frontReport } = displayFieldReports('fail', { effectStatus: 'fail',
+    effectDetail: '10 张卡片与该状态不符' });
+  const merged = mergeFreshFrontReports(boxReport, frontReport);
+  assert.equal(merged.checks.length, 1);
+  assert.equal(merged.checks[0].status, 'fail');
+  assert.equal(merged.checks[0].resolvedBy, 'front-report');
+  assert.equal(merged.checks[0].sources.box.batchResult.evidence.effectCheck.status, 'fail');
+  assert.equal(merged.checks[0].sources.front.status, 'fail');
+  assert.equal(merged.summary.fail, 1);
+});
+
 test('display-field canvas limitation plus front pass becomes one pass and keeps both sources', () => {
   const { boxReport, frontReport } = displayFieldReports('pass');
   const merged = mergeFreshFrontReports(boxReport, frontReport);
@@ -171,12 +185,37 @@ test('display-field canvas limitation plus front pass becomes one pass and keeps
   assert.equal(merged.checks[0].sources.front.status, 'pass');
 });
 
+test('display-field canvas effect disagreement plus front pass is one pass with a canvas note', () => {
+  const { boxReport, frontReport } = displayFieldReports('pass', { effectStatus: 'fail',
+    effectDetail: '10 张卡片与该状态不符' });
+  const merged = mergeFreshFrontReports(boxReport, frontReport);
+  assert.equal(merged.checks.length, 1);
+  assert.equal(merged.checks[0].status, 'pass');
+  assert.equal(merged.checks[0].resolvedBy, 'front-report');
+  assert.equal(merged.checks[0].canvasDisagreement.status, 'human-review');
+  assert.equal(merged.checks[0].canvasDisagreement.reason.code, 'canvas-front-effect-disagreement');
+  assert.equal(merged.summary.pass, 1);
+  assert.equal(merged.summary.fail, 0);
+});
+
 test('display-field persistence mismatch remains a box failure despite a passing front effect', () => {
-  const { boxReport, frontReport } = displayFieldReports('pass', { expected: true, actual: false });
+  const { boxReport, frontReport } = displayFieldReports('pass', { expected: true, actual: false, effectStatus: 'fail' });
   const merged = mergeFreshFrontReports(boxReport, frontReport);
   const persisted = merged.checks.find((row) => row.id === 'field-persist-check');
   assert.equal(persisted.status, 'fail');
   assert.equal(persisted.selectedSource, 'box');
   assert.equal(persisted.resolvedBy, undefined);
   assert.equal(merged.summary.fail, 1);
+});
+
+test('display-field box failure remains unchanged when there is no matching front effect row', () => {
+  const { boxReport, frontReport } = displayFieldReports('fail', { effectStatus: 'fail',
+    effectDetail: '10 张卡片与该状态不符' });
+  frontReport.checks = [];
+  const merged = mergeFreshFrontReports(boxReport, frontReport);
+  assert.equal(merged.checks.length, 1);
+  assert.equal(merged.checks[0].status, 'fail');
+  assert.equal(merged.checks[0].selectedSource, 'box');
+  assert.equal(merged.checks[0].resolvedBy, undefined);
+  assert.equal(merged.checks[0].sources.front, undefined);
 });
