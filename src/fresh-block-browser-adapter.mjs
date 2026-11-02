@@ -97,7 +97,7 @@ function createStyleControlBrowserAdapter({ page, canvas, config }) {
           return matches[0].value;
         };
         return createFreshLifecycle('right-rail-flyout', {
-          open: () => openRailPanel(canvas, config.blockId, RAIL.colorIcon, RAIL.colorPanel),
+          open: () => openRailPanel(canvas, config.blockId, RAIL.colorIcon, RAIL.colorPanel, { settingId: config.freshSettingId }),
           read: readColor,
           apply: (target, value) => setSchemeColor(canvas, { controlIdentity: target.identity, value }),
           commit: () => saveColorPanel(canvas),
@@ -132,7 +132,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
   const readFreshInventory = async () => {
     let color;
     try {
-      await openRailPanel(frame, config.blockId, RAIL.colorIcon, RAIL.colorPanel);
+      await openRailPanel(frame, config.blockId, RAIL.colorIcon, RAIL.colorPanel, { settingId: config.freshSettingId });
       color = await readSchemeColor(frame);
     } catch (error) {
       color = { status: 'panel-unavailable', controls: [], notes: [error.message] };
@@ -143,7 +143,7 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
           notes: [...(typeof color === 'object' ? color.notes || [] : []), error.message] };
       }
     }
-    await openRailPanel(frame, config.blockId, RAIL.widthIcon, RAIL.widthPanel);
+    await openRailPanel(frame, config.blockId, RAIL.widthIcon, RAIL.widthPanel, { settingId: config.freshSettingId });
     let width;
     try { width = await readModuleWidth(frame); } finally { await cancelWidthPanel(frame); }
     // Keep the button popover last: its verified close operation confirms

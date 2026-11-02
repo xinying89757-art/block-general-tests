@@ -20,8 +20,8 @@ test('front-style-only end-to-end keeps the instance root through mobile checkli
     response.end(`<!doctype html><html><head><link rel="stylesheet" href="http://127.0.0.1:${cssServer.address().port}/fixture.css"></head><body>
       <div data-appid="90001" data-id="siteblocks-setting-wrap-setting-smoke" class="fixture" style="width:320px;position:relative">
         <button type="button" class="spec-target">Spec hover</button><div class="sample">Style sample</div><div class="palette">palette</div>
-        <label style="font-size:14px;font-weight:400;line-height:21px"><input type="checkbox">Option label</label>
-        <a href="/away" style="cursor:pointer"><span>Do not follow this nested link</span></a>
+        <label style="display:block;font-size:14px;font-weight:400;line-height:21px"><input type="checkbox">Option label</label>
+        <a href="/away" style="display:block;cursor:pointer"><span>Do not follow this nested link</span></a>
         <div class="typography-wrapper" style="font-size:12px">Exact leaf label <span style="font-size:16px;font-weight:600;line-height:20px">Exact leaf label</span></div>
         <ul class="category-tree"><li style="font-weight:700;line-height:45px">Parent category<ul><li style="font-weight:400;line-height:20px"><span>Nested category</span></li></ul></li></ul>
         <div class="clamped" style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">A long text block for line clamp verification</div>

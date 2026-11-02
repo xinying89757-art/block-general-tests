@@ -138,10 +138,10 @@ async function readColorPanelInputs(panel) {
 // module's first openRailPanel and the width module's flip both hit this
 // in the same run, while the width module's first open worked). Poll
 // instead of reading once.
-export async function selectBlock(canvas, blockId, { clickTarget, waitForRail } = {}) {
+export async function selectBlock(canvas, blockId, { clickTarget, waitForRail, timeout = TIMEOUT } = {}) {
   await closeToolbarMenusBeforeAction(canvas);
   const wrap = canvas.locator(RAIL.wrap(blockId)).first();
-  await wrap.scrollIntoViewIfNeeded();
+  await wrap.scrollIntoViewIfNeeded({ timeout });
   const activate = clickTarget || ((element) => element.evaluate((node) => node.click()));
   const wait = waitForRail || (() => visibleRailIndex(canvas));
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -164,54 +164,197 @@ export async function visibleRailIndex(canvas) {
   return found.value;
 }
 
-export async function openRailPanel(canvas, blockId, iconSelector, panelSelector) {
+const RAIL_OPEN_ATTEMPTS = 3;
+const RAIL_ACTION_TIMEOUT = 1_500;
+const RAIL_PANEL_WAIT_MS = 900;
+
+/** Small, dependency-injected rail opener so stale DOM collections can be tested offline. */
+export async function openRailPanelWithRetry({ readPanelOpen, resolveToolbar, resolveToggle,
+  clickToggle, waitPanelOpen, attempts = RAIL_OPEN_ATTEMPTS }) {
+  const strategies = [];
+  let lastFailure = null;
+  let failureCode = 'rail-toolbar-not-found';
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (await readPanelOpen()) return { alreadyOpen: true, attempt: attempt - 1, strategies };
+    let toolbar;
+    try { toolbar = await resolveToolbar(); }
+    catch (error) {
+      failureCode = 'rail-toolbar-not-found';
+      lastFailure = error;
+      strategies.push(`toolbar-resolution:${error.message}`);
+      continue;
+    }
+    if (!toolbar) {
+      strategies.push('target-instance-toolbar');
+      lastFailure = Object.assign(new Error('No toolbar matched the target instance.'), { code: 'rail-toolbar-not-found' });
+      failureCode = 'rail-toolbar-not-found';
+      continue;
+    }
+    strategies.push('target-instance-toolbar');
+    let toggle;
+    failureCode = 'rail-toggle-not-visible';
+    try { toggle = await resolveToggle(toolbar, { preferred: true }); }
+    catch (error) { lastFailure = error; strategies.push(`preferred-toggle:${error.message}`); }
+    if (!toggle) {
+      strategies.push('preferred-toggle');
+      try { toggle = await resolveToggle(toolbar, { preferred: false }); }
+      catch (error) { lastFailure = error; strategies.push(`fallback-toggle:${error.message}`); }
+      if (toggle) strategies.push('fallback-toggle');
+    }
+    if (!toggle) {
+      lastFailure = Object.assign(new Error('No visible rail toggle matched the preferred or fallback selector.'), { code: 'rail-toggle-not-visible' });
+      failureCode = 'rail-toggle-not-visible';
+      continue;
+    }
+    try {
+      failureCode = 'panel-not-opened';
+      await clickToggle(toggle, { timeout: RAIL_ACTION_TIMEOUT });
+      if (await waitPanelOpen()) return { alreadyOpen: false, attempt, toolbar, toggle, strategies };
+      strategies.push(`panel-not-opened-after-attempt-${attempt}`);
+      lastFailure = Object.assign(new Error('The rail toggle did not open the requested panel.'), { code: 'panel-not-opened' });
+      failureCode = 'panel-not-opened';
+    } catch (error) {
+      lastFailure = error;
+      failureCode = 'panel-not-opened';
+      strategies.push(`toggle-action-attempt-${attempt}:${error.message}`);
+    }
+  }
+  const code = failureCode;
+  const error = new Error(`${code}: unable to open requested rail panel after ${attempts} attempts; strategies=${strategies.join(' | ') || 'none'}; last=${lastFailure?.message || 'no matching target toolbar'}`);
+  error.code = code;
+  error.strategies = strategies;
+  throw error;
+}
+
+function hasSettingId(element, settingId) {
+  const nodes = [element, ...element.querySelectorAll('*')];
+  return nodes.some((node) => [...node.attributes].some((attr) => /setting.?id/i.test(attr.name)
+    && String(attr.value) === String(settingId)));
+}
+
+async function resolveTargetRail(canvas, blockId, settingId) {
+  const wraps = canvas.locator(RAIL.wrap(blockId));
+  const wrapCount = await wraps.count();
+  let targetWrap = null;
+  if (settingId) {
+    const matched = [];
+    for (let i = 0; i < wrapCount; i += 1) {
+      const wrap = wraps.nth(i);
+      if (await wrap.evaluate(hasSettingId, String(settingId))) matched.push(wrap);
+    }
+    if (matched.length === 1) targetWrap = matched[0];
+  } else if (wrapCount === 1) targetWrap = wraps.first();
+  if (!targetWrap) return null;
+  // The rail is normally inside the block wrapper. Re-query this relationship
+  // every attempt; never carry a document-wide .nth() across a reload/delete.
+  const scoped = targetWrap.locator(RAIL.rail);
+  const scopedCount = await scoped.count();
+  if (scopedCount === 1) return { rail: scoped.first(), wrap: targetWrap };
+  if (scopedCount > 1) {
+    const visible = [];
+    for (let i = 0; i < scopedCount; i += 1) {
+      const rail = scoped.nth(i);
+      if (await rail.isVisible().catch(() => false)) visible.push(rail);
+    }
+    return visible.length === 1 ? { rail: visible[0], wrap: targetWrap } : null;
+  }
+  const rails = canvas.locator(RAIL.rail);
+  const associated = [];
+  for (let i = 0, count = await rails.count(); i < count; i += 1) {
+    const rail = rails.nth(i);
+    const belongs = await rail.evaluate((element, identity) => {
+      const root = element.closest('.siteblocks-setting-wrap[data-appid]');
+      if (!root) return false;
+      if (identity.settingId) {
+        const nodes = [root, ...root.querySelectorAll('*')];
+        return nodes.some((node) => [...node.attributes].some((attr) => /setting.?id/i.test(attr.name)
+          && String(attr.value) === String(identity.settingId)));
+      }
+      return root.getAttribute('data-appid') === identity.blockId;
+    }, { settingId: settingId || '', blockId: String(blockId) });
+    if (belongs) associated.push(rail);
+  }
+  return associated.length === 1 ? { rail: associated[0], wrap: targetWrap } : null;
+}
+
+export async function openRailPanel(canvas, blockId, iconSelector, panelSelector, { settingId } = {}) {
   await closeToolbarMenusBeforeAction(canvas);
   await waitForEditorLoadingToClear(canvas);
-  // If the panel is already open, do not click its icon again: the icon
-  // toggles, and a second click closes the panel (2026-10-26: the color
-  // flip's reopen waited 10s on a panel its own icon click had just
-  // closed). The runner only ever selects the target block, so a visible
-  // panel here is the target block's.
-  const openPanels = canvas.locator(`${panelSelector}:visible`);
-  const openPanelCount = await openPanels.count();
-  if (openPanelCount > 1) throw new Error(`Selected rail surface matched ${openPanelCount} visible panels; refusing an ambiguous interaction.`);
-  const alreadyOpen = openPanels.first();
-  if (openPanelCount === 1 && await alreadyOpen.isVisible().catch(() => false)) {
-    const index = await visibleRailIndex(canvas);
-    await waitForEditorLoadingToClear(canvas);
-    await retryTransient(() => waitForControlsReady(alreadyOpen));
-    return { rail: canvas.locator(RAIL.rail).nth(index), panel: alreadyOpen, index };
+  const initialPanels = canvas.locator(`${panelSelector}:visible`);
+  const initialCount = await initialPanels.count();
+  if (initialCount > 1) throw new Error(`Selected rail surface matched ${initialCount} visible panels; refusing an ambiguous interaction.`);
+  if (initialCount === 0) {
+    try {
+      await selectBlock(canvas, blockId, {
+        timeout: RAIL_ACTION_TIMEOUT,
+        waitForRail: async () => {
+          const deadline = Date.now() + RAIL_ACTION_TIMEOUT;
+          do {
+            const target = await resolveTargetRail(canvas, blockId, settingId);
+            if (target && await target.rail.isVisible().catch(() => false)) return target;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          } while (Date.now() < deadline);
+          const error = new Error('rail-toolbar-not-found: selected target instance did not expose its toolbar within the bounded selection wait.');
+          error.code = 'rail-toolbar-not-found';
+          throw error;
+        },
+      });
+    } catch (cause) {
+      if (cause?.code === 'rail-toolbar-not-found') throw cause;
+      const error = new Error(`rail-toolbar-not-found: could not select target block within the bounded wait; cause=${cause?.message || cause}`);
+      error.code = 'rail-toolbar-not-found';
+      throw error;
+    }
   }
-  const { index, rail } = await retryWithFreshControl({
-    attempts: 3,
-    ready: () => waitForEditorLoadingToClear(canvas),
-    resolve: async () => {
-      await selectBlock(canvas, blockId);
-      await waitForEditorLoadingToClear(canvas);
-      const currentIndex = await visibleRailIndex(canvas);
-      return { index: currentIndex, rail: canvas.locator(RAIL.rail).nth(currentIndex),
-        icon: canvas.locator(RAIL.rail).nth(currentIndex).locator(iconSelector).first() };
+  const panel = await openRailPanelWithRetry({
+    readPanelOpen: async () => {
+      const panels = canvas.locator(`${panelSelector}:visible`);
+      const count = await panels.count();
+      if (count > 1) throw new Error(`Selected rail surface matched ${count} visible panels; refusing an ambiguous interaction.`);
+      return count === 1;
     },
-    act: async ({ icon, index, rail }) => {
-      await icon.scrollIntoViewIfNeeded();
-      await icon.click({ timeout: TIMEOUT });
-      return { index, rail };
+    resolveToolbar: async () => (await resolveTargetRail(canvas, blockId, settingId))?.rail || null,
+    resolveToggle: async (rail, { preferred }) => {
+      const fallback = iconSelector.includes('telescopic')
+        ? '[class*="telescopic"], [data-action*="width"], [aria-label*="宽度"], [title*="宽度"]'
+        : '[class*="operateColor"], [data-action*="color"], [aria-label*="配色"], [title*="配色"]';
+      const locator = rail.locator(preferred ? iconSelector : fallback);
+      const count = await locator.count();
+      for (let i = 0; i < count; i += 1) {
+        const candidate = locator.nth(i);
+        if (await candidate.isVisible().catch(() => false)) return candidate;
+      }
+      return null;
+    },
+    clickToggle: async (toggle, { timeout }) => {
+      await toggle.scrollIntoViewIfNeeded({ timeout });
+      await toggle.click({ timeout });
+    },
+    waitPanelOpen: async () => {
+      const deadline = Date.now() + RAIL_PANEL_WAIT_MS;
+      do {
+        const panels = canvas.locator(`${panelSelector}:visible`);
+        const count = await panels.count();
+        if (count > 1) throw new Error(`Selected rail surface matched ${count} visible panels; refusing an ambiguous interaction.`);
+        if (count === 1) return true;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      } while (Date.now() < deadline);
+      return false;
     },
   });
-  // Several panel copies exist (one per block); only the selected block's
-  // copy is visible.
-  const panel = await uniqueVisiblePanel(canvas, panelSelector, 'Selected rail surface');
-  try {
-    await panel.waitFor({ state: 'visible', timeout: TIMEOUT });
-  } catch {
-    // The click may have toggled an already-open panel closed; click once
-    // more to reopen it.
-    await icon.click({ timeout: TIMEOUT });
-    await panel.waitFor({ state: 'visible', timeout: TIMEOUT });
+  const openPanels = canvas.locator(`${panelSelector}:visible`);
+  const panelCount = await openPanels.count();
+  if (panelCount !== 1) {
+    const error = new Error(`panel-not-opened: requested rail panel resolved ${panelCount} visible panels after ${panel.attempt} attempts; strategies=${panel.strategies.join(' | ')}`);
+    error.code = 'panel-not-opened';
+    error.strategies = panel.strategies;
+    throw error;
   }
+  const visiblePanel = openPanels.first();
   await waitForEditorLoadingToClear(canvas);
-  await retryTransient(() => waitForControlsReady(panel));
-  return { rail, panel, index };
+  await retryTransient(() => waitForControlsReady(visiblePanel));
+  const target = await resolveTargetRail(canvas, blockId, settingId);
+  return { rail: target?.rail || null, panel: visiblePanel, index: null };
 }
 
 // Read the color scheme value from the visible color flyout.
