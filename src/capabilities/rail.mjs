@@ -7,7 +7,7 @@
 import { TIMEOUT, poll } from './shared.mjs';
 import { waitForControlsReady, retryTransient, retryWithFreshControl,
   waitForEditorLoadingToClear, saveAndWait } from '../ui-waits.mjs';
-import { closeToolbarMenusBeforeAction } from '../editor.mjs';
+import { closeToolbarMenusBeforeAction, waitForEditorOverlaysBeforeAction } from '../editor.mjs';
 
 export const RAIL = {
   wrap: (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`,
@@ -170,7 +170,7 @@ const RAIL_PANEL_WAIT_MS = 900;
 
 /** Small, dependency-injected rail opener so stale DOM collections can be tested offline. */
 export async function openRailPanelWithRetry({ readPanelOpen, resolveToolbar, resolveToggle,
-  clickToggle, waitPanelOpen, attempts = RAIL_OPEN_ATTEMPTS }) {
+  clickToggle, waitPanelOpen, prepareToggle = async () => {}, attempts = RAIL_OPEN_ATTEMPTS }) {
   const strategies = [];
   let lastFailure = null;
   let failureCode = 'rail-toolbar-not-found';
@@ -227,6 +227,7 @@ export async function openRailPanelWithRetry({ readPanelOpen, resolveToolbar, re
     }
     try {
       failureCode = 'panel-not-opened';
+      await prepareToggle(toggle, { timeout: RAIL_ACTION_TIMEOUT });
       await clickToggle(toggle, { timeout: RAIL_ACTION_TIMEOUT });
       if (await waitPanelOpen()) return { alreadyOpen: false, attempt, toolbar, toggle, strategies };
       strategies.push(`panel-not-opened-after-attempt-${attempt}`);
@@ -234,7 +235,7 @@ export async function openRailPanelWithRetry({ readPanelOpen, resolveToolbar, re
       failureCode = 'panel-not-opened';
     } catch (error) {
       lastFailure = error;
-      failureCode = 'panel-not-opened';
+      failureCode = error?.code === 'rail-toggle-intercepted' ? error.code : 'panel-not-opened';
       strategies.push(`toggle-action-attempt-${attempt}:${error.message}`);
     }
   }
@@ -357,9 +358,27 @@ export async function openRailPanel(canvas, blockId, iconSelector, panelSelector
         : '[class*="operateColor"], [data-action*="color"], [aria-label*="配色"], [title*="配色"]';
       return resolveRailToggle(rail, iconSelector, fallback, { preferred });
     },
+    prepareToggle: async () => {
+      const blockers = await waitForEditorOverlaysBeforeAction(canvas);
+      if (blockers.length) {
+        const error = new Error(`rail-toggle-intercepted: editor overlay still blocks pointer input: ${blockers.join('; ')}`);
+        error.code = 'rail-toggle-intercepted';
+        error.interceptingElements = blockers;
+        throw error;
+      }
+    },
     clickToggle: async (toggle, { timeout }) => {
       await toggle.scrollIntoViewIfNeeded({ timeout });
-      await toggle.click({ timeout });
+      try { await toggle.click({ timeout }); }
+      catch (cause) {
+        if (!/intercepts pointer events/i.test(String(cause?.message || ''))) throw cause;
+        const blockers = await waitForEditorOverlaysBeforeAction(canvas, { timeoutMs: 100 });
+        const detail = blockers.length ? blockers.join('; ') : String(cause.message).match(/<[^>]+> intercepts pointer events/)?.[0] || 'unknown overlay';
+        const error = new Error(`rail-toggle-intercepted: ${detail}`);
+        error.code = 'rail-toggle-intercepted';
+        error.interceptingElements = blockers;
+        throw error;
+      }
     },
     waitPanelOpen: async () => {
       const deadline = Date.now() + RAIL_PANEL_WAIT_MS;

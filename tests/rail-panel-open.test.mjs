@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openRailPanelWithRetry, resolveRailToggle } from '../src/capabilities/rail.mjs';
+import { openRailPanel, openRailPanelWithRetry, resolveRailToggle, RAIL } from '../src/capabilities/rail.mjs';
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import { readFreshWidthInventory, appendFreshSettingsInventory } from '../src/fresh-block-browser-adapter.mjs';
@@ -137,5 +137,46 @@ test('rail opener reports a classified failure with attempted strategies when re
     assert.match(error.message, /panel-not-opened-after-attempt-2/);
     assert.equal(resolutions, 2);
     return true;
+  });
+});
+
+async function withOverlayRail({ removeOverlayAfterMs = null } = {}, callback) {
+  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<style>
+      html,body { margin:0; width:100%; height:100%; }
+      .siteblocks-setting-operateTools { position:absolute; left:20px; top:20px; width:60px; height:60px; }
+      .backstage-dialog-overlay { position:fixed; inset:0; z-index:10; pointer-events:auto; }
+      .backstage-dialog-overlay.hide { opacity:0; }
+      .moduleWidth { display:none; }
+      .moduleWidth.open { display:block; }
+    </style><div class="siteblocks-setting-wrap" data-appid="fixture-block">
+      <div class="siteblocks-setting-operateTools"><a class="block_telescopic" href="#">toggle</a></div>
+      <div class="moduleWidth"><input type="text" value="fixture">panel</div>
+    </div><div class="backstage-dialog-overlay hide"></div>
+    <script>
+      document.querySelector('.block_telescopic').addEventListener('click', () => document.querySelector('.moduleWidth').classList.add('open'));
+      ${removeOverlayAfterMs === null ? '' : `setTimeout(() => document.querySelector('.backstage-dialog-overlay')?.remove(), ${removeOverlayAfterMs});`}
+    </script>`);
+    await callback(page);
+  } finally { await browser.close(); }
+}
+
+test('a hidden-class backdrop that detaches clears before clicking the rail toggle', async () => {
+  await withOverlayRail({ removeOverlayAfterMs: 100 }, async (page) => {
+    const { panel } = await openRailPanel(page, 'fixture-block', RAIL.widthIcon, RAIL.widthPanel);
+    assert.equal(await panel.isVisible(), true);
+  });
+});
+
+test('a persistent hidden-class backdrop fails with rail-toggle-intercepted and its summary', async () => {
+  await withOverlayRail({}, async (page) => {
+    await assert.rejects(openRailPanel(page, 'fixture-block', RAIL.widthIcon, RAIL.widthPanel), (error) => {
+      assert.equal(error.code, 'rail-toggle-intercepted');
+      assert.match(error.message, /backstage-dialog-overlay\.hide/);
+      assert.match(error.message, /pointer-events:auto/);
+      return true;
+    });
   });
 });

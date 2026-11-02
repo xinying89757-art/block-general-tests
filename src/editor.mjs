@@ -154,6 +154,51 @@ export async function closeToolbarMenusBeforeAction(scope) {
   return closePageMenuIfOpen(page);
 }
 
+const EDITOR_DIALOGS = '.backstage-dialog:visible, [role="dialog"]:visible, dialog:visible';
+const EDITOR_OVERLAYS = '.backstage-dialog-overlay, .layui-layer-shade, [data-editor-overlay]';
+
+async function blockingEditorOverlays(scope) {
+  return scope.locator('body').evaluate((body, selector) => {
+    const visible = (element) => {
+      const style = getComputedStyle(element);
+      return element.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden'
+        && style.pointerEvents !== 'none';
+    };
+    return [...body.ownerDocument.querySelectorAll(selector)].filter(visible).map((element) => {
+      const style = getComputedStyle(element);
+      const classes = typeof element.className === 'string' ? element.className.trim() : '';
+      const name = element.tagName.toLowerCase() + (classes ? `.${classes.split(/\s+/).join('.')}` : '');
+      return `${name} (pointer-events:${style.pointerEvents}, z-index:${style.zIndex})`;
+    });
+  }, EDITOR_OVERLAYS).catch(() => []);
+}
+
+/** Dismiss open editor dialogs, then briefly wait for stale backdrops to stop intercepting input. */
+export async function waitForEditorOverlaysBeforeAction(scope, { timeoutMs = 800, intervalMs = 50 } = {}) {
+  if (!scope || typeof scope.locator !== 'function') return [];
+  const dialogs = scope.locator(EDITOR_DIALOGS);
+  const dialogCount = await dialogs.count().catch(() => 0);
+  if (dialogCount) {
+    const page = typeof scope.page === 'function' ? scope.page() : scope;
+    try { await page.keyboard?.press('Escape'); } catch {}
+    for (let index = 0; index < dialogCount; index += 1) {
+      const dialog = dialogs.nth(index);
+      if (!await dialog.isVisible().catch(() => false)) continue;
+      const cancel = dialog.locator('.backstage-dialog-bottom').getByText(/^(取消|关闭)$/, { exact: true }).filter({ visible: true });
+      const cancelCount = await cancel.count().catch(() => 0);
+      if (cancelCount === 1) await cancel.click({ timeout: 500 }).catch(() => {});
+    }
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  let remaining = await blockingEditorOverlays(scope);
+  while (remaining.length && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, Math.min(intervalMs, Math.max(1, deadline - Date.now()))));
+    remaining = await blockingEditorOverlays(scope);
+  }
+  return remaining;
+}
+
 function blockSelector(blockId) {
   // Quote an attribute value rather than assuming BLOCK_ID is numeric.
   return `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(blockId))}]`;
