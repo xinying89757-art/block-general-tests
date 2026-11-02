@@ -22,10 +22,27 @@ test('onboarding maps a unique generic signature and preserves unknown controls 
   assert.equal(result.unmapped[0].control.label, 'Custom option');
 });
 
-test('onboarding fails closed when one setting identity matches multiple regions', () => {
+test('onboarding splits one setting identity across regions with distinct wrap indexes', () => {
   const inventory = [0, 1].map((wrapIndex) => ({ kind: 'button-popover', type: 'phoenix_blocks_button',
     title: null, wrapIndex, controls: [{ index: 0, type: 'text', label: '按钮文本', value: 'Continue' }] }));
-  assert.throws(() => mapDiscoveredInventory(inventory), /Ambiguous setting controls/);
+  const mapping = mapDiscoveredInventory(inventory);
+  assert.deepEqual(mapping.requirements.map((item) => item.id), ['btn-text', 'btn-text']);
+  assert.deepEqual(mapping.requirements.map((item) => item.params.wrapIndex), [0, 1]);
+  const profile = buildDraftProfile(template, { blockId: 'generic-123', page: { kind: 'system', id: 'page-id' }, mapping });
+  assert.deepEqual(validateProfile(profile, template, { capabilities: new Set(['button-link']) }), []);
+});
+
+test('onboarding fails closed when matching regions have duplicate wrap indexes', () => {
+  const inventory = [0, 1].map(() => ({ kind: 'button-popover', type: 'phoenix_blocks_button',
+    title: null, wrapIndex: 0, controls: [{ index: 0, type: 'text', label: '按钮文本', value: 'Continue' }] }));
+  assert.throws(() => mapDiscoveredInventory(inventory), (error) => {
+    assert.match(error.message, /Ambiguous setting controls/);
+    assert.deepEqual(error.ambiguous, [{ id: 'btn-text', count: 2, locations: [
+      { kind: 'button-popover', type: 'phoenix_blocks_button', title: null, wrapIndex: 0 },
+      { kind: 'button-popover', type: 'phoenix_blocks_button', title: null, wrapIndex: 0 },
+    ] }]);
+    return true;
+  });
 });
 
 test('onboarding reuses generic rail signatures for rail inventory regions', () => {

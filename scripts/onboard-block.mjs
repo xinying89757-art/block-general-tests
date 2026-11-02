@@ -26,7 +26,7 @@ for (let i = 0; i < args.length; i += 1) {
     throw new Error('Usage: node scripts/onboard-block.mjs --block <id> --page-kind system --page-id <id> --page-url <path> | --page-kind custom --page-name <name>');
   }
   const value = args[++i];
-  if (key === '--block') env.BLOCK_ID = value;
+  if (key === '--block') { env.BLOCK_ID = value; process.env.BLOCK_ID = value; }
   if (key === '--page-kind') env.FRESH_PAGE_KIND = value;
   if (key === '--page-id') env.FRESH_PAGE_ID = value;
   if (key === '--page-url') env.FRESH_PAGE_URL = value;

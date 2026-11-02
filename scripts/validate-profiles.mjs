@@ -96,8 +96,11 @@ export function validateProfile(profile, template, { capabilities } = {}) {
           && typeof item.editorControl.type === 'string';
         if (!item || typeof item !== 'object' || Array.isArray(item) || typeof item.id !== 'string'
           || (!signatures.some(s => s.id === item.id) && !discoveredStyle)) errors.push(`${label}.id 必须是已知设置项 id 或有效的发现式样式设置项`);
-        else if (ids.has(item.id)) errors.push(`${label}.id 重复：${item.id}`);
-        else ids.add(item.id);
+        else {
+          const key = JSON.stringify([item.id, item.params?.wrapIndex ?? null]);
+          if (ids.has(key)) errors.push(`${label}.id 重复：${item.id}`);
+          else ids.add(key);
+        }
         if (item?.mode !== undefined && item.mode !== 'fixed-front'
           && !(discoveredStyle && item.mode === 'editor-setting')) errors.push(`${label}.mode 只能是 fixed-front 或有效的 editor-setting`);
         if (item?.mode === 'fixed-front' && (typeof item.fixedValue !== 'string' || !item.fixedValue)) errors.push(`${label}.fixedValue 必须是非空字符串（fixed-front 时）`);
