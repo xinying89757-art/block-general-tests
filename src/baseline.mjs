@@ -118,7 +118,7 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
     if (type === 'phoenix_blocks_button') {
       const region = { type, wrapIndex, title: null, kind: 'button-popover', controls: [] };
       try {
-        const popover = await readButtonPopover({ page, canvas, config });
+        const popover = await readButtonPopover({ page, canvas, config, wrapIndex });
         region.controls = popover.want.map(({ to, ...item }) => ({ ...item,
           ...(item.type === 'checkbox' ? { checked: to } : { value: to }) }));
       } catch (error) {

@@ -55,11 +55,17 @@ async function readCurrentPageSnapshot(page) {
 }
 
 /** Read and optionally verify the selected page through one shared, mask-aware path. */
-export async function verifyCurrentPageIdentity(page, expected) {
-  const snapshot = await readCurrentPageSnapshot(page);
-  const actual = resolveCurrentPageLabel(snapshot);
-  if (!actual) throw new Error('刷新编辑器后无法读取当前页面自己的活动标签。');
-  return expected === undefined ? actual : assertCurrentPageLabel(actual, expected);
+export async function verifyCurrentPageIdentity(page, expected, { timeoutMs = 5_000, intervalMs = 100 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let actual = '';
+  do {
+    const snapshot = await readCurrentPageSnapshot(page);
+    actual = resolveCurrentPageLabel(snapshot);
+    if (actual) return expected === undefined ? actual : assertCurrentPageLabel(actual, expected);
+    if (Date.now() >= deadline) break;
+    await page.waitForTimeout(Math.min(intervalMs, Math.max(1, deadline - Date.now())));
+  } while (Date.now() <= deadline);
+  throw new Error('刷新编辑器后无法读取当前页面自己的活动标签。');
 }
 
 async function visiblePageMenuLinkCount(page) {
@@ -176,11 +182,17 @@ async function blockingEditorOverlays(scope) {
 /** Dismiss open editor dialogs, then briefly wait for stale backdrops to stop intercepting input. */
 export async function waitForEditorOverlaysBeforeAction(scope, { timeoutMs = 800, intervalMs = 50 } = {}) {
   if (!scope || typeof scope.locator !== 'function') return [];
-  const dialogs = scope.locator(EDITOR_DIALOGS);
-  const dialogCount = await dialogs.count().catch(() => 0);
-  if (dialogCount) {
-    const page = typeof scope.page === 'function' ? scope.page() : scope;
-    try { await page.keyboard?.press('Escape'); } catch {}
+  const scopes = [scope];
+  if (typeof scope.page === 'function') {
+    const page = scope.page();
+    if (page !== scope) scopes.push(page);
+  }
+  for (const currentScope of scopes) {
+    const dialogs = currentScope.locator(EDITOR_DIALOGS);
+    const dialogCount = await dialogs.count().catch(() => 0);
+    if (!dialogCount) continue;
+    const page = typeof currentScope.page === 'function' ? currentScope.page() : currentScope;
+    try { await (page.keyboard || currentScope.keyboard)?.press('Escape'); } catch {}
     for (let index = 0; index < dialogCount; index += 1) {
       const dialog = dialogs.nth(index);
       if (!await dialog.isVisible().catch(() => false)) continue;
@@ -191,10 +203,11 @@ export async function waitForEditorOverlaysBeforeAction(scope, { timeoutMs = 800
   }
 
   const deadline = Date.now() + timeoutMs;
-  let remaining = await blockingEditorOverlays(scope);
+  const inspectOverlays = async () => [...new Set((await Promise.all(scopes.map(blockingEditorOverlays))).flat())];
+  let remaining = await inspectOverlays();
   while (remaining.length && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, Math.min(intervalMs, Math.max(1, deadline - Date.now()))));
-    remaining = await blockingEditorOverlays(scope);
+    remaining = await inspectOverlays();
   }
   return remaining;
 }

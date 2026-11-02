@@ -464,7 +464,8 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
         const check = { id: 'fresh-post-publish-readback', status: 'fail',
           expected: 'A single fresh target instance can be reloaded and read after publication.',
           actual: error.message, detail: error.message,
-          batchResult: { expected: 'Post-publish editor readback succeeds.', actual: error.message, detail: error.message, screenshot } };
+          batchResult: { expected: 'Post-publish editor readback succeeds.', actual: error.message, detail: error.message, screenshot,
+            ...(error.inventoryError ? { inventoryError: error.inventoryError } : {}) } };
         batch.results.push(check);
         flowErrors.push({ stage: 'post-publish-readback', message: error.message, screenshot });
       }

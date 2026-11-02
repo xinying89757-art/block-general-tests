@@ -197,6 +197,37 @@ test('a setting that throws after a partial apply is still restored before final
   assert.equal(events.includes('check'), false);
 });
 
+test('batch-continue apply that mutates then throws is still restored by the finally path', async () => {
+  // P0-2: passing peers were already restored (and unmarked dirty) by
+  // restoreIds after the failed batch. If their batch-continue re-apply
+  // mutates the UI and then throws, the setting must have been marked dirty
+  // BEFORE the apply so the finally restore does not skip it.
+  const events = [];
+  const persisted = { a: 'a0', b: 'b0' };
+  const fail = executeSettingBatches({
+    settings: [{ id: 'a', key: 'a', value: 'a1' }, { id: 'b', key: 'b', value: 'b1' }],
+    adapter: {
+      capture: async () => new Map([['a', 'a0'], ['b', 'b0']]),
+      apply: async (setting, { phase } = {}) => {
+        events.push(`apply:${setting.id}:${phase}`);
+        if (setting.id === 'b' && phase === 'batch-continue') {
+          persisted.b = 'b1-partial'; // mutate, then throw
+          throw new Error('batch-continue failed after partial write');
+        }
+        persisted[setting.key] = setting.value;
+      },
+      save: async ({ reason }) => events.push(`save:${reason}`),
+      check: async (setting) => { events.push(`check:${setting.id}`); return { status: setting.id === 'a' ? 'fail' : 'pass' }; },
+      restore: async (setting) => { events.push(`restore:${setting.id}`); persisted[setting.key] = `${setting.key}0`; },
+      checkBaseline: async () => { events.push('baseline'); return { residue: false }; },
+    },
+  });
+  await assert.rejects(fail, /batch-continue failed after partial write/);
+  // The partial write was tracked dirty before the throw, so finally restored it.
+  assert.ok(events.includes('restore:b'), `expected restore:b in ${JSON.stringify(events)}`);
+  assert.equal(persisted.b, 'b0');
+});
+
 test('palette input readback mismatch survives as a structured failed batch result', async () => {
   const run = await executeSettingBatches({ settings: [{ id: 'palette', key: 'palette', initialValue: '#123456' }],
     adapter: { capture: async () => new Map(), apply: async () => {

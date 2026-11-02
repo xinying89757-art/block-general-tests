@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadConfig } from '../src/config.mjs';
+import { redact } from '../src/run.mjs';
 import { launchSession } from '../src/browser.mjs';
 import { savePage } from '../src/editor.mjs';
 import { writeCheckpoint } from '../src/run-safety.mjs';
@@ -107,12 +108,13 @@ try {
       links: { editor: page.editorHref || null,
         front: page.url ? new URL(page.url, baseUrl).href : null }, outcome, error, lastProgress });
     const reportPath = path.join(reportDir, `fresh-block-${blockId}-${Date.now()}.json`);
-    await fs.writeFile(reportPath, `${JSON.stringify(environmentReport, null, 2)}\n`);
+    const safeReport = redact(environmentReport, config);
+    await fs.writeFile(reportPath, `${JSON.stringify(safeReport, null, 2)}\n`);
     const summaryPath = reportPath.replace(/\.json$/, '-summary-zh.md');
-    const attempts = environmentReport.libraryLookup.length ? environmentReport.libraryLookup.map((item) =>
+    const attempts = safeReport.libraryLookup.length ? safeReport.libraryLookup.map((item) =>
       `- ${item.mode}: 查询 ${item.query}；searched=${item.searched}；等待加载=${item.waitedForLazyResults}；滚动到底=${item.scrolledToEnd}；found=${item.found}${item.screenshot ? `；截图=${item.screenshot}` : ''}${item.error ? `；错误=${item.error}` : ''}`).join('\n')
       : '- 无模块库查询（停止在编辑器入口或更早阶段）';
-    await fs.writeFile(summaryPath, `# 区块 ${blockId} onboarding 环境结果\n\n- 状态：${outcome.status}\n- 阶段：${environmentReport.stage}\n- 原因：${outcome.message}\n- 前台：${environmentReport.links.front || '未生成'}\n- 编辑器：${environmentReport.links.editor || '未生成'}\n- 模块库按目标编号的尝试：\n${attempts}\n- 设置盘点：未开始；未执行设置批次或发布。\n- JSON：\`${path.relative(root, reportPath)}\`\n`);
+    await fs.writeFile(summaryPath, `# 区块 ${blockId} onboarding 环境结果\n\n- 状态：${outcome.status}\n- 阶段：${safeReport.stage}\n- 原因：${outcome.message}\n- 前台：${safeReport.links.front || '未生成'}\n- 编辑器：${safeReport.links.editor || '未生成'}\n- 模块库按目标编号的尝试：\n${attempts}\n- 设置盘点：未开始；未执行设置批次或发布。\n- JSON：\`${path.relative(root, reportPath)}\`\n`);
     console.error(`[onboard] environment outcome: ${outcome.code}; report: ${reportPath}`);
     console.error(`[onboard] Chinese summary: ${summaryPath}`);
     process.exitCode = 2;
@@ -122,15 +124,17 @@ try {
   await fs.mkdir(reportDir, { recursive: true });
   const reportPath = path.join(reportDir, `fresh-block-${blockId}-${Date.now()}.json`);
   report.onboarding = { profileStatus: 'draft-unreviewed', ...mappingSummary };
-  await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  const safeReport = redact(report, config);
+  await fs.writeFile(reportPath, `${JSON.stringify(safeReport, null, 2)}\n`);
   const summaryPath = reportPath.replace(/\.json$/, '-summary-zh.md');
   const mapped = mappingSummary.mappedSettingIds.length ? mappingSummary.mappedSettingIds.map((id) => `- ${id}`).join('\n') : '- 无唯一命中的已知设置项';
   const unmapped = mappingSummary.unmappedControls.length ? mappingSummary.unmappedControls.map((item) => `- ${item.regionType || item.kind}：${item.control.label || '(无标签)'} [${item.control.type}]`).join('\n') : '- 无';
-  const passes = report.checks.filter((item) => item.status === 'pass').length;
-  const fails = report.failures.length;
-  await fs.writeFile(summaryPath, `# 区块 ${blockId} 自动接入摘要\n\n- 画像：\`${path.relative(root, profilePath)}\`（草稿，未审核）\n- 前台页面：${report.links.front || '未生成'}\n- 编辑器页面：${report.links.editor || page.editorHref || '未生成'}\n- 自动映射设置：${mappingSummary.autoMappedCount}\n${mapped}\n- 未映射设置：${mappingSummary.unmappedCount}\n${unmapped}\n- 结果：${passes} pass / ${fails} fail / ${report.summary?.na || 0} na / ${report.summary?.['human-review'] || 0} 人工判断；发布确认=${Boolean(report.publishedConfirmed ?? report.publishedAt)}\n- 报告：\`${path.relative(root, reportPath)}\`\n\n自动映射只复用唯一匹配的通用结构签名；预期值、夹具及新断言均未推断，需人工审核草稿画像。\n`);
+  const passes = safeReport.checks.filter((item) => item.status === 'pass').length;
+  const fails = safeReport.failures.length;
+  const safeEditorHref = redact({ editorHref: page.editorHref || null }, config).editorHref;
+  await fs.writeFile(summaryPath, `# 区块 ${blockId} 自动接入摘要\n\n- 画像：\`${path.relative(root, profilePath)}\`（草稿，未审核）\n- 前台页面：${safeReport.links.front || '未生成'}\n- 编辑器页面：${safeReport.links.editor || safeEditorHref || '未生成'}\n- 自动映射设置：${mappingSummary.autoMappedCount}\n${mapped}\n- 未映射设置：${mappingSummary.unmappedCount}\n${unmapped}\n- 结果：${passes} pass / ${fails} fail / ${safeReport.summary?.na || 0} na / ${safeReport.summary?.['human-review'] || 0} 人工判断；发布确认=${Boolean(safeReport.publishedConfirmed ?? safeReport.publishedAt)}\n- 报告：\`${path.relative(root, reportPath)}\`\n\n自动映射只复用唯一匹配的通用结构签名；预期值、夹具及新断言均未推断，需人工审核草稿画像。\n`);
   console.log(`[onboard] report: ${reportPath}`);
   console.log(`[onboard] Chinese summary: ${summaryPath}`);
-  console.log(`[onboard] ${passes} pass / ${fails} fail; published=${Boolean(report.publishedConfirmed ?? report.publishedAt)}`);
+  console.log(`[onboard] ${passes} pass / ${fails} fail; published=${Boolean(safeReport.publishedConfirmed ?? safeReport.publishedAt)}`);
   }
 } finally { await session.browser.close(); }
