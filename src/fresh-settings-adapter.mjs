@@ -14,7 +14,8 @@ import { discoverProfileFrontUnits, runFrontSettingUnits } from './setting-units
 import { createDiscoveredStyleSettingUnits } from './discovered-style-settings.mjs';
 import { buildDesignHumanReview, runDesignSpecEditorChecks } from './design-spec-checklist.mjs';
 import { applyLearnedStyleEffects, clearLearnedStyleEffects, deriveSelectorCandidatesFromDom,
-  deriveStyleEffectPaths, resolveSettingStyleEffect, snapshotInstanceComputedStyles } from './style-effect-learning.mjs';
+  deriveStyleEffectPaths, normalizeProfileSelectorCandidates, resolveSettingStyleEffect,
+  snapshotInstanceComputedStyles } from './style-effect-learning.mjs';
 export const FRESH_LIFECYCLE_KINDS = Object.freeze(['settings-dialog', 'canvas-popover', 'right-rail-flyout']);
 
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -99,6 +100,10 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
   let prepared;
   const prepare = async (runtimeContext = {}) => {
     const mergedContext = { ...context, ...runtimeContext };
+    const persistProfile = async () => {
+      normalizeProfileSelectorCandidates(mergedContext.profile);
+      await mergedContext.persistProfile?.(mergedContext.profile);
+    };
     const settings = [];
     const metadata = {};
     const capabilityResults = [];
@@ -175,7 +180,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
       persistedControls.push(...discoveredStyle.persistedControls);
       capabilityResults.push({ capability: 'discovered-style-controls', status: 'adapted',
         settingIds: discoveredStyle.settings.map((setting) => setting.id) });
-      if (discoveredStyle.requirementsAdded) await mergedContext.persistProfile?.(mergedContext.profile);
+      if (discoveredStyle.requirementsAdded) await persistProfile();
     }
     const ids = settings.map((setting) => setting.id);
     if (ids.some((id) => !id) || new Set(ids).size !== ids.length) throw new Error('Fresh capability setting ids must be present and globally unique.');
@@ -199,7 +204,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         if (setting.styleEffect) {
           const styleEffect = resolveSettingStyleEffect(setting);
           const cleared = clearLearnedStyleEffects(mergedContext.profile, styleEffect);
-          if (cleared) await mergedContext.persistProfile?.(mergedContext.profile);
+          if (cleared) await persistProfile();
           try {
             const before = await snapshotInstanceComputedStyles(mergedContext.canvas || mergedContext.frame, {
               blockId: mergedContext.blockId || mergedContext.config?.blockId,
@@ -263,8 +268,8 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
             changedElementCount: new Set((outcome.learned?.effects || []).map((effect) => effect.selector)).size,
             mappedCheckCount: outcome.applied?.applied?.length || 0,
             candidateCount: outcome.applied?.candidateCount || 0, expectedValues };
-          if (capture.cleared || outcome.mappedCheckCount || outcome.candidateCount) await mergedContext.persistProfile?.(mergedContext.profile);
-          if (capture.error && capture.cleared) await mergedContext.persistProfile?.(mergedContext.profile);
+          if (capture.cleared || outcome.mappedCheckCount || outcome.candidateCount) await persistProfile();
+          if (capture.error && capture.cleared) await persistProfile();
           styleScopeDiagnostics.push({ settingId, capability: setting.capability, status: outcome.status,
             reason: outcome.reason, changedElementCount: outcome.changedElementCount || 0,
             mappedCheckCount: outcome.mappedCheckCount || 0,

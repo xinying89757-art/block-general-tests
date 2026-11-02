@@ -3,7 +3,7 @@
  * applied. Paths are relative to the uniquely identified instance and never
  * include generated block-number classes or element ids.
  */
-const GENERATED_CLASS = /^blockCon\d+$/i;
+const GENERATED_CLASS = /blockCon\d+/i;
 const COLOR_PROPERTIES = Object.freeze(['color', 'backgroundColor', 'borderColor', 'outlineColor',
   'textDecorationColor', 'accentColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke']);
 
@@ -104,6 +104,49 @@ export function stableRelativeSelectorPath(descriptors = []) {
     const nth = Number.isInteger(node.nthOfType) && node.nthOfType > 0 ? `:nth-of-type(${node.nthOfType})` : '';
     return `${tag}${suffix}${nth}`;
   }).join(' > ');
+}
+
+/** Remove platform-generated instance classes from persisted profile selectors. */
+export function stableProfileSelectorCandidates(selectors = [], { learnedSelectorRequired = false } = {}) {
+  const stable = [...new Set((Array.isArray(selectors) ? selectors : []).filter((selector) =>
+    typeof selector === 'string' && selector.trim() && !GENERATED_CLASS.test(selector)
+      && !/:nth-(?:child|of-type)\s*\(/i.test(selector) && !/(?:^|[\s>])(?:script|style)(?:[.#:[\s>]|$)/i.test(selector)))];
+  // For a unit explicitly awaiting an editor-learned scope, retain only its
+  // first profile-declared fallback. Dynamic discoveries are diagnostics,
+  // never additional executable candidates for that confirmed check.
+  return learnedSelectorRequired ? stable.slice(0, 1) : stable;
+}
+
+/** Normalize runner-written selector candidates in place before profile persistence. */
+export function normalizeProfileSelectorCandidates(profile) {
+  let removed = 0;
+  for (const capability of profile?.capabilities || []) {
+    for (const item of capability.styleSpec?.items || []) {
+      if (Array.isArray(item.selectorCandidates)) {
+        const stable = stableProfileSelectorCandidates(item.selectorCandidates,
+          { learnedSelectorRequired: item.learnedSelectorRequired === true });
+        removed += item.selectorCandidates.length - stable.length;
+        if (stable.length) item.selectorCandidates = stable;
+        else delete item.selectorCandidates;
+      }
+      if (typeof item.selector === 'string' && GENERATED_CLASS.test(item.selector)) {
+        delete item.selector;
+        removed += 1;
+      }
+      for (const [property, entries] of Object.entries(item.learnedSelectors || {})) {
+        const stable = (Array.isArray(entries) ? entries : []).filter((entry) =>
+          typeof entry?.selector === 'string' && !GENERATED_CLASS.test(entry.selector));
+        removed += entries.length - stable.length;
+        if (stable.length) item.learnedSelectors[property] = stable;
+        else delete item.learnedSelectors[property];
+      }
+      if (item.autoLearned === true && !item.selector && !item.selectorCandidates?.length
+        && !Object.keys(item.learnedSelectors || {}).length) {
+        item.selectorLearningPending = true;
+      }
+    }
+  }
+  return { removed };
 }
 
 export function normalizeStyleValue(property, value) {
@@ -213,14 +256,13 @@ export function applyLearnedStyleEffects(profile, styleEffect, learned, { captur
   }
   let candidateCount = 0;
   if (!applied.length) {
-    const candidates = [...new Map([...(styleEffect?.candidateSelectors || []), ...(learned.candidateSelectors || [])]
-      .filter((entry) => typeof entry === 'string' && entry.trim())
+    const candidates = [...new Map(stableProfileSelectorCandidates([...(styleEffect?.candidateSelectors || []), ...(learned.candidateSelectors || [])])
       .map((selector) => [selector, selector])).values()];
     for (const target of styleEffect?.checks || []) {
       const item = (profile?.capabilities || []).flatMap((capability) => capability.styleSpec?.items || [])
         .find((entry) => entry.id === target.checkId);
-      if (!item || !candidates.length) continue;
-      item.selectorCandidates = [...new Set([...(item.selectorCandidates || []), ...candidates])];
+      if (!item || !candidates.length || item.learnedSelectorRequired === true) continue;
+      item.selectorCandidates = stableProfileSelectorCandidates([...(item.selectorCandidates || []), ...candidates]);
       candidateCount = Math.max(candidateCount, item.selectorCandidates.length);
     }
   }

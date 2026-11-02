@@ -6,7 +6,7 @@ import { registerFreshSettingsCapability } from '../src/setting-units.mjs';
 import { resolveInstanceRootIndexes } from '../src/front-instance-root.mjs';
 import { applyLearnedStyleEffects, deriveSelectorCandidatesFromDom, deriveStyleEffectPaths,
   chooseSelectorCandidate, ensureStyleEffectProfileEntries, inferStyleValueKind, normalizeStyleValue,
-  resolveCanvasInstanceRootIndex, resolveSettingStyleEffect, snapshotInstanceComputedStyles,
+  normalizeProfileSelectorCandidates, resolveCanvasInstanceRootIndex, resolveSettingStyleEffect, snapshotInstanceComputedStyles,
   stableRelativeSelectorPath } from '../src/style-effect-learning.mjs';
 
 test('computed-style diff learns only changed properties and omits generated block-number classes', () => {
@@ -60,9 +60,23 @@ test('unresolved effect snapshots add only same-profile feature candidates and r
 
 test('stable instance-relative paths use structure and class features without blockCon classes', () => {
   assert.equal(stableRelativeSelectorPath([
-    { tag: 'nav', classes: ['blockCon12345', 'category-nav'], nthOfType: 2 },
+    { tag: 'nav', classes: ['location_blockCon12345_pack', 'category-nav'], nthOfType: 2 },
     { tag: 'a', classes: ['leaf'], nthOfType: 1 },
   ]), 'nav.category-nav:nth-of-type(2) > a.leaf:nth-of-type(1)');
+});
+
+test('profile selector normalization removes generated block classes but preserves stable confirmed candidates', () => {
+  const profile = { capabilities: [{ id: 'block-style-spec', styleSpec: { items: [
+    { id: 'confirmed', selectorCandidates: ['.stable-action', '.location_blockCon123_pack .child', '.unstable:nth-of-type(2)'] },
+    { id: 'learned', autoLearned: true, learnedSelectorRequired: true, selector: '.blockCon987', selectorCandidates: ['.blockCon987 .child'],
+      learnedSelectors: { color: [{ selector: '.location_blockCon987_pack a', expectedValue: '#fff' }] } },
+  ] } }] };
+  assert.deepEqual(normalizeProfileSelectorCandidates(profile), { removed: 5 });
+  assert.deepEqual(profile.capabilities[0].styleSpec.items[0].selectorCandidates, ['.stable-action']);
+  assert.equal(profile.capabilities[0].styleSpec.items[1].selector, undefined);
+  assert.equal(profile.capabilities[0].styleSpec.items[1].selectorCandidates, undefined);
+  assert.deepEqual(profile.capabilities[0].styleSpec.items[1].learnedSelectors, {});
+  assert.equal(profile.capabilities[0].styleSpec.items[1].selectorLearningPending, true);
 });
 
 test('profile selectors are mapped automatically and candidates can be derived from DOM features', () => {

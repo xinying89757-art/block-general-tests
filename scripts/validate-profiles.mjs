@@ -146,7 +146,7 @@ export function validateProfile(profile, template, { capabilities } = {}) {
       ids.add(capability.id);
       if (capability.styleSpec) {
         const checkIds = new Set((capability.styleSpec.items || []).map((item) => item.id));
-        for (const requirement of profile.requirements?.capabilities || []) {
+        for (const requirement of Array.isArray(profile.requirements?.capabilities) ? profile.requirements.capabilities : []) {
           for (const check of requirement.styleEffect?.checks || []) {
             if (!checkIds.has(check.checkId)) errors.push(`${location}.styleSpec 缺少 styleEffect 检查项 ${check.checkId}`);
           }

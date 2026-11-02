@@ -19,6 +19,7 @@ import { markUniqueFrontInstance } from '../src/front-instance-root.mjs';
 import { buildDesignHumanReview, runDesignSpecFrontChecks, runWrittenColorFrontChecks } from '../src/design-spec-checklist.mjs';
 import { captureFrontInstance } from '../src/instance-capture.mjs';
 import { readInstanceStructure } from '../src/front-structure.mjs';
+import { runDisplayFieldFrontChecks } from '../src/display-field-front-check.mjs';
 
 const args = {};
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -149,6 +150,14 @@ try {
       includeStylesheets: args['include-stylesheets'] !== '0', onProgress: progress });
     report.checks = attachFrontStyleInstance([...report.checks, ...writtenColors], report.settingId);
     progress(`written-color-checks-complete count=${writtenColors.length}`);
+    stage = 'display-field-front-checks'; progress(stage);
+    const displayFieldChecks = await runDisplayFieldFrontChecks({ page, rootSelector: config.rootSelector,
+      settingsReport, onCheck: (check) => {
+        report.checks = attachFrontStyleInstance([...report.checks.filter((row) => row.id !== check.id), check], report.settingId);
+      } });
+    report.checks = attachFrontStyleInstance([...report.checks.filter((row) => row.id !== 'pld-display-field-batch-effect'),
+      ...displayFieldChecks], report.settingId);
+    progress(`display-field-front-checks-complete count=${displayFieldChecks.length}`);
     report.finalUrl = sanitizeFrontStyleUrl(page.url());
   } finally { await markedRoot.clear().catch(() => {}); }
   const shots = fs.readdirSync('screenshots').filter((f) => f.startsWith(`style-${blockId}-`));

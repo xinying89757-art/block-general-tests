@@ -5,6 +5,7 @@ import { widgetSession, probeControls, persistControl, radioPersist, radioGroupP
 import { executeSettingBatches } from '../batch-save.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
+import { retryDisplayFieldSnapshot } from '../display-field-front-check.mjs';
 
 const SUITE = 'capability:product-list-display';
 const NAMES = {
@@ -59,7 +60,11 @@ export async function runListEffectPlan(tasks, { checkGroup } = {}) {
 }
 
 function result(id, status, detail, evidence, textFields = {}) {
-  return { id, name: NAMES[id], suite: SUITE, status, detail, ...checkReportText(NAMES[id], status, detail, evidence, id), ...textFields,
+  const machineReason = evidence?.reason?.code ?? evidence?.reason;
+  const reason = typeof machineReason === 'string' && /^[a-z0-9-]+$/i.test(machineReason)
+    ? { stage: 'capability-effect', code: machineReason } : undefined;
+  return { id, name: NAMES[id], suite: SUITE, status, detail, ...checkReportText(NAMES[id], status, detail, evidence, id),
+    ...(reason ? { reason } : {}), ...textFields,
     ...(evidence === undefined ? {} : { evidence }) };
 }
 const outcomeResult = (id, outcome) => result(id, outcome.status, outcome.detail, outcome.evidence);
@@ -586,12 +591,20 @@ function attachBatchEffect(setting, { canvas, config, profile, report }) {
         evidence: { after, expected, mismatches } };
     }
     if (setting.key === 'display-field') {
-      const cards = await readEffectRoot(canvas, config, cardFieldSnapshot, [setting.control.label]);
-      if (!cards.length || cards.some((card) => !card.mapped || card.unmappedRows)) return { status: 'skip',
-        detail: `展示字段“${setting.control.label}”在画布产品卡上的对应位置无法唯一识别。`, evidence: { cards } };
+      const fieldLabel = setting.control.label;
+      const snapshot = await retryDisplayFieldSnapshot(() => readEffectRoot(canvas,
+        { ...config, effectReadTimeoutMs: config.displayFieldReadTimeoutMs || 1500 }, cardFieldSnapshot, [fieldLabel]),
+      { attempts: 3, delayMs: 250 });
+      const cards = snapshot.cards;
+      if (snapshot.status !== 'ready' || cards.some((card) => !card.mapped || card.unmappedRows)) return {
+        status: 'human-review', reason: { code: 'effect-unresolved-on-canvas' },
+        detail: `展示字段“${fieldLabel}”已完成设置保存读回，但画布产品卡定位未能确认该字段效果；由前台卡片检查继续核对。`,
+        evidence: { fieldLabel, expectedVisible: setting.alternateValue === true,
+          checkId: 'pld-display-field-batch-effect', reason: 'effect-unresolved-on-canvas',
+          attempts: snapshot.attempts, lastError: snapshot.lastError, cards } };
       const expected = setting.alternateValue === true;
-      const mismatches = cards.filter((card) => card.labels.includes(setting.control.label) !== expected);
-      return { status: mismatches.length ? 'fail' : 'pass', detail: `展示字段“${setting.control.label}”设为${expected ? '勾选' : '未勾选'}后，${mismatches.length} 张卡片与该状态不符。`,
+      const mismatches = cards.filter((card) => card.labels.includes(fieldLabel) !== expected);
+      return { status: mismatches.length ? 'fail' : 'pass', detail: `展示字段“${fieldLabel}”设为${expected ? '勾选' : '未勾选'}后，${mismatches.length} 张卡片与该状态不符。`,
         evidence: { cards, expected, mismatches: mismatches.map((card) => card.product) } };
     }
     if (setting.key === 'data-source') {

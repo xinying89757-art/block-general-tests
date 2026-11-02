@@ -36,9 +36,12 @@ export async function withEffectPreview(page, context, inspect) {
 
 export async function readEffectRoot(frame, config, read, argument) {
   const root = frame.locator(blockSelector(config.blockId)).first();
+  const timeout = Number.isFinite(Number(config.effectReadTimeoutMs)) && Number(config.effectReadTimeoutMs) > 0
+    ? Number(config.effectReadTimeoutMs) : TIMEOUT;
   try {
-    await root.waitFor({ state: 'attached', timeout: TIMEOUT });
-    return await waitForStable((timeout) => root.evaluate(read, argument, { timeout }));
+    await root.waitFor({ state: 'attached', timeout });
+    return await waitForStable((remaining) => root.evaluate(read, argument, { timeout: remaining }),
+      undefined, { timeout, stableMs: Math.min(timeout, 250) });
   } catch (error) {
     if (error.effectStatus) throw error;
     unavailable('目标区块的静态内容暂时读不到，需实站核实渲染及读取位置。');

@@ -46,6 +46,19 @@
       "id": "button-link",
       "settingName": "按钮链接",
       "status": "implemented-v1"
+    },
+    {
+      "id": "block-style-spec",
+      "status": "candidate",
+      "styleSpec": {
+        "items": [],
+        "recordOnly": [],
+        "viewports": {
+          "pc": 1440,
+          "pad": 768,
+          "mobile": 375
+        }
+      }
     }
   ],
   "category": "product-filter",
@@ -171,6 +184,72 @@
       },
       {
         "id": "color-scheme"
+      },
+      {
+        "id": "discovered-style-rail-color-scheme-0-0-color",
+        "capability": "discovered-style-controls",
+        "mode": "editor-setting",
+        "valueKind": "color",
+        "styleProperty": null,
+        "lifecycleSurface": "right-rail-flyout",
+        "editorControl": {
+          "regionType": "rail:color-scheme",
+          "regionTitle": "right-rail-color",
+          "wrapIndex": 0,
+          "index": 0,
+          "tag": "INPUT",
+          "type": "color",
+          "name": "colorVal0",
+          "label": "colorVal0",
+          "role": "color",
+          "identity": "name:colorVal0",
+          "section": "区块配色",
+          "position": 0
+        }
+      },
+      {
+        "id": "discovered-style-rail-color-scheme-0-1-color",
+        "capability": "discovered-style-controls",
+        "mode": "editor-setting",
+        "valueKind": "color",
+        "styleProperty": null,
+        "lifecycleSurface": "right-rail-flyout",
+        "editorControl": {
+          "regionType": "rail:color-scheme",
+          "regionTitle": "right-rail-color",
+          "wrapIndex": 0,
+          "index": 1,
+          "tag": "INPUT",
+          "type": "color",
+          "name": "colorVal1",
+          "label": "colorVal1",
+          "role": "color",
+          "identity": "name:colorVal1",
+          "section": "区块配色",
+          "position": 1
+        }
+      },
+      {
+        "id": "discovered-style-rail-color-scheme-0-2-color",
+        "capability": "discovered-style-controls",
+        "mode": "editor-setting",
+        "valueKind": "color",
+        "styleProperty": null,
+        "lifecycleSurface": "right-rail-flyout",
+        "editorControl": {
+          "regionType": "rail:color-scheme",
+          "regionTitle": "right-rail-color",
+          "wrapIndex": 0,
+          "index": 2,
+          "tag": "INPUT",
+          "type": "color",
+          "name": "colorVal2",
+          "label": "colorVal2",
+          "role": "color",
+          "identity": "name:colorVal2",
+          "section": "区块配色",
+          "position": 2
+        }
       }
     ],
     "notes": [
