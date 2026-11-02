@@ -33,8 +33,9 @@ export function buttonPopoverFailureDiagnostics({ diagnostics, stage, elapsedMs,
 }
 
 // The link editor is rendered inside the canvas document. Its actual settings
-// root is the unique editor-box carrying both requested labels.
-function discoverPopover(body) {
+// root is the editor-box carrying both requested labels, selected by index
+// (wrapIndex) so blocks with multiple buttons can target each one.
+function discoverPopover(body, index = 0) {
   const norm = (value) => (value || '').replace(/\s+/g, ' ').trim();
   const visible = (node) => Boolean(node.getClientRects().length)
     && getComputedStyle(node).visibility !== 'hidden' && getComputedStyle(node).display !== 'none';
@@ -43,10 +44,10 @@ function discoverPopover(body) {
     const labels = [...node.querySelectorAll('.label-title')].map((label) => norm(label.innerText));
     return labels.includes('链接网址') && norm(node.innerText).includes('按钮文本');
   });
-  if (candidates.length !== 1) return { found: false, candidateCount: candidates.length, rootCount: candidates.length,
-    reason: `画布内同时含“链接网址”和“按钮文本”的 editor-box 候选 ${candidates.length} 个，无法唯一定位。` };
+  if (index < 0 || index >= candidates.length) return { found: false, candidateCount: candidates.length, rootCount: candidates.length,
+    reason: `画布内同时含“链接网址”和“按钮文本”的 editor-box 候选 ${candidates.length} 个，索引 ${index} 越界，无法定位。` };
   body.querySelectorAll('[data-autotest-button-link-root]').forEach((node) => node.removeAttribute('data-autotest-button-link-root'));
-  const root = candidates[0];
+  const root = candidates[index];
   root.setAttribute('data-autotest-button-link-root', 'true');
   const ancestors = [];
   for (let node = root; node && node !== body && ancestors.length < 4; node = node.parentElement) {
@@ -55,14 +56,14 @@ function discoverPopover(body) {
   return { found: true, candidateCount: candidates.length, rootCount: candidates.length, ancestors };
 }
 
-function popoverSession({ page, canvas, config }) {
+function popoverSession({ page, canvas, config, wrapIndex = 0 }) {
   const body = canvas.locator('body');
   const root = canvas.locator(`[${MARKER}="true"]`).filter({ visible: true });
   let structure;
   const open = async () => {
     await closePageMenuIfOpen(page);
-    if (!await root.isVisible()) await clickSettings(canvas, config, 'phoenix_blocks_button');
-    const discovered = await poll(() => body.evaluate(discoverPopover), (data) => data.found);
+    if (!await root.isVisible()) await clickSettings(canvas, config, 'phoenix_blocks_button', wrapIndex);
+    const discovered = await poll(() => body.evaluate(discoverPopover, wrapIndex), (data) => data.found);
     if (!discovered.matched) throw Object.assign(new Error(discovered.value.reason), {
       candidateCount: discovered.value.candidateCount, rootCount: discovered.value.rootCount,
     });
@@ -114,8 +115,8 @@ function identify(controls) {
 }
 
 export async function createFreshDefinitions(args) {
-  const { page, canvas, config } = args;
-  const session = args.scopedSession || popoverSession({ page, canvas, config });
+  const { page, canvas, config, wrapIndex = 0 } = args;
+  const session = args.scopedSession || popoverSession({ page, canvas, config, wrapIndex });
   let controls = args.initialControls;
   if (!Array.isArray(controls)) {
     const probed = await probeControls(session);
@@ -167,13 +168,13 @@ export async function createFreshDefinitions(args) {
   const candidates = [
     { key: 'text', id: 'btn-text-persist', target: current.text,
       original: current.text.value, value: current.text.value === 'AUTOTEST-BTN' ? 'AUTOTEST-BTN-ALT' : 'AUTOTEST-BTN',
-      ref: { region: 'button-popover', controlIndex: 0, type: 'text' } },
+      ref: { region: 'button-popover', wrapIndex, controlIndex: 0, type: 'text' } },
     { key: 'url', id: 'btn-url-persist', target: current.url, original: current.url.value,
       value: BAIDU, originalLinkType: link.selected,
-      ref: { region: 'button-popover', controlIndex: 1, type: 'text' } },
+      ref: { region: 'button-popover', wrapIndex, controlIndex: 1, type: 'text' } },
     { key: 'target', id: 'btn-target-persist', target: current.target,
       original: Boolean(current.target.checked), value: !current.target.checked,
-      ref: { region: 'button-popover', controlIndex: 2, type: 'checkbox' } },
+      ref: { region: 'button-popover', wrapIndex, controlIndex: 2, type: 'checkbox' } },
   ];
   const settings = candidates.map((item) => ({ id: item.id, key: `button-${item.key}`, name: NAMES[item.id],
     lifecycle, initialValue: item.key === 'url' ? { value: item.original, linkType: item.originalLinkType } : item.original,
@@ -200,7 +201,7 @@ export async function createFreshDefinitions(args) {
 
 // Small public surface shared by baseline capture/guard/apply. The labels are
 // deliberately the ones used by this module's DOM recognizer.
-async function readButtonPopoverValue({ page, canvas, config, session = popoverSession({ page, canvas, config }) }) {
+async function readButtonPopoverValue({ page, canvas, config, wrapIndex = 0, session = popoverSession({ page, canvas, config, wrapIndex }) }) {
   const diagnostics = createStableSnapshotDiagnostics(['text', 'url', 'linkType', 'newWindow']);
   const startedAt = Date.now();
   let stage = 'page-loading-clear';
@@ -271,13 +272,13 @@ async function reloadEditorDiscardingButtonUi({ page, canvas, config }) {
   } finally { page.off('dialog', handleDialog); }
 }
 
-export async function readButtonPopover({ page, canvas, config }) {
+export async function readButtonPopover({ page, canvas, config, wrapIndex = 0 }) {
   let values;
-  const session = popoverSession({ page, canvas, config });
+  const session = popoverSession({ page, canvas, config, wrapIndex });
   let popoverRoot = session.root;
   let dismissal;
   try {
-    const read = await readButtonPopoverValue({ page, canvas, config, session });
+    const read = await readButtonPopoverValue({ page, canvas, config, wrapIndex, session });
     values = read.value;
     popoverRoot = read.root;
   } finally {
@@ -285,14 +286,14 @@ export async function readButtonPopover({ page, canvas, config }) {
       isVisible: () => popoverRoot?.isVisible().catch(() => false) ?? false,
       pressEscape: async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(300); },
       neutralClick: async () => { await page.mouse.click(1, 1); await page.waitForTimeout(300); },
-      toggleTrigger: async () => { await clickSettings(canvas, config, 'phoenix_blocks_button'); await page.waitForTimeout(300); },
+      toggleTrigger: async () => { await clickSettings(canvas, config, 'phoenix_blocks_button', wrapIndex); await page.waitForTimeout(300); },
       reloadDiscard: async () => {
         const reload = async () => { canvas = await reloadEditorDiscardingButtonUi({ page, canvas, config }); };
         if (!values) { await reload(); return; }
         const persistedValues = ({ text, url, linkType, newWindow }) => ({ text, url, linkType, newWindow });
         const afterReload = await reloadDiscardAndVerify({
           reload,
-          readBack: async () => persistedValues((await readButtonPopoverValue({ page, canvas, config })).value),
+          readBack: async () => persistedValues((await readButtonPopoverValue({ page, canvas, config, wrapIndex })).value),
           expected: persistedValues(values),
           finishReload: reload,
         });
@@ -303,10 +304,10 @@ export async function readButtonPopover({ page, canvas, config }) {
   return { ...values, dismissal };
 }
 
-export async function writeButtonPopover({ page, canvas, config, want }) {
+export async function writeButtonPopover({ page, canvas, config, wrapIndex = 0, want }) {
   const requestedUrl = want.find((item) => item.label === '链接网址');
   if (requestedUrl) assertAllowedLinkUrl(requestedUrl.to);
-  const session = popoverSession({ page, canvas, config });
+  const session = popoverSession({ page, canvas, config, wrapIndex });
   const get = (label) => want.find((item) => item.label === label);
   try {
     await session.open();

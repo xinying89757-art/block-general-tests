@@ -20,7 +20,9 @@ export function mapDiscoveredInventory(inventory, { rules = signatures } = {}) {
   const detected = matchCapabilities(inventory, rules);
   const byId = new Map();
   for (const match of detected.matched) byId.set(match.id, [...(byId.get(match.id) || []), match]);
-  const ambiguous = [...byId].filter(([, matches]) => matches.length !== 1).map(([id, matches]) => ({
+  const ambiguous = [...byId].filter(([, matches]) => matches.length > 1
+    && (!matches.every((match) => Number.isInteger(match.wrapIndex))
+      || new Set(matches.map((match) => match.wrapIndex)).size !== matches.length)).map(([id, matches]) => ({
     id, count: matches.length, locations: matches.map(({ kind, type, title, wrapIndex }) => ({ kind, type, title, wrapIndex })),
   }));
   if (ambiguous.length) {
@@ -28,10 +30,10 @@ export function mapDiscoveredInventory(inventory, { rules = signatures } = {}) {
     error.ambiguous = ambiguous;
     throw error;
   }
-  const requirements = [...byId].map(([id, [match]]) => ({ id,
+  const requirements = [...byId].flatMap(([id, matches]) => matches.map((match) => ({ id,
     params: { ...(match.title ? { dialogTitle: match.title } : {}),
       ...(Number.isInteger(match.wrapIndex) ? { wrapIndex: match.wrapIndex } : {}) },
-  }));
+  })));
   const capabilityMap = new Map();
   for (const match of detected.matched) capabilityMap.set(match.parentModule, { id: match.parentModule, status: 'candidate' });
   const inventoryErrors = (inventory || []).filter((region) => region.inventoryError).map((region) => {

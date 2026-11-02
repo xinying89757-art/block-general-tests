@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { loadConfig } from '../src/config.mjs';
+import { redact } from '../src/run.mjs';
 import { launchSession } from '../src/browser.mjs';
 import { savePage } from '../src/editor.mjs';
 import { writeCheckpoint } from '../src/run-safety.mjs';
@@ -79,10 +80,11 @@ try {
   const reportDir = path.resolve(root, config.reportDir || 'reports');
   await fs.mkdir(reportDir, { recursive: true });
   const reportPath = path.join(reportDir, `fresh-block-${config.blockId}-${Date.now()}.json`);
-  await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  const safeReport = redact(report, config);
+  await fs.writeFile(reportPath, `${JSON.stringify(safeReport, null, 2)}\n`);
   console.log(`[fresh-block] report: ${reportPath}`);
-  const notAdapted = report.capabilities.filter((item) => item.status === 'not-adapted').length;
-  console.log(`[fresh-block] ${verdictCountsZh(report.summary)} / ${notAdapted} not-adapted capabilities; published=${Boolean(report.publishedConfirmed ?? report.publishedAt)}`);
+  const notAdapted = safeReport.capabilities.filter((item) => item.status === 'not-adapted').length;
+  console.log(`[fresh-block] ${verdictCountsZh(safeReport.summary)} / ${notAdapted} not-adapted capabilities; published=${Boolean(safeReport.publishedConfirmed ?? safeReport.publishedAt)}`);
 } finally {
   await session.browser.close();
 }

@@ -19,6 +19,21 @@ test('current page identity fails closed when the active page differs from the r
   assert.throws(() => assertCurrentPageLabel(snapshot, 'Products'), /当前活动页为「Product Detail」/);
 });
 
+test('current page identity waits for the active tab to become readable after reload', async () => {
+  const snapshots = [
+    { activeItems: [], toolbarText: '页面: 保存' },
+    { activeItems: [{ label: 'Products', ancestors: [{ className: 'active' }] }], toolbarText: '页面: 保存' },
+  ];
+  let waits = 0;
+  const page = {
+    locator: () => ({ evaluate: async () => [] }),
+    evaluate: async () => snapshots.shift(),
+    waitForTimeout: async () => { waits++; },
+  };
+  assert.equal(await verifyCurrentPageIdentity(page, 'Products', { timeoutMs: 50, intervalMs: 1 }), 'Products');
+  assert.equal(waits, 1);
+});
+
 test('toolbar page identity stops at the first editor action instead of absorbing toolbar history text', () => {
   const snapshot = { activeItems: [], toolbarText: '页面: Products 智能优化当前页面 操作记录 暂无历史记录 显示更多 没有更多了' };
   assert.equal(resolveCurrentPageLabel(snapshot), 'Products');

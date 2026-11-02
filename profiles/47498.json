@@ -16,533 +16,6 @@
     {
       "id": "button-link",
       "status": "candidate"
-    },
-    {
-      "id": "block-style-spec",
-      "status": "record-only",
-      "reason": "Onboarding inventory provides setting units but no reviewed front-end selector or visual oracle.",
-      "styleSpec": {
-        "items": [
-          {
-            "id": "inventory-btn-text",
-            "name": "按钮文字（已盘点值）",
-            "kind": "text-content",
-            "selectorCandidates": [
-              "*"
-            ],
-            "text": null,
-            "runValueSource": {
-              "control": {
-                "region": "button-popover",
-                "label": "按钮文本"
-              },
-              "settingCheckIds": [
-                "btn-text-persist"
-              ]
-            },
-            "note": "Exact persisted inventory value is checked as visible text within the target block; uses no block-specific class selector."
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "color",
-            "props": {
-              "color": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "backgroundColor",
-            "props": {
-              "backgroundColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "borderColor",
-            "props": {
-              "borderColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "outlineColor",
-            "props": {
-              "outlineColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "textDecorationColor",
-            "props": {
-              "textDecorationColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "accentColor",
-            "props": {
-              "accentColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "caretColor",
-            "props": {
-              "caretColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "columnRuleColor",
-            "props": {
-              "columnRuleColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "fill",
-            "props": {
-              "fill": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-0-color-stroke",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "stroke",
-            "props": {
-              "stroke": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-0-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "color",
-            "props": {
-              "color": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "backgroundColor",
-            "props": {
-              "backgroundColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "borderColor",
-            "props": {
-              "borderColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "outlineColor",
-            "props": {
-              "outlineColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "textDecorationColor",
-            "props": {
-              "textDecorationColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "accentColor",
-            "props": {
-              "accentColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "caretColor",
-            "props": {
-              "caretColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "columnRuleColor",
-            "props": {
-              "columnRuleColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "fill",
-            "props": {
-              "fill": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-1-color-stroke",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "stroke",
-            "props": {
-              "stroke": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-1-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "color",
-            "props": {
-              "color": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "backgroundColor",
-            "props": {
-              "backgroundColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "borderColor",
-            "props": {
-              "borderColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "outlineColor",
-            "props": {
-              "outlineColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "textDecorationColor",
-            "props": {
-              "textDecorationColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "accentColor",
-            "props": {
-              "accentColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "caretColor",
-            "props": {
-              "caretColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "columnRuleColor",
-            "props": {
-              "columnRuleColor": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "fill",
-            "props": {
-              "fill": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
-          },
-          {
-            "id": "auto-style-auto-style-rail-color-scheme-0-2-color-stroke",
-            "name": "自动样式值检查",
-            "kind": "sample",
-            "sample": 500,
-            "learnedSelectorRequired": true,
-            "selectorLearningPending": true,
-            "autoLearned": true,
-            "styleProperty": "stroke",
-            "props": {
-              "stroke": null
-            },
-            "settingUnitId": "auto-style-rail-color-scheme-0-2-color"
-          }
-        ],
-        "recordOnly": [
-          {
-            "id": "inventory-module-width",
-            "name": "Inventory observation: module-width",
-            "inventoryCapability": "module-width",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          },
-          {
-            "id": "inventory-cff-fields",
-            "name": "Inventory observation: cff-fields",
-            "inventoryCapability": "custom-filter-fields",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          },
-          {
-            "id": "inventory-pld-display-fields",
-            "name": "Inventory observation: pld-display-fields",
-            "inventoryCapability": "product-list-display",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          },
-          {
-            "id": "inventory-pld-pagination",
-            "name": "Inventory observation: pld-pagination",
-            "inventoryCapability": "product-list-display",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          },
-          {
-            "id": "inventory-pld-page-size",
-            "name": "Inventory observation: pld-page-size",
-            "inventoryCapability": "product-list-display",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          },
-          {
-            "id": "inventory-pld-product-count",
-            "name": "Inventory observation: pld-product-count",
-            "inventoryCapability": "product-list-display",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          },
-          {
-            "id": "inventory-pld-compare",
-            "name": "Inventory observation: pld-compare",
-            "inventoryCapability": "product-list-display",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          },
-          {
-            "id": "inventory-pld-data-source",
-            "name": "Inventory observation: pld-data-source",
-            "inventoryCapability": "product-list-display",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          },
-          {
-            "id": "inventory-btn-url",
-            "name": "Inventory observation: btn-url",
-            "inventoryCapability": "button-link",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          },
-          {
-            "id": "inventory-btn-target",
-            "name": "Inventory observation: btn-target",
-            "inventoryCapability": "button-link",
-            "note": "Derived from the discovered settings inventory. No front-end selector or reviewed visual expectation is available; retain as record-only for human review."
-          }
-        ],
-        "designFrames": [],
-        "breakage": {
-          "viewports": [
-            "pc",
-            "pad",
-            "mobile"
-          ]
-        },
-        "viewports": {
-          "pc": 1440,
-          "pad": 768,
-          "mobile": 375
-        },
-        "notes": [
-          "Record-only entries are derived from onboarding.matched; the inventory does not establish front-end selectors or expected styles.",
-          "Inventory entries with an explicit scalar value and a generic text-content oracle become assertions; other inventory entries remain record-only until a front selector and expected value are evidenced."
-        ]
-      }
     }
   ],
   "category": "待人工审核",
@@ -654,79 +127,13 @@
         "params": {
           "wrapIndex": 0
         }
-      },
-      {
-        "id": "discovered-style-rail-color-scheme-0-0-color",
-        "capability": "discovered-style-controls",
-        "mode": "editor-setting",
-        "valueKind": "color",
-        "styleProperty": null,
-        "lifecycleSurface": "right-rail-flyout",
-        "editorControl": {
-          "regionType": "rail:color-scheme",
-          "regionTitle": "right-rail-color",
-          "wrapIndex": 0,
-          "index": 0,
-          "tag": "INPUT",
-          "type": "color",
-          "name": "colorVal0",
-          "label": "colorVal0",
-          "role": "color",
-          "identity": "name:colorVal0",
-          "section": "区块配色",
-          "position": 0
-        }
-      },
-      {
-        "id": "discovered-style-rail-color-scheme-0-1-color",
-        "capability": "discovered-style-controls",
-        "mode": "editor-setting",
-        "valueKind": "color",
-        "styleProperty": null,
-        "lifecycleSurface": "right-rail-flyout",
-        "editorControl": {
-          "regionType": "rail:color-scheme",
-          "regionTitle": "right-rail-color",
-          "wrapIndex": 0,
-          "index": 1,
-          "tag": "INPUT",
-          "type": "color",
-          "name": "colorVal1",
-          "label": "colorVal1",
-          "role": "color",
-          "identity": "name:colorVal1",
-          "section": "区块配色",
-          "position": 1
-        }
-      },
-      {
-        "id": "discovered-style-rail-color-scheme-0-2-color",
-        "capability": "discovered-style-controls",
-        "mode": "editor-setting",
-        "valueKind": "color",
-        "styleProperty": null,
-        "lifecycleSurface": "right-rail-flyout",
-        "editorControl": {
-          "regionType": "rail:color-scheme",
-          "regionTitle": "right-rail-color",
-          "wrapIndex": 0,
-          "index": 2,
-          "tag": "INPUT",
-          "type": "color",
-          "name": "colorVal2",
-          "label": "colorVal2",
-          "role": "color",
-          "identity": "name:colorVal2",
-          "section": "区块配色",
-          "position": 2
-        }
       }
     ],
     "displayFieldTypes": []
   },
   "onboarding": {
     "status": "draft-unreviewed",
-    "discoveredAt": "2026-10-31T19:14:10.697Z",
+    "discoveredAt": "2026-11-02T07:57:21.835Z",
     "matched": [
       {
         "id": "module-width",
@@ -737,36 +144,60 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "radio",
             "label": "1200px",
-            "value": "1"
+            "value": "1",
+            "controlIndex": 0,
+            "controlName": "modulewidth"
           },
           {
+            "type": "radio",
             "label": "1440px",
-            "value": "2"
+            "value": "2",
+            "controlIndex": 1,
+            "controlName": "modulewidth"
           },
           {
+            "type": "radio",
             "label": "1600px",
-            "value": "3"
+            "value": "3",
+            "controlIndex": 2,
+            "controlName": "modulewidth"
           },
           {
+            "type": "radio",
             "label": "1920px",
-            "value": "4"
+            "value": "4",
+            "controlIndex": 3,
+            "controlName": "modulewidth"
           },
           {
+            "type": "radio",
             "label": "全屏",
-            "value": "-2"
+            "value": "-2",
+            "controlIndex": 4,
+            "controlName": "modulewidth"
           },
           {
+            "type": "radio",
             "label": "自定义（需不小于1200px）",
-            "value": "-1"
+            "value": "-1",
+            "controlIndex": 5,
+            "controlName": "modulewidth"
           },
           {
+            "type": "text",
             "label": "自定义宽度",
-            "value": "1440"
+            "value": "1440",
+            "controlIndex": 6,
+            "styleProperty": "width"
           },
           {
+            "type": "checkbox",
             "label": "全局应用",
-            "value": "on"
+            "value": "on",
+            "controlIndex": 7,
+            "controlName": "globalApply"
           }
         ]
       },
@@ -779,40 +210,66 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "checkbox",
             "label": "全选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
-            "value": "on"
+            "value": "on",
+            "controlIndex": 0
           },
           {
+            "type": "checkbox",
             "label": "AUTOTEST-单选按钮A",
-            "value": "911778"
+            "value": "911778",
+            "controlIndex": 1,
+            "controlName": "langBarSort"
           },
           {
+            "type": "checkbox",
             "label": "AUTOTEST-下拉列表",
-            "value": "911788"
+            "value": "911788",
+            "controlIndex": 2,
+            "controlName": "langBarSort"
           },
           {
+            "type": "checkbox",
             "label": "AUTOTEST-多选",
-            "value": "911798"
+            "value": "911798",
+            "controlIndex": 3,
+            "controlName": "langBarSort"
           },
           {
+            "type": "checkbox",
             "label": "Category",
-            "value": "889928"
+            "value": "889928",
+            "controlIndex": 4,
+            "controlName": "langBarSort"
           },
           {
+            "type": "checkbox",
             "label": "Rated Current",
-            "value": "889968"
+            "value": "889968",
+            "controlIndex": 5,
+            "controlName": "langBarSort"
           },
           {
+            "type": "checkbox",
             "label": "Installation Method",
-            "value": "889958"
+            "value": "889958",
+            "controlIndex": 6,
+            "controlName": "langBarSort"
           },
           {
+            "type": "checkbox",
             "label": "Spacing",
-            "value": "889948"
+            "value": "889948",
+            "controlIndex": 7,
+            "controlName": "langBarSort"
           },
           {
+            "type": "checkbox",
             "label": "Rated voltage",
-            "value": "889988"
+            "value": "889988",
+            "controlIndex": 8,
+            "controlName": "langBarSort"
           }
         ]
       },
@@ -825,128 +282,220 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "checkbox",
             "label": "全选 Brand Product Code Model Brief 图纸 测试多选 正式版测试多选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
-            "value": "on"
+            "value": "on",
+            "controlIndex": 14
           },
           {
+            "type": "checkbox",
             "label": "Brand",
-            "value": "-3"
+            "value": "-3",
+            "controlIndex": 15,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Product Code",
-            "value": "-4"
+            "value": "-4",
+            "controlIndex": 16,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Model",
-            "value": "-5"
+            "value": "-5",
+            "controlIndex": 17,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Brief",
-            "value": "-9"
+            "value": "-9",
+            "controlIndex": 18,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "图纸",
-            "value": "889998"
+            "value": "889998",
+            "controlIndex": 19,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "测试多选",
-            "value": "898508"
+            "value": "898508",
+            "controlIndex": 20,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "正式版测试多选",
-            "value": "899828"
+            "value": "899828",
+            "controlIndex": 21,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "AUTOTEST-单选按钮A",
-            "value": "911778"
+            "value": "911778",
+            "controlIndex": 22,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "AUTOTEST-下拉列表",
-            "value": "911788"
+            "value": "911788",
+            "controlIndex": 23,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "AUTOTEST-多选",
-            "value": "911798"
+            "value": "911798",
+            "controlIndex": 24,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Category",
-            "value": "889928"
+            "value": "889928",
+            "controlIndex": 25,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Rated Current",
-            "value": "889968"
+            "value": "889968",
+            "controlIndex": 26,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Installation Method",
-            "value": "889958"
+            "value": "889958",
+            "controlIndex": 27,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Spacing",
-            "value": "889948"
+            "value": "889948",
+            "controlIndex": 28,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Rated voltage",
-            "value": "889988"
+            "value": "889988",
+            "controlIndex": 29,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Brand",
-            "value": "-3"
+            "value": "-3",
+            "controlIndex": 32,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Product Code",
-            "value": "-4"
+            "value": "-4",
+            "controlIndex": 33,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Model",
-            "value": "-5"
+            "value": "-5",
+            "controlIndex": 34,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Brief",
-            "value": "-9"
+            "value": "-9",
+            "controlIndex": 35,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "图纸",
-            "value": "889998"
+            "value": "889998",
+            "controlIndex": 36,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "测试多选",
-            "value": "898508"
+            "value": "898508",
+            "controlIndex": 37,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "正式版测试多选",
-            "value": "899828"
+            "value": "899828",
+            "controlIndex": 38,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "AUTOTEST-单选按钮A",
-            "value": "911778"
+            "value": "911778",
+            "controlIndex": 39,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "AUTOTEST-下拉列表",
-            "value": "911788"
+            "value": "911788",
+            "controlIndex": 40,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "AUTOTEST-多选",
-            "value": "911798"
+            "value": "911798",
+            "controlIndex": 41,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Category",
-            "value": "889928"
+            "value": "889928",
+            "controlIndex": 42,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Rated Current",
-            "value": "889968"
+            "value": "889968",
+            "controlIndex": 43,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Installation Method",
-            "value": "889958"
+            "value": "889958",
+            "controlIndex": 44,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Spacing",
-            "value": "889948"
+            "value": "889948",
+            "controlIndex": 45,
+            "controlName": "langBarSort2"
           },
           {
+            "type": "checkbox",
             "label": "Rated voltage",
-            "value": "889988"
+            "value": "889988",
+            "controlIndex": 46,
+            "controlName": "langBarSort2"
           }
         ]
       },
@@ -959,12 +508,18 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "radio",
             "label": "是",
-            "value": "1"
+            "value": "1",
+            "controlIndex": 11,
+            "controlName": "pagination"
           },
           {
+            "type": "radio",
             "label": "否",
-            "value": "0"
+            "value": "0",
+            "controlIndex": 12,
+            "controlName": "pagination"
           }
         ]
       },
@@ -977,16 +532,24 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "text",
             "label": "",
-            "value": "20"
+            "value": "20",
+            "controlIndex": 13
           },
           {
+            "type": "radio",
             "label": "是",
-            "value": "1"
+            "value": "1",
+            "controlIndex": 11,
+            "controlName": "pagination"
           },
           {
+            "type": "radio",
             "label": "否",
-            "value": "0"
+            "value": "0",
+            "controlIndex": 12,
+            "controlName": "pagination"
           }
         ]
       },
@@ -999,16 +562,24 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "text",
             "label": "",
-            "value": "20"
+            "value": "20",
+            "controlIndex": 13
           },
           {
+            "type": "radio",
             "label": "是",
-            "value": "1"
+            "value": "1",
+            "controlIndex": 11,
+            "controlName": "pagination"
           },
           {
+            "type": "radio",
             "label": "否",
-            "value": "0"
+            "value": "0",
+            "controlIndex": 12,
+            "controlName": "pagination"
           }
         ]
       },
@@ -1021,12 +592,18 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "radio",
             "label": "关闭",
-            "value": "0"
+            "value": "0",
+            "controlIndex": 30,
+            "controlName": "isCompared"
           },
           {
+            "type": "radio",
             "label": "开启",
-            "value": "1"
+            "value": "1",
+            "controlIndex": 31,
+            "controlName": "isCompared"
           }
         ]
       },
@@ -1039,8 +616,11 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "radio",
             "label": "所有产品",
-            "value": "0"
+            "value": "0",
+            "controlIndex": 0,
+            "controlName": "selectProdType"
           }
         ]
       },
@@ -1053,6 +633,7 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "text",
             "label": "按钮文本",
             "value": "分类按钮"
           }
@@ -1067,6 +648,7 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "text",
             "label": "链接网址",
             "value": "javascript:void(0)"
           }
@@ -1081,6 +663,7 @@
         "wrapIndex": 0,
         "evidence": [
           {
+            "type": "checkbox",
             "label": "新窗口打开",
             "value": false
           }
@@ -1187,6 +770,7 @@
         "status": "unmapped"
       }
     ],
+    "pendingStyleEffects": [],
     "note": "自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。"
   }
 }

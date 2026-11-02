@@ -319,6 +319,7 @@ export function currentValuesFromInventory(inventory) {
       values.push({ controlIdentity: `${region.type}:${region.wrapIndex}:${region.title || region.kind || ''}:${control.type}:${control.label || ''}:${identityValue}:${index}`,
         controlIndex: control.index ?? index,
         region: region.regionKey || region.title || region.kind || region.type,
+        wrapIndex: region.wrapIndex ?? 0,
         ...(control.section || region.section ? { section: control.section || region.section } : {}),
         label: control.label || '', type: control.type, value,
         ...(control.inventoryNote ? { inventoryNote: control.inventoryNote } : {}),
@@ -327,17 +328,28 @@ export function currentValuesFromInventory(inventory) {
         ...(control.identity ? { sourceIdentity: control.identity } : {}) });
     }
   }
+  // Keep degraded-region diagnostics alongside the flattened values so a
+  // failed persisted-control projection can report the inventory failure.
+  Object.defineProperty(values, 'inventoryErrors', { value: (inventory || [])
+    .filter((region) => region?.inventoryError).map((region) => ({ ...structuredClone(region.inventoryError),
+      regionName: region.regionKey || region.title || region.kind || region.type })), enumerable: false });
   return values;
 }
 
-export function projectPersistedFreshValues(values, persistedControls) {
+export function projectPersistedFreshValues(values, persistedControls, inventoryErrors = values?.inventoryErrors || []) {
   const projected = [];
   for (const reference of persistedControls || []) {
+    const refWrapIndex = reference.wrapIndex ?? 0;
     const matches = (values || []).filter((value) => value.region === reference.region
+      && (value.wrapIndex ?? 0) === refWrapIndex
       && value.controlIndex === reference.controlIndex && value.type === reference.type);
     if (matches.length !== 1) {
-      const observed = (values || []).slice(0, 4).map((value) => `${value.region}/${value.controlIndex}/${value.type}`).join(',');
-      throw new Error(`Persisted control ${reference.settingId || reference.capability || ''} (${reference.region}, index ${reference.controlIndex}, ${reference.type}) resolved ${matches.length} inventory controls; expected exactly one. First controls: ${observed}`);
+      const observed = (values || []).slice(0, 4).map((value) => `${value.region}/${value.wrapIndex ?? 0}/${value.controlIndex}/${value.type}`).join(',');
+      const inventoryError = (inventoryErrors || []).find((item) => item.regionName === reference.region
+        || item.regionType === reference.region || item.regionType === reference.regionType);
+      const error = new Error(`Persisted control ${reference.settingId || reference.capability || ''} (${reference.region}, wrapIndex ${refWrapIndex}, index ${reference.controlIndex}, ${reference.type}) resolved ${matches.length} inventory controls; expected exactly one. First controls: ${observed}${inventoryError ? `; inventory failure: stage=${inventoryError.diagnostics?.stage || inventoryError.diagnostics?.phase || 'unknown'}, code=${inventoryError.code || 'unknown'}, message=${inventoryError.message || 'unknown'}, diagnostics=${JSON.stringify(inventoryError.diagnostics || {})}` : ''}`);
+      if (inventoryError) error.inventoryError = structuredClone(inventoryError);
+      throw error;
     }
     projected.push(matches[0]);
   }

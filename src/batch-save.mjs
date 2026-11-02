@@ -187,9 +187,14 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
         if (finalState === 'restore') {
           for (const setting of passingPeers) {
             const start = performance.now();
+            // An adapter may mutate the UI before a later action throws. Mark the
+            // setting dirty before entering it so the finally path still restores
+            // that partial change. (Passing peers were already restored and
+            // unmarked by restoreIds above, so a throw here would otherwise
+            // escape the final restore.)
+            changed.add(setting.id);
             await adapter.apply(setting, { snapshot: snapshots.get?.(setting.id) ?? snapshots[setting.id], phase: 'batch-continue' });
             batchInfo.applyMs += performance.now() - start;
-            changed.add(setting.id);
           }
           if (passingPeers.length) await save(`batch-${index}-continue`, batchInfo);
         }
@@ -231,8 +236,10 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
       try {
         for (const result of retained.selected) {
           const setting = settings.find((item) => item.id === result.id);
-          await adapter.apply(setting, { phase: 'retain-failure' });
+          // Mark dirty before entering: if the adapter mutates the UI and then
+          // throws, the setting must already be tracked for bookkeeping.
           changed.add(setting.id);
+          await adapter.apply(setting, { phase: 'retain-failure' });
         }
         if (retained.selected.length) {
           timing.retainedFailures.saveMs = 0;

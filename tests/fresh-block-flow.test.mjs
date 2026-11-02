@@ -584,6 +584,36 @@ test('stops after an old-target delete fails and discards the unsaved replacemen
   assert.equal(adapter.state.stopReport.unsavedEditorStateDiscarded, true);
 });
 
+test('second delete failing commits nothing: stopped-before-save stays truthful', async () => {
+  // P0-1: deletes must not be saved per-delete. If the second delete throws,
+  // the first delete must still be unsaved so discardUnsavedChanges() (reload)
+  // truly rolls everything back and the stop report's 'stopped-before-save'
+  // is not a lie.
+  const adapter = fakeAdapter([
+    { blockId: '55', settingId: 'old-1', ordinal: 0 },
+    { blockId: '55', settingId: 'old-2', ordinal: 1 },
+  ]);
+  let deleteCount = 0;
+  const originalDelete = adapter.deleteBlockInstance;
+  adapter.deleteBlockInstance = async (instance) => {
+    deleteCount += 1;
+    if (deleteCount === 2) throw new Error('second delete failed');
+    return originalDelete(instance);
+  };
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /second delete failed/);
+  assert.equal(deleteCount, 2);
+  // No savePage ran before the failure: the first delete was never committed.
+  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'savePage'), []);
+  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'publish'), []);
+  // The stop report truthfully says nothing was saved.
+  assert.equal(adapter.state.stopReport.status, 'stopped-before-save');
+  assert.equal(adapter.state.stopReport.saved, false);
+  assert.deepEqual(adapter.state.stopReport.deletedSettingIds, ['old-1']);
+  // Discard was attempted; the fake restores persisted instances on reload.
+  assert.ok(adapter.events.some(([kind]) => kind === 'discardUnsavedChanges'));
+  assert.equal(adapter.state.stopReport.unsavedEditorStateDiscarded, true);
+});
+
 test('duplicate target instance identity refuses all deletion', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'duplicate', ordinal: 0 },
     { blockId: '55', settingId: 'duplicate', ordinal: 1 }]);
@@ -1084,6 +1114,24 @@ test('persisted readback scope follows capability control references, not contro
     [{ settingId: 'ambiguous', region: 'Settings', controlIndex: 3, type: 'radio' }]), /resolved 2 inventory controls/);
 });
 
+test('persisted readback projection carries a degraded inventory error with original diagnostics', () => {
+  const inventory = [{ type: 'phoenix_blocks_button', controls: [], inventoryError: {
+    regionType: 'phoenix_blocks_button', code: 'BUTTON_POPOVER_INVENTORY_UNSTABLE',
+    message: 'Button popover inventory did not stabilize (stage=popover-open)',
+    diagnostics: { stage: 'popover-open', candidateCount: 0, loadingMaskVisible: true },
+  } }];
+  const values = currentValuesFromInventory(inventory);
+  assert.throws(() => projectPersistedFreshValues(values, [{ settingId: 'button-link',
+    region: 'phoenix_blocks_button', controlIndex: 0, type: 'text' }]), (error) => {
+    assert.equal(error.inventoryError.code, 'BUTTON_POPOVER_INVENTORY_UNSTABLE');
+    assert.match(error.message, /stage=popover-open/);
+    assert.match(error.message, /candidateCount/);
+    assert.match(error.message, /Button popover inventory did not stabilize/);
+    assert.equal(error.inventoryError.diagnostics.loadingMaskVisible, true);
+    return true;
+  });
+});
+
 test('fresh setting definitions are prepared only after the fresh instance reloads', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'old-one', ordinal: 0 }]);
   adapter.prepareSettings = async () => {
@@ -1101,9 +1149,9 @@ test('current setting inventory records values with region and control identity'
     { type: 'text', label: 'Quantity', value: '12' },
     { type: 'password', label: 'API key', value: 'never-report-this' },
   ] }]), [
-    { controlIdentity: 'gallery:1:Settings:checkbox:Show name:name:0', controlIndex: 0, region: 'Settings', label: 'Show name', type: 'checkbox', value: true },
-    { controlIdentity: 'gallery:1:Settings:text:Quantity:12:1', controlIndex: 1, region: 'Settings', label: 'Quantity', type: 'text', value: '12' },
-    { controlIdentity: 'gallery:1:Settings:password:API key:[redacted]:2', controlIndex: 2, region: 'Settings', label: 'API key', type: 'password', value: '[redacted]' },
+    { controlIdentity: 'gallery:1:Settings:checkbox:Show name:name:0', controlIndex: 0, region: 'Settings', wrapIndex: 1, label: 'Show name', type: 'checkbox', value: true },
+    { controlIdentity: 'gallery:1:Settings:text:Quantity:12:1', controlIndex: 1, region: 'Settings', wrapIndex: 1, label: 'Quantity', type: 'text', value: '12' },
+    { controlIdentity: 'gallery:1:Settings:password:API key:[redacted]:2', controlIndex: 2, region: 'Settings', wrapIndex: 1, label: 'API key', type: 'password', value: '[redacted]' },
   ]);
 });
 

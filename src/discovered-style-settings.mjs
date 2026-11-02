@@ -109,7 +109,12 @@ export function discoverStyleControlCandidates(inventory = [], persistedControls
   const candidates = [];
   for (const region of inventory || []) {
     for (const [index, control] of (region.controls || []).entries()) {
-      if (control.disabled || control.readOnly || control.inventoryNote) continue;
+      if (control.disabled || control.readOnly) continue;
+      // Skip only if truly not identifiable (no identity). Controls with an
+      // inventoryNote but a valid identity (e.g. position-based) are still
+      // discoverable for style controls; the note only means they're not
+      // mapped to a semantic setting.
+      if (!control.identity) continue;
       const kind = styleControlKind(control);
       if (!kind) continue;
       if (kind === 'color' && !isColorSchemeInventoryRegion(region, control)) continue;

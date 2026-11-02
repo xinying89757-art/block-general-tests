@@ -452,7 +452,12 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       await confirmMatches[0].locator.nth(confirmMatches[0].index).click();
     }
     await wrap.waitFor({ state: 'detached', timeout: 15_000 });
-    await savePage(page);
+    // Do NOT save here. The fresh-block flow owns the save boundary: it deletes
+    // all old instances first, then saves once. Keeping deletes unsaved until
+    // the flow's savePage() lets discardUnsavedChanges() (reload) truly roll
+    // back a mid-loop failure, so the stop report's 'stopped-before-save' is
+    // truthful. A per-delete save would make deletions permanent while the
+    // report claims nothing was saved.
   }
 
   return adapter;
