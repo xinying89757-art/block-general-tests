@@ -54,13 +54,15 @@ async function locateInstance(frame, instance) {
 }
 
 export function freshRailInventoryRegions(color, width) {
-  const widthControls = (width?.radios || []).map((radio, index) => ({ index, tag: 'INPUT', type: 'radio',
+  const widthControls = width?.status === 'control-absent' ? [] : (width?.radios || []).map((radio, index) => ({ index, tag: 'INPUT', type: 'radio',
     name: 'modulewidth', label: radio.label || '', value: radio.value, checked: Boolean(radio.checked), disabled: false }));
-  const customIndex = widthControls.length;
-  widthControls.push({ index: customIndex, tag: 'INPUT', type: 'text', name: '', label: '自定义宽度',
-    value: width?.customVal ?? '', checked: false, disabled: false, styleProperty: 'width' });
-  widthControls.push({ index: customIndex + 1, tag: 'INPUT', type: 'checkbox', name: 'globalApply', label: '全局应用',
-    value: 'on', checked: Boolean(width?.globalApply), disabled: false });
+  if (width?.status !== 'control-absent') {
+    const customIndex = widthControls.length;
+    widthControls.push({ index: customIndex, tag: 'INPUT', type: 'text', name: '', label: '自定义宽度',
+      value: width?.customVal ?? '', checked: false, disabled: false, styleProperty: 'width' });
+    widthControls.push({ index: customIndex + 1, tag: 'INPUT', type: 'checkbox', name: 'globalApply', label: '全局应用',
+      value: 'on', checked: Boolean(width?.globalApply), disabled: false });
+  }
   const colorControls = typeof color === 'string' ? [{ index: 0, tag: 'INPUT', type: 'text', name: 'scheme-color',
     label: '配色方案', value: color, checked: false, disabled: false, role: 'color',
     identity: 'position:0', position: 0 }] : (color?.controls || []).map((control, index) => ({
@@ -72,8 +74,28 @@ export function freshRailInventoryRegions(color, width) {
   return [
     { title: 'right-rail-color', section: '区块配色', regionKey: 'right-rail-color', type: 'rail:color-scheme', wrapIndex: 0, kind: 'right-rail-flyout',
       controls: colorControls, ...(color?.notes?.length ? { notes: color.notes } : {}) },
-    { title: 'right-rail-width', type: 'rail:module-width', wrapIndex: 0, kind: 'right-rail-flyout', controls: widthControls },
+    { title: 'right-rail-width', type: 'rail:module-width', wrapIndex: 0, kind: 'right-rail-flyout', controls: widthControls,
+      ...(width?.status ? { status: width.status } : {}), ...(width?.notes?.length ? { notes: width.notes } : {}) },
   ];
+}
+
+export async function readFreshWidthInventory({ open, read, cancel }) {
+  let opened = false;
+  try {
+    await open();
+    opened = true;
+    return await read();
+  } catch (error) {
+    if (error?.code === 'rail-toggle-absent') return { status: 'control-absent', radios: [],
+      notes: ['Module-width control is not offered in the selected block rail.'] };
+    throw error;
+  } finally {
+    if (opened) await cancel();
+  }
+}
+
+export async function appendFreshSettingsInventory(color, width, inventorySettingsReader) {
+  return [...freshRailInventoryRegions(color, width), ...await inventorySettingsReader()];
 }
 
 function uniqueStyleControl(controls, target) {
@@ -143,14 +165,15 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
           notes: [...(typeof color === 'object' ? color.notes || [] : []), error.message] };
       }
     }
-    await openRailPanel(frame, config.blockId, RAIL.widthIcon, RAIL.widthPanel, { settingId: config.freshSettingId });
-    let width;
-    try { width = await readModuleWidth(frame); } finally { await cancelWidthPanel(frame); }
+    const width = await readFreshWidthInventory({
+      open: () => openRailPanel(frame, config.blockId, RAIL.widthIcon, RAIL.widthPanel, { settingId: config.freshSettingId }),
+      read: () => readModuleWidth(frame),
+      cancel: () => cancelWidthPanel(frame),
+    });
     // Keep the button popover last: its verified close operation confirms
     // unchanged values when no non-saving dismissal is available.
-    return [...freshRailInventoryRegions(color, width),
-      ...await inventorySettings({ page, canvas: frame, config, blockId: config.blockId,
-        degradeInventoryErrors: true, includeControlSections: true })];
+    return appendFreshSettingsInventory(color, width, () => inventorySettings({ page, canvas: frame, config, blockId: config.blockId,
+      degradeInventoryErrors: true, includeControlSections: true }));
   };
   const selectedCreated = (instance) => ({ blockId: String(config.blockId), settingId: instance.settingId,
     ordinal: instance.ordinal, position: instance.position });

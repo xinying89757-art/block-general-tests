@@ -1,0 +1,576 @@
+{
+ "note": "Sanitized real editor rail capture G77 (read-only). Labels A=instance without module-width setting, B=instance with module-width.",
+ "instances": [
+  {
+   "label": "A",
+   "phases": {
+    "before": {
+     "railCount": 1,
+     "rails": [
+      {
+       "visible": false,
+       "rect": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "display": "none",
+       "visibility": "visible",
+       "opacity": "1",
+       "html": "<div class=\"siteblocks-setting-operateTools rowsOpts\"><div class=\"block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\" style=\"color: #fff;background: #359dda;\">&nbsp;ID&nbsp;<span>区块ID：40838</span></a></div><div class=\"ctner-background-btns block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-edit\"></i>&nbsp;<span>背景</span></a><div class=\"siteblocks-setting-operateBackground backstage-container-layout-setting\"><div class=\"fix mb5\"><span class=\"fll mr5 lh32\">背景颜色</span><span class=\"fll\"><input type=\"text\" class=\"siteblocks-setting-bgColor\" value=\"#ffffff\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgba(4, 79, 159, 0.1);\"></div></div><div class=\"sp-dd\">▼</div></div></span></div><div class=\"mb5 change-terminal\"><span class=\"label-item pc-label-item active\">PC端</span><span class=\"label-item mobile-label-item\">移动端</span></div><div class=\"pc-bg-content\"><ul class=\"fix\"><li style=\"background-image: url(/assets/images/wutu.jpg);\" data-img=\"none\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kqBoqKSRojlklniqi/4.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/knBoqKSRojlkqniji/4.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kmBoqKSRojlklnimi/5.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/klBoqKSRojlkqniii/5.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kpBoqKSRojlklnipi/6.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kkBoqKSRojlkqniri/6.jpg\"></li><li class=\"more\"><span class=\"operate-background-choose\">更多</span></li></ul><div class=\"siteblocks-operateBackground-upload\">\t<span>上传图片</span>\t<p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"scroll\" checked=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"fixed\">    </div></div></div><div class=\"mobile-bg-content hide\"><div class=\"mobile-url\" data-blocksettingid=\"ytplAVFnBmId\"><img class=\"mobile-url-img hide\" data-blockid=\"ytplAVFnBmId\" src=\"\" alt=\"\" title=\"\"><i class=\"icon-close fa fa-times\"></i></div><div class=\"siteblocks-operateBackground-fix\"><div class=\"siteblocks-operateBackground-upload mobile-upload\">\t<span>本地上传</span>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"siteblocks-operateBackground-mobile-upload mobile-upload\">\t<span class=\"operate-background-choose\">资料库上传</span></div></div><div class=\"siteblocks-operateBackground-upload\"><p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"mobile_attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"scroll\" checked=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"mobile_attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"fixed\">    </div></div></div><div class=\"siteblocks-background-operate\">\t<span class=\"siteblocks-background-operateCancel\">移除</span>\t<span class=\"siteblocks-background-operateSave\">保存</span></div></div></div><div class=\"backstage-container-color block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"fa fa-delicious\"></i>&nbsp;<span>配色</span></a><div class=\"siteblocks-setting-operateColor backstage-container-layout-setting\">\t<div class=\"blocks-color-hd\">颜色</div>\t<ul class=\"fix\"><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal0\" class=\"siteblocks-setting-color\" value=\"rgb(47, 73, 184)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgb(47, 73, 184);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal1\" class=\"siteblocks-setting-color\" value=\"rgb(242, 242, 245)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgb(242, 242, 245);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal2\" class=\"siteblocks-setting-color\" value=\"rgba(4, 79, 159, 0.1)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgba(4, 79, 159, 0.1);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li>\t</ul>\t<div class=\"siteblocks-background-operate\">\t\t<span class=\"siteblocks-color-operateReset\">重置</span>\t\t<span class=\"siteblocks-background-operateSave\">保存</span>\t</div></div></div><div class=\"backstage-container-padding block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"block-icon block-iconhangjianju\"></i>&nbsp;<span>内边距</span></a><div class=\"block-progress\"><div class=\"progress-box progress-box-pc\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端上边距</p><div class=\"volume\"> <div class=\"setVolume setVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端下边距</p><div class=\"volume\"><div class=\"setVolume setVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"progress-box progress-box-mobile\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端上边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端下边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"btnWrap\"><div class=\"confirmBtn\">保存</div><div class=\"concelBtn\">取消</div></div></div></div><div class=\"backstage-container-moveUp siteblocks-operateTool\" style=\"display: none;\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-chevron-up\"></i>&nbsp;<span>上移</span></a></div><div class=\"backstage-container-moveDown siteblocks-operateTool\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-chevron-down\"></i>&nbsp;<span>下移</span></a></div><div class=\"backstage-container-copy\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"block-icon block-iconfuzhi1\"></i>&nbsp;<span>复制</span></a></div><div class=\"backstage-container-delete\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-trash\"></i>&nbsp;<span>删除</span></a></div></div>"
+      }
+     ],
+     "matches": {
+      "colorPreferred": [
+       {
+        "cls": "",
+        "tag": "A",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPreferred": [],
+      "widthFallback": [],
+      "colorFallback": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "colorPanel": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPanel": []
+     }
+    },
+    "hover": {
+     "railCount": 1,
+     "rails": [
+      {
+       "visible": false,
+       "rect": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "display": "none",
+       "visibility": "visible",
+       "opacity": "1",
+       "html": "<div class=\"siteblocks-setting-operateTools rowsOpts\"><div class=\"block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\" style=\"color: #fff;background: #359dda;\">&nbsp;ID&nbsp;<span>区块ID：40838</span></a></div><div class=\"ctner-background-btns block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-edit\"></i>&nbsp;<span>背景</span></a><div class=\"siteblocks-setting-operateBackground backstage-container-layout-setting\"><div class=\"fix mb5\"><span class=\"fll mr5 lh32\">背景颜色</span><span class=\"fll\"><input type=\"text\" class=\"siteblocks-setting-bgColor\" value=\"#ffffff\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgba(4, 79, 159, 0.1);\"></div></div><div class=\"sp-dd\">▼</div></div></span></div><div class=\"mb5 change-terminal\"><span class=\"label-item pc-label-item active\">PC端</span><span class=\"label-item mobile-label-item\">移动端</span></div><div class=\"pc-bg-content\"><ul class=\"fix\"><li style=\"background-image: url(/assets/images/wutu.jpg);\" data-img=\"none\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kqBoqKSRojlklniqi/4.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/knBoqKSRojlkqniji/4.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kmBoqKSRojlklnimi/5.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/klBoqKSRojlkqniii/5.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kpBoqKSRojlklnipi/6.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kkBoqKSRojlkqniri/6.jpg\"></li><li class=\"more\"><span class=\"operate-background-choose\">更多</span></li></ul><div class=\"siteblocks-operateBackground-upload\">\t<span>上传图片</span>\t<p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\" style=\"\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"scroll\" checked=\"\" style=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"fixed\" style=\"\">    </div></div></div><div class=\"mobile-bg-content hide\"><div class=\"mobile-url\" data-blocksettingid=\"ytplAVFnBmId\"><img class=\"mobile-url-img hide\" data-blockid=\"ytplAVFnBmId\" src=\"\" alt=\"\" title=\"\"><i class=\"icon-close fa fa-times\"></i></div><div class=\"siteblocks-operateBackground-fix\"><div class=\"siteblocks-operateBackground-upload mobile-upload\">\t<span>本地上传</span>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\" style=\"\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"siteblocks-operateBackground-mobile-upload mobile-upload\">\t<span class=\"operate-background-choose\">资料库上传</span></div></div><div class=\"siteblocks-operateBackground-upload\"><p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"mobile_attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"scroll\" checked=\"\" style=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"mobile_attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"fixed\" style=\"\">    </div></div></div><div class=\"siteblocks-background-operate\">\t<span class=\"siteblocks-background-operateCancel\">移除</span>\t<span class=\"siteblocks-background-operateSave\">保存</span></div></div></div><div class=\"backstage-container-color block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"fa fa-delicious\"></i>&nbsp;<span>配色</span></a><div class=\"siteblocks-setting-operateColor backstage-container-layout-setting\">\t<div class=\"blocks-color-hd\">颜色</div>\t<ul class=\"fix\"><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal0\" class=\"siteblocks-setting-color\" value=\"rgb(47, 73, 184)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgb(47, 73, 184);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal1\" class=\"siteblocks-setting-color\" value=\"rgb(242, 242, 245)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgb(242, 242, 245);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal2\" class=\"siteblocks-setting-color\" value=\"rgba(4, 79, 159, 0.1)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgba(4, 79, 159, 0.1);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li>\t</ul>\t<div class=\"siteblocks-background-operate\">\t\t<span class=\"siteblocks-color-operateReset\">重置</span>\t\t<span class=\"siteblocks-background-operateSave\">保存</span>\t</div></div></div><div class=\"backstage-container-padding block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"block-icon block-iconhangjianju\"></i>&nbsp;<span>内边距</span></a><div class=\"block-progress\"><div class=\"progress-box progress-box-pc\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端上边距</p><div class=\"volume\"> <div class=\"setVolume setVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端下边距</p><div class=\"volume\"><div class=\"setVolume setVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"progress-box progress-box-mobile\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端上边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端下边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"btnWrap\"><div class=\"confirmBtn\">保存</div><div class=\"concelBtn\">取消</div></div></div></div><div class=\"backstage-container-moveUp siteblocks-operateTool\" style=\"display: none;\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-chevron-up\"></i>&nbsp;<span>上移</span></a></div><div class=\"backstage-container-moveDown siteblocks-operateTool\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-chevron-down\"></i>&nbsp;<span>下移</span></a></div><div class=\"backstage-container-copy\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"block-icon block-iconfuzhi1\"></i>&nbsp;<span>复制</span></a></div><div class=\"backstage-container-delete\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-trash\"></i>&nbsp;<span>删除</span></a></div></div>"
+      }
+     ],
+     "matches": {
+      "colorPreferred": [
+       {
+        "cls": "",
+        "tag": "A",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPreferred": [],
+      "widthFallback": [],
+      "colorFallback": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "colorPanel": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPanel": []
+     }
+    },
+    "selected": {
+     "railCount": 1,
+     "rails": [
+      {
+       "visible": true,
+       "rect": [
+        1492,
+        168,
+        30,
+        216
+       ],
+       "display": "block",
+       "visibility": "visible",
+       "opacity": "1",
+       "html": "<div class=\"siteblocks-setting-operateTools rowsOpts\"><div class=\"block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\" style=\"color: #fff;background: #359dda;\">&nbsp;ID&nbsp;<span>区块ID：40838</span></a></div><div class=\"ctner-background-btns block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-edit\"></i>&nbsp;<span>背景</span></a><div class=\"siteblocks-setting-operateBackground backstage-container-layout-setting\"><div class=\"fix mb5\"><span class=\"fll mr5 lh32\">背景颜色</span><span class=\"fll\"><input type=\"text\" class=\"siteblocks-setting-bgColor\" value=\"#ffffff\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgba(4, 79, 159, 0.1);\"></div></div><div class=\"sp-dd\">▼</div></div></span></div><div class=\"mb5 change-terminal\"><span class=\"label-item pc-label-item active\">PC端</span><span class=\"label-item mobile-label-item\">移动端</span></div><div class=\"pc-bg-content\"><ul class=\"fix\"><li style=\"background-image: url(/assets/images/wutu.jpg);\" data-img=\"none\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kqBoqKSRojlklniqi/4.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/knBoqKSRojlkqniji/4.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kmBoqKSRojlklnimi/5.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/klBoqKSRojlkqniii/5.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kpBoqKSRojlklnipi/6.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kkBoqKSRojlkqniri/6.jpg\"></li><li class=\"more\"><span class=\"operate-background-choose\">更多</span></li></ul><div class=\"siteblocks-operateBackground-upload\">\t<span>上传图片</span>\t<p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\" style=\"\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"scroll\" checked=\"\" style=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"fixed\" style=\"\">    </div></div></div><div class=\"mobile-bg-content hide\"><div class=\"mobile-url\" data-blocksettingid=\"ytplAVFnBmId\"><img class=\"mobile-url-img hide\" data-blockid=\"ytplAVFnBmId\" src=\"\" alt=\"\" title=\"\"><i class=\"icon-close fa fa-times\"></i></div><div class=\"siteblocks-operateBackground-fix\"><div class=\"siteblocks-operateBackground-upload mobile-upload\">\t<span>本地上传</span>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\" style=\"\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"siteblocks-operateBackground-mobile-upload mobile-upload\">\t<span class=\"operate-background-choose\">资料库上传</span></div></div><div class=\"siteblocks-operateBackground-upload\"><p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"mobile_attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"scroll\" checked=\"\" style=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"mobile_attachment_ytplAVFnBmId\" type=\"radio\" data-value=\"fixed\" style=\"\">    </div></div></div><div class=\"siteblocks-background-operate\">\t<span class=\"siteblocks-background-operateCancel\">移除</span>\t<span class=\"siteblocks-background-operateSave\">保存</span></div></div></div><div class=\"backstage-container-color block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"fa fa-delicious\"></i>&nbsp;<span>配色</span></a><div class=\"siteblocks-setting-operateColor backstage-container-layout-setting\">\t<div class=\"blocks-color-hd\">颜色</div>\t<ul class=\"fix\"><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal0\" class=\"siteblocks-setting-color\" value=\"rgb(47, 73, 184)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgb(47, 73, 184);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal1\" class=\"siteblocks-setting-color\" value=\"rgb(242, 242, 245)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgb(242, 242, 245);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal2\" class=\"siteblocks-setting-color\" value=\"rgba(4, 79, 159, 0.1)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgba(4, 79, 159, 0.1);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li>\t</ul>\t<div class=\"siteblocks-background-operate\">\t\t<span class=\"siteblocks-color-operateReset\">重置</span>\t\t<span class=\"siteblocks-background-operateSave\">保存</span>\t</div></div></div><div class=\"backstage-container-padding block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"block-icon block-iconhangjianju\"></i>&nbsp;<span>内边距</span></a><div class=\"block-progress\"><div class=\"progress-box progress-box-pc\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端上边距</p><div class=\"volume\"> <div class=\"setVolume setVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端下边距</p><div class=\"volume\"><div class=\"setVolume setVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"progress-box progress-box-mobile\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端上边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端下边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"btnWrap\"><div class=\"confirmBtn\">保存</div><div class=\"concelBtn\">取消</div></div></div></div><div class=\"backstage-container-moveUp siteblocks-operateTool\" style=\"display: none;\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-chevron-up\"></i>&nbsp;<span>上移</span></a></div><div class=\"backstage-container-moveDown siteblocks-operateTool\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-chevron-down\"></i>&nbsp;<span>下移</span></a></div><div class=\"backstage-container-copy\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"block-icon block-iconfuzhi1\"></i>&nbsp;<span>复制</span></a></div><div class=\"backstage-container-delete\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-ytplAVFnBmId\">&nbsp;<i class=\"icon-trash\"></i>&nbsp;<span>删除</span></a></div></div>"
+      }
+     ],
+     "matches": {
+      "colorPreferred": [
+       {
+        "cls": "",
+        "tag": "A",
+        "visible": true,
+        "rect": [
+         1492,
+         230,
+         30,
+         30
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPreferred": [],
+      "widthFallback": [],
+      "colorFallback": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "colorPanel": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPanel": []
+     }
+    }
+   }
+  },
+  {
+   "label": "B",
+   "phases": {
+    "before": {
+     "railCount": 1,
+     "rails": [
+      {
+       "visible": false,
+       "rect": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "display": "none",
+       "visibility": "visible",
+       "opacity": "1",
+       "html": "<div class=\"siteblocks-setting-operateTools rowsOpts\"><div class=\"block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\" style=\"color: #fff;background: #359dda;\">&nbsp;ID&nbsp;<span>区块ID：47748</span></a></div><div class=\"ctner-background-btns block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-edit\"></i>&nbsp;<span>背景</span></a><div class=\"siteblocks-setting-operateBackground backstage-container-layout-setting\"><div class=\"fix mb5\"><span class=\"fll mr5 lh32\">背景颜色</span><span class=\"fll\"><input type=\"text\" class=\"siteblocks-setting-bgColor\" value=\"#ffffff\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgba(0, 0, 0, 0);\"></div></div><div class=\"sp-dd\">▼</div></div></span></div><div class=\"mb5 change-terminal\"><span class=\"label-item pc-label-item active\">PC端</span><span class=\"label-item mobile-label-item\">移动端</span></div><div class=\"pc-bg-content\"><ul class=\"fix\"><li style=\"background-image: url(/assets/images/wutu.jpg);\" data-img=\"none\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kqBoqKSRojlklniqi/4.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/knBoqKSRojlkqniji/4.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kmBoqKSRojlklnimi/5.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/klBoqKSRojlkqniii/5.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kpBoqKSRojlklnipi/6.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kkBoqKSRojlkqniri/6.jpg\"></li><li class=\"more\"><span class=\"operate-background-choose\">更多</span></li></ul><div class=\"siteblocks-operateBackground-upload\">\t<span>上传图片</span>\t<p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\" style=\"\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"scroll\" checked=\"\" style=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"fixed\" style=\"\">    </div></div></div><div class=\"mobile-bg-content hide\"><div class=\"mobile-url\" data-blocksettingid=\"nNKQUVuwrBky\"><img class=\"mobile-url-img hide\" data-blockid=\"nNKQUVuwrBky\" src=\"\" alt=\"\" title=\"\"><i class=\"icon-close fa fa-times\"></i></div><div class=\"siteblocks-operateBackground-fix\"><div class=\"siteblocks-operateBackground-upload mobile-upload\">\t<span>本地上传</span>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\" style=\"\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"siteblocks-operateBackground-mobile-upload mobile-upload\">\t<span class=\"operate-background-choose\">资料库上传</span></div></div><div class=\"siteblocks-operateBackground-upload\"><p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"mobile_attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"scroll\" checked=\"\" style=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"mobile_attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"fixed\" style=\"\">    </div></div></div><div class=\"siteblocks-background-operate\">\t<span class=\"siteblocks-background-operateCancel\">移除</span>\t<span class=\"siteblocks-background-operateSave\">保存</span></div></div></div><div class=\"ctner-containerOpen-btns containerOpenState\"><a class=\"block_telescopic\" href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-exchange 66\"></i>&nbsp;<span>模块展开</span></a><div class=\"moduleWidth\"><div class=\"globalWidth-title\"></div><div class=\"global-box progress-box-mobile\"><p><label><input type=\"radio\" name=\"modulewidth\" value=\"1\" style=\"\">1200px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"2\" style=\"\">1440px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"3\" style=\"\">1600px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"4\" style=\"\">1920px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"-2\" style=\"\">全屏</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"-1\" style=\"\">自定义（需不小于1200px）</label></p><p class=\"customizeInput\"><input class=\"customizeVal\" min=\"1200\" style=\"\"><span>px</span></p></div><div style=\"margin-top: 10px;margin-bottom: 20px;\" class=\"global-box global-apply-box\"><p><label style=\"display: flex;align-items: center;\"><input type=\"checkbox\" style=\"margin-right: 5px;\" name=\"globalApply\"><span class=\"TipsIcon\"><span class=\"TipsBox\"></span></span></label></p></div><div class=\"btnWrap\"><div class=\"confirmBtn\">保存</div><div class=\"concelBtn\">取消</div></div></div></div><div class=\"backstage-container-color block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"fa fa-delicious\"></i>&nbsp;<span>配色</span></a><div class=\"siteblocks-setting-operateColor backstage-container-layout-setting\">\t<div class=\"blocks-color-hd\">颜色</div>\t<ul class=\"fix\"><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal1\" class=\"siteblocks-setting-color\" value=\"rgb(255, 0, 0)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgb(255, 0, 0);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li>\t</ul>\t<div class=\"siteblocks-background-operate\">\t\t<span class=\"siteblocks-color-operateReset\">重置</span>\t\t<span class=\"siteblocks-background-operateSave\">保存</span>\t</div></div></div><div class=\"backstage-container-padding block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"block-icon block-iconhangjianju\"></i>&nbsp;<span>内边距</span></a><div class=\"block-progress\"><div class=\"progress-box progress-box-pc\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端上边距</p><div class=\"volume\"> <div class=\"setVolume setVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端下边距</p><div class=\"volume\"><div class=\"setVolume setVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"progress-box progress-box-mobile\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端上边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端下边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"btnWrap\"><div class=\"confirmBtn\">保存</div><div class=\"concelBtn\">取消</div></div></div></div><div class=\"backstage-container-moveUp siteblocks-operateTool\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-chevron-up\"></i>&nbsp;<span>上移</span></a></div><div class=\"backstage-container-moveDown siteblocks-operateTool\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-chevron-down\"></i>&nbsp;<span>下移</span></a></div><div class=\"backstage-container-copy\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"block-icon block-iconfuzhi1\"></i>&nbsp;<span>复制</span></a></div><div class=\"backstage-container-delete\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-trash\"></i>&nbsp;<span>删除</span></a></div></div>"
+      }
+     ],
+     "matches": {
+      "colorPreferred": [
+       {
+        "cls": "",
+        "tag": "A",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPreferred": [
+       {
+        "cls": "block_telescopic",
+        "tag": "A",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthFallback": [
+       {
+        "cls": "block_telescopic",
+        "tag": "A",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "colorFallback": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "colorPanel": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPanel": [
+       {
+        "cls": "moduleWidth",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ]
+     }
+    },
+    "hover": {
+     "railCount": 1,
+     "rails": [
+      {
+       "visible": false,
+       "rect": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "display": "none",
+       "visibility": "visible",
+       "opacity": "1",
+       "html": "<div class=\"siteblocks-setting-operateTools rowsOpts\"><div class=\"block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\" style=\"color: #fff;background: #359dda;\">&nbsp;ID&nbsp;<span>区块ID：47748</span></a></div><div class=\"ctner-background-btns block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-edit\"></i>&nbsp;<span>背景</span></a><div class=\"siteblocks-setting-operateBackground backstage-container-layout-setting\"><div class=\"fix mb5\"><span class=\"fll mr5 lh32\">背景颜色</span><span class=\"fll\"><input type=\"text\" class=\"siteblocks-setting-bgColor\" value=\"#ffffff\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgba(0, 0, 0, 0);\"></div></div><div class=\"sp-dd\">▼</div></div></span></div><div class=\"mb5 change-terminal\"><span class=\"label-item pc-label-item active\">PC端</span><span class=\"label-item mobile-label-item\">移动端</span></div><div class=\"pc-bg-content\"><ul class=\"fix\"><li style=\"background-image: url(/assets/images/wutu.jpg);\" data-img=\"none\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kqBoqKSRojlklniqi/4.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/knBoqKSRojlkqniji/4.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kmBoqKSRojlklnimi/5.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/klBoqKSRojlkqniii/5.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kpBoqKSRojlklnipi/6.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kkBoqKSRojlkqniri/6.jpg\"></li><li class=\"more\"><span class=\"operate-background-choose\">更多</span></li></ul><div class=\"siteblocks-operateBackground-upload\">\t<span>上传图片</span>\t<p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\" style=\"\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"scroll\" checked=\"\" style=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"fixed\" style=\"\">    </div></div></div><div class=\"mobile-bg-content hide\"><div class=\"mobile-url\" data-blocksettingid=\"nNKQUVuwrBky\"><img class=\"mobile-url-img hide\" data-blockid=\"nNKQUVuwrBky\" src=\"\" alt=\"\" title=\"\"><i class=\"icon-close fa fa-times\"></i></div><div class=\"siteblocks-operateBackground-fix\"><div class=\"siteblocks-operateBackground-upload mobile-upload\">\t<span>本地上传</span>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\" style=\"\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"siteblocks-operateBackground-mobile-upload mobile-upload\">\t<span class=\"operate-background-choose\">资料库上传</span></div></div><div class=\"siteblocks-operateBackground-upload\"><p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"mobile_attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"scroll\" checked=\"\" style=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"mobile_attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"fixed\" style=\"\">    </div></div></div><div class=\"siteblocks-background-operate\">\t<span class=\"siteblocks-background-operateCancel\">移除</span>\t<span class=\"siteblocks-background-operateSave\">保存</span></div></div></div><div class=\"ctner-containerOpen-btns containerOpenState\"><a class=\"block_telescopic\" href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-exchange 66\"></i>&nbsp;<span>模块展开</span></a><div class=\"moduleWidth\"><div class=\"globalWidth-title\"></div><div class=\"global-box progress-box-mobile\"><p><label><input type=\"radio\" name=\"modulewidth\" value=\"1\" style=\"\">1200px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"2\" style=\"\">1440px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"3\" style=\"\">1600px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"4\" style=\"\">1920px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"-2\" style=\"\">全屏</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"-1\" style=\"\">自定义（需不小于1200px）</label></p><p class=\"customizeInput\"><input class=\"customizeVal\" min=\"1200\" style=\"\"><span>px</span></p></div><div style=\"margin-top: 10px;margin-bottom: 20px;\" class=\"global-box global-apply-box\"><p><label style=\"display: flex;align-items: center;\"><input type=\"checkbox\" style=\"margin-right: 5px;\" name=\"globalApply\"><span class=\"TipsIcon\"><span class=\"TipsBox\"></span></span></label></p></div><div class=\"btnWrap\"><div class=\"confirmBtn\">保存</div><div class=\"concelBtn\">取消</div></div></div></div><div class=\"backstage-container-color block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"fa fa-delicious\"></i>&nbsp;<span>配色</span></a><div class=\"siteblocks-setting-operateColor backstage-container-layout-setting\">\t<div class=\"blocks-color-hd\">颜色</div>\t<ul class=\"fix\"><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal1\" class=\"siteblocks-setting-color\" value=\"rgb(255, 0, 0)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgb(255, 0, 0);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li>\t</ul>\t<div class=\"siteblocks-background-operate\">\t\t<span class=\"siteblocks-color-operateReset\">重置</span>\t\t<span class=\"siteblocks-background-operateSave\">保存</span>\t</div></div></div><div class=\"backstage-container-padding block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"block-icon block-iconhangjianju\"></i>&nbsp;<span>内边距</span></a><div class=\"block-progress\"><div class=\"progress-box progress-box-pc\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端上边距</p><div class=\"volume\"> <div class=\"setVolume setVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端下边距</p><div class=\"volume\"><div class=\"setVolume setVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"progress-box progress-box-mobile\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端上边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端下边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"btnWrap\"><div class=\"confirmBtn\">保存</div><div class=\"concelBtn\">取消</div></div></div></div><div class=\"backstage-container-moveUp siteblocks-operateTool\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-chevron-up\"></i>&nbsp;<span>上移</span></a></div><div class=\"backstage-container-moveDown siteblocks-operateTool\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-chevron-down\"></i>&nbsp;<span>下移</span></a></div><div class=\"backstage-container-copy\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"block-icon block-iconfuzhi1\"></i>&nbsp;<span>复制</span></a></div><div class=\"backstage-container-delete\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-trash\"></i>&nbsp;<span>删除</span></a></div></div>"
+      }
+     ],
+     "matches": {
+      "colorPreferred": [
+       {
+        "cls": "",
+        "tag": "A",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPreferred": [
+       {
+        "cls": "block_telescopic",
+        "tag": "A",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthFallback": [
+       {
+        "cls": "block_telescopic",
+        "tag": "A",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "colorFallback": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "colorPanel": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPanel": [
+       {
+        "cls": "moduleWidth",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ]
+     }
+    },
+    "selected": {
+     "railCount": 1,
+     "rails": [
+      {
+       "visible": true,
+       "rect": [
+        1492,
+        3,
+        30,
+        278
+       ],
+       "display": "block",
+       "visibility": "visible",
+       "opacity": "1",
+       "html": "<div class=\"siteblocks-setting-operateTools rowsOpts\"><div class=\"block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\" style=\"color: #fff;background: #359dda;\">&nbsp;ID&nbsp;<span>区块ID：47748</span></a></div><div class=\"ctner-background-btns block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-edit\"></i>&nbsp;<span>背景</span></a><div class=\"siteblocks-setting-operateBackground backstage-container-layout-setting\"><div class=\"fix mb5\"><span class=\"fll mr5 lh32\">背景颜色</span><span class=\"fll\"><input type=\"text\" class=\"siteblocks-setting-bgColor\" value=\"#ffffff\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgba(0, 0, 0, 0);\"></div></div><div class=\"sp-dd\">▼</div></div></span></div><div class=\"mb5 change-terminal\"><span class=\"label-item pc-label-item active\">PC端</span><span class=\"label-item mobile-label-item\">移动端</span></div><div class=\"pc-bg-content\"><ul class=\"fix\"><li style=\"background-image: url(/assets/images/wutu.jpg);\" data-img=\"none\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kiBoqKSRojlkonimj/1.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kqBoqKSRojlklniqi/4.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/knBoqKSRojlkqniji/4.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kmBoqKSRojlklnimi/5.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/klBoqKSRojlkqniii/5.jpg\"></li><li style=\"background-image: url(//a0.leadongcdn.cn/cloud/kpBoqKSRojlklnipi/6.jpg);\" data-img=\"//a0.leadongcdn.cn/cloud/kkBoqKSRojlkqniri/6.jpg\"></li><li class=\"more\"><span class=\"operate-background-choose\">更多</span></li></ul><div class=\"siteblocks-operateBackground-upload\">\t<span>上传图片</span>\t<p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\" style=\"\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"scroll\" checked=\"\" style=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"fixed\" style=\"\">    </div></div></div><div class=\"mobile-bg-content hide\"><div class=\"mobile-url\" data-blocksettingid=\"nNKQUVuwrBky\"><img class=\"mobile-url-img hide\" data-blockid=\"nNKQUVuwrBky\" src=\"\" alt=\"\" title=\"\"><i class=\"icon-close fa fa-times\"></i></div><div class=\"siteblocks-operateBackground-fix\"><div class=\"siteblocks-operateBackground-upload mobile-upload\">\t<span>本地上传</span>\t<form class=\"uploadForm hide\" action=\"\" method=\"post\" target=\"coreIframe\" enctype=\"multipart/form-data\"><input name=\"filedata\" type=\"file\" value=\"\" accept=\"image/gif,image/jpeg,image/png,image/jpg\" style=\"\"><iframe name=\"coreIframe\"></iframe></form></div><div class=\"siteblocks-operateBackground-mobile-upload mobile-upload\">\t<span class=\"operate-background-choose\">资料库上传</span></div></div><div class=\"siteblocks-operateBackground-upload\"><p class=\"operateBackground-upload-tip font12 colorRed mt5 hide\"></p></div><div class=\"picture-flat\">\t<div class=\"picture-flat-choosed\">\t\t<div class=\"picture-flat-icon\"></div>\t\t<select>\t\t\t<option value=\"repeat\">平铺</option>\t\t\t<option value=\"repeat-x\">横向平铺</option>\t\t\t<option value=\"repeat-y\">纵向平铺</option>\t\t\t<option value=\"no-repeat\">不平铺</option>\t\t</select>\t</div></div><div class=\"picture-position\">\t<div class=\"picture-position-choosed\">\t\t<div class=\"picture-position-icon\"></div>\t\t<select>\t\t\t<option value=\"center center\">垂直居中</option>\t\t\t<option value=\"center bottom\">底部居中</option>\t\t\t<option value=\"center top\">顶部居中</option>\t\t\t<option value=\"left center\">左居中</option>\t\t\t<option value=\"right center\">右居中</option>\t\t\t<option value=\"left top\">左上方</option>\t\t\t<option value=\"right top\">右上方</option>\t\t\t<option value=\"left bottom\">左下方</option>\t\t\t<option value=\"right bottom\">右下方</option>\t\t</select>\t</div></div><div class=\"picture-size\">\t<div class=\"picture-size-choosed\">\t\t<div class=\"picture-size-icon\"></div>\t\t<select>\t\t\t<option value=\"initial\">原始尺寸</option>\t\t\t<option value=\"cover\">填充</option>\t\t\t<option value=\"contain\">适应</option>\t\t</select>\t</div></div><div class=\"picture-attachment\">    <div class=\"picture-attachment-label\">是否随网页滚动:</div>    <div class=\"picture-attachment-radio picture-attachment-radio-mr20\">        <label for=\"picture-attachment-radio1\" class=\"radio-label\">是</label>        <input class=\"picture-attachment-radio1\" name=\"mobile_attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"scroll\" checked=\"\" style=\"\">    </div>    <div class=\"picture-attachment-radio\">        <label for=\"picture-attachment-radio2\" class=\"radio-label\">否</label>        <input class=\"picture-attachment-radio2\" name=\"mobile_attachment_nNKQUVuwrBky\" type=\"radio\" data-value=\"fixed\" style=\"\">    </div></div></div><div class=\"siteblocks-background-operate\">\t<span class=\"siteblocks-background-operateCancel\">移除</span>\t<span class=\"siteblocks-background-operateSave\">保存</span></div></div></div><div class=\"ctner-containerOpen-btns containerOpenState\"><a class=\"block_telescopic\" href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-exchange 66\"></i>&nbsp;<span>模块展开</span></a><div class=\"moduleWidth\"><div class=\"globalWidth-title\"></div><div class=\"global-box progress-box-mobile\"><p><label><input type=\"radio\" name=\"modulewidth\" value=\"1\" style=\"\">1200px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"2\" style=\"\">1440px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"3\" style=\"\">1600px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"4\" style=\"\">1920px</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"-2\" style=\"\">全屏</label></p><p><label><input type=\"radio\" name=\"modulewidth\" value=\"-1\" style=\"\">自定义（需不小于1200px）</label></p><p class=\"customizeInput\"><input class=\"customizeVal\" min=\"1200\" style=\"\"><span>px</span></p></div><div style=\"margin-top: 10px;margin-bottom: 20px;\" class=\"global-box global-apply-box\"><p><label style=\"display: flex;align-items: center;\"><input type=\"checkbox\" style=\"margin-right: 5px;\" name=\"globalApply\"><span class=\"TipsIcon\"><span class=\"TipsBox\"></span></span></label></p></div><div class=\"btnWrap\"><div class=\"confirmBtn\">保存</div><div class=\"concelBtn\">取消</div></div></div></div><div class=\"backstage-container-color block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"fa fa-delicious\"></i>&nbsp;<span>配色</span></a><div class=\"siteblocks-setting-operateColor backstage-container-layout-setting\">\t<div class=\"blocks-color-hd\">颜色</div>\t<ul class=\"fix\"><li><div class=\"blocks-color-wrap\"><input type=\"text\" name=\"colorVal1\" class=\"siteblocks-setting-color\" value=\"rgb(255, 0, 0)\" style=\"display: none;\"><div class=\"sp-replacer sp-light\"><div class=\"sp-preview\"><div class=\"sp-preview-inner\" style=\"background-color: rgb(255, 0, 0);\"></div></div><div class=\"sp-dd\">▼</div></div></div></li>\t</ul>\t<div class=\"siteblocks-background-operate\">\t\t<span class=\"siteblocks-color-operateReset\">重置</span>\t\t<span class=\"siteblocks-background-operateSave\">保存</span>\t</div></div></div><div class=\"backstage-container-padding block-operate-btn\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"block-icon block-iconhangjianju\"></i>&nbsp;<span>内边距</span></a><div class=\"block-progress\"><div class=\"progress-box progress-box-pc\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端上边距</p><div class=\"volume\"> <div class=\"setVolume setVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>PC端下边距</p><div class=\"volume\"><div class=\"setVolume setVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"progress-box progress-box-mobile\"><div class=\"icon\"></div><div class=\"progress-main\"><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端上边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeTop\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div><div class=\"progress-container\"><div class=\"progress-1\"><p>移动端下边距</p><div class=\"volume\"><div class=\"setVolume setMobVolumeBottom\"><div class=\"setVolumeBtn\"></div></div></div></div><div class=\"progress-2\"><div class=\"input\"><input class=\"inputnum num\" type=\"text\" value=\"0\" style=\"\">px</div><div class=\"arrow\"><div class=\"arrow-up\"><i class=\"fa fa-angle-up\"></i></div><div class=\"arrow-down\"><i class=\"fa fa-angle-down\"></i></div></div></div></div></div><div class=\"progress-connect\"><div class=\"connect-icon\"></div></div></div><div class=\"btnWrap\"><div class=\"confirmBtn\">保存</div><div class=\"concelBtn\">取消</div></div></div></div><div class=\"backstage-container-moveUp siteblocks-operateTool\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-chevron-up\"></i>&nbsp;<span>上移</span></a></div><div class=\"backstage-container-moveDown siteblocks-operateTool\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-chevron-down\"></i>&nbsp;<span>下移</span></a></div><div class=\"backstage-container-copy\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"block-icon block-iconfuzhi1\"></i>&nbsp;<span>复制</span></a></div><div class=\"backstage-container-delete\"><a href=\"javascript:;\" data-id=\"siteblocks-setting-wrap-nNKQUVuwrBky\">&nbsp;<i class=\"icon-trash\"></i>&nbsp;<span>删除</span></a></div></div>"
+      }
+     ],
+     "matches": {
+      "colorPreferred": [
+       {
+        "cls": "",
+        "tag": "A",
+        "visible": true,
+        "rect": [
+         1492,
+         96,
+         30,
+         30
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPreferred": [
+       {
+        "cls": "block_telescopic",
+        "tag": "A",
+        "visible": true,
+        "rect": [
+         1492,
+         65,
+         30,
+         30
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthFallback": [
+       {
+        "cls": "block_telescopic",
+        "tag": "A",
+        "visible": true,
+        "rect": [
+         1492,
+         65,
+         30,
+         30
+        ],
+        "display": "block",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "colorFallback": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "colorPanel": [
+       {
+        "cls": "siteblocks-setting-operateColor backstage-container-layout-setting",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ],
+      "widthPanel": [
+       {
+        "cls": "moduleWidth",
+        "tag": "DIV",
+        "visible": false,
+        "rect": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "display": "none",
+        "visibility": "visible",
+        "opacity": "1"
+       }
+      ]
+     }
+    }
+   }
+  }
+ ]
+}

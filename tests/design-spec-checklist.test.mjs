@@ -58,6 +58,15 @@ test('module-width editor check requires the setting and the specified default',
   const missing = checkDesignRequirementEditor(item, { profile: p, inventory: [] });
   assert.equal(missing.status, 'fail');
   assert.equal(missing.actual.settingExists, false);
+  const absent = checkDesignRequirementEditor(item, { profile: p, inventory: [{ type: 'rail:module-width', status: 'control-absent', controls: [],
+    notes: ['Module-width control is not offered in the selected block rail.'] }] });
+  assert.equal(absent.status, 'fail');
+  assert.equal(absent.actual.settingExists, false);
+  const waivedAbsent = checkDesignRequirementEditor(item, { profile: profile([item], {
+    overrides: [{ requirementId: 'width', status: 'waived', reason: 'Removed setting.' }] }),
+  inventory: [{ type: 'rail:module-width', status: 'control-absent', controls: [] }] });
+  assert.equal(waivedAbsent.status, 'na');
+  assert.equal(waivedAbsent.reason.code, 'waived');
   assert.equal(checkDesignRequirementEditor(item, { profile: p, inventory: [{ ...region,
     controls: [{ type: 'radio', label: '1200px', checked: true }] }] }).status, 'fail');
   const customWidth = { type: 'rail:module-width', controls: [

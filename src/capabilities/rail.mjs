@@ -201,6 +201,25 @@ export async function openRailPanelWithRetry({ readPanelOpen, resolveToolbar, re
       catch (error) { lastFailure = error; strategies.push(`fallback-toggle:${error.message}`); }
       if (toggle) strategies.push('fallback-toggle');
     }
+    if (toggle?.absent === true) {
+      strategies.push('toggle-absent-confirmation');
+      let confirmed;
+      try {
+        const freshToolbar = await resolveToolbar();
+        confirmed = freshToolbar ? await resolveToggle(freshToolbar, { preferred: true, confirmAbsent: true }) : null;
+        if (!confirmed) confirmed = freshToolbar ? await resolveToggle(freshToolbar, { preferred: false, confirmAbsent: true }) : null;
+      } catch (error) { lastFailure = error; }
+      if (confirmed?.absent === true) {
+        const error = new Error('rail-toggle-absent: target rail is visible but has no matching preferred or fallback toggle.');
+        error.code = 'rail-toggle-absent';
+        error.matchCounts = confirmed.matchCounts;
+        throw error;
+      }
+      // A newly rendered control or a stale toolbar is handled by the usual
+      // bounded retry path; absence is reported only after fresh confirmation.
+      if (confirmed && !confirmed.absent) toggle = confirmed;
+      else continue;
+    }
     if (!toggle) {
       lastFailure = Object.assign(new Error('No visible rail toggle matched the preferred or fallback selector.'), { code: 'rail-toggle-not-visible' });
       failureCode = 'rail-toggle-not-visible';
@@ -224,6 +243,24 @@ export async function openRailPanelWithRetry({ readPanelOpen, resolveToolbar, re
   error.code = code;
   error.strategies = strategies;
   throw error;
+}
+
+/** Resolve one visible toggle while preserving match counts for absent vs hidden controls. */
+export async function resolveRailToggle(rail, iconSelector, fallbackSelector, { preferred = true } = {}) {
+  if (!await rail.isVisible().catch(() => false)) return null;
+  const selectors = preferred ? [iconSelector, fallbackSelector] : [fallbackSelector];
+  const matches = [];
+  for (const selector of selectors) {
+    const locator = rail.locator(selector);
+    const count = await locator.count();
+    matches.push({ selector, locator, count });
+    for (let i = 0; i < count; i += 1) {
+      const candidate = locator.nth(i);
+      if (await candidate.isVisible().catch(() => false)) return candidate;
+    }
+  }
+  const total = matches.reduce((sum, item) => sum + item.count, 0);
+  return total === 0 ? { absent: true, matchCounts: matches.map(({ selector, count }) => ({ selector, count })) } : null;
 }
 
 function hasSettingId(element, settingId) {
@@ -318,13 +355,7 @@ export async function openRailPanel(canvas, blockId, iconSelector, panelSelector
       const fallback = iconSelector.includes('telescopic')
         ? '[class*="telescopic"], [data-action*="width"], [aria-label*="宽度"], [title*="宽度"]'
         : '[class*="operateColor"], [data-action*="color"], [aria-label*="配色"], [title*="配色"]';
-      const locator = rail.locator(preferred ? iconSelector : fallback);
-      const count = await locator.count();
-      for (let i = 0; i < count; i += 1) {
-        const candidate = locator.nth(i);
-        if (await candidate.isVisible().catch(() => false)) return candidate;
-      }
-      return null;
+      return resolveRailToggle(rail, iconSelector, fallback, { preferred });
     },
     clickToggle: async (toggle, { timeout }) => {
       await toggle.scrollIntoViewIfNeeded({ timeout });
