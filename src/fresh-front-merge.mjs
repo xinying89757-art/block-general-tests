@@ -1,6 +1,14 @@
 import { applyHumanReviewVerdict, collectHumanReview, countVerdicts, verdictCountsZh } from './human-review.mjs';
+import { deriveFrontReportId } from './front-report-identity.mjs';
 function reportBlockId(report) {
   return String(report?.blockId ?? report?.targetBlockId ?? '');
+}
+
+function frontReportIdentity(frontReport, timestamp) {
+  const explicit = frontReport?.runId || frontReport?.reportId || frontReport?.id;
+  if (explicit) return { id: String(explicit), derived: false };
+  const id = deriveFrontReportId(frontReport?.expectedValueSourceReport, timestamp);
+  return id ? { id, derived: true } : null;
 }
 
 function uniqueRows(report, sourceName) {
@@ -17,11 +25,11 @@ function frontConfirmsAddedInstance(boxReport, frontReport) {
   const settingId = boxReport?.lifecycle?.addedSettingId;
   const frontSettingId = frontReport?.settingId ?? frontReport?.block?.settingId;
   const url = frontReport?.finalUrl || frontReport?.url || frontReport?.links?.front || '';
-  const reportId = frontReport?.runId || frontReport?.reportId || frontReport?.id;
   const checkedAt = frontReport?.finishedAt || frontReport?.checkedAt || frontReport?.startedAt;
+  const identity = frontReportIdentity(frontReport, checkedAt);
   let cacheBusted = false;
   try { cacheBusted = Boolean(new URL(url).searchParams.get('t')); } catch {}
-  return Boolean(reportId && checkedAt && settingId && String(frontSettingId || '') === String(settingId)
+  return Boolean(identity && checkedAt && settingId && String(frontSettingId || '') === String(settingId)
     && String(frontReport?.instanceResolution || '').includes('block-number+settingId')
     && Number(frontReport?.blockInstances ?? frontReport?.instanceCount ?? 0) > 0
     && cacheBusted && reportBlockId(frontReport) === reportBlockId(boxReport));
@@ -41,6 +49,59 @@ function isDisplayEffectLimitation(row) {
   return code === 'effect-unresolved-on-canvas';
 }
 
+function displayFieldSetting(row) {
+  const values = [row?.setting, row?.settingKey, row?.capability, row?.capabilityId]
+    .filter((value) => typeof value === 'string').map((value) => value.toLowerCase());
+  return values.some((value) => /display[-_ ]?field|展示字段/.test(value));
+}
+
+function sameValue(left, right) {
+  if (left === right) return true;
+  if (left === undefined || right === undefined) return false;
+  try { return JSON.stringify(left) === JSON.stringify(right); } catch { return false; }
+}
+
+function displayFieldPersistEffectLimitation(row) {
+  if (!displayFieldSetting(row) || row?.status !== 'fail') return false;
+  // A known persistence mismatch is authoritative even when a separate rerun
+  // happened to pass; the front effect must not erase that failure.
+  if (row.expected !== undefined && row.actual !== undefined && !sameValue(row.expected, row.actual)) return false;
+  const rerun = row.rerunAloneResult;
+  const persisted = row.expected !== undefined && row.actual !== undefined && sameValue(row.expected, row.actual)
+    || rerun?.status === 'pass' && (rerun.expected === undefined || rerun.actual === undefined
+      || sameValue(rerun.expected, rerun.actual));
+  if (!persisted) return false;
+  const details = [row.detail, row.error, row.batchResult?.detail, row.batchResult?.error,
+    rerun?.detail, rerun?.evidence?.effectCheck?.detail,
+    row.reason?.code, row.evidence?.reason?.code, row.batchResult?.evidence?.reason?.code]
+    .filter((value) => typeof value === 'string').join(' ');
+  const unresolved = /effect-unresolved-on-canvas|静态内容.{0,16}(?:读不到|暂时)|无法唯一识别|对应位置.{0,12}(?:识别|读取)/i.test(details)
+    || ['skip', 'na', 'human-review'].includes(rerun?.evidence?.effectCheck?.status);
+  return unresolved;
+}
+
+function matchingDisplayFieldFrontRow(boxRow, frontRows) {
+  if (!displayFieldSetting(boxRow)) return null;
+  return frontRows.find((frontRow) => {
+    if (frontRow?.setting && boxRow?.setting && String(frontRow.setting) !== String(boxRow.setting)) return false;
+    const sourceId = frontRow?.evidence?.sourceCheckId ?? frontRow?.sourceCheckId;
+    if (sourceId && String(sourceId) === String(boxRow.id)) return true;
+    return displayFieldSetting(frontRow) && String(frontRow?.setting ?? frontRow?.settingKey ?? '')
+      === String(boxRow?.setting ?? boxRow?.settingKey ?? '');
+  }) || null;
+}
+
+function mergeDisplayFieldSources(boxRow, frontRow) {
+  return { ...boxRow, status: frontRow.status,
+    ...(frontRow.expected !== undefined ? { expected: frontRow.expected } : {}),
+    ...(frontRow.actual !== undefined ? { actual: frontRow.actual } : {}),
+    ...(frontRow.detail !== undefined ? { detail: frontRow.detail } : {}),
+    ...(frontRow.reason !== undefined ? { reason: frontRow.reason } : {}),
+    ...(frontRow.evidence !== undefined ? { frontEvidence: frontRow.evidence } : {}),
+    resolvedBy: 'front-report', resolvedCheckId: frontRow.id,
+    sources: { box: boxRow, front: frontRow }, selectedSource: 'front-report' };
+}
+
 /** Keep both report sources; a front row replaces only a box deferred row. */
 export function mergeFreshFrontReports(boxReport, frontReport) {
   const boxBlock = reportBlockId(boxReport);
@@ -52,47 +113,59 @@ export function mergeFreshFrontReports(boxReport, frontReport) {
   const frontById = new Map(frontRows.map((row) => [String(row.id), row]));
   const confirmsAddedInstance = frontConfirmsAddedInstance(boxReport, frontReport);
   const selectedChecks = [];
+  const consumedFrontRows = new Set();
   for (const box of boxRows) {
     const front = frontById.get(String(box.id));
+    const displayFront = confirmsAddedInstance && displayFieldPersistEffectLimitation(box)
+      ? matchingDisplayFieldFrontRow(box, frontRows) : null;
+    if (displayFront) consumedFrontRows.add(String(displayFront.id));
     const resolvesPublishFailure = confirmsAddedInstance && isFrontUnreachableFailure(box);
     const resolvesDisplayLimitation = confirmsAddedInstance && isDisplayEffectLimitation(box) && front;
-    const selectedSource = resolvesPublishFailure ? 'front-report'
+    const selectedSource = displayFront ? 'front-report' : resolvesPublishFailure ? 'front-report'
       : front && (box.status === 'deferred' || resolvesDisplayLimitation) ? 'front' : 'box';
     const selected = resolvesPublishFailure
       ? { ...box, status: 'pass', resolvedBy: 'front-report',
-        frontConfirmation: { reportId: frontReport.runId || frontReport.reportId || frontReport.id || null,
+        frontConfirmation: { reportId: frontReportIdentity(frontReport,
+          frontReport.finishedAt || frontReport.checkedAt || frontReport.startedAt)?.id || null,
           url: frontReport.finalUrl || frontReport.url || null,
           timestamp: frontReport.finishedAt || frontReport.checkedAt || frontReport.startedAt || null,
           settingId: frontReport.settingId ?? frontReport.block?.settingId,
-          instanceResolution: frontReport.instanceResolution } }
+          instanceResolution: frontReport.instanceResolution,
+          ...(frontReportIdentity(frontReport, frontReport.finishedAt || frontReport.checkedAt || frontReport.startedAt)?.derived
+            ? { reportIdDerivedFrom: frontReport.expectedValueSourceReport } : {}) } }
+      : displayFront ? mergeDisplayFieldSources(box, displayFront)
       : selectedSource === 'front' ? front : box;
     const keptFailure = isFrontUnreachableFailure(box) && !confirmsAddedInstance
       ? { ...box, detail: '前台未找到本次新实例：Mac 前台报告未能以缓存刷新 URL 确认同一个新 settingId。',
-        frontResolution: { status: 'not-confirmed', frontReportId: frontReport.runId || frontReport.reportId || frontReport.id || null,
+        frontResolution: { status: 'not-confirmed', frontReportId: frontReportIdentity(frontReport,
+          frontReport.finishedAt || frontReport.checkedAt || frontReport.startedAt)?.id || null,
           frontSettingId: frontReport.settingId ?? frontReport.block?.settingId ?? null,
           expectedSettingId: boxReport?.lifecycle?.addedSettingId ?? null,
           url: frontReport.finalUrl || frontReport.url || null } }
       : selected;
-    selectedChecks.push({ ...keptFailure,
+    selectedChecks.push(displayFront ? selected : { ...keptFailure,
       sources: { box, ...(front ? { front } : {}) }, selectedSource });
   }
-  for (const front of frontRows) if (!boxById.has(String(front.id))) {
+  for (const front of frontRows) if (!boxById.has(String(front.id)) && !consumedFrontRows.has(String(front.id))) {
     selectedChecks.push({ ...front, sources: { front }, selectedSource: 'front' });
   }
   const checks = selectedChecks.map((check) => applyHumanReviewVerdict(check));
   const summary = countVerdicts(checks);
   return { ...boxReport, flow: 'fresh-front-merged', checks, summary, humanReview: collectHumanReview(checks),
-    merge: { sources: { box: boxReport.runId || null, front: frontReport.runId || frontReport.reportId || frontReport.id || null },
+    merge: { sources: { box: boxReport.runId || null, front: frontReportIdentity(frontReport,
+      frontReport.finishedAt || frontReport.checkedAt || frontReport.startedAt)?.id || null },
       matchedIds: boxRows.filter(({ id }) => frontById.has(String(id))).map(({ id }) => id),
       frontOverrides: boxRows.filter(({ id, status }) => status === 'deferred' && frontById.has(String(id))).map(({ id }) => id),
       frontResolvedIds: boxRows.filter((row) => confirmsAddedInstance
-        && (isFrontUnreachableFailure(row) || (frontById.has(String(row.id)) && isDisplayEffectLimitation(row))))
+        && (isFrontUnreachableFailure(row) || (frontById.has(String(row.id)) && isDisplayEffectLimitation(row))
+          || matchingDisplayFieldFrontRow(row, frontRows) && displayFieldPersistEffectLimitation(row)))
         .map(({ id }) => id),
       addedInstanceConfirmed: confirmsAddedInstance,
       addedSettingId: boxReport?.lifecycle?.addedSettingId || null,
-      frontOnlyIds: frontRows.filter(({ id }) => !boxById.has(String(id))).map(({ id }) => id) } };
+      frontOnlyIds: frontRows.filter(({ id }) => !boxById.has(String(id)) && !consumedFrontRows.has(String(id)))
+        .map(({ id }) => id) } };
 }
 
 export function summarizeFreshFrontMerge(report) {
-  return `# 盒端与前台报告合并\n\n- 区块：${reportBlockId(report) || '未知'}\n- 检查数：${report.checks?.length || 0}\n- 结果：${verdictCountsZh(report.summary || {})}\n- 前台覆盖的 deferred：${report.merge?.frontOverrides?.join('、') || '无'}\n- 盒端与前台均保留来源记录；只有盒端 deferred 行会选用前台结果。\n`;
+  return `# 盒端与前台报告合并\n\n- 区块：${reportBlockId(report) || '未知'}\n- 检查数：${report.checks?.length || 0}\n- 结果：${verdictCountsZh(report.summary || {})}\n- 前台覆盖的 deferred：${report.merge?.frontOverrides?.join('、') || '无'}\n- 盒端与前台均保留来源记录；deferred 行及已确认的展示字段效果定位限制可采用前台结果。\n`;
 }

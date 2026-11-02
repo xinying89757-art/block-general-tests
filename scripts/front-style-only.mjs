@@ -20,6 +20,7 @@ import { buildDesignHumanReview, runDesignSpecFrontChecks, runWrittenColorFrontC
 import { captureFrontInstance } from '../src/instance-capture.mjs';
 import { readInstanceStructure } from '../src/front-structure.mjs';
 import { runDisplayFieldFrontChecks } from '../src/display-field-front-check.mjs';
+import { createFrontRunId } from '../src/front-report-identity.mjs';
 
 const args = {};
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -57,9 +58,11 @@ fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.mkdirSync('screenshots', { recursive: true });
 const config = { blockId, imageLoadTimeoutMs: imageLoadTimeout(args['image-load-timeout'] ?? process.env.IMAGE_LOAD_TIMEOUT_MS), actionTimeoutMs: 30000, navigationTimeoutMs: 60000, settingsReport };
 
+const startedAt = new Date().toISOString();
 const report = { flow: 'front-style-only', blockId, url: sanitizeFrontStyleUrl(args.url),
   settingId: args['setting-id'] || settingsReport?.block?.settingId || null,
-  startedAt: new Date().toISOString(), host: process.platform, checks: [], error: null };
+  runId: createFrontRunId(args['run-report'], startedAt),
+  startedAt, host: process.platform, checks: [], error: null };
 let exitCode = 0;
 let stage = 'launch-browser';
 let browser;
