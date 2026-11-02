@@ -1,4 +1,8 @@
 import { signatures, matchCapabilities } from './capabilities/signatures.mjs';
+import { inferStyleValueKind } from './style-effect-learning.mjs';
+
+const matchesRule = (pattern, value) => pattern == null
+  || (pattern instanceof RegExp ? pattern.test(String(value ?? '')) : pattern === value);
 
 const serializableControl = (control) => ({
   index: control.index ?? null,
@@ -30,11 +34,21 @@ export function mapDiscoveredInventory(inventory, { rules = signatures } = {}) {
   }));
   const capabilityMap = new Map();
   for (const match of detected.matched) capabilityMap.set(match.parentModule, { id: match.parentModule, status: 'candidate' });
+  const inventoryErrors = (inventory || []).filter((region) => region.inventoryError).map((region) => {
+    const owners = [...new Set(rules.filter((rule) => matchesRule(rule.region?.type, region.type)
+      && matchesRule(rule.region?.title, region.title) && matchesRule(rule.region?.wrapIndex, region.wrapIndex))
+      .map((rule) => rule.parentModule))];
+    for (const id of owners) if (!capabilityMap.has(id)) capabilityMap.set(id, { id, status: 'candidate' });
+    return { regionType: region.inventoryError.regionType || region.type,
+      capabilityCandidates: owners, code: region.inventoryError.code || 'SETTINGS_INVENTORY_ERROR',
+      message: region.inventoryError.message || '', diagnostics: region.inventoryError.diagnostics || null,
+      screenshot: region.inventoryError.screenshot || null };
+  });
   const unmapped = detected.unrecognized.flatMap((region) => (region.controls || []).map((control) => ({
     kind: region.kind || 'settings-dialog', regionType: region.type || '', title: region.title ?? null,
     wrapIndex: region.wrapIndex ?? null, control: serializableControl(control), status: 'unmapped',
   })));
-  return { requirements, capabilities: [...capabilityMap.values()], unmapped,
+  return { requirements, capabilities: [...capabilityMap.values()], unmapped, inventoryErrors,
     matched: detected.matched.map(({ id, parentModule, kind, type, title, wrapIndex, evidence }) => ({
       id, capability: parentModule, kind, type, title: title ?? null, wrapIndex: wrapIndex ?? null, evidence,
     })) };
@@ -61,10 +75,30 @@ export function buildDraftProfile(template, { blockId, page, mapping, observedAt
     pageKind: page.kind, ...(page.id ? { pageId: String(page.id) } : {}), ...(page.url ? { pageUrl: page.url } : {}),
     ...(page.name ? { pageName: page.name } : {}), pageKindNote: '由 onboarding 命令显式指定；草稿需人工审核。' };
   profile.requirements = { capabilities: structuredClone(mapping.requirements), displayFieldTypes: [] };
+  const pendingStyleEffects = mapping.matched.flatMap((match) => (match.evidence || []).flatMap((evidence, index) => {
+    const kind = inferStyleValueKind({ type: evidence.type, value: evidence.value });
+    // The editor has no font-size setting controls; typography remains a
+    // design-spec-only assertion, so onboarding learns effects for colors only.
+    if (kind !== 'color') return [];
+    const properties = ['color', 'backgroundColor', 'borderColor', 'outlineColor',
+      'textDecorationColor', 'accentColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke'];
+    return properties.map((property) => ({ requirementId: match.id, evidenceIndex: index,
+      regionType: match.type || null, wrapIndex: Number.isInteger(match.wrapIndex) ? match.wrapIndex : null,
+      controlIndex: Number.isInteger(evidence.controlIndex) ? evidence.controlIndex : null,
+      controlName: evidence.controlName || null, kind, property,
+      status: 'pending', reason: 'awaiting-setting-unit-and-editor-effect-snapshot' }));
+  }));
+  if (pendingStyleEffects.length && !profile.capabilities.some((item) => item.id === 'block-style-spec')) {
+    profile.capabilities.push({ id: 'block-style-spec', status: 'candidate', styleSpec: {
+      items: [], recordOnly: [], viewports: { pc: 1440, pad: 768, mobile: 375 },
+    } });
+  }
   profile.testData = { requirements: [], status: 'unreviewed-no-fixture-oracle' };
   profile.specificChecks = [];
   profile.onboarding = { status: 'draft-unreviewed', discoveredAt: observedAt,
     matched: structuredClone(mapping.matched), unmapped: structuredClone(mapping.unmapped),
+    pendingStyleEffects,
+    ...(mapping.inventoryErrors?.length ? { inventoryErrors: structuredClone(mapping.inventoryErrors) } : {}),
     note: '自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。' };
   return profile;
 }
@@ -98,9 +132,12 @@ export function buildOnboardingEnvironmentReport({ runId, blockId, siteHost, pag
   return { schemaVersion: 1, flow: 'fresh-block-onboarding', runId, status: outcome.status,
     environmentOutcome: outcome.code, siteHost, blockId: String(blockId), page,
     links: { editor: links?.editor || null, front: links?.front || null },
-    stage: outcome.code === 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY' ? 'add-default-block' : (lastProgress?.stage || 'start'),
+    stage: outcome.code === 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY' ? 'module-library-preflight' : (lastProgress?.stage || 'start'),
     lifecycle: { deletedSettingIds: lastProgress?.deletedSettingIds || [], addedSettingId: null },
-    inventory: { status: 'not-reached', autoMappedCount: null, unmappedCount: null },
+    inventory: { status: outcome.code === 'TARGET_BLOCK_NOT_IN_MODULE_LIBRARY' ? 'target-only-search-complete' : 'not-reached',
+      autoMappedCount: null, unmappedCount: null },
+    moduleLibraryOpenerMatchCount: Number.isInteger(error?.openerMatchCount) ? error.openerMatchCount : null,
+    libraryLookup: Array.isArray(error?.libraryLookup) ? error.libraryLookup : [],
     checks: [], failures: [], publishedAt: null,
     error: { code: outcome.code, message: outcome.message, originalMessage: String(error?.message || error || '') },
   };

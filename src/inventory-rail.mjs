@@ -1,5 +1,6 @@
 // Read-only right-rail inventory. This is deliberately separate from baseline capture.
-import { RAIL, selectBlock, visibleRailIndex, openRailPanel, readModuleWidth, cancelWidthPanel } from './capabilities/rail.mjs';
+import { RAIL, selectBlock, visibleRailIndex, openRailPanel, readSchemeColor, readModuleWidth,
+  cancelColorPanel, cancelWidthPanel } from './capabilities/rail.mjs';
 
 export async function inventoryRightPanel({ page, canvas, config, blockId, onProgress }) {
   const regions = [];
@@ -30,10 +31,14 @@ export async function inventoryRightPanel({ page, canvas, config, blockId, onPro
       await openRailPanel(canvas, blockId, kind === 'color-scheme' ? RAIL.colorIcon : RAIL.widthIcon,
         kind === 'color-scheme' ? RAIL.colorPanel : RAIL.widthPanel);
       if (kind === 'color-scheme') {
-        // A scheme can hold several colors (colorVal0..N); read them all, read-only.
-        const inputs = await canvas.locator(`${RAIL.colorPanel}:visible`).first().locator(RAIL.colorInput)
-          .evaluateAll((nodes) => nodes.map((n) => ({ name: n.name || '', value: n.value })));
-        region.controls.push(...inputs.map((c, i) => ({ type: 'color', label: `配色${i + 1}`, name: c.name, value: c.value })));
+        const value = await readSchemeColor(canvas);
+        if (typeof value === 'string') region.controls.push({ index: 0, type: 'color', role: 'color',
+          value, name: '', label: '', identity: 'position:0', position: 0 });
+        else region.controls.push(...(value?.controls || []).map((control, index) => ({ index,
+          type: 'color', role: control.role || 'color', value: control.value, name: control.name || '',
+          label: control.label || '', identity: control.identity, position: control.position,
+          ...(control.inventoryNote ? { inventoryNote: control.inventoryNote } : {}) })));
+        if (value?.notes?.length) region.notes = value.notes;
       }
       else {
         const value = await readModuleWidth(canvas);
@@ -46,11 +51,7 @@ export async function inventoryRightPanel({ page, canvas, config, blockId, onPro
     finally {
       try {
         if (kind === 'module-width' && await canvas.locator(`${RAIL.widthPanel}:visible`).count()) await cancelWidthPanel(canvas);
-        if (kind === 'color-scheme' && await canvas.locator(`${RAIL.colorPanel}:visible`).count()) {
-          const rail = canvas.locator(RAIL.rail).nth(await visibleRailIndex(canvas));
-          await rail.locator(RAIL.colorIcon).first().click();
-          await canvas.locator(`${RAIL.colorPanel}:visible`).first().waitFor({ state: 'hidden', timeout: 10000 });
-        }
+        if (kind === 'color-scheme' && await canvas.locator(`${RAIL.colorPanel}:visible`).count()) await cancelColorPanel(canvas);
       } catch (error) { region.skipped = [region.skipped, `关闭面板失败：${error.message}`].filter(Boolean).join('；'); }
     }
     regions.push(region);

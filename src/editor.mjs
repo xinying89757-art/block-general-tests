@@ -1,10 +1,203 @@
-import { retryEnvironmentTimeout, saveAndWait } from './ui-waits.mjs';
+import { retryEnvironmentTimeout, saveAndWait, waitForEditorLoadingToClear, waitForStable } from './ui-waits.mjs';
 import { selectedBlockInstance, waitForCanvasRender } from './block-render.mjs';
 import { waitForUniquePageSaveControl } from './page-save-control.mjs';
 
 const CANVAS = 'iframe.backstage-pc-proview';
 const PANEL = '.backstage-addmodules-chooseWrapper';
 const PAGE_LABELS = { products: 'Products' };
+
+export function resolveCurrentPageLabel({ activeItems = [], toolbarText = '' } = {}) {
+  const active = activeItems.filter((item) => item.active && String(item.label || '').trim());
+  if (active.length === 1) return String(active[0].label).replace(/\s+/g, ' ').trim();
+  const normalized = String(toolbarText || '').replace(/\s+/g, ' ').trim();
+  const afterPagePrefix = normalized.match(/(?:^|\s)页面:\s*(.*)$/)?.[1] || '';
+  const action = afterPagePrefix.match(/(?:^|\s)(?:智能优化当前页面|操作记录|保存|发布|预览)(?:\s|$)/);
+  return (action ? afterPagePrefix.slice(0, action.index) : afterPagePrefix).trim();
+}
+
+export function assertCurrentPageLabel(snapshot, expected) {
+  const actual = typeof snapshot === 'string' ? snapshot : resolveCurrentPageLabel(snapshot);
+  if (!actual) throw new Error('刷新编辑器后无法读取当前页面自己的活动标签。');
+  if (actual !== expected) throw new Error(`刷新后目标页核对失败：应为「${expected}」，当前活动页为「${actual}」。`);
+  return actual;
+}
+
+export function hasActivePageMarker(ancestors = []) {
+  return ancestors.some((node) => {
+    const attrs = ['aria-current', 'aria-selected', 'data-active'].map((key) => node?.[key] || '');
+    const classes = String(node?.className || '');
+    return attrs.some((value) => value && value !== 'false')
+      || /(?:^|\s)(?:active|current|selected|on)(?:\s|$)/i.test(classes);
+  });
+}
+
+async function readCurrentPageSnapshot(page) {
+  await waitForEditorLoadingToClear(page);
+  const snapshot = await page.evaluate(() => {
+    const toolbar = document.querySelector('.backstage-topToolbar');
+    const pageBox = toolbar?.querySelector('.backstage-topToolbar-pageBox');
+    const activeItems = pageBox ? [...pageBox.querySelectorAll('a[data-href]')].map((anchor) => {
+      const ancestors = [];
+      for (let node = anchor; node && node !== pageBox; node = node.parentElement) {
+        ancestors.push({ className: typeof node.className === 'string' ? node.className : node.className?.baseVal || '',
+          'aria-current': node.getAttribute?.('aria-current'), 'aria-selected': node.getAttribute?.('aria-selected'),
+          'data-active': node.getAttribute?.('data-active') });
+      }
+      return { label: (anchor.textContent || '').replace(/\s+/g, ' ').trim(), ancestors };
+    }) : [];
+    const clone = toolbar?.cloneNode(true);
+    clone?.querySelector('.backstage-topToolbar-pageBox')?.remove();
+    return { activeItems, toolbarText: (clone?.innerText || '').replace(/\s+/g, ' ').trim() };
+  });
+  return { ...snapshot, activeItems: snapshot.activeItems.map(({ label, ancestors }) => ({
+    label, active: hasActivePageMarker(ancestors),
+  })) };
+}
+
+/** Read and optionally verify the selected page through one shared, mask-aware path. */
+export async function verifyCurrentPageIdentity(page, expected) {
+  const snapshot = await readCurrentPageSnapshot(page);
+  const actual = resolveCurrentPageLabel(snapshot);
+  if (!actual) throw new Error('刷新编辑器后无法读取当前页面自己的活动标签。');
+  return expected === undefined ? actual : assertCurrentPageLabel(actual, expected);
+}
+
+async function visiblePageMenuLinkCount(page) {
+  return page.evaluate(() => [...document.querySelectorAll('.backstage-topToolbar-pageBox a[data-href]')]
+    .filter((anchor) => anchor.getClientRects().length > 0
+      && getComputedStyle(anchor).visibility !== 'hidden' && getComputedStyle(anchor).display !== 'none').length);
+}
+
+export function selectNeutralToolbarCandidate(candidates = []) {
+  return candidates.find((candidate) => candidate.insideToolbar && !candidate.insideChooser
+    && !candidate.insideCanvas && !candidate.interactive && !candidate.hasClickHandler) || null;
+}
+
+async function clickNeutralToolbarArea(page) {
+  const candidates = await page.evaluate(() => {
+    const toolbar = document.querySelector('.backstage-topToolbar');
+    if (!toolbar) return [];
+    const rect = toolbar.getBoundingClientRect();
+    const interactive = 'button,a,[role="button"],input,select,textarea,[tabindex]:not([tabindex="-1"]),[onclick]';
+    const points = [];
+    const xs = [rect.left + rect.width * 0.32, rect.left + rect.width * 0.5, rect.left + rect.width * 0.68];
+    const ys = [rect.top + rect.height * 0.5];
+    for (const x of xs) for (const y of ys) {
+      const target = document.elementFromPoint(x, y);
+      if (!target) continue;
+      points.push({ x, y, insideToolbar: toolbar.contains(target),
+        insideChooser: Boolean(target.closest('.backstage-topToolbar-pageBox')),
+        insideCanvas: Boolean(target.closest('iframe, .backstage-pc-proview')),
+        interactive: Boolean(target.closest(interactive)), hasClickHandler: Boolean(target.onclick) });
+    }
+    return points;
+  });
+  const point = selectNeutralToolbarCandidate(candidates);
+  if (!point) return false;
+  await page.mouse.click(point.x, point.y);
+  return true;
+}
+
+async function savePageChooserFailureScreenshot(page) {
+  try {
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+    const directory = path.resolve(process.cwd(), 'reports', 'screenshots');
+    await fs.mkdir(directory, { recursive: true });
+    const file = path.join(directory, `page-chooser-dismiss-${Date.now()}.png`);
+    await page.screenshot({ path: file, fullPage: true, timeout: 10_000 });
+    return path.relative(process.cwd(), file);
+  } catch { return null; }
+}
+
+/** Close an open page chooser without navigating or saving the page. */
+export async function closePageMenuIfOpen(page, { triggerTimeoutMs = 5_000, neutralTimeoutMs = 3_000 } = {}) {
+  await waitForEditorLoadingToClear(page);
+  if (await visiblePageMenuLinkCount(page) === 0) return false;
+  // Dropdowns can remain open after the toolbar label is clicked (the page
+  // chooser may own a nested overlay). Escape is a non-mutating dismissal and
+  // is attempted first; only fall back to the unique toolbar trigger if it did
+  // not close the menu.
+  try { await page.keyboard?.press('Escape'); } catch {}
+  if (await visiblePageMenuLinkCount(page) === 0) return true;
+  const triggers = page.getByText('页面:', { exact: true }).filter({ visible: true });
+  const count = await triggers.count();
+  let triggerFailure = count === 1 ? null : new Error(`关闭触发器匹配 ${count} 个；拒绝点击。`);
+  if (count === 1) {
+    try {
+      await triggers.click({ timeout: triggerTimeoutMs });
+      await waitForStable(() => visiblePageMenuLinkCount(page), (links) => links === 0,
+        { timeout: triggerTimeoutMs, stableMs: 200 });
+      return true;
+    } catch (error) { triggerFailure = error; }
+  }
+  let remaining = await visiblePageMenuLinkCount(page).catch(() => -1);
+  let neutralAttempted = false;
+  if (remaining > 0) {
+    neutralAttempted = await clickNeutralToolbarArea(page).catch(() => false);
+    if (neutralAttempted) {
+      try {
+        await waitForStable(() => visiblePageMenuLinkCount(page), (links) => links === 0,
+          { timeout: neutralTimeoutMs, stableMs: 200 });
+        return true;
+      } catch { remaining = await visiblePageMenuLinkCount(page).catch(() => -1); }
+    }
+  }
+  const screenshot = await savePageChooserFailureScreenshot(page);
+  throw new Error(`页面选择菜单关闭失败：唯一触发器匹配 ${count} 个；关闭后仍有 ${remaining} 个可见链接；中立非画布点击${neutralAttempted ? '已尝试' : '不可用'}；${triggerFailure?.message || '触发器路径未能关闭菜单'}; screenshot=${screenshot || 'unavailable'}`);
+}
+
+/** Resolve a Playwright Frame/Page to its owning Page and close a visible page chooser before a generic canvas action. */
+export async function closeToolbarMenusBeforeAction(scope) {
+  const page = typeof scope?.page === 'function' ? scope.page() : scope;
+  if (!page || typeof page.locator !== 'function' || typeof page.evaluate !== 'function') return false;
+  return closePageMenuIfOpen(page);
+}
+
+const EDITOR_DIALOGS = '.backstage-dialog:visible, [role="dialog"]:visible, dialog:visible';
+const EDITOR_OVERLAYS = '.backstage-dialog-overlay, .layui-layer-shade, [data-editor-overlay]';
+
+async function blockingEditorOverlays(scope) {
+  return scope.locator('body').evaluate((body, selector) => {
+    const visible = (element) => {
+      const style = getComputedStyle(element);
+      return element.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden'
+        && style.pointerEvents !== 'none';
+    };
+    return [...body.ownerDocument.querySelectorAll(selector)].filter(visible).map((element) => {
+      const style = getComputedStyle(element);
+      const classes = typeof element.className === 'string' ? element.className.trim() : '';
+      const name = element.tagName.toLowerCase() + (classes ? `.${classes.split(/\s+/).join('.')}` : '');
+      return `${name} (pointer-events:${style.pointerEvents}, z-index:${style.zIndex})`;
+    });
+  }, EDITOR_OVERLAYS).catch(() => []);
+}
+
+/** Dismiss open editor dialogs, then briefly wait for stale backdrops to stop intercepting input. */
+export async function waitForEditorOverlaysBeforeAction(scope, { timeoutMs = 800, intervalMs = 50 } = {}) {
+  if (!scope || typeof scope.locator !== 'function') return [];
+  const dialogs = scope.locator(EDITOR_DIALOGS);
+  const dialogCount = await dialogs.count().catch(() => 0);
+  if (dialogCount) {
+    const page = typeof scope.page === 'function' ? scope.page() : scope;
+    try { await page.keyboard?.press('Escape'); } catch {}
+    for (let index = 0; index < dialogCount; index += 1) {
+      const dialog = dialogs.nth(index);
+      if (!await dialog.isVisible().catch(() => false)) continue;
+      const cancel = dialog.locator('.backstage-dialog-bottom').getByText(/^(取消|关闭)$/, { exact: true }).filter({ visible: true });
+      const cancelCount = await cancel.count().catch(() => 0);
+      if (cancelCount === 1) await cancel.click({ timeout: 500 }).catch(() => {});
+    }
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  let remaining = await blockingEditorOverlays(scope);
+  while (remaining.length && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, Math.min(intervalMs, Math.max(1, deadline - Date.now()))));
+    remaining = await blockingEditorOverlays(scope);
+  }
+  return remaining;
+}
 
 function blockSelector(blockId) {
   // Quote an attribute value rather than assuming BLOCK_ID is numeric.
@@ -267,29 +460,21 @@ async function waitForEditorReady(page) {
       .waitFor({ state: 'visible', timeout: Number(process.env.EDITOR_READY_TIMEOUT_MS) || 60_000 }),
     { stage: 'editor-load' });
   } catch (error) {
-    throw new Error(`编辑器未显示“页面:”，登录态可能已过期或编辑器未完成加载：${error.message}`);
+    throw entryError('ENV_EDITOR_LOAD_TIMEOUT', `编辑器未显示“页面:”，登录态可能已过期或编辑器未完成加载：${error.message}`);
   }
 }
 
 // CMS field changes become visible after an editor reload; no publishing.
 // Without config preserve the current page; fixture preparation supplies config.
 export async function reloadEditor(page, config) {
-  const currentPageName = () => page.evaluate(() => {
-    const text = (document.querySelector('.backstage-topToolbar')?.innerText || '').replace(/\s+/g, ' ').trim();
-    return text.match(/页面:\s*(.*?)\s+(?:智能优化当前页面\s+)?保存(?:\s|$)/)?.[1] || '';
-  });
-  const before = await currentPageName();
+  const before = await verifyCurrentPageIdentity(page);
   const target = config?.resolvedTarget;
-  const wanted = target ? (PAGE_LABELS[target.page.toLowerCase()] || target.page) : before;
+  const wanted = target ? target.page : before;
   if (!wanted) throw new Error('刷新编辑器前无法确定目标页。');
   await page.reload({ waitUntil: 'domcontentloaded', timeout: Number(config?.navigationTimeoutMs) || 60_000 });
   await waitForEditorReady(page);
-  if (await currentPageName() !== wanted) {
-    if (!config) throw new Error(`刷新编辑器后未停留在目标页「${wanted}」，请提供目标页配置。`);
-    await ensureTargetPage(page, config);
-  }
-  const actual = await currentPageName();
-  if (actual !== wanted) throw new Error(`刷新后目标页核对失败：应为「${wanted}」，顶栏读到「${actual}」。`);
+  await closePageMenuIfOpen(page);
+  await verifyCurrentPageIdentity(page, wanted);
   return { frame: page.frameLocator(CANVAS) };
 }
 
@@ -496,6 +681,7 @@ export async function addBlockIfNeeded(page, frame, config) {
     .locator('#backstage-bodyArea .backstage-creatmodules-wrapper').first()
     .locator('.backstage-creatmodules-addbtn').first();
   await addButton.scrollIntoViewIfNeeded();
+  await closeToolbarMenusBeforeAction(page);
   try {
     await addButton.click({ timeout: 5_000 });
   } catch (error) {
@@ -503,18 +689,20 @@ export async function addBlockIfNeeded(page, frame, config) {
     await addButton.click({ force: true });
   }
   const panel = page.locator(PANEL);
-  await panel.waitFor({ state: 'visible' });
+  await retryEnvironmentTimeout(() => panel.waitFor({ state: 'visible', timeout: Number(config.actionTimeoutMs) || 30_000 }),
+    { stage: 'library-load' });
 
   const order = [...new Set([config.moduleType, 'develop', 'review', 'online'])];
   const attempts = [];
   for (const moduleType of order) {
+    // Preserve the known-good G27 mechanics: use the configured mode first,
+    // select tabs by their persisted values, and search only in the online
+    // mode. The exact target appid is the only result ever inspected.
     if (moduleType === 'online') {
       const search = panel.locator('.addmodules_searchWrap input');
       await search.fill(String(config.blockId));
       await search.press('Enter');
     } else {
-      // The panel may not have this tab at all (另一样本区块: only the review tab
-      // exists, no develop tab). Skip a missing tab instead of timing out.
       const value = moduleType === 'develop' ? '-1' : '-2';
       const tab = panel.locator(`.user-handle-module[value="${value}"]`).first();
       if (!await tab.count()) { attempts.push({ moduleType, found: false, reason: '页签不存在' }); continue; }
@@ -523,14 +711,13 @@ export async function addBlockIfNeeded(page, frame, config) {
 
     const candidate = panel.locator(`.btn.add[appid=${JSON.stringify(String(config.blockId))}]`).first();
     try {
-      // The add button is hidden until hover; attachment is the useful signal.
+      // The library's add control is attached but hidden until hover.
       await candidate.waitFor({ state: 'attached', timeout: 15_000 });
     } catch (error) {
       if (error.name !== 'TimeoutError') throw error;
       attempts.push({ moduleType, found: false });
       continue;
     }
-
     const clicked = await page.evaluate(({ panelSelector, blockId }) => {
       const buttons = document.querySelector(panelSelector)?.querySelectorAll('.btn.add[appid]') || [];
       const button = [...buttons].find((el) => el.getAttribute('appid') === blockId);
@@ -559,10 +746,13 @@ export async function addBlockIfNeeded(page, frame, config) {
         ? { ...afterRender.targets.at(-1), order: afterRender.targets.length, total: afterRender.targets.length }
         : selectedBlockInstance(afterRender.targets) };
   }
-  throw new Error(`区块 ${config.blockId} 在模块列表中未找到（已尝试 ${order.join(' → ')}）。`);
+  const error = new Error(`区块 ${config.blockId} 在模块列表中未找到（已按目标编号搜索模式：${attempts.map(({ mode, found }) => `${mode}=${found ? 'found' : 'not-found'}`).join(', ')}）。`);
+  error.libraryLookup = attempts;
+  throw error;
 }
 
 export async function savePage(page) {
+  await closeToolbarMenusBeforeAction(page);
   const selected = await waitForUniquePageSaveControl({ readScopes: async () => {
     const frames = [page.mainFrame(), ...page.frames().filter((frame) => frame !== page.mainFrame())];
     return Promise.all(frames.map(async (frame, index) => {

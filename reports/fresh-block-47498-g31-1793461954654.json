@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "flow": "fresh-block-onboarding",
+  "runId": "onboard-47498-1793461954654",
+  "status": "environment-error",
+  "environmentOutcome": "ENV_MODULE_LIBRARY_OPENER_UNAVAILABLE",
+  "siteHost": "en-site79106751.ldwebsite.com",
+  "blockId": "47498",
+  "page": {
+    "kind": "system",
+    "id": "BIAUYnyOREPZ",
+    "name": "products",
+    "url": "/products.html"
+  },
+  "links": {
+    "editor": "https://website.leadong.com/phoenix/pagebuilder/BIAUYnyOREPZ",
+    "front": "http://en-site79106751.ldwebsite.com/products.html"
+  },
+  "stage": "module-availability-check-started",
+  "lifecycle": {
+    "deletedSettingIds": [],
+    "addedSettingId": null
+  },
+  "inventory": {
+    "status": "not-reached",
+    "autoMappedCount": null,
+    "unmappedCount": null
+  },
+  "libraryLookup": [
+    {
+      "mode": "review",
+      "query": "47498",
+      "found": false,
+      "searched": false,
+      "status": "not-attempted",
+      "screenshot": null,
+      "waitedForLazyResults": false,
+      "scrolledToEnd": false,
+      "error": "Module-library opener was not uniquely located; this mode was not entered."
+    },
+    {
+      "mode": "develop",
+      "query": "47498",
+      "found": false,
+      "searched": false,
+      "status": "not-attempted",
+      "screenshot": null,
+      "waitedForLazyResults": false,
+      "scrolledToEnd": false,
+      "error": "Module-library opener was not uniquely located; this mode was not entered."
+    },
+    {
+      "mode": "online",
+      "query": "47498",
+      "found": false,
+      "searched": false,
+      "status": "not-attempted",
+      "screenshot": null,
+      "waitedForLazyResults": false,
+      "scrolledToEnd": false,
+      "error": "Module-library opener was not uniquely located; this mode was not entered."
+    }
+  ],
+  "checks": [],
+  "failures": [],
+  "publishedAt": null,
+  "error": {
+    "code": "ENV_MODULE_LIBRARY_OPENER_UNAVAILABLE",
+    "message": "模块库入口控件没有匹配到唯一项；未进入任何模式，也未修改页面。",
+    "originalMessage": "Cannot uniquely open module library for target-only preflight."
+  },
+  "liveAttempt": {
+    "startedAt": "2026-10-31T23:52:34+08:00",
+    "endedAt": "2026-10-31T23:53:06+08:00",
+    "log": "logs/g31-onboard-47498.log",
+    "pageChanged": false,
+    "targetInstancesDeleted": 0,
+    "targetInstancesAdded": 0,
+    "pageSaved": false,
+    "published": false,
+    "openerMatchCount": "not recorded; only non-unique status was logged"
+  }
+}

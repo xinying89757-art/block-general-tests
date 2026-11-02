@@ -1,0 +1,16 @@
+{
+  "checks": [
+    { "id": "bss-button-text", "status": "pass" },
+    { "id": "bss-filter-title", "status": "pass" },
+    { "id": "bss-product-name", "status": "pass" },
+    { "id": "bss-pagination-other", "status": "pass" },
+    { "id": "bss-button-text", "status": "pass", "viewport": "pad" },
+    { "id": "bss-filter-title", "status": "pass", "viewport": "pad" },
+    { "id": "bss-product-name", "status": "pass", "viewport": "pad" },
+    { "id": "bss-pagination-other", "status": "pass", "viewport": "pad" },
+    { "id": "bss-button-text", "status": "fail", "viewport": "mobile" },
+    { "id": "bss-filter-title", "status": "pass", "viewport": "mobile" },
+    { "id": "bss-product-name", "status": "pass", "viewport": "mobile" },
+    { "id": "bss-pagination-other", "status": "pass", "viewport": "mobile" }
+  ]
+}

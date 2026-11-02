@@ -54,6 +54,7 @@ export async function createFreshDefinitions(args) {
   }
   const value = { preset: ALT_WIDTH };
   const setting = { id: 'mw-width-persist', key: 'module-width', name: NAMES['mw-width-persist'], lifecycle,
+    styleProperty: 'width',
     initialValue: initial, originalValue: initial.effective, value: ALT_WIDTH, expected: ALT_WIDTH,
     apply: () => lifecycle.apply(value),
     restore: async () => {

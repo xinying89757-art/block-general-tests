@@ -4,12 +4,14 @@
 跑测试的是智能体（Codex、Claude Code、Muse 或其他），不是人敲命令，也不是网页服务。
 你对智能体说一句话，它问你要的东西、跑测试、出报告。
 
+前台 finder 的真实标记取证：在 Mac 前台命令加 `--capture-instance <dir>`，生成 PC/mobile 的脱敏实例 HTML、JSON 树、事件元数据和匹配 CSS；再用 `node scripts/fixture-from-capture.mjs <dir> <fixture-dir>` 生成离线页面。默认关闭捕获，排除原因保留在报告 JSON 的 `finderDebug`，用法与限制见 [实例捕获说明](docs/INSTANCE_CAPTURE.md)。
+
 ## 它测什么
 
 - 设置层：设置项存在、选项与默认值对不对、改了保存后还在不在。
 - 效果层：保存后前台是不是真的变了（筛选、分类、配色、宽度、产品对比、样式）。
 - 数据层：前台列表和内容管理后台算出来的结果对不对得上（oracle）。
-- 样式：按 Figma 设计稿逐项比对（字号、颜色、行高、圆角），Pad 和移动端只查有没有错乱。
+- 样式：按 Figma 设计稿逐项比对（字号、字重、颜色、圆角），Pad 和移动端只查有没有错乱。行高差异不判缺陷。
 - 通用检查：区块存在、图片 alt、链接、指针样式、字体跟随、轮播。
 
 能力是按设置项复用的：一个区块声明自己有哪些能力，套件就自动组合跑。
@@ -71,6 +73,56 @@ HTTP 预览兼容：默认 `HTTPS_UPGRADE=1`，浏览器 context 会把指定的
 
 运行 `npm run ci` 可在本机或 GitHub Actions 执行离线检查：校验 `src/`、`scripts/`、`tests/` 下的 `.mjs` 语法、相对导入、区块画像结构与夹具，再运行 `tests/` 中的 Node 测试。GitHub CI 只做这些离线检查，不访问站点、不安装浏览器；实站回归仍在本机通过 `npm run test:block` 运行。
 
+## 外部前台核验
+
+盒子运行器会分别核验目标前台页面和站点根路径。如果目标页不可读且根路径也返回 5xx、空响应或网络错误，报告会标记 `front-unreachable-from-runner`；这代表运行器的网络路径无法确认前台，不代表编辑器发布失败。报告会把编辑器的“发布成功”信号记在 `editorPublishSucceeded`，而 `publishedConfirmed` 仍为 `false`。
+
+在可访问前台的外部机器上完成核验后，可将外部检查结果写回同一份报告。结果 JSON 结构如下：
+
+```json
+{
+  "url": "http://example.test/products.html?t=123",
+  "httpStatus": 200,
+  "blockFound": true,
+  "settingIdFound": true,
+  "checkedAt": "2026-11-01T00:00:00.000Z"
+}
+```
+
+运行：
+
+```sh
+node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<run>.json /path/to/external-check.json
+```
+
+脚本会追加 `externalFrontVerification`。只有 HTTP 2xx 且 `blockFound` 与 `settingIdFound` 都为 `true` 时，才将 `published` 和 `publishedConfirmed` 设为 `true`，来源记为 `external-front-check`。外部检查器应确认目标报告中的区块号和本次新 `settingId`；脚本会移除 URL 中的凭证、非缓存查询参数和片段，避免把令牌写进报告。
+
+也可直接附加 `scripts/front-style-only.mjs` 产生的前台样式报告：
+
+```sh
+node scripts/ingest-external-front-verification.mjs reports/fresh-block-<id>-<run>.json /path/to/front-style-<id>-<run>.json
+```
+
+当输入 `flow` 为 `front-style-only` 时，脚本校验区块号与 settingId，并在盒子报告中增加 `externalFrontStyleReport`（输入文件名、pass/fail/na/other 数量、settingId、检查时间）。该汇总附件不会单独确认发布；发布确认仍需使用上面的前台实例核验结果。
+
+### 前台样式失败原因
+
+汇总同时列出 `summary.rawFail`（按 check id 去重后的失败明细数）和 `summary.dedupedFail`（沿失败 `dependsOn` 链归到根因后的数量）；`summary.fail` 保持等于后者。每条失败仍保留，`rootFailureIds` 与 `failureDeduplication` 说明它被计入哪个根失败。字号和字重参与文字样式判定，行高仅作信息记录，永远不导致失败或缺陷计数。
+
+同一规格原文、检查类型、范围依赖、差异属性和期望值在 PC/移动端重复失败时，只计一个根失败，仍保留两条明细；`failureDeduplication.rootFailures[].viewports` 列出涉及的视口。不同属性或不同期望值不会被合并。
+
+状态练习对实例内可安全切换的控件先做 `force:false` trial，再点击；actionability 超时时可回退为经过实例/非导航安全校验的 DOM click。它观察被控或相邻面板的 mutation 与动画后尺寸，扫描后恢复原状态。候选的 tag/class/rect、真实点击目标、点击方式与恢复结果只写 JSON/debug 诊断，不进入人类摘要。
+
+点击候选必须有 disclosure 证据（ARIA、隐藏/折叠面板、相邻列表箭头等），reset/clear/submit/导航控件被排除；SVG/path 归到实际动作祖先，滚动后确认在屏幕内，再观察约 1.5 秒的 class/ARIA/display/height/rect 变化。实例结构由 `src/front-structure.mjs` 统一盘点：嵌套 ul/ol/div 层级、lazy 图片和内容卡片背景图、选项控件；查不到或未呈现时保留具体机器原因，不借用其他区块的结构。
+
+`scripts/front-style-only.mjs` 的 JSON 报告在每条非 `pass` 检查上附 `reason`：`stage` 是 `locate`、`read` 或 `compare`；`locator` 和 `matchedElementCount` 说明实例内定位及命中数；`property`、`expected`、`actual` 用规范化样式值描述比较项；`viewport` 记录视口。颜色等受区块设置控制的期望值可用 `--run-report reports/fresh-block-<id>-<run>.json` 从本轮的 `block.currentValues` 解析；只有本轮确实写入时才作为本轮期望。默认色检查遇到本轮不同颜色会记为 `na`（机器原因 `palette-default-overridden-this-run`），本轮写入色由独立的写入色检查验证。失败原因中的 `expectedSource` 会注明来源。`skip`/`na`/`deferred` 还带 `applicability`，异常会带已脱敏的 `error.class` / `error.message`。有失败截图时，`reason.screenshot` 指向对应视口截图；移动端超框还会列出 offending element 的 CSS 路径。原因里不保存页面正文、Cookie 或带令牌的 URL。外层浏览器/导航错误会作为 `status: "error"` 的逐项 harness 记录，不改写断言结果。
+
+设计清单中的 typography 仅检查该条规范明确提供的 `fontSize`、`fontWeight`；`lineHeight` 不生成断言，旧的行高单项只作 `record` 信息。Schema 会拒绝 checklist 的 `expected.lineHeight`。不把颜色、盒子尺寸或能力画像的其他属性混入。分页颜色范围按画像映射到当前页；非当前页颜色继续按它自己的设计条目判定。候选选择器在画像候选未命中时，样式检查可在唯一实例根节点内按链接/列表层级推导候选；没有结构证据时保留 `na`，不猜测。
+
+`block-style-spec` 画像中若只有 `recordOnly` 库存项，会按 `record` 输出这些待人工建立前台映射的能力，并继续执行通用视口布局检查。不要把设置库存标签当作前台 DOM 选择器。
+
+写入色检查统一扫描目标实例内的计算样式（含 `::before`/`::after`、SVG paint、outline、shadow、gradient）和链接/内联 CSS。JSON 结果只有三种颜色结论：`found-on-element` 为通过；`instance-scoped-css-only` 表示目标实例有匹配 CSS 规则但渲染样式未命中（`record`，带机器诊断中的规则选择器和属性，绝不算通过）；`absent` 为失败（已保存的颜色未在前台呈现）。颜色识别支持 rgb/rgba、3/6/8 位 hex、hsl/hsla。可用 `--include-stylesheets 0` 关闭样式表读取。状态样式由设计清单的 `state` 字段指定，只操作清单映射的单个目标，读取后恢复；不进行实例范围的交互扫描。格式与安全限制见 [检查类型目录](docs/check-types.md#spec-targeted-states)。前台 `checks[]` 按 id 去重，冲突时保留更保守的 fail/error。尺寸比较默认严格小于 2px 的差值才通过，因此 30px 对 28px 仍为 fail；可在画像 `styleSpec.tolerances.sizePx` 调整。颜色仍按精确归一化值比较。分页样式项声明 `scope.containerKind: "pagination"` 后，只在实例内语义分页容器中查找候选元素。
+
 ## 安全和恢复的底线
 
 - `.env` 里有你的账号密码，永远不提交、不分享、不打印。仓库里只有 `.env.example`。
@@ -87,3 +139,22 @@ HTTP 预览兼容：默认 `HTTPS_UPGRADE=1`，浏览器 context 会把指定的
 - `docs/REUSE_MANUAL.md`：复用手册，全部的规则和教训都在这里。
 - `scripts/`：探针与工具（含登录、Figma 抽取、报告页面生成）。
 - `AGENTS.md`：智能体操作指令；`SKILL.md`：skill 入口。
+
+### Lazy-loaded content images
+
+Front image-ratio checks scroll the instance and wait for the page's lazy loader
+without rewriting image attributes, then restore scroll. The total default is
+8 seconds per requirement/viewport. Use `--image-load-timeout 12000` with
+`scripts/front-style-only.mjs`, or `IMAGE_LOAD_TIMEOUT_MS=12000` with the normal /
+fresh runner. Unloaded images stay `na` with loaded/total evidence. The checklist
+may declare whether original size, visible `object-fit` content, or the image
+frame governs; see [image ratio measurement](docs/check-types.md#image-loading-and-ratio-measurement).
+
+### 人工判断
+
+缺少测试数据（如子级分类或筛选选项）或清单要求无法自动判定时，报告使用
+`human-review`（人工判断），与 pass / fail / na 分开计数；不算通过，也不算缺陷。
+已知例外 waiver 保持原样；超时、定位歧义及图片未加载仍为 na。清单可按机器原因
+配置条件 override，且不能覆盖实测 pass/fail。详见
+[检查类型与判定政策](docs/check-types.md#verdict-policy-人工判断-2026-11-01)。
+前台 CLI 在 JSON 旁生成 `-zh.md` 摘要；合并报告与 HTML 同样显示人工判断计数。

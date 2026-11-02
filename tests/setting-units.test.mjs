@@ -20,6 +20,7 @@ test('setting-unit contract accepts complete units and fails closed on missing c
   assert.throws(() => createSettingUnit(unitInput({ restore: null })), /requires restore/);
   assert.throws(() => createSettingUnit(unitInput({ locate: { source: 'hardcoded-selector', id: 'setting-a' } })), /requirement profile/);
   assert.throws(() => createSettingUnit(unitInput({ lifecycleSurface: 'unknown' })), /unsupported lifecycle/);
+  assert.throws(() => createSettingUnit(unitInput({ styleEffect: { properties: [], checks: [] } })), /styleEffect requires/);
 });
 
 test('six adapted capability wrappers expose the existing callback definitions as setting units', async () => {
@@ -64,6 +65,45 @@ test('real 47748 profile requirement ids anchor every migrated capability unit',
       created: { settings, persistedControls: [] } });
     assert.deepEqual(mapped.settings.map((unit) => unit.requirementId), requirements, capability);
   }
+});
+
+test('profile style-effect overrides stay intact and automatic checks cover other color properties', () => {
+  const profile = structuredClone(profile47748);
+  const requirement = profile.requirements.capabilities.find((item) => item.id === 'color-scheme');
+  const output = adaptCapabilityDefinitions({ capability: 'block-color-scheme', profile,
+    created: { settings: [{ id: 'bcs-color-persist', key: 'scheme-color', initialValue: '#111111', value: '#ff0000',
+      apply: async () => {}, check: async () => ({ status: 'pass' }), restore: async () => {} }], persistedControls: [] } });
+  assert.deepEqual(output.settings[0].styleEffect.properties, ['color', 'backgroundColor', 'accentColor', 'borderColor',
+    'outlineColor', 'textDecorationColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke']);
+  assert.deepEqual(output.settings[0].styleEffect.checks.slice(0, 2), requirement.styleEffect.checks);
+  assert.equal(output.settings[0].styleEffect.settingUnitId, 'bcs-color-persist');
+  assert.equal(output.settings[0].styleEffect.checks.length, 11);
+  assert.equal(output.settings[0].styleEffect.checks[0].checkId, 'button-bg');
+  assert.ok(profile.capabilities.find((entry) => entry.id === 'block-style-spec').styleSpec.items
+    .some((item) => item.id === 'button-bg' && item.props.backgroundColor));
+  assert.equal(profile.capabilities.find((entry) => entry.id === 'block-style-spec').styleSpec.items
+    .some((item) => item.autoLearned && Object.keys(item.props || {}).some((key) => /color|fill|stroke/i.test(key))
+      && Object.values(item.props || {}).every((value) => value == null)), false);
+});
+
+test('color and font-size values receive generic effects without null color placeholders', () => {
+  const profile = { requirements: { capabilities: [{ id: 'color-control' }, { id: 'size-control' }] }, capabilities: [] };
+  const settings = [
+    { id: 'color-setting', key: 'color-control', type: 'text', initialValue: '#000000', value: '#ff0000',
+      apply: async () => {}, check: async () => ({ status: 'pass' }), restore: async () => {} },
+    { id: 'size-setting', key: 'size-control', type: 'font-size', initialValue: '12px', value: '18px',
+      apply: async () => {}, check: async () => ({ status: 'pass' }), restore: async () => {} },
+  ];
+  const output = adaptCapabilityDefinitions({ capability: 'style-controls', profile,
+    created: { settings, persistedControls: [] } });
+  assert.deepEqual(output.settings[0].styleEffect.properties, ['color', 'backgroundColor', 'borderColor', 'outlineColor',
+    'textDecorationColor', 'accentColor', 'caretColor', 'columnRuleColor', 'fill', 'stroke']);
+  assert.deepEqual(output.settings[1].styleEffect.properties, ['fontSize']);
+  const items = profile.capabilities.find((entry) => entry.id === 'block-style-spec').styleSpec.items;
+  assert.deepEqual(items.map((entry) => entry.settingUnitId), ['size-setting']);
+  assert.equal(items[0].styleProperty, 'fontSize');
+  assert.ok(items.every((entry) => entry.selectorLearningPending && entry.learnedSelectorRequired));
+  assert.ok(items.every((entry) => !Object.hasOwn(entry, 'selector')));
 });
 
 test('whole-list definitions are represented as one unit and keep existing callbacks unchanged', () => {

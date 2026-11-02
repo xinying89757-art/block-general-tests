@@ -124,12 +124,12 @@ Oracle 来源（用户指定）：内容管理后台产品管理上方分类筛�
 
 | 设置项 | 结果 | 结论 |
 | --- | --- | --- |
-| 按钮文字 / 背景 | `bss-button-text`、`bss-button-bg` pass：18px Bold 白字、背景 #1C4587、圆角 3px、文字居中 | 行高 54 与居中由 flex 实现，不直接比 lineHeight/textAlign，改为量文字在框里是否居中 |
-| 分类导航父级 | `bss-nav-parent` pass：Bold 16px 行高 45 | 父级样式与设计稿一致 |
-| 分类导航叶子 | `bss-nav-leaf` **fail**：叶子链接行高实测 40，设计 44.8 | 已确认的偏差；子链接默认在收起的子菜单里，检查先点开父级再读可见叶子链接 |
-| 筛选组标题 | `bss-filter-title` pass：14px Semibold 行高 21 #232323 | letterSpacing -0.15px 亚像素值只记录不判 |
-| 筛选值 | `bss-filter-option` **fail**：字号实测 16px，设计 14px；行高实测 normal，设计 21 | 已确认的偏差 |
-| 产品名 | `bss-product-name` pass：16px 行高 20 居中；`bss-product-name-clamp` pass：最多 2 行超出隐藏 | 设计稿文字说明“居中 最多2行隐藏”已验证 |
+| 按钮文字 / 背景 | `bss-button-text`、`bss-button-bg` pass：18px Bold 白字、背景 #1C4587、圆角 3px、文字居中 | 行高不检查；居中由 flex 实现，量文字在框里是否居中 |
+| 分类导航父级 | `bss-nav-parent` pass：Bold 16px | 行高不检查 |
+| 分类导航叶子 | 字号/字重继续按当前清单检查 | 历史报告中的行高 40 vs 44.8 差异不再视为缺陷或计数 |
+| 筛选组标题 | `bss-filter-title` pass：14px Semibold #232323 | letterSpacing -0.15px 亚像素值只记录不判；行高不检查 |
+| 筛选值 | `bss-filter-option`：字号 16px vs 设计 14px 的已知差异仍保留 | 历史行高记录不构成缺陷 |
+| 产品名 | `bss-product-name` pass：16px 居中；`bss-product-name-clamp` pass：最多 2 行超出隐藏 | 行高不检查；设计稿文字说明“居中 最多2行隐藏”已验证 |
 | 产品卡 details 链接 | `bss-details-link` **fail**：设计稿每张卡下有 details，默认与 hover 后预览里均无（产品卡 20 个） | 已确认的偏差 |
 | 分页当前页 | `bss-pagination-current` **fail**：格子实测 30×30，设计 28×28（颜色白字 #1C4587 背景一致） | 已确认的偏差 |
 | 分页非当前页 | `bss-pagination-other` **fail**：文字颜色实测 #4d4f53，设计 #898989；格子 30×30，设计 28×28 | 已确认的偏差 |
@@ -154,7 +154,7 @@ Oracle 来源（用户指定）：内容管理后台产品管理上方分类筛�
 | `bss-filter-title`、`bss-filter-option` | skip（预览里没有对应元素） | 筛选字段一个都没启用，筛选组没渲染 |
 | `bss-pagination-current`、`bss-pagination-other` | skip（预览里没有对应元素） | 分页默认关闭，分页器没渲染 |
 | `cff-facet-narrow`、`cff-clear-restore` | skip（无可用筛选组基线） | 同上，筛选组不存在 |
-| `bss-nav-leaf` | fail（行高 40，设计 44.8） | 已确认的样式偏差，与 products 页一致 |
+| `bss-nav-leaf` | 旧报告曾记录行高 40 vs 44.8 | 2026-11-01 政策：行高不检查，不属于 fail |
 | `bss-details-link` | fail（产品卡无 details） | 已确认的样式偏差，与 products 页一致 |
 | `bcs-front-effect` | fail（分页当前页背景与筛选 accent-color 为 null） | **检查误判**：量不到的元素按 fail 算；已修为“量不到的范围只记录不判 fail”，未量到的范围在详情里注明 |
 | `css-font-follow`、`css-word-break` | skip（未找到与 data-encodeappid 匹配的样式表） | products 页上也一样 skip，是既有取证缺口，不是新页特有，待查 |

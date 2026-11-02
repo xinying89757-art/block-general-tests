@@ -1,0 +1,41 @@
+{
+  "source": "capture-47748-1793539494",
+  "outputs": [
+    {
+      "replayObservations": true,
+      "sourceCapture": "mobile.json",
+      "sourceSha256": "4cb9f23646f9521f5a58158abf2eeb32dbf40d362d8f4f77417b337ca37d4941",
+      "viewport": {
+        "label": "mobile",
+        "width": 375,
+        "height": 667
+      },
+      "html": "mobile.html",
+      "css": "mobile.css",
+      "elementCount": 474,
+      "limitations": [
+        "Observed-state replay preserves captured geometry/visibility and zero natural image dimensions; unavailable image bytes remain unavailable. CSS layout, animation and SVG internals are not pixel replayed.",
+        "Original scripts and event handler bodies are excluded. Listener metadata is in the capture JSON; interaction behavior is not replayed.",
+        "Remote resources use inert image placeholders. Rule targets are remapped to captured node identities, so outside-instance ancestors are not required."
+      ]
+    },
+    {
+      "replayObservations": true,
+      "sourceCapture": "pc.json",
+      "sourceSha256": "6e692229bdbe86e4dc501d7c51ae7fc946c0d7a54a3f83e323011b71d0161001",
+      "viewport": {
+        "label": "pc",
+        "width": 1440,
+        "height": 900
+      },
+      "html": "pc.html",
+      "css": "pc.css",
+      "elementCount": 474,
+      "limitations": [
+        "Observed-state replay preserves captured geometry/visibility and zero natural image dimensions; unavailable image bytes remain unavailable. CSS layout, animation and SVG internals are not pixel replayed.",
+        "Original scripts and event handler bodies are excluded. Listener metadata is in the capture JSON; interaction behavior is not replayed.",
+        "Remote resources use inert image placeholders. Rule targets are remapped to captured node identities, so outside-instance ancestors are not required."
+      ]
+    }
+  ]
+}

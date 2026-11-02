@@ -65,7 +65,7 @@ const fs=require('fs');const r=JSON.parse(fs.readFileSync(process.argv[2],'utf8'
 const failed=(r.checks||[]).filter(c=>c.status==='fail').map(c=>c.id);
 const guardFailed=r.failure?.stage==='baseline-guard'||failed.includes('baseline-guard');
 const status=guardFailed?'FAILURE (guard failed)':(r.status==='failed'?'FAILURE':'passed');
-console.log(`[front-summary] ${r.config?.blockId}: ${status} pass=${r.summary?.pass||0} fail=${r.summary?.fail||0} skip=${r.summary?.skip||0} na=${r.summary?.na||0} deferred=${r.summary?.deferred||0} failed=${failed.join(',')||'none'}${guardFailed?' blocked='+((r.checks||[]).filter(c=>c.status==='blocked').length):''}`);
+console.log(`[front-summary] ${r.config?.blockId}: ${status} pass=${r.summary?.pass||0} fail=${r.summary?.fail||0} skip=${r.summary?.skip||0} na=${r.summary?.na||0} 人工判断=${r.summary?.['human-review']||0} deferred=${r.summary?.deferred||0} failed=${failed.join(',')||'none'}${guardFailed?' blocked='+((r.checks||[]).filter(c=>c.status==='blocked').length):''}`);
 if(r.status==='failed'||guardFailed) process.exitCode=1;
 NODE
     SUMMARY_STATUS=$?

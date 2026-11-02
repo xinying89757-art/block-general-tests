@@ -91,7 +91,9 @@ export function matchCapabilities(inventory, rules = signatures) {
       const current = checked.length === 1 ? checked[0].label : '未知';
       const dependsOn = r.control.quantity && pagination.length && quantities.length ? { setting: '分页', currentValue: current, effectiveMeaning: current === '是' ? '每页数量' : current === '否' ? '产品总数量' : '未知' } : null;
       matched.push({ id: r.id, parentModule: r.parentModule, kind: region.kind || 'dialog', type: region.type, wrapIndex: region.wrapIndex,
-        title: region.title, ...(dependsOn ? { dependsOn } : {}), evidence: hits.map(c => ({ label: c.label || '', value: c.value ?? c.checked ?? null })) });
+        title: region.title, ...(dependsOn ? { dependsOn } : {}), evidence: hits.map(c => ({ type: c.type || '', label: c.label || '', value: c.value ?? c.checked ?? null,
+          ...(Number.isInteger(c.index) ? { controlIndex: c.index } : {}), ...(c.name ? { controlName: c.name } : {}),
+          ...(c.role ? { role: c.role } : {}), ...(c.styleProperty ? { styleProperty: c.styleProperty } : {}) })) });
     }
     const seenNoise = new Set();
     const remaining = controls.filter(c => !claimed.has(c) && !isNoise(c, seenNoise));

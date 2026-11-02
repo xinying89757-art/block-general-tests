@@ -1,3 +1,4 @@
+import { verdictCountsZh } from '../src/human-review.mjs';
 // Explicit fresh-block workflow. Capability-owned definitions feed one shared
 // batch adapter; unsupported capabilities stay visible as not-adapted.
 import fs from 'node:fs/promises';
@@ -57,7 +58,12 @@ try {
   const settingsAdapter = await createFreshSettingsAdapter({
     capabilities: profile.capabilities || [],
     context: { config, session, page, profile, siteHost, blockId: config.blockId,
-      save: () => savePage(session.page) },
+      save: () => savePage(session.page),
+      persistProfile: async (nextProfile) => {
+        const temporary = `${profilePath}.${process.pid}.tmp`;
+        await fs.writeFile(temporary, `${JSON.stringify(nextProfile, null, 2)}\n`, { mode: 0o600 });
+        await fs.rename(temporary, profilePath);
+      } },
     loadCapability: async (id) => import(pathToFileURL(path.join(root, 'src', 'capabilities', `${id}.mjs`)).href),
   });
   const adapter = createFreshBlockBrowserAdapter({ config, session,
@@ -76,7 +82,7 @@ try {
   await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
   console.log(`[fresh-block] report: ${reportPath}`);
   const notAdapted = report.capabilities.filter((item) => item.status === 'not-adapted').length;
-  console.log(`[fresh-block] ${report.checks.filter((item) => item.status === 'pass').length} pass / ${report.failures.length} fail / ${notAdapted} not-adapted capabilities; published=${Boolean(report.publishedAt)}`);
+  console.log(`[fresh-block] ${verdictCountsZh(report.summary)} / ${notAdapted} not-adapted capabilities; published=${Boolean(report.publishedConfirmed ?? report.publishedAt)}`);
 } finally {
   await session.browser.close();
 }

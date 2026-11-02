@@ -1,3 +1,4 @@
+import { applyHumanReviewVerdict } from './human-review.mjs';
 /**
  * Shared adapter for capability-owned fresh-setting definitions.
  * A capability opts in by exporting:
@@ -10,7 +11,44 @@
  * becoming persistence assertions.
  */
 import { discoverProfileFrontUnits, runFrontSettingUnits } from './setting-units.mjs';
+import { createDiscoveredStyleSettingUnits } from './discovered-style-settings.mjs';
+import { buildDesignHumanReview, runDesignSpecEditorChecks } from './design-spec-checklist.mjs';
+import { applyLearnedStyleEffects, clearLearnedStyleEffects, deriveSelectorCandidatesFromDom,
+  deriveStyleEffectPaths, normalizeProfileSelectorCandidates, resolveSettingStyleEffect,
+  snapshotInstanceComputedStyles } from './style-effect-learning.mjs';
 export const FRESH_LIFECYCLE_KINDS = Object.freeze(['settings-dialog', 'canvas-popover', 'right-rail-flyout']);
+
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function learnAppliedStyleEffect({ capture, context }) {
+  if (capture.error) return { status: 'na', reason: capture.reason || 'before-snapshot-unavailable',
+    learned: { status: 'na', reason: capture.reason || 'before-snapshot-unavailable', effects: [] },
+    applied: { applied: [], candidateCount: 0 } };
+  let after;
+  let learned = { status: 'na', reason: 'no-computed-style-property-changed', effects: [] };
+  const attempts = Math.max(1, Math.min(12, Number(context.config?.styleEffectSnapshotAttempts) || 8));
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    after = await snapshotInstanceComputedStyles(context.canvas || context.frame, {
+      blockId: context.blockId || context.config?.blockId,
+      settingId: context.config?.freshSettingId || context.instance?.settingId,
+      properties: capture.styleEffect.properties,
+      expectedValues: capture.styleEffect.expectedValues,
+      timeoutMs: context.config?.actionTimeoutMs,
+    });
+    if (after.status === 'ok') {
+      const effectWithResolvedValues = { ...capture.styleEffect,
+        expectedValues: after.resolvedExpectedValues || capture.styleEffect.expectedValues };
+      learned = deriveStyleEffectPaths(capture.before.elements || [], after.elements || [], effectWithResolvedValues);
+      if (learned.status === 'learned') break;
+    } else learned = { status: 'na', reason: after.reason || 'after-snapshot-unavailable', effects: [] };
+    if (attempt + 1 < attempts) await pause(Number(context.config?.styleEffectSnapshotIntervalMs) || 125);
+  }
+  if (after?.status !== 'ok') return { status: 'na', reason: learned.reason || 'after-snapshot-unavailable', learned, applied: { applied: [], candidateCount: 0 } };
+  learned.candidateSelectors = deriveSelectorCandidatesFromDom(capture.before.elements || [])
+    .slice(0, 100).map((entry) => entry.selector);
+  const applied = applyLearnedStyleEffects(context.profile, capture.styleEffect, learned);
+  return { status: applied.status, reason: applied.reason || learned.reason || null, learned, applied };
+}
 
 /**
  * Shared lifecycle wrapper for non-dialog capability surfaces. Capability
@@ -34,7 +72,7 @@ export function createFreshLifecycle(kind, operations = {}) {
     },
     async apply(...args) {
       if (!opened) throw new Error(`Fresh ${kind} lifecycle apply requires an open surface.`);
-      await operations.apply(...args); dirty = true;
+      const result = await operations.apply(...args); dirty = true; return result;
     },
     async commit(...args) {
       if (!opened) throw new Error(`Fresh ${kind} lifecycle commit requires an open surface.`);
@@ -62,6 +100,10 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
   let prepared;
   const prepare = async (runtimeContext = {}) => {
     const mergedContext = { ...context, ...runtimeContext };
+    const persistProfile = async () => {
+      normalizeProfileSelectorCandidates(mergedContext.profile);
+      await mergedContext.persistProfile?.(mergedContext.profile);
+    };
     const settings = [];
     const metadata = {};
     const capabilityResults = [];
@@ -69,6 +111,10 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
     const persistedControls = [];
     const preparedModules = new Map();
     const postPublishDefinitions = [];
+    const styleScopeDiagnostics = [];
+    const pendingStyleCaptures = new Map();
+    const inventoryErrors = (mergedContext.inventory || []).filter((region) => region?.inventoryError);
+    staticResults.push(...await runDesignSpecEditorChecks(mergedContext.profile, mergedContext.inventory || []));
     const profileUnits = await discoverProfileFrontUnits(mergedContext.profile, {
       frontAvailable: Boolean(mergedContext.frontAvailable),
       readFrontValue: mergedContext.readFrontValue,
@@ -82,6 +128,19 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         settingIds: profileUnits.editorSettings.map((unit) => unit.id) });
     }
     for (const { id, item, definition } of modules) {
+      const affectedInventoryError = inventoryErrors.find((region) =>
+        (definition?.metadata?.inventoryRegions || []).includes(region.inventoryError.regionType));
+      if (affectedInventoryError) {
+        const failure = affectedInventoryError.inventoryError;
+        const diagnostics = failure.diagnostics || {};
+        const reason = `Settings inventory for ${failure.regionType} failed (${failure.code}); snapshots=${diagnostics.snapshotCount ?? 'unknown'}, elapsedMs=${diagnostics.elapsedMs ?? 'unknown'}, changingFields=${(diagnostics.changingFields || []).join(',') || 'none'}, unreadableFields=${(diagnostics.unreadableFields || []).join(',') || 'none'}, loadingMaskVisible=${diagnostics.loadingMaskVisible ?? 'unknown'}.`;
+        capabilityResults.push({ capability: id, status: 'not-adapted', reason,
+          inventoryError: { regionType: failure.regionType, code: failure.code, diagnostics, screenshot: failure.screenshot || null } });
+        staticResults.push({ id: `${id}-inventory`, name: `${id} settings inventory`, suite: `capability:${id}`,
+          status: 'fail', classification: 'harness-error', expected: `The ${failure.regionType} settings surface is readable.`,
+          actual: failure.message, detail: reason, evidence: { ...diagnostics, screenshot: failure.screenshot || null } });
+        continue;
+      }
       if (definition?.status === 'check-only' && typeof definition.runPostPublish === 'function') {
         postPublishDefinitions.push({ id, item, definition });
         capabilityResults.push({ capability: id, status: 'check-only',
@@ -114,6 +173,15 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
       Object.assign(metadata, definition.metadata || {}, created.metadata || {});
       capabilityResults.push({ capability: id, status: 'adapted', settingIds: created.settings.map((setting) => setting.id) });
     }
+    const discoveredStyle = await createDiscoveredStyleSettingUnits({ inventory: mergedContext.inventory || [],
+      persistedControls, profile: mergedContext.profile, styleControlAdapter: mergedContext.styleControlAdapter });
+    if (discoveredStyle.settings.length) {
+      settings.push(...discoveredStyle.settings);
+      persistedControls.push(...discoveredStyle.persistedControls);
+      capabilityResults.push({ capability: 'discovered-style-controls', status: 'adapted',
+        settingIds: discoveredStyle.settings.map((setting) => setting.id) });
+      if (discoveredStyle.requirementsAdded) await persistProfile();
+    }
     const ids = settings.map((setting) => setting.id);
     if (ids.some((id) => !id) || new Set(ids).size !== ids.length) throw new Error('Fresh capability setting ids must be present and globally unique.');
     const pendingCapabilities = new Set();
@@ -133,9 +201,31 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
       capture: async (items) => new Map(items.map((setting) => [setting.id, setting.initialValue])),
       apply: async (setting, phase) => {
         if (typeof setting.apply !== 'function') throw new Error(`Setting ${setting.id} has no apply definition.`);
+        if (setting.styleEffect) {
+          const styleEffect = resolveSettingStyleEffect(setting);
+          const cleared = clearLearnedStyleEffects(mergedContext.profile, styleEffect);
+          if (cleared) await persistProfile();
+          try {
+            const before = await snapshotInstanceComputedStyles(mergedContext.canvas || mergedContext.frame, {
+              blockId: mergedContext.blockId || mergedContext.config?.blockId,
+              settingId: mergedContext.config?.freshSettingId || mergedContext.instance?.settingId,
+              properties: styleEffect.properties,
+              timeoutMs: mergedContext.config?.actionTimeoutMs,
+            });
+            pendingStyleCaptures.set(setting.id, before.status === 'ok' ? { before, setting, styleEffect, phase, cleared }
+              : { error: true, reason: before.reason || 'before-snapshot-unavailable', setting, styleEffect, phase, cleared });
+          } catch {
+            pendingStyleCaptures.set(setting.id, { error: true, reason: 'before-snapshot-threw',
+              setting, styleEffect, phase, cleared });
+          }
+        }
+        // Snapshot before opening a settings surface: opening a rail/dialog can
+        // temporarily replace or cover the editor canvas subtree being measured.
         await activateSurface(setting);
         await setting.captureEffect?.({ ...mergedContext, ...phase, setting });
         await setting.apply({ ...mergedContext, ...phase, setting });
+        const capture = pendingStyleCaptures.get(setting.id);
+        if (capture) capture.outcome = await learnAppliedStyleEffect({ capture, context: mergedContext });
         pendingCapabilities.add(setting.capability);
       },
       restore: async (setting, phase) => {
@@ -165,6 +255,29 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         if (pendingCapabilities.has('profile-settings')) {
           await mergedContext.profileEditorAdapter?.afterSave?.(info);
         }
+        for (const [settingId, capture] of pendingStyleCaptures) {
+          const setting = capture.setting;
+          let outcome = capture.outcome || { status: 'na', reason: 'style-effect-snapshot-not-completed', learned: { effects: [] }, applied: { applied: [], candidateCount: 0 } };
+          const expectedValues = {};
+          for (const item of outcome.applied?.applied || []) {
+            const checkId = `bss-${item.checkId}`;
+            expectedValues[checkId] ||= {};
+            if (Object.hasOwn(item, 'expectedValue')) expectedValues[checkId][item.property] = item.expectedValue;
+          }
+          outcome = { status: outcome.status, reason: outcome.reason,
+            changedElementCount: new Set((outcome.learned?.effects || []).map((effect) => effect.selector)).size,
+            mappedCheckCount: outcome.applied?.applied?.length || 0,
+            candidateCount: outcome.applied?.candidateCount || 0, expectedValues };
+          if (capture.cleared || outcome.mappedCheckCount || outcome.candidateCount) await persistProfile();
+          if (capture.error && capture.cleared) await persistProfile();
+          styleScopeDiagnostics.push({ settingId, capability: setting.capability, status: outcome.status,
+            reason: outcome.reason, changedElementCount: outcome.changedElementCount || 0,
+            mappedCheckCount: outcome.mappedCheckCount || 0,
+            fallbackCandidateCount: outcome.candidateCount || capture.styleEffect.candidateSelectors?.length || 0,
+            expectedValues: outcome.expectedValues || {},
+            phase: capture.phase?.phase || 'batch' });
+        }
+        pendingStyleCaptures.clear();
         pendingCapabilities.clear();
         pendingLifecycles.clear();
         activeLifecycle = null;
@@ -174,11 +287,13 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
         return setting.check({ ...mergedContext, ...phase, setting });
       },
     };
-    prepared = { settings, metadata, capabilityResults, staticResults, persistedControls, batchAdapter,
+    prepared = { reportProfile: mergedContext.profile, settings, metadata, capabilityResults, staticResults, persistedControls, batchAdapter, styleScopeDiagnostics,
+      humanReview: buildDesignHumanReview(mergedContext.profile, staticResults),
       runPostPublishChecks: async (runtime = {}) => {
         const checks = [];
         for (const { definition, item } of postPublishDefinitions) {
-          const outcome = await definition.runPostPublish({ ...mergedContext, ...runtime, capability: item });
+          const outcome = await definition.runPostPublish({ ...mergedContext, ...runtime,
+            settingsReport: runtime.settingsReport || { styleScopeLearning: styleScopeDiagnostics }, capability: item });
           if (!Array.isArray(outcome)) throw new Error(`Check-only capability ${item.id} did not return a checks array.`);
           checks.push(...outcome);
         }
@@ -186,7 +301,7 @@ export async function createFreshSettingsAdapter({ capabilities = [], context = 
           ...mergedContext, ...runtime,
           frontAvailable: Boolean(runtime.frontAvailable ?? mergedContext.frontAvailable),
         }));
-        return checks;
+        return checks.map((check) => applyHumanReviewVerdict(check, { profile: mergedContext.profile }));
       } };
     return prepared;
   };
@@ -203,7 +318,13 @@ export function currentValuesFromInventory(inventory) {
       const identityValue = sensitive ? '[redacted]' : (control.value || '');
       values.push({ controlIdentity: `${region.type}:${region.wrapIndex}:${region.title || region.kind || ''}:${control.type}:${control.label || ''}:${identityValue}:${index}`,
         controlIndex: control.index ?? index,
-        region: region.title || region.kind || region.type, label: control.label || '', type: control.type, value });
+        region: region.regionKey || region.title || region.kind || region.type,
+        ...(control.section || region.section ? { section: control.section || region.section } : {}),
+        label: control.label || '', type: control.type, value,
+        ...(control.inventoryNote ? { inventoryNote: control.inventoryNote } : {}),
+        ...(control.role ? { role: control.role } : {}),
+        ...(control.position !== undefined ? { position: control.position } : {}),
+        ...(control.identity ? { sourceIdentity: control.identity } : {}) });
     }
   }
   return values;

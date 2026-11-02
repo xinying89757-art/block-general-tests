@@ -71,17 +71,22 @@ const session = await launchSession(config);
 try {
   const adapter = createFreshBlockBrowserAdapter({ config, session, targetPage: page,
     settingsAdapter: { get batchAdapter() { return settingsAdapter?.batchAdapter; }, prepare: (...input) => settingsAdapter.prepare(...input) },
-    discoverAndPrepareSettings: async ({ page: editorPage, frame, inventory }) => {
+    discoverAndPrepareSettings: async ({ page: editorPage, frame, inventory, styleControlAdapter }) => {
       const mapping = mapDiscoveredInventory(inventory);
       mappingSummary = summarizeDraftMapping(mapping);
       generatedProfile = buildDraftProfile(template, { blockId, page, mapping });
       await fs.writeFile(profilePath, `${JSON.stringify(generatedProfile, null, 2)}\n`, { mode: 0o644, flag: existing ? 'w' : 'wx' });
       console.log(`[onboard] profile draft written: ${path.relative(root, profilePath)}; auto-mapped=${mappingSummary.autoMappedCount}; unmapped=${mappingSummary.unmappedCount}`);
       const context = { config, session, page, profile: generatedProfile, siteHost, blockId,
-        save: () => savePage(editorPage) };
+        save: () => savePage(editorPage),
+        persistProfile: async (nextProfile) => {
+          const temporary = `${profilePath}.${process.pid}.tmp`;
+          await fs.writeFile(temporary, `${JSON.stringify(nextProfile, null, 2)}\n`, { mode: 0o600 });
+          await fs.rename(temporary, profilePath);
+        } };
       settingsAdapter = await createFreshSettingsAdapter({ capabilities: generatedProfile.capabilities,
         context, loadCapability: async (id) => import(pathToFileURL(path.join(root, 'src', 'capabilities', `${id}.mjs`)).href) });
-      return settingsAdapter.prepare({ page: editorPage, canvas: frame, frame, config });
+      return settingsAdapter.prepare({ page: editorPage, canvas: frame, frame, config, inventory, styleControlAdapter });
     } });
   let report;
   try { report = await runFreshBlockFlow({ config: { ...config, siteHost, blockId, page }, adapter, runId,
@@ -104,7 +109,10 @@ try {
     const reportPath = path.join(reportDir, `fresh-block-${blockId}-${Date.now()}.json`);
     await fs.writeFile(reportPath, `${JSON.stringify(environmentReport, null, 2)}\n`);
     const summaryPath = reportPath.replace(/\.json$/, '-summary-zh.md');
-    await fs.writeFile(summaryPath, `# 区块 ${blockId} onboarding 环境结果\n\n- 状态：${outcome.status}\n- 阶段：${environmentReport.stage}\n- 原因：${outcome.message}\n- 前台：${environmentReport.links.front || '未生成'}\n- 编辑器：${environmentReport.links.editor || '未生成'}\n- 设置盘点：未开始；未执行设置批次或发布。\n- JSON：\`${path.relative(root, reportPath)}\`\n`);
+    const attempts = environmentReport.libraryLookup.length ? environmentReport.libraryLookup.map((item) =>
+      `- ${item.mode}: 查询 ${item.query}；searched=${item.searched}；等待加载=${item.waitedForLazyResults}；滚动到底=${item.scrolledToEnd}；found=${item.found}${item.screenshot ? `；截图=${item.screenshot}` : ''}${item.error ? `；错误=${item.error}` : ''}`).join('\n')
+      : '- 无模块库查询（停止在编辑器入口或更早阶段）';
+    await fs.writeFile(summaryPath, `# 区块 ${blockId} onboarding 环境结果\n\n- 状态：${outcome.status}\n- 阶段：${environmentReport.stage}\n- 原因：${outcome.message}\n- 前台：${environmentReport.links.front || '未生成'}\n- 编辑器：${environmentReport.links.editor || '未生成'}\n- 模块库按目标编号的尝试：\n${attempts}\n- 设置盘点：未开始；未执行设置批次或发布。\n- JSON：\`${path.relative(root, reportPath)}\`\n`);
     console.error(`[onboard] environment outcome: ${outcome.code}; report: ${reportPath}`);
     console.error(`[onboard] Chinese summary: ${summaryPath}`);
     process.exitCode = 2;
@@ -120,9 +128,9 @@ try {
   const unmapped = mappingSummary.unmappedControls.length ? mappingSummary.unmappedControls.map((item) => `- ${item.regionType || item.kind}：${item.control.label || '(无标签)'} [${item.control.type}]`).join('\n') : '- 无';
   const passes = report.checks.filter((item) => item.status === 'pass').length;
   const fails = report.failures.length;
-  await fs.writeFile(summaryPath, `# 区块 ${blockId} 自动接入摘要\n\n- 画像：\`${path.relative(root, profilePath)}\`（草稿，未审核）\n- 前台页面：${report.links.front || '未生成'}\n- 编辑器页面：${report.links.editor || page.editorHref || '未生成'}\n- 自动映射设置：${mappingSummary.autoMappedCount}\n${mapped}\n- 未映射设置：${mappingSummary.unmappedCount}\n${unmapped}\n- 结果：${passes} pass / ${fails} fail；发布=${Boolean(report.publishedAt)}\n- 报告：\`${path.relative(root, reportPath)}\`\n\n自动映射只复用唯一匹配的通用结构签名；预期值、夹具及新断言均未推断，需人工审核草稿画像。\n`);
+  await fs.writeFile(summaryPath, `# 区块 ${blockId} 自动接入摘要\n\n- 画像：\`${path.relative(root, profilePath)}\`（草稿，未审核）\n- 前台页面：${report.links.front || '未生成'}\n- 编辑器页面：${report.links.editor || page.editorHref || '未生成'}\n- 自动映射设置：${mappingSummary.autoMappedCount}\n${mapped}\n- 未映射设置：${mappingSummary.unmappedCount}\n${unmapped}\n- 结果：${passes} pass / ${fails} fail / ${report.summary?.na || 0} na / ${report.summary?.['human-review'] || 0} 人工判断；发布确认=${Boolean(report.publishedConfirmed ?? report.publishedAt)}\n- 报告：\`${path.relative(root, reportPath)}\`\n\n自动映射只复用唯一匹配的通用结构签名；预期值、夹具及新断言均未推断，需人工审核草稿画像。\n`);
   console.log(`[onboard] report: ${reportPath}`);
   console.log(`[onboard] Chinese summary: ${summaryPath}`);
-  console.log(`[onboard] ${passes} pass / ${fails} fail; published=${Boolean(report.publishedAt)}`);
+  console.log(`[onboard] ${passes} pass / ${fails} fail; published=${Boolean(report.publishedConfirmed ?? report.publishedAt)}`);
   }
 } finally { await session.browser.close(); }

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dismissReadOnlyPopover, reloadDiscardAndVerify } from '../src/read-only-dismiss.mjs';
+import { createStableSnapshotDiagnostics, dismissReadOnlyPopover, readStableSnapshot, reloadDiscardAndVerify } from '../src/read-only-dismiss.mjs';
+import { buttonPopoverFailureDiagnostics } from '../src/capabilities/button-link.mjs';
 
 test('read-only popover dismissal uses Escape and neutral click without a save action', async () => {
   const events = [];
@@ -50,7 +51,7 @@ test('read-only popover reload discards UI state and verifies values before fina
     finishReload: async () => { events.push('final-reload-discard'); },
   });
   assert.deepEqual(actual, expected);
-  assert.deepEqual(events, ['reload-discard', 'read-back', 'final-reload-discard']);
+  assert.deepEqual(events, ['reload-discard', 'read-back', 'read-back', 'final-reload-discard']);
   assert.equal(events.some((event) => /save/i.test(event)), false);
 });
 
@@ -61,9 +62,56 @@ test('read-only popover reload mismatch fails without any save action', async ()
     readBack: async () => [{ label: '按钮文本', type: 'text', to: 'changed' }],
     expected: [{ label: '按钮文本', type: 'text', to: 'original' }],
     finishReload: async () => { events.push('final-reload-discard'); },
-  }), /重载后发生变化.*未保存/);
+  }), /重载后发生变化.*未保存.*变化字段=.*to/);
   assert.deepEqual(events, ['reload-discard']);
   assert.equal(events.some((event) => /save/i.test(event)), false);
+});
+
+test('read-only button values wait for two consecutive stable post-reload reads', async () => {
+  let now = 0;
+  const observed = [{ value: 'loading' }, { value: 'saved' }, { value: 'saved' }];
+  const value = await readStableSnapshot(async () => observed.shift(), {
+    timeoutMs: 10, intervalMs: 1, now: () => now, wait: async (ms) => { now += ms; },
+  });
+  assert.deepEqual(value, { value: 'saved' });
+});
+
+test('read-only stable value timeout retains the last observation and does not weaken comparison', async () => {
+  let now = 0, index = 0;
+  await assert.rejects(readStableSnapshot(async () => ({ value: String(index++) }), {
+    timeoutMs: 3, intervalMs: 1, now: () => now, wait: async (ms) => { now += ms; },
+  }), (error) => error.code === 'READBACK_UNSTABLE' && error.lastValue.value === '3');
+});
+
+test('stable snapshot diagnostics report changed and unreadable field names without values', () => {
+  const diagnostics = createStableSnapshotDiagnostics(['text', 'url', 'linkType']);
+  diagnostics.observe({ text: 'private label', url: 'https://private.example', linkType: '域名' });
+  diagnostics.observe({ text: 'private label', url: 'https://other.example', linkType: '域名' });
+  diagnostics.observe({ text: undefined, url: 'https://other.example', linkType: '域名' });
+  const summary = diagnostics.summary({ elapsedMs: 15000, loadingMaskVisible: true });
+  assert.deepEqual(summary, { snapshotCount: 3, elapsedMs: 15000, changingFields: ['url'],
+    unreadableFields: ['text'], loadingMaskVisible: true });
+  assert.doesNotMatch(JSON.stringify(summary), /private|example|域名/);
+});
+
+test('button-popover open timeout reports stage, empty snapshot count and unreadable root without values', () => {
+  const diagnostics = createStableSnapshotDiagnostics(['text', 'url', 'linkType', 'newWindow']);
+  const summary = buttonPopoverFailureDiagnostics({ diagnostics, stage: 'popover-open', elapsedMs: 2500,
+    loadingMaskVisible: true, error: Object.assign(new Error('private input text'), { candidateCount: 0, rootCount: 0 }) });
+  assert.deepEqual(summary, { snapshotCount: 0, elapsedMs: 2500, changingFields: [],
+    unreadableFields: ['popover-root'], loadingMaskVisible: true, stage: 'popover-open', candidateCount: 0, rootCount: 0 });
+  assert.doesNotMatch(JSON.stringify(summary), /private|input text/);
+});
+
+test('button-popover unstable snapshot diagnostics report only changed field names', () => {
+  const diagnostics = createStableSnapshotDiagnostics(['text', 'url', 'linkType', 'newWindow']);
+  diagnostics.observe({ text: 'secret text', url: 'https://secret.invalid', linkType: '域名', newWindow: false });
+  diagnostics.observe({ text: 'secret text', url: 'https://other.invalid', linkType: '域名', newWindow: false });
+  const summary = buttonPopoverFailureDiagnostics({ diagnostics, stage: 'control-snapshot', elapsedMs: 10_001,
+    loadingMaskVisible: false, error: new Error('secret text') });
+  assert.deepEqual(summary, { snapshotCount: 2, elapsedMs: 10_001, changingFields: ['url'], unreadableFields: [],
+    loadingMaskVisible: false, stage: 'control-snapshot' });
+  assert.doesNotMatch(JSON.stringify(summary), /secret|invalid|域名/);
 });
 
 test('read-only dismissal invokes reload discard only after ordinary no-save methods fail', async () => {

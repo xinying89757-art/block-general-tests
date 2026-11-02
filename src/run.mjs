@@ -1,3 +1,4 @@
+import { applyHumanReviewVerdict } from './human-review.mjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -243,7 +244,7 @@ async function main() {
     fixture: null,
     page: null,
     checks: [],
-    summary: { pass: 0, fail: 0, skip: 0, na: 0, record: 0, deferred: 0, 'env-paused': 0, 'env-timeout': 0 },
+    summary: { pass: 0, fail: 0, skip: 0, na: 0, 'human-review': 0, record: 0, deferred: 0, 'env-paused': 0, 'env-timeout': 0 },
     previewLink: null,
     previewLinkExpiresAt: null,
     screenshots: {},
@@ -568,6 +569,7 @@ async function main() {
     }
   }
 
+  report.checks = report.checks.map((check) => applyHumanReviewVerdict(check, { profile }));
   report.environmentEvents = environmentEvents;
   if (report.failure?.status && Object.hasOwn(report.summary, report.failure.status)
     && !report.checks.some((check) => check.status === report.failure.status)) report.summary[report.failure.status] += 1;
@@ -584,7 +586,7 @@ async function main() {
   const safeReport = redact(report, config);
   await writeFile(reportPath, `${JSON.stringify(safeReport, null, 2)}\n`, 'utf8');
   const { pass, fail, skip, na, record, deferred } = report.summary;
-  console.log(`[block] ${report.status}：pass=${pass} fail=${fail} skip=${skip} na=${na} record=${record} deferred=${deferred}`);
+  console.log(`[block] ${report.status}：pass=${pass} fail=${fail} skip=${skip} na=${na} 人工判断=${report.summary['human-review']} record=${record} deferred=${deferred}`);
   console.log(`[block] 报告：${reportPath}`);
   for (const check of safeReport.checks.filter((item) => item.status === 'fail')) {
     console.error(`[block] ${check.id}：${check.detail}`);

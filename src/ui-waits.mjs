@@ -40,7 +40,7 @@ export async function retryEnvironmentTimeout(action, { stage, retries = environ
 }
 
 const transient = (error) => error?.name === 'TimeoutError'
-  || /detached|not attached|Execution context was destroyed|Cannot find context/i.test(error?.message || '');
+  || /detached|not attached|Execution context was destroyed|Cannot find context|intercepts pointer events/i.test(error?.message || '');
 
 // Retry only a wait/read or an idempotent open, never a whole mutation/check.
 export async function retryTransient(action) {
@@ -49,6 +49,64 @@ export async function retryTransient(action) {
     if (!transient(error)) throw error;
     return action();
   }
+}
+
+/** Wait for a caller-provided loading-overlay snapshot to become empty. */
+export async function waitForNoLoadingOverlay(read, { timeoutMs = uiWaitConfig().timeout,
+  intervalMs = 100, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let last = [];
+  do {
+    last = await read();
+    if (!Array.isArray(last) || last.length === 0) return last;
+    if (Date.now() >= deadline) break;
+    await wait(Math.min(intervalMs, Math.max(1, deadline - Date.now())));
+  } while (Date.now() <= deadline);
+  const error = new Error(`Editor loading overlays did not clear within ${timeoutMs}ms: ${last.join(', ')}`);
+  error.name = 'TimeoutError';
+  throw error;
+}
+
+/** Re-resolve a dynamic control after a transient detach/overlay interception. */
+export async function retryWithFreshControl({ resolve, act, ready = async () => {}, attempts = 3 }) {
+  if (typeof resolve !== 'function' || typeof act !== 'function') {
+    throw new Error('Fresh-control retry requires resolve() and act() callbacks.');
+  }
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 5) throw new Error('Fresh-control attempts must be from 1 to 5.');
+  for (let attempt = 0; ; attempt += 1) {
+    await ready();
+    const control = await resolve({ attempt });
+    try { return await act(control, { attempt }); }
+    catch (error) {
+      if (attempt + 1 >= attempts || !transient(error)) throw error;
+    }
+  }
+}
+
+const LOADING_OVERLAY_SELECTOR = [
+  '.loadingMask', '.loadingMask2', '.backstage-loading', '.loading-mask', '.layui-layer-loading',
+  '[aria-busy="true"]', '[data-loading="true"]',
+].join(',');
+
+export async function waitForEditorLoadingToClear(scope, options = {}) {
+  const body = scope?.locator?.('body');
+  // Lightweight offline mocks may model only the control being exercised.
+  if (typeof body?.evaluate !== 'function') return [];
+  return waitForNoLoadingOverlay(() => visibleEditorLoadingOverlays(scope), options);
+}
+
+/** Return visible editor loading overlays without exposing field values. */
+export async function visibleEditorLoadingOverlays(scope) {
+  const body = scope?.locator?.('body');
+  if (typeof body?.evaluate !== 'function') return [];
+  return body.evaluate((root, selectors) => {
+    const visible = (element) => element.getClientRects().length > 0
+      && getComputedStyle(element).visibility !== 'hidden'
+      && getComputedStyle(element).display !== 'none'
+      && !/(?:^|\s)(?:hide|hidden)(?:\s|$)/i.test(String(element.className || ''));
+    return [...root.querySelectorAll(selectors)].filter(visible)
+      .map((element) => element.className?.baseVal || element.className || element.getAttribute('data-loading') || 'loading-overlay');
+  }, LOADING_OVERLAY_SELECTOR);
 }
 
 export async function waitForStable(read, ready = () => true, options = {}) {

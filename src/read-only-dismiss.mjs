@@ -1,8 +1,82 @@
-export async function reloadDiscardAndVerify({ reload, readBack, expected, finishReload = reload }) {
+export async function readStableSnapshot(read, { timeoutMs = 10_000, intervalMs = 100, stableReads = 2,
+  now = () => Date.now(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+  if (typeof read !== 'function' || !Number.isInteger(stableReads) || stableReads < 2) {
+    throw new Error('Stable readback requires a reader and at least two identical observations.');
+  }
+  const deadline = now() + timeoutMs;
+  let previous;
+  let repeats = 0;
+  let last;
+  do {
+    last = await read();
+    if (previous !== undefined && JSON.stringify(last) === JSON.stringify(previous)) repeats++;
+    else repeats = 1;
+    if (repeats >= stableReads) return last;
+    previous = structuredClone(last);
+    if (now() >= deadline) break;
+    await wait(Math.min(intervalMs, Math.max(1, deadline - now())));
+  } while (now() <= deadline);
+  const error = new Error(`只读回读值在 ${timeoutMs}ms 内未稳定。`);
+  error.name = 'TimeoutError';
+  error.code = 'READBACK_UNSTABLE';
+  error.lastValue = last;
+  throw error;
+}
+
+/** Track stability by field identity without retaining or returning the field values. */
+export function createStableSnapshotDiagnostics(fields) {
+  const names = [...new Set(fields)];
+  const previous = new Map();
+  const changingFields = new Set();
+  const unreadableFields = new Set();
+  let snapshotCount = 0;
+  return Object.freeze({
+    observe(snapshot) {
+      snapshotCount++;
+      for (const name of names) {
+        if (!snapshot || !Object.hasOwn(snapshot, name) || snapshot[name] === undefined) {
+          unreadableFields.add(name);
+          continue;
+        }
+        const signature = JSON.stringify(snapshot[name]);
+        if (previous.has(name) && previous.get(name) !== signature) changingFields.add(name);
+        previous.set(name, signature);
+      }
+    },
+    unreadable(name) { unreadableFields.add(String(name)); },
+    failedRead() { snapshotCount++; },
+    summary({ elapsedMs = 0, loadingMaskVisible = false } = {}) {
+      return { snapshotCount, elapsedMs, changingFields: [...changingFields].sort(),
+        unreadableFields: [...unreadableFields].sort(), loadingMaskVisible: Boolean(loadingMaskVisible) };
+    },
+  });
+}
+
+function changedPaths(expected, actual, prefix = '') {
+  if (Object.is(expected, actual)) return [];
+  if (Array.isArray(expected) || Array.isArray(actual)) {
+    if (!Array.isArray(expected) || !Array.isArray(actual)) return [prefix || 'value'];
+    const paths = [];
+    for (let index = 0; index < Math.max(expected.length, actual.length); index++) {
+      paths.push(...changedPaths(expected[index], actual[index], `${prefix}[${index}]`));
+    }
+    return paths;
+  }
+  if (expected && actual && typeof expected === 'object' && typeof actual === 'object') {
+    const paths = [];
+    for (const key of new Set([...Object.keys(expected), ...Object.keys(actual)])) {
+      paths.push(...changedPaths(expected[key], actual[key], prefix ? `${prefix}.${key}` : key));
+    }
+    return paths;
+  }
+  return [prefix || 'value'];
+}
+
+export async function reloadDiscardAndVerify({ reload, readBack, expected, finishReload = reload, stableReadOptions }) {
   await reload();
-  const actual = await readBack();
+  const actual = await readStableSnapshot(readBack, stableReadOptions);
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error('只读按钮值在重载后发生变化；停止检查，未保存。');
+    throw new Error(`只读按钮值在重载后发生变化；停止检查，未保存。变化字段=${changedPaths(expected, actual).join(', ') || 'value'}`);
   }
   await finishReload();
   return actual;

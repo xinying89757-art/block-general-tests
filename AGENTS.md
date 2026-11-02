@@ -48,6 +48,8 @@
    人工确认一次映射（设计稿节点 → DOM 选择器）与断言级别，再写进画像 `styleSpec`。
    没有 Figma 连接器/token 时样式检查全部 skip 并说明原因，不要报错。
    注意：Figma 图层名来自编辑器 DOM，前台类名可能不同，选择器一律以前台实测为准。
+   Design spec → checklist: use the design-spec-checklist skill; output must pass `npm run check:design-spec`; checkers are fixed in `src/design-spec-checklist.mjs`.
+   Mobile checks are driven by each profile checklist: mobile requirements compare at the mobile viewport; without mobile spec items, only instance-internal breakage can fail, while page overflow is informational.
 6. **代理（可选）**：测试环境要走 HTTP 代理才填 `HTTPS_PROXY`，没有就直连。
    默认用 Chrome（`BROWSER=chromium`，`channel: "chrome"`，要求安装系统 Chrome）；
    代理受限的机器（比如 miumiu 这台，Playwright Chromium 经出口代理访问外站失败）

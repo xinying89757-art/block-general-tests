@@ -72,7 +72,9 @@ const fromOutcome = (id, outcome) => result(id, outcome.status, outcome.detail, 
 
 async function persistSpectrumColor({ session, page, original, alternate }) {
   const evidence = { original, alternate, strategy: null };
-  const read = () => session.root.locator('#customOnBgColor').inputValue({ timeout: TIMEOUT });
+  const backgroundColorInput = session.root.locator('#customOnBgColor');
+  if (await backgroundColorInput.count() !== 1) unavailable('筛选背景色控件不唯一，拒绝读写。');
+  const read = () => backgroundColorInput.inputValue({ timeout: TIMEOUT });
   const readBack = (expected) => readBackWithRetry(read, (value) => value === expected,
     async () => { await session.cancel(); await session.open(); });
   const set = async (value) => {
@@ -94,10 +96,15 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
     try {
       const replacer = session.root.locator('li.settings-btn-item').filter({ has: session.root.locator('.settings-btn-title', { hasText: /^背景颜色$/ }) }).locator('.sp-replacer');
       await replacer.click({ timeout: TIMEOUT });
-      const input = page.locator('.sp-container:visible .sp-input');
+      const popup = page.locator('.sp-container:visible');
+      if (await popup.count() !== 1) unavailable('当前取色弹窗不唯一。');
+      const input = popup.locator('.sp-input');
+      if (await input.count() !== 1) unavailable('当前取色弹窗输入框不唯一。');
       await input.waitFor({ state: 'visible', timeout: TIMEOUT });
       await input.fill(value, { timeout: TIMEOUT });
-      await page.locator('.sp-container:visible .sp-choose').click({ timeout: TIMEOUT });
+      const choose = popup.locator('.sp-choose');
+      if (await choose.count() !== 1) unavailable('当前取色弹窗确认按钮不唯一。');
+      await choose.click({ timeout: TIMEOUT });
       const applied = await poll(read, (actual) => actual === value);
       if (!applied.matched) throw new Error(`取色器选择后值为 ${JSON.stringify(applied.value)}`);
       evidence.strategy = 'Spectrum 面板';
@@ -625,6 +632,7 @@ async function filterFieldsEffect(args, layer) {
 
 async function setFilterColor(session, page, color) {
   const input = session.root.locator('#customOnBgColor');
+  if (await input.count() !== 1) unavailable('筛选背景色控件不唯一，拒绝读写。');
   const used = await input.evaluate((node, value) => {
     const win = node.ownerDocument.defaultView, jq = win.jQuery || win.$;
     if (typeof jq?.fn?.spectrum !== 'function') return false;
@@ -636,8 +644,12 @@ async function setFilterColor(session, page, color) {
     await replacer.click({ timeout: TIMEOUT });
     const popup = page.locator('.sp-container:visible');
     if (await popup.count() !== 1) unavailable('当前取色弹窗不唯一。');
-    await popup.locator('.sp-input').fill(color);
-    await popup.locator('.sp-choose').click();
+    const popupInput = popup.locator('.sp-input');
+    if (await popupInput.count() !== 1) unavailable('当前取色弹窗输入框不唯一。');
+    await popupInput.fill(color, { timeout: TIMEOUT });
+    const choose = popup.locator('.sp-choose');
+    if (await choose.count() !== 1) unavailable('当前取色弹窗确认按钮不唯一。');
+    await choose.click({ timeout: TIMEOUT });
   }
   if (normalizeColor(await input.inputValue()) !== normalizeColor(color)) throw new Error('背景色改写后读值不一致');
 }

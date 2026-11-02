@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildFreshReport, diffFreshDefaults, targetBlockInstances, parseFreshPageConfig,
-  runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
+  runFreshBlockFlow, readStableBlockInventory, countPageBlocksByNumber } from '../src/fresh-block-flow.mjs';
+import { degradeInventoryRegion } from '../src/baseline.mjs';
 import { executeSettingBatches, selectRetainedFailures } from '../src/batch-save.mjs';
 import { createFreshLifecycle, createFreshSettingsAdapter, currentValuesFromInventory, projectPersistedFreshValues } from '../src/fresh-settings-adapter.mjs';
 import { matchingDeleteActionIndexes, matchingDeleteActionMatches, matchingDeleteConfirmIndexes,
@@ -10,18 +11,21 @@ import { matchingPageSaveControls, waitForUniquePageSaveControl } from '../src/p
 import { bindFreshBatchSettingSession, freshSettings as productListFreshSettings } from '../src/capabilities/product-list-display.mjs';
 import { freshSettings as customFilterFreshSettings } from '../src/capabilities/custom-filter-fields.mjs';
 import { freshSettings as buttonFreshSettings } from '../src/capabilities/button-link.mjs';
-import { freshSettings as colorFreshSettings } from '../src/capabilities/block-color-scheme.mjs';
+import { freshSettings as colorFreshSettings, createFreshDefinitions as createColorFreshDefinitions } from '../src/capabilities/block-color-scheme.mjs';
 import { freshSettings as widthFreshSettings, moduleWidthPersistedControls } from '../src/capabilities/module-width.mjs';
 import { freshSettings as categoryFreshSettings, categoryPersistedControls } from '../src/capabilities/product-category-select.mjs';
 import { freshSettings as styleFreshSettings } from '../src/capabilities/block-style-spec.mjs';
 import { freshRailInventoryRegions, resolveFreshPageTarget } from '../src/fresh-block-browser-adapter.mjs';
-import { selectBlock as selectRailBlock } from '../src/capabilities/rail.mjs';
+import { inspectActiveModuleLibraryOpener, waitForUniqueVisibleControl,
+  waitForUniqueVisibleModuleLibraryPanel } from '../src/module-library-browser.mjs';
+import { selectBlock as selectRailBlock, identifyColorPanelInputs, planColorPanelWrites,
+  colorPanelReadResult } from '../src/capabilities/rail.mjs';
 import { planDeclaredFreshSettings } from '../src/fresh-plan.mjs';
 import { compareFreshValueSnapshots } from '../src/fresh-block-flow.mjs';
 
 function fakeAdapter(initialInstances = []) {
   const events = [];
-  const state = { instances: structuredClone(initialInstances), values: {}, snapshots: null, report: null };
+  const state = { instances: structuredClone(initialInstances), persistedInstances: structuredClone(initialInstances), values: {}, snapshots: null, report: null };
   const batchAdapter = {
     capture: async (settings) => { state.snapshots = new Map(settings.map((item) => [item.id, null])); return state.snapshots; },
     apply: async (setting, { phase }) => { events.push(['apply', setting.id, phase]); state.values[setting.key] = setting.value; },
@@ -32,29 +36,116 @@ function fakeAdapter(initialInstances = []) {
   };
   return { events, state, batchAdapter,
     openPage: async (page) => { events.push(['openPage', page.kind]); return { editorLink: '/editor' }; },
-    listAllBlockInstances: async () => structuredClone(state.instances),
+    listAllBlockInstances: async () => { events.push(['inventory-read']); return structuredClone(state.instances); },
     deleteBlockInstance: async (instance) => {
       events.push(['delete', instance.blockId, instance.settingId]);
       state.instances = state.instances.filter((item) => item.settingId !== instance.settingId);
     },
     addDefaultBlock: async (blockId) => {
-      const instance = { blockId: String(blockId), settingId: 'new-instance', position: { x: 0, y: 100 } };
+      const targetOrdinals = state.instances.filter((item) => String(item.blockId) === String(blockId))
+        .map((item) => item.ordinal).filter(Number.isInteger);
+      const instance = { blockId: String(blockId), settingId: 'new-instance', ordinal: Math.max(-1, ...targetOrdinals) + 1,
+        position: { x: 0, y: 100 } };
       state.instances.push(instance); events.push(['add', blockId]); return instance;
     },
     savePage: async () => events.push(['savePage']), reloadPage: async () => events.push(['reloadPage']),
+    waitForInventoryReady: async () => events.push(['inventory-ready']),
+    discardUnsavedChanges: async () => {
+      events.push(['discardUnsavedChanges']); state.instances = structuredClone(state.persistedInstances);
+    },
+    writeStopReport: async (report) => { state.stopReport = report; events.push(['writeStopReport']); },
     readDefaults: async () => [{ controlIdentity: 'dialog:text:heading', label: 'Heading', value: 'Default' }],
     readDefaultsSnapshot: async () => null,
     writeDefaultsSnapshot: async (_path, snapshot) => { state.defaults = snapshot; },
     readCurrentValues: async () => Object.entries(state.values).map(([key, value]) => ({ key, value })),
     readPublishedValues: async () => Object.entries(state.values).map(([key, value]) => ({ key, value })),
     captureFailureScreenshot: async ({ stage }) => `reports/screenshots/${stage}.png`,
-    publishPage: async () => { events.push(['publish']); return { frontLink: '/public', publishedAt: 'now' }; },
+    publishPage: async () => { events.push(['publish']); return { frontLink: '/public', publishedAt: 'now', confirmed: true,
+      publishSignal: { status: 'confirmed' }, frontVerification: { status: 'present' } }; },
     writeReport: async (report) => { state.report = report; },
   };
 }
 
 const config = { page: { kind: 'custom', name: 'Catalog test' }, siteHost: 'example.test', blockId: '55',
   projectRoot: '/tmp/fresh-flow-test' };
+
+test('stable block inventory requires consecutive identical reads after readiness waits', async () => {
+  const events = [];
+  let tick = 0;
+  let now = 0;
+  const result = await readStableBlockInventory(async () => {
+    events.push(`read-${++tick}`);
+    return tick === 1 ? [{ blockId: 'a' }] : [{ blockId: 'a' }, { blockId: 'b' }];
+  }, { waitForReady: async () => events.push('ready'), timeoutMs: 100, intervalMs: 1,
+    now: () => now, wait: async () => { now += 1; } });
+  assert.deepEqual(result, [{ blockId: 'a' }, { blockId: 'b' }]);
+  assert.deepEqual(events, ['ready', 'read-1', 'ready', 'read-2', 'ready', 'read-3']);
+  assert.deepEqual(countPageBlocksByNumber([{ blockId: 'a' }, { blockId: 'b' }, { blockId: 'a' }]), { a: 2, b: 1 });
+});
+
+test('single color input preserves the scalar reader contract and existing rail inventory shape', () => {
+  const inputs = [{ name: 'scheme', label: '配色方案', role: 'color', value: '#1C4587', position: 0 }];
+  const read = colorPanelReadResult(inputs);
+  assert.equal(read, '#1C4587');
+  assert.deepEqual(freshRailInventoryRegions(read, null)[0].controls, [{ index: 0, tag: 'INPUT', type: 'text',
+    name: 'scheme-color', label: '配色方案', value: '#1C4587', checked: false, disabled: false,
+    role: 'color', identity: 'position:0', position: 0 }]);
+  assert.deepEqual(planColorPanelWrites(identifyColorPanelInputs(inputs).controls, '#FF0000').map(({ control, value }) =>
+    ({ identity: control.identity, value })), [{ identity: 'label:配色方案', value: '#FF0000' }]);
+});
+
+test('three color inputs are inventoried independently and composite writes require explicit identities', () => {
+  const inputs = [
+    { name: 'colorVal0', label: '文字色', role: 'color', value: '#112233', position: 0 },
+    { name: 'colorVal1', label: '背景色', role: 'color', value: '#445566', position: 1 },
+    { name: 'colorVal2', label: '边框色', role: 'color', value: '#778899', position: 2 },
+  ];
+  const read = colorPanelReadResult(inputs);
+  assert.equal(read.status, 'multiple-controls');
+  assert.deepEqual(read.controls.map(({ identity, label, role, position, value }) =>
+    ({ identity, label, role, position, value })), [
+    { identity: 'label:文字色', label: '文字色', role: 'color', position: 0, value: '#112233' },
+    { identity: 'label:背景色', label: '背景色', role: 'color', position: 1, value: '#445566' },
+    { identity: 'label:边框色', label: '边框色', role: 'color', position: 2, value: '#778899' },
+  ]);
+  assert.throws(() => planColorPanelWrites(read.controls, '#FF0000'), /specify each target/);
+  assert.deepEqual(planColorPanelWrites(read.controls, read.controls.map((control, index) =>
+    ({ controlIdentity: control.identity, value: ['#AA0000', '#00BB00', '#0000CC'][index] })))
+    .map(({ control, value }) => ({ identity: control.identity, value })), [
+    { identity: 'label:文字色', value: '#AA0000' },
+    { identity: 'label:背景色', value: '#00BB00' },
+    { identity: 'label:边框色', value: '#0000CC' },
+  ]);
+  const regions = freshRailInventoryRegions(read, null)[0];
+  assert.equal(regions.controls.length, 3);
+  assert.deepEqual(regions.controls.map(({ name, label, value }) => ({ name, label, value })), [
+    { name: 'colorVal0', label: '文字色', value: '#112233' },
+    { name: 'colorVal1', label: '背景色', value: '#445566' },
+    { name: 'colorVal2', label: '边框色', value: '#778899' },
+  ]);
+});
+
+test('ambiguous color controls retain inventory notes and cannot be mapped or written', () => {
+  const inputs = [
+    { name: 'same', label: '颜色', role: 'color', value: '#111111', position: 0 },
+    { name: 'same', label: '颜色', role: 'color', value: '#222222', position: 0 },
+  ];
+  const read = colorPanelReadResult(inputs);
+  assert.equal(read.status, 'multiple-controls');
+  assert.ok(read.controls.every((control) => !control.identifiable && control.inventoryNote));
+  assert.equal(read.notes.length, 2);
+  assert.throws(() => planColorPanelWrites(read.controls, [
+    { controlIdentity: 'name:same', value: '#FF0000' },
+  ]), /resolved 0 inputs/);
+  assert.equal(colorPanelReadResult(inputs, { panelCount: 2 }).status, 'ambiguous-panel');
+});
+
+test('unstable page inventory fails closed at its configured bound', async () => {
+  let now = 0;
+  await assert.rejects(readStableBlockInventory(async () => [{ blockId: String(++now) }], {
+    timeoutMs: 3, intervalMs: 1, now: () => now, wait: async () => { now += 1; },
+  }), (error) => error.code === 'PAGE_INVENTORY_UNSTABLE' && Array.isArray(error.lastInventory));
+});
 
 test('shared fresh lifecycles support canvas popovers and right-rail flyouts with fail-closed methods', async () => {
   const events = [];
@@ -274,6 +365,30 @@ test('fresh color and width definitions use right-rail lifecycles and declare co
   assert.equal(widthRun.results[0].status, 'pass');
 });
 
+test('color capability retains its single-input oracle and records multi-input inventory without guessing', async () => {
+  let cancelled = 0;
+  const lifecycle = { open: async () => {}, read: async () => '#336699', apply: async () => {},
+    commit: async () => {}, cancel: async () => { cancelled++; } };
+  const single = await createColorFreshDefinitions({ canvas: {}, config: { blockId: 'generic' }, lifecycle });
+  assert.equal(single.settings.length, 1);
+  assert.equal(single.settings[0].value, '#FF0000');
+  assert.deepEqual(single.persistedControls, [{ region: 'right-rail-color', controlIndex: 0, type: 'text' }]);
+
+  const multi = await createColorFreshDefinitions({ canvas: {}, config: { blockId: 'generic' }, initialValue: {
+    status: 'multiple-controls', controls: [
+      { identity: 'name:colorVal0', label: 'colorVal0', role: 'color', position: 0, value: '#112233', identifiable: true },
+      { identity: 'name:colorVal1', label: 'colorVal1', role: 'color', position: 1, value: '#445566', identifiable: true },
+      { identity: 'name:colorVal2', label: 'colorVal2', role: 'color', position: 2, value: '#778899', identifiable: true },
+    ], notes: [] }, lifecycle });
+  assert.equal(multi.settings.length, 0);
+  assert.match(multi.notAdaptedReason, /3 independently inventoried control/);
+  assert.deepEqual(multi.staticResults.map(({ id, status }) => [id, status]), [
+    ['bcs-state', 'record'], ['bcs-color-persist', 'skip'], ['bcs-front-effect', 'skip'],
+  ]);
+  assert.equal(multi.staticResults[0].evidence.controls.length, 3);
+  assert.equal(cancelled, 1, 'an ambiguous visible rail surface is closed without saving');
+});
+
 test('fresh category definition persists the whole fixture selection set as one setting', async () => {
   const events = [];
   let controls = [
@@ -403,11 +518,16 @@ test('published value comparison reports changed, missing, and added controls wi
   assert.deepEqual(diff.mismatches.map(({ kind }) => kind), ['changed', 'missing', 'added']);
 });
 
-test('deletes every instance of the target number and preserves all other block numbers', async () => {
+test('adds and identifies the fresh target before deleting every old target; preserves other block numbers', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'old-one', ordinal: 0 },
     { blockId: '56', settingId: 'unrelated', ordinal: 0 }, { blockId: '55', settingId: 'old-two', ordinal: 1 }]);
   const progress = [];
   const report = await runFreshBlockFlow({ config, adapter, settings: [], onProgress: async (event) => progress.push(event) });
+  assert.ok(adapter.events.findIndex(([kind]) => kind === 'add') < adapter.events.findIndex(([kind]) => kind === 'delete'));
+  for (const index of adapter.events.flatMap(([kind], position) => kind === 'add' || kind === 'delete' ? [position] : [])) {
+    assert.deepEqual(adapter.events.slice(index + 1, index + 5).map(([event]) => event),
+      ['inventory-ready', 'inventory-read', 'inventory-ready', 'inventory-read']);
+  }
   assert.deepEqual(adapter.events.filter(([kind]) => kind === 'delete'), [['delete', '55', 'old-one'], ['delete', '55', 'old-two']]);
   assert.ok(adapter.state.instances.some((item) => item.settingId === 'unrelated'));
   assert.equal(adapter.state.instances.filter((item) => item.blockId === '55').length, 1);
@@ -418,11 +538,50 @@ test('deletes every instance of the target number and preserves all other block 
   assert.ok(progress.some((event) => event.stage === 'instance-added' && event.settingId === 'new-instance'));
 });
 
-test('stops before adding if a target instance delete did not remove exactly one', async () => {
+test('defaults inventory harness errors still write a partial report and block publication', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 },
+    { blockId: '56', settingId: 'unrelated', ordinal: 0 }]);
+  adapter.readDefaults = async () => { throw new Error('inventory control did not stabilize'); };
+  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  assert.equal(adapter.state.report, report);
+  assert.equal(report.defaults.status, 'unavailable');
+  assert.equal(report.checks.find((item) => item.id === 'fresh-defaults-inventory')?.status, 'fail');
+  assert.equal(report.publishedAt, null);
+  assert.equal(adapter.events.some(([kind]) => kind === 'publish'), false);
+  assert.equal(report.lifecycle.addedSettingId, 'new-instance');
+  assert.deepEqual(countPageBlocksByNumber(adapter.state.instances), { '55': 1, '56': 1 });
+});
+
+test('one failed capability inventory is reported and skipped while clean peers can publish', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
+  adapter.prepareSettings = async () => ({ settings: [{ id: 'peer-setting', key: 'peer', value: 'new', expectedStatus: 'pass' }],
+    metadata: {}, capabilityResults: [{ capability: 'button-link', status: 'not-adapted', reason: 'popover inventory unstable' }],
+    staticResults: [{ id: 'button-link-inventory', status: 'fail', classification: 'harness-error', detail: 'popover inventory unstable' }],
+    batchAdapter: adapter.batchAdapter, persistedControls: [] });
+  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  assert.equal(report.capabilities[0].status, 'not-adapted');
+  assert.equal(report.checks.find((item) => item.id === 'button-link-inventory')?.status, 'fail');
+  assert.equal(report.checks.find((item) => item.id === 'peer-setting')?.status, 'pass');
+  assert.ok(report.publishedAt);
+  assert.equal(adapter.events.some(([kind]) => kind === 'publish'), true);
+});
+
+test('a failed fresh add stops before deleting any existing target instance', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
+  adapter.addDefaultBlock = async () => { adapter.events.push(['add-failed']); throw new Error('target unavailable'); };
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /target unavailable/);
+  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'delete'), []);
+  assert.deepEqual(adapter.state.instances.map(({ settingId }) => settingId), ['old']);
+});
+
+test('stops after an old-target delete fails and discards the unsaved replacement', async () => {
   const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
   adapter.deleteBlockInstance = async (instance) => adapter.events.push(['unexpected-delete-noop', instance.settingId]);
-  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /did not remove exactly/);
-  assert.equal(adapter.events.some(([kind]) => kind === 'add'), false);
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /preserving the fresh instance/);
+  assert.equal(adapter.events.some(([kind]) => kind === 'add'), true);
+  assert.deepEqual(adapter.state.instances.map(({ settingId }) => settingId), ['old']);
+  assert.ok(adapter.events.some(([kind]) => kind === 'discardUnsavedChanges'));
+  assert.equal(adapter.state.stopReport.unsavedEditorStateDiscarded, true);
 });
 
 test('duplicate target instance identity refuses all deletion', async () => {
@@ -441,7 +600,35 @@ test('stops if a delete changes an unmarked different block number', async () =>
     adapter.state.instances = adapter.state.instances.filter((item) => item.settingId !== 'keep');
   };
   await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), /non-target block number changed/);
-  assert.equal(adapter.events.some(([kind]) => kind === 'add'), false);
+  assert.equal(adapter.events.some(([kind]) => kind === 'add'), true);
+  assert.equal(adapter.events.some(([kind]) => kind === 'savePage' || kind === 'publish'), false);
+});
+
+test('post-add non-target guard reports counts and created id, then discards unsaved editor changes', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old', ordinal: 0 }]);
+  const add = adapter.addDefaultBlock;
+  adapter.addDefaultBlock = async (...args) => {
+    const created = await add(...args);
+    adapter.state.instances.push({ blockId: '56', settingId: 'unexpected', ordinal: 0 });
+    return created;
+  };
+  await assert.rejects(runFreshBlockFlow({ config, adapter, settings: [] }), (error) => {
+    assert.match(error.message, /non-target block number changed/);
+    assert.match(error.message, /expected.*actual.*created settingId=new-instance/);
+    assert.equal(error.unsavedEditorStateDiscarded, true);
+    return true;
+  });
+  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'savePage' || kind === 'publish'), []);
+  assert.deepEqual(adapter.events.filter(([kind]) => kind === 'discardUnsavedChanges'), [['discardUnsavedChanges']]);
+  assert.deepEqual(adapter.state.instances, [{ blockId: '55', settingId: 'old', ordinal: 0 }]);
+  assert.equal(adapter.state.stopReport.createdSettingId, 'new-instance');
+  assert.deepEqual(adapter.state.stopReport.expectedNonTargetCounts, {});
+  assert.deepEqual(adapter.state.stopReport.actualNonTargetCounts, { '56': 1 });
+  assert.deepEqual(adapter.state.stopReport.expectedPageCounts, { '55': 2 });
+  assert.deepEqual(adapter.state.stopReport.actualPageCounts, { '55': 2, '56': 1 });
+  assert.deepEqual(adapter.state.stopReport.countDifferences, [{ blockId: '56', expected: 0, actual: 1 }]);
+  assert.equal(adapter.state.stopReport.unsavedEditorStateDiscarded, true);
+  assert.equal(adapter.state.stopReport.publishedAt, null);
 });
 
 test('interfering failed settings retain one failure and report the suppressed value/evidence', () => {
@@ -505,6 +692,81 @@ test('fresh batch execution error stops before publish and records the unpublish
   assert.equal(report.failures[0].screenshot, 'reports/screenshots/batch-settings.png');
 });
 
+test('fresh flow writes partial setting verdicts and harness errors when batch and current inventory both fail', async () => {
+  const adapter = fakeAdapter();
+  let saves = 0;
+  adapter.batchAdapter.save = async () => {
+    saves++;
+    if (saves === 2) throw new Error('second batch save transport failed');
+    adapter.events.push(['save', 'batch']);
+  };
+  adapter.readCurrentValues = async () => { throw new Error('button readback did not stabilize'); };
+  const report = await runFreshBlockFlow({ config, adapter, settings: [
+    { id: 'first', key: 'first', value: 'one', expected: 'one' },
+    { id: 'second', key: 'second', value: 'two', expected: 'two' },
+  ], metadata: { first: { interferesWith: ['second'] } } });
+  assert.equal(adapter.events.some(([kind]) => kind === 'publish'), false);
+  assert.equal(report.publishedAt, null);
+  assert.deepEqual(report.checks.map(({ id, status }) => [id, status]), [
+    ['first', 'pass'], ['fresh-batch-execution', 'fail'], ['fresh-current-values', 'fail'],
+  ]);
+  assert.ok(report.flowErrors.some(({ stage, message }) => stage === 'batch-settings'
+    && /second batch save transport failed/.test(message)));
+  assert.ok(report.flowErrors.some(({ stage, message }) => stage === 'current-values'
+    && /did not stabilize/.test(message)));
+  assert.deepEqual(report.block.currentValues, []);
+  assert.equal(adapter.state.report, report);
+});
+
+test('does not invoke a divergent module-availability preflight before the proven add path', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'existing', ordinal: 0 }]);
+  adapter.verifyModuleAvailability = async () => { throw new Error('divergent preflight must not run'); };
+  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  assert.equal(report.block.settingId, 'new-instance');
+  assert.ok(adapter.events.some(([kind]) => kind === 'add'));
+});
+
+test('fresh flow never reports publication when publish and front confirmation are incomplete', async () => {
+  const adapter = fakeAdapter();
+  adapter.publishPage = async () => ({ frontLink: '/public', publishedAt: 'attempted-at', confirmed: false,
+    publishSignal: { status: 'confirmed' }, frontVerification: { status: 'absent' } });
+  const report = await runFreshBlockFlow({ config, adapter, settings: [{ id: 'check', key: 'x', value: 'y' }] });
+  assert.equal(report.publishedAt, null);
+  assert.equal(report.publishedReadback, null);
+  assert.ok(report.checks.some(({ id, status }) => id === 'fresh-publish-confirmed' && status === 'fail'));
+  assert.ok(report.flowErrors.some(({ stage }) => stage === 'publish-confirmation'));
+});
+
+test('editor success remains distinct from an unreachable runner front path', async () => {
+  const adapter = fakeAdapter();
+  adapter.publishPage = async () => ({ frontLink: 'http://site.example/products.html', confirmed: false,
+    publishSignal: { status: 'confirmed', signal: '发布成功' },
+    frontVerification: { status: 'front-unreachable-from-runner', reachability: {
+      targetFailures: [{ status: 500, server: 'Pingora' }],
+      rootProbe: { status: 500, server: 'Pingora', empty: true },
+    } } });
+  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  assert.equal(report.editorPublishSucceeded, true);
+  assert.equal(report.published, false);
+  assert.equal(report.publishedConfirmed, false);
+  assert.equal(report.publishedAt, null);
+  assert.equal(report.confirmationSource, null);
+  assert.equal(report.frontVerification.status, 'front-unreachable-from-runner');
+  assert.equal(report.failures.at(-1).classification, 'front-unreachable-from-runner');
+  assert.equal(report.frontVerification.reachability.rootProbe.server, 'Pingora');
+});
+
+test('publish timeout diagnostics are preserved in the partial report without page values', async () => {
+  const adapter = fakeAdapter();
+  const diagnostics = { stage: 'wait-confirm-dialog', chooserVisibleCount: 0,
+    publishMenuVisibleCount: 0, confirmDialogVisibleCount: 0 };
+  adapter.publishPage = async () => { throw Object.assign(new Error('dialog wait timed out'), { publishDiagnostics: diagnostics }); };
+  const report = await runFreshBlockFlow({ config, adapter, settings: [] });
+  assert.equal(report.publishedAt, null);
+  assert.deepEqual(report.flowErrors.find(({ stage }) => stage === 'publish')?.diagnostics, diagnostics);
+  assert.deepEqual(report.checks.find(({ id }) => id === 'fresh-publish')?.batchResult.diagnostics, diagnostics);
+});
+
 test('post-publish readback mismatch is a failure with screenshot evidence and separate values', async () => {
   const adapter = fakeAdapter();
   adapter.readPublishedValues = async () => [{ key: 'setting', value: 'persisted-different' }];
@@ -532,7 +794,8 @@ test('fresh report carries links, current values, failure evidence, and default 
     defaults: { firstCapture: false, changes: [{ kind: 'changed' }] },
     batch: { batches: [], results: [{ id: 'check', status: 'fail', batchResult: { expected: 'yes', actual: 'no', screenshot: 'shot.png' } }],
       timing: { retainedFailures: { selectedIds: ['check'], suppressed: [] } } },
-    currentValues: [{ key: 'x', value: 'v' }], editorLink: '/e', frontLink: '/f', publishedAt: 'time' });
+    currentValues: [{ key: 'x', value: 'v' }], editorLink: '/e', frontLink: '/f', publishedAt: 'time',
+    humanReview: [{ id: 'manual', sourceText: 'Verbatim item', reason: 'No checker.' }] });
   assert.equal(report.block.settingId, 'sid');
   assert.deepEqual(report.block.currentValues, [{ key: 'x', value: 'v' }]);
   assert.equal(report.failures[0].expected, 'yes');
@@ -541,7 +804,47 @@ test('fresh report carries links, current values, failure evidence, and default 
   assert.deepEqual(report.defaults.changes, [{ kind: 'changed' }]);
   assert.deepEqual(report.capabilities, [{ capability: 'unsupported', status: 'not-adapted' }]);
   assert.deepEqual(report.lifecycle, { deletedSettingIds: [], addedSettingId: 'sid' });
+  assert.equal(report.moduleLibraryPreflight, null);
+  assert.deepEqual(report.humanReview, [{ id: 'manual', sourceText: 'Verbatim item', reason: 'No checker.' }]);
   assert.equal(report.settingsMode, 'BATCH_SAVE / retain-tested-values');
+});
+
+test('module-library preflight uses the add path active-wrapper locator and records its match count', async () => {
+  const calls = [];
+  const opener = { count: async () => 1 };
+  const wrapperLocator = { first() { calls.push(['wrapper-first']); return this; },
+    locator(selector) { calls.push(['child', selector]); return { first() { calls.push(['opener-first']); return opener; } }; } };
+  const frame = { locator(selector) { calls.push(['frame', selector]); return wrapperLocator; } };
+  const inspected = await inspectActiveModuleLibraryOpener(frame);
+  assert.equal(inspected.matchCount, 1);
+  assert.deepEqual(calls, [
+    ['frame', '#backstage-bodyArea .backstage-creatmodules-wrapper'],
+    ['wrapper-first'], ['child', '.backstage-creatmodules-addbtn'], ['opener-first'],
+  ]);
+});
+
+test('module-library mode tab and target search use unique visible controls scoped to the active panel', async () => {
+  const calls = [];
+  const control = { waitFor: async (options) => calls.push(['waitFor', options]),
+    count: async () => 1, first() { return this; }, click: async () => calls.push(['click']) };
+  const panel = { locator(selector) { calls.push(['panel-locator', selector]); return control; } };
+  assert.equal(await waitForUniqueVisibleControl(panel, '.user-handle-module[value="-1"]', 'Mode develop tab'), control);
+  assert.equal(await waitForUniqueVisibleControl(panel, '.addmodules_searchWrap input', 'Target search input (online)'), control);
+  assert.deepEqual(calls.filter(([kind]) => kind === 'panel-locator').map(([, selector]) => selector), [
+    '.user-handle-module[value="-1"]:visible', '.addmodules_searchWrap input:visible',
+  ]);
+  assert.ok(calls.filter(([kind]) => kind === 'waitFor').every(([, options]) => options.state === 'visible'));
+});
+
+test('module-library visible control lookup fails closed on multiple visible matches and scopes panel to page', async () => {
+  const pageCalls = [];
+  const visiblePanel = { first() { return this; }, waitFor: async () => {}, count: async () => 1 };
+  const page = { locator(selector) { pageCalls.push(selector); return visiblePanel; } };
+  assert.equal(await waitForUniqueVisibleModuleLibraryPanel(page), visiblePanel);
+  assert.deepEqual(pageCalls, ['.backstage-addmodules-chooseWrapper:visible']);
+  const ambiguous = { locator: () => ({ first: () => ({ waitFor: async () => {} }), count: async () => 2 }) };
+  await assert.rejects(waitForUniqueVisibleControl(ambiguous, '.user-handle-module', 'Mode tab'),
+    /2 visible matches/);
 });
 
 test('declared fresh batch dry run prints dependency restore steps without reading a site', () => {
@@ -564,6 +867,40 @@ test('shared fresh adapter reports unsupported capabilities explicitly and never
   const prepared = await adapter.prepare();
   assert.deepEqual(prepared.settings, []);
   assert.deepEqual(prepared.capabilityResults, [{ capability: 'legacy', status: 'not-adapted', reason: 'needs extraction' }]);
+});
+
+test('fresh inventory failure degrades only its declared capability and preserves other settings', async () => {
+  let buttonDefinitionCalls = 0;
+  const adapter = await createFreshSettingsAdapter({ capabilities: [{ id: 'button-link' }, { id: 'other-capability' }],
+    loadCapability: async (id) => ({ freshSettings: id === 'button-link'
+      ? { status: 'adapted', metadata: { inventoryRegions: ['button-surface'] },
+        createDefinitions: async () => { buttonDefinitionCalls++; return { settings: [] }; } }
+      : { status: 'adapted', createDefinitions: async () => ({ settings: [
+        { id: 'other-setting', apply: async () => {}, check: async () => ({ status: 'pass' }) },
+      ] }) } }),
+  });
+  const prepared = await adapter.prepare({ inventory: [{ type: 'button-surface', inventoryError: {
+    regionType: 'button-surface', code: 'UNSTABLE', message: 'diagnostic without values', screenshot: 'reports/a.png',
+    diagnostics: { snapshotCount: 42, elapsedMs: 15000, changingFields: ['url'], unreadableFields: [], loadingMaskVisible: false },
+  } }] });
+  assert.equal(buttonDefinitionCalls, 0);
+  assert.deepEqual(prepared.settings.map(({ id }) => id), ['other-setting']);
+  assert.equal(prepared.capabilityResults[0].status, 'not-adapted');
+  assert.match(prepared.capabilityResults[0].reason, /snapshots=42.*changingFields=url/);
+  const inventoryResult = prepared.staticResults.find(({ id }) => id === 'button-link-inventory');
+  assert.equal(inventoryResult.classification, 'harness-error');
+  assert.equal(inventoryResult.evidence.screenshot, 'reports/a.png');
+});
+
+test('degraded inventory region retains safe diagnostics and screenshot reference without control values', () => {
+  const region = degradeInventoryRegion({ type: 'button-surface', kind: 'canvas-popover', controls: [] },
+    Object.assign(new Error('unstable'), { code: 'UNSTABLE', inventoryDiagnostics: {
+      snapshotCount: 4, elapsedMs: 15000, changingFields: ['url'], unreadableFields: [], loadingMaskVisible: false,
+    } }), 'reports/screenshots/inventory.png');
+  assert.equal(region.inventoryError.regionType, 'button-surface');
+  assert.deepEqual(region.inventoryError.diagnostics.changingFields, ['url']);
+  assert.equal(region.inventoryError.screenshot, 'reports/screenshots/inventory.png');
+  assert.equal(JSON.stringify(region).includes('https://'), false);
 });
 
 test('shared fresh adapter batches adapted definitions through generic apply/save/check callbacks', async () => {

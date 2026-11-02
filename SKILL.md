@@ -19,6 +19,16 @@
 4. **判断与恢复**：只在判断点问人；恢复写 finally 里并用新会话读值确认
    （`AGENTS.md` 第 4、5 节）。
 
+## Design spec → checklist
+
+把 AI 提取的逐区块要求写入 profile 的 `designSpec.requirements`；复用的只有
+`docs/check-types.md` 中固定的检查类型目录，具体参数与期望仍由各自 profile 声明。
+没有可靠 oracle 的要求保留为带机器原因的 `na`，并标记人工复核，不要强行映射。
+设计清单不得生成 `lineHeight` 期望：行高差异不是缺陷；行高只可留在原始设计资料中，不参与前台、编辑器或摘要判定。
+若清单包含移动端要求，在对应移动视口按该清单比对；没有移动端样式要求时，只检查目标实例内部溢出、裁切、重叠和超框，页面其他区域的溢出只记录。
+颜色/文字范围中的悬停/鼠标经过、聚焦、选中、当前、展开要求应生成 `state.kind`（hover/focus/selected/active/expanded）和 `state.target`（scope 或本实例内目标）。具体格式见 `docs/check-types.md#spec-targeted-states`。不扫描/尝试全实例交互；无状态要求就不交互；歧义文字不猜动作。
+提交前运行 `npm run check:design-spec`。
+
 ## 关键文件
 
 - `AGENTS.md`：全部规程（首次设置、接入流程、判断规则、恢复与安全）。

@@ -10,7 +10,7 @@
 
 新区块可用 `scripts/onboard-block.mjs --block <id> --page-kind system --page-id <id> --page-url <path>` 接入。先从 `profiles/TEMPLATE.json` 生成未审核草稿，唯一通用签名可自动映射；歧义会停止，未知项保留为 `unmapped`。人工补齐夹具和 expected/oracle 后才作为常规画像使用。未找到目标模块时会生成结构化环境结果，不会把它记成 assertion fail。
 
-只读目录工具：`scripts/list-module-library.mjs --block <id> --page-kind system --page-id <id> --page-url <path>`。它打开并关闭添加模块面板，不添加模块、不保存、不发布。review/develop 可见项会列出；online 为搜索式，只能精确查询目标编号，不能代表完整目录。
+只读目录工具：`scripts/list-module-library.mjs --block <id> --page-kind system --page-id <id> --page-url <path>`。它打开并关闭添加模块面板，不添加模块、不保存、不发布。所有模式只查询指定区块号，输出每个模式的 found/not-found 和加载/滚动证据，不读取、列出或保存其它区块号。
 
 ## 前台验证与报告合并
 

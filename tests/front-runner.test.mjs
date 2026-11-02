@@ -65,7 +65,7 @@ test('front result replaces only matching deferred checks and recalculates count
   const front = { checks: [{ id: 'common-front', status: 'pass' }, { id: 'effect-front', status: 'fail' }] };
   const merged = replaceDeferredChecks(base, front);
   assert.deepEqual(merged.checks.map(({ status }) => status), ['pass', 'fail', 'pass']);
-  assert.deepEqual(merged.summary, { pass: 2, fail: 1, skip: 0, na: 0, record: 0, deferred: 0 });
+  assert.deepEqual(merged.summary, { pass: 2, fail: 1, skip: 0, na: 0, 'human-review': 0, record: 0, deferred: 0 });
   assert.equal(merged.status, 'failed');
 });
 
@@ -75,7 +75,7 @@ test('HTML report exposes deferred count, filter and cards', async () => {
   try {
     const report = { runId: 'offline-front', startedAt: '', finishedAt: '', config: { blockId: 'test' },
       checks: [{ id: 'front-deferred', name: '前台检查', status: 'deferred', detail: 'deferred-to-front-runner' }],
-      summary: { deferred: 1, pass: 0, fail: 0, skip: 0, na: 0, record: 0 } };
+      summary: { deferred: 1, pass: 0, fail: 0, skip: 0, na: 0, 'human-review': 0, record: 0 } };
     await import('node:fs/promises').then(({ writeFile }) => writeFile(json, JSON.stringify(report)));
     await renderReport(json, html);
     const output = await readFile(html, 'utf8');

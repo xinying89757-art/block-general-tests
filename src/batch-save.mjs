@@ -154,7 +154,9 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
       const batchOutcomes = new Map();
       for (const setting of batch.settings) {
         batchOutcomes.set(setting.id, applyErrors.has(setting.id)
-          ? { status: 'fail', detail: applyErrors.get(setting.id).message, error: applyErrors.get(setting.id).message }
+          ? { status: 'fail', detail: applyErrors.get(setting.id).message, error: applyErrors.get(setting.id).message,
+            ...(applyErrors.get(setting.id).code ? { reason: { code: applyErrors.get(setting.id).code } } : {}),
+            ...(applyErrors.get(setting.id).paletteReadback ? { evidence: { paletteWrite: applyErrors.get(setting.id).paletteReadback } } : {}) }
           : await safeCheck(setting, 'batch', batchInfo));
       }
       const failed = batch.settings.filter((setting) => outcomeStatus(batchOutcomes.get(setting.id)) === 'fail');
@@ -196,6 +198,18 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
       }
       batchInfo.totalMs = performance.now() - batchStart;
     }
+  } catch (error) {
+    // Preserve work completed before a transport/UI failure. The fresh-flow
+    // caller writes these outcomes alongside the harness error so a partial
+    // batch never disappears when later inventory also fails.
+    error.partialBatch = {
+      batches: plan.map(({ settings: items, restoreBefore }) => ({
+        settingIds: items.map((item) => item.id), restoreBefore,
+      })),
+      results: [...results],
+      timing,
+    };
+    throw error;
   } finally {
     const restoreStart = performance.now();
     const restoreIdsInOrder = settings.filter((item) => changed.has(item.id)).map((item) => item.id).reverse();

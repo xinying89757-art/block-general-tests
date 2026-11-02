@@ -76,15 +76,16 @@
               "centered": true
             },
             "id": "button-text",
-            "kind": "text",
-            "note": "行高 54 与居中对齐由 flex 实现，不直接比 lineHeight/textAlign；注意：设计稿图层名是编辑器 DOM 的类名（backstage-component-btn），前台实际类名是 blocks-button，映射须按前台实测为准。",
+            "kind": "first",
+            "note": "行高只作信息记录且不参与判定，居中由 flex 实现，不直接比 textAlign；注意：设计稿图层名是编辑器 DOM 的类名（backstage-component-btn），前台实际类名是 blocks-button，映射须按前台实测为准。",
             "props": {
               "color": "#ffffff",
               "fontSize": 18,
               "fontWeight": 700
             },
-            "selector": "a.blocks-button",
-            "text": "New Machine"
+            "selectorCandidates": [
+              "a.blocks-button"
+            ]
           },
           {
             "id": "button-bg",
@@ -94,26 +95,33 @@
               "backgroundColor": "#1c4587",
               "borderRadius": 3
             },
-            "selector": "a.blocks-button"
+            "selectorCandidates": [
+              "a.blocks-button"
+            ],
+            "learnedSelectorRequired": true
           },
           {
             "id": "nav-parent",
             "kind": "nav-parent",
             "props": {
               "fontSize": 16,
-              "fontWeight": 700,
-              "lineHeight": 45
-            }
+              "fontWeight": 700
+            },
+            "selectorCandidates": [
+              ".pf-cate-wrap a"
+            ]
           },
           {
             "id": "nav-leaf",
             "kind": "nav-leaf",
-            "note": "设计稿里带子级的二级链接行高 40（仅一例），只对叶子链接断言 44.8",
+            "note": "设计稿记录过二级链接行高 40；按当前政策行高不参与断言。",
             "props": {
               "fontSize": 16,
-              "fontWeight": 400,
-              "lineHeight": 44.8
-            }
+              "fontWeight": 400
+            },
+            "selectorCandidates": [
+              ".pf-cate-wrap a"
+            ]
           },
           {
             "id": "filter-title",
@@ -121,25 +129,27 @@
             "props": {
               "color": "#232323",
               "fontSize": 14,
-              "fontWeight": 600,
-              "lineHeight": 21
+              "fontWeight": 600
             },
             "recordProps": {
               "letterSpacing": -0.15
             },
             "sample": 2,
-            "selector": ".pf-field-title"
+            "selectorCandidates": [
+              ".pf-field-title"
+            ]
           },
           {
             "id": "filter-option",
             "kind": "sample",
             "props": {
               "fontSize": 14,
-              "fontWeight": 400,
-              "lineHeight": 21
+              "fontWeight": 400
             },
             "sample": 2,
-            "selector": ".pf-field-group label"
+            "selectorCandidates": [
+              ".pf-field-group label"
+            ]
           },
           {
             "clamp": 2,
@@ -149,17 +159,22 @@
               "color": "#222222",
               "fontSize": 16,
               "fontWeight": 400,
-              "lineHeight": 20,
               "textAlign": "center"
             },
             "sample": 2,
-            "selector": ".prodlist-pro-name"
+            "selectorCandidates": [
+              ".prodlist-pro-name"
+            ]
           },
           {
             "id": "details-link",
             "kind": "presence",
             "note": "设计稿每张卡下有 details 链接；默认与 hover 后预览里均无",
-            "text": "details"
+            "text": "details",
+            "selectorCandidates": [
+              "a, button, span"
+            ],
+            "requireApplicableToggle": true
           },
           {
             "id": "pagination-current",
@@ -171,8 +186,14 @@
               "height": 28,
               "width": 28
             },
-            "selector": ".pagination span",
-            "text": "1"
+            "selectorCandidates": [
+              ".pagination span"
+            ],
+            "learnedSelectorRequired": true,
+            "text": "1",
+            "scope": {
+              "containerKind": "pagination"
+            }
           },
           {
             "id": "pagination-other",
@@ -184,7 +205,12 @@
               "width": 28
             },
             "sample": 2,
-            "selector": ".pagination a"
+            "selectorCandidates": [
+              ".pagination a"
+            ],
+            "scope": {
+              "containerKind": "pagination"
+            }
           }
         ],
         "notes": [
@@ -194,12 +220,35 @@
         ],
         "tolerances": {
           "color": "exact",
-          "px": 0.6
+          "px": 0.6,
+          "sizePx": 2
         },
         "viewports": {
           "mobile": 375,
           "pad": 768,
           "pc": 1440
+        },
+        "expectedValueSources": {
+          "button-bg.backgroundColor": {
+            "control": {
+              "region": "right-rail-color",
+              "label": "配色方案"
+            },
+            "profileDefault": "#1c4587",
+            "settingCheckIds": [
+              "bcs-color-persist"
+            ]
+          },
+          "pagination-current.backgroundColor": {
+            "control": {
+              "region": "right-rail-color",
+              "label": "配色方案"
+            },
+            "profileDefault": "#1c4587",
+            "settingCheckIds": [
+              "bcs-color-persist"
+            ]
+          }
         }
       }
     }
@@ -235,7 +284,7 @@
       "设置项 1281:3897"
     ],
     "status": "provided",
-    "url": "https://www.figma.com/design/Vce7UhBgJPBqAwiYGdOUDv/%E5%8C%BA%E5%9D%97%E6%A8%A1%E7%89%88-2025--Copy-?node-id=1281-2959&p=f&t=eaKJWPe9aG6Xdpdt-0"
+    "url": "https://www.figma.com/design/Vce7UhBgJPBqAwiYGdOUDv/%E5%8C%BA%E5%9D%97%E6%A8%A1%E7%89%88-2025--Copy-?node-id=1281-2959&p=f"
   },
   "knownInteractions": [
     "select-category",
@@ -303,7 +352,30 @@
         }
       },
       {
-        "id": "color-scheme"
+        "id": "color-scheme",
+        "styleEffect": {
+          "properties": [
+            "color",
+            "backgroundColor",
+            "accentColor",
+            "borderColor"
+          ],
+          "valueSource": "alternateValue",
+          "checks": [
+            {
+              "property": "backgroundColor",
+              "checkId": "button-bg"
+            },
+            {
+              "property": "backgroundColor",
+              "checkId": "pagination-current"
+            }
+          ],
+          "candidateSelectors": [
+            "a.blocks-button",
+            ".pagination span"
+          ]
+        }
       },
       {
         "id": "module-width"
@@ -347,6 +419,520 @@
       "单选按钮",
       "多选按钮",
       "下拉列表"
+    ]
+  },
+  "designSpec": {
+    "source": {
+      "fileKey": "Vce7UhBgJPBqAwiYGdOUDv",
+      "nodeId": "1281:3870"
+    },
+    "requirements": [
+      {
+        "id": "color-1-1-default",
+        "checkType": "color-default",
+        "sourceText": "配色1-蓝色",
+        "expected": {
+          "name": "配色1-蓝色",
+          "value": "#1C4587"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "1281:3870",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "color-1-1-scope-1",
+        "checkType": "color-scope",
+        "sourceText": "按钮文字颜色",
+        "expected": {
+          "name": "配色1-蓝色",
+          "value": "#1C4587"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "1281:3870",
+          "semanticRegion": "block-color-scheme",
+          "styleCheckIds": [
+            "button-bg"
+          ]
+        }
+      },
+      {
+        "id": "color-1-1-scope-2",
+        "checkType": "color-scope",
+        "sourceText": "滑块颜色",
+        "expected": {
+          "name": "配色1-蓝色",
+          "value": "#1C4587"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "1281:3870",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "color-1-1-scope-3",
+        "checkType": "color-scope",
+        "sourceText": "分页文字颜色",
+        "expected": {
+          "name": "配色1-蓝色",
+          "value": "#1C4587"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "1281:3870",
+          "semanticRegion": "block-color-scheme",
+          "styleCheckIds": [
+            "pagination-current"
+          ]
+        }
+      },
+      {
+        "id": "color-1-1-scope-4",
+        "checkType": "color-scope",
+        "sourceText": "自定义字段选中的颜色",
+        "expected": {
+          "name": "配色1-蓝色",
+          "value": "#1C4587"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "1281:3870",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "color-1-1-scope-5",
+        "checkType": "color-scope",
+        "sourceText": "产品分类选中的颜色",
+        "expected": {
+          "name": "配色1-蓝色",
+          "value": "#1C4587"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceNodeId": "1281:3870",
+          "semanticRegion": "block-color-scheme"
+        }
+      },
+      {
+        "id": "typography-1-new-machine-pc",
+        "checkType": "typography",
+        "sourceText": "按钮 New Machine",
+        "expected": {
+          "fontSize": "18px",
+          "fontWeight": "Poppins Bold"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "1281:2967",
+          "sourceNodeText": "1281:2967",
+          "styleCheckId": "button-text"
+        }
+      },
+      {
+        "id": "typography-2-used-paver-pc",
+        "checkType": "typography",
+        "sourceText": "产品分类一级 Used Paver",
+        "expected": {
+          "fontSize": "16px",
+          "fontWeight": "PingFang SC Bold",
+          "color": "#222"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "1340:131",
+          "sourceNodeText": "1340:131",
+          "styleCheckId": "nav-parent"
+        }
+      },
+      {
+        "id": "typography-3-item-pc",
+        "checkType": "typography",
+        "sourceText": "产品分类子级",
+        "expected": {
+          "fontSize": "16px",
+          "fontWeight": "Poppins Regular",
+          "color": "#222"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "1281:3002",
+          "sourceNodeText": "1281:3002",
+          "styleCheckId": "nav-leaf"
+        }
+      },
+      {
+        "id": "typography-4-item-pc",
+        "checkType": "typography",
+        "sourceText": "产品分类选中项",
+        "expected": {
+          "fontSize": "16px",
+          "fontWeight": "Poppins Regular",
+          "color": "#1c4587"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "1341:146",
+          "sourceNodeText": "1341:146"
+        }
+      },
+      {
+        "id": "typography-5-item-pc",
+        "checkType": "typography",
+        "sourceText": "筛选标题(品牌/产地/密封形式/重量)",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "PingFang SC Semibold",
+          "color": "#232323"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "1281:3035",
+          "sourceNodeText": "1281:3035",
+          "styleCheckId": "filter-title"
+        }
+      },
+      {
+        "id": "typography-6-item-pc",
+        "checkType": "typography",
+        "sourceText": "筛选选项",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "PingFang SC Regular",
+          "color": "#232323"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "1281:3044",
+          "sourceNodeText": "1281:3044",
+          "styleCheckId": "filter-option"
+        }
+      },
+      {
+        "id": "typography-7-please-select-pc",
+        "checkType": "typography",
+        "sourceText": "下拉占位 Please Select",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "PingFang SC Regular",
+          "color": "#757575"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "1281:3080",
+          "sourceNodeText": "1281:3080"
+        }
+      },
+      {
+        "id": "typography-8-50-800-pc",
+        "checkType": "typography",
+        "sourceText": "数值输入 50/800",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "SF Pro Regular",
+          "color": "#2d3748"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "1281:3125",
+          "sourceNodeText": "1281:3125"
+        }
+      },
+      {
+        "id": "typography-9-item-pc",
+        "checkType": "typography",
+        "sourceText": "产品名称",
+        "expected": {
+          "fontSize": "16px",
+          "fontWeight": "Poppins Regular",
+          "color": "#222"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "1281:3164",
+          "sourceNodeText": "1281:3164",
+          "styleCheckId": "product-name"
+        }
+      },
+      {
+        "id": "typography-10-item-pc",
+        "checkType": "typography",
+        "sourceText": "分页",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "Poppins Regular",
+          "color": "非当前 #898989"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "pc",
+          "sourceNodeId": "1281:3370",
+          "sourceNodeText": "1281:3370",
+          "styleCheckId": "pagination-other"
+        }
+      },
+      {
+        "id": "typography-11-new-machine-mobile",
+        "checkType": "typography",
+        "sourceText": "按钮 New Machine",
+        "expected": {
+          "fontSize": "18px",
+          "fontWeight": "Poppins Bold"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "1284:4586",
+          "sourceNodeText": "1284:4586",
+          "styleCheckId": "button-text"
+        }
+      },
+      {
+        "id": "typography-12-used-paver-mobile",
+        "checkType": "typography",
+        "sourceText": "产品分类 Used Paver",
+        "expected": {
+          "fontSize": "16px",
+          "fontWeight": "PingFang SC Bold",
+          "color": "#222"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "1284:4597",
+          "sourceNodeText": "1284:4597",
+          "styleCheckId": "nav-parent"
+        }
+      },
+      {
+        "id": "typography-13-item-mobile",
+        "checkType": "typography",
+        "sourceText": "筛选标题",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "PingFang SC Semibold",
+          "color": "#232323"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "1284:4618",
+          "sourceNodeText": "1284:4618",
+          "styleCheckId": "filter-title"
+        }
+      },
+      {
+        "id": "typography-14-all-products-mobile",
+        "checkType": "typography",
+        "sourceText": "标题 All Products",
+        "expected": {
+          "fontSize": "20px",
+          "fontWeight": "Poppins Bold",
+          "color": "#333"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "1283:4026",
+          "sourceNodeText": "1283:4026"
+        }
+      },
+      {
+        "id": "typography-15-item-mobile",
+        "checkType": "typography",
+        "sourceText": "产品名称",
+        "expected": {
+          "fontSize": "16px",
+          "fontWeight": "Poppins Regular",
+          "color": "#222"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "1283:4051",
+          "sourceNodeText": "1283:4051",
+          "styleCheckId": "product-name"
+        }
+      },
+      {
+        "id": "typography-16-item-mobile",
+        "checkType": "typography",
+        "sourceText": "分页",
+        "expected": {
+          "fontSize": "14px",
+          "fontWeight": "Poppins Regular",
+          "color": "非当前 #898989"
+        },
+        "checkStage": "front",
+        "params": {
+          "viewport": "mobile",
+          "sourceNodeId": "1283:4276",
+          "sourceNodeText": "1283:4276",
+          "styleCheckId": "pagination-other"
+        }
+      },
+      {
+        "id": "other-1-item",
+        "checkType": "module-width",
+        "sourceText": "默认 1440px，可行展开",
+        "expected": {
+          "expandable": true,
+          "default": "1440px"
+        },
+        "checkStage": "editor",
+        "params": {
+          "sourceKey": "模块宽度"
+        }
+      },
+      {
+        "id": "other-2-item",
+        "checkType": "height-fit",
+        "sourceText": "根据内容高度自适应",
+        "expected": {
+          "verbatim": "根据内容高度自适应"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "模块高度"
+        }
+      },
+      {
+        "id": "other-3-item",
+        "checkType": "manual",
+        "sourceText": "全局字体；字体大小：默认设计稿大小",
+        "expected": {
+          "verbatim": "全局字体；字体大小：默认设计稿大小"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "字体"
+        }
+      },
+      {
+        "id": "other-4-item",
+        "checkType": "image-ratio",
+        "sourceText": "比例 1:1，垂直居中",
+        "expected": {
+          "ratio": "1:1",
+          "centered": true
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "图片"
+        }
+      },
+      {
+        "id": "other-5-item",
+        "checkType": "manual",
+        "sourceText": "固定像素，数值按照设计稿",
+        "expected": {
+          "verbatim": "固定像素，数值按照设计稿"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "按钮宽高"
+        }
+      },
+      {
+        "id": "other-6-item-rule-1",
+        "checkType": "text-truncation",
+        "sourceText": "最多展示2行，超出2行隐藏；另有画布注释「居中 最多2行隐藏」(1330:426)",
+        "expected": {
+          "maxLines": 2,
+          "overflow": "ellipsis",
+          "sourceOrder": 1
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "产品名称"
+        }
+      },
+      {
+        "id": "other-7-item-rule-2",
+        "checkType": "text-truncation",
+        "sourceText": "最多展示2行，超出2行隐藏；另有画布注释「居中 最多2行隐藏」(1330:426)",
+        "expected": {
+          "maxLines": 2,
+          "overflow": "ellipsis",
+          "sourceOrder": 2
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "产品名称"
+        }
+      },
+      {
+        "id": "other-8-item",
+        "checkType": "manual",
+        "sourceText": "当前页面跳转，可设置n产品一页，超出分页展示",
+        "expected": {
+          "verbatim": "当前页面跳转，可设置n产品一页，超出分页展示"
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "产品分页"
+        }
+      },
+      {
+        "id": "other-9-item",
+        "checkType": "default-expand",
+        "sourceText": "默认展示1级，2级默认收起",
+        "expected": {
+          "level": 1,
+          "collapsedLevel": 2
+        },
+        "checkStage": "front",
+        "params": {
+          "sourceKey": "产品分类"
+        }
+      }
+    ],
+    "overrides": [
+      {
+        "requirementId": "other-9-item",
+        "status": "human-review",
+        "reason": "测试站无二级分类/筛选选项，Xinying 2026-11-01 决定人工判断"
+      },
+      {
+        "requirementId": "typography-12-used-paver-mobile",
+        "status": "human-review",
+        "reason": "测试站无二级分类/筛选选项，Xinying 2026-11-01 决定人工判断"
+      },
+      {
+        "requirementId": "typography-2-used-paver-pc",
+        "status": "human-review",
+        "reason": "测试站无二级分类/筛选选项，Xinying 2026-11-01 决定人工判断"
+      },
+      {
+        "requirementId": "typography-3-item-pc",
+        "status": "human-review",
+        "reason": "测试站无二级分类/筛选选项，Xinying 2026-11-01 决定人工判断"
+      },
+      {
+        "requirementId": "typography-6-item-pc",
+        "status": "human-review",
+        "reason": "测试站无二级分类/筛选选项，Xinying 2026-11-01 决定人工判断"
+      }
+    ],
+    "scopeOverrides": [
+      {
+        "requirementId": "color-1-1-scope-1",
+        "sourceText": "按钮文字颜色",
+        "resolvedScope": "按钮背景色",
+        "reason": "Xinying confirmed 2026-11-01: this palette color applies to the button background, consistent with the design board."
+      }
     ]
   }
 }

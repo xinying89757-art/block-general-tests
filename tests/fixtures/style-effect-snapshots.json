@@ -1,0 +1,12 @@
+{
+  "before": [
+    { "path": "a.action:nth-of-type(1)", "pathFeatures": [{ "tag": "a", "classes": ["action", "blockCon47748"], "nthOfType": 1 }], "styles": { "backgroundColor": "rgb(255, 255, 255)" } },
+    { "path": "nav:nth-of-type(1) > span.current:nth-of-type(1)", "pathFeatures": [{ "tag": "nav", "classes": [], "nthOfType": 1 }, { "tag": "span", "classes": ["current"], "nthOfType": 1 }], "styles": { "backgroundColor": "rgba(0, 0, 0, 0)" } },
+    { "path": "p:nth-of-type(1)", "pathFeatures": [{ "tag": "p", "classes": [], "nthOfType": 1 }], "styles": { "color": "rgb(34, 34, 34)" } }
+  ],
+  "after": [
+    { "path": "a.action:nth-of-type(1)", "pathFeatures": [{ "tag": "a", "classes": ["action", "blockCon47748"], "nthOfType": 1 }], "styles": { "backgroundColor": "rgb(255, 0, 0)" } },
+    { "path": "nav:nth-of-type(1) > span.current:nth-of-type(1)", "pathFeatures": [{ "tag": "nav", "classes": [], "nthOfType": 1 }, { "tag": "span", "classes": ["current"], "nthOfType": 1 }], "styles": { "backgroundColor": "rgb(255, 0, 0)" } },
+    { "path": "p:nth-of-type(1)", "pathFeatures": [{ "tag": "p", "classes": [], "nthOfType": 1 }], "styles": { "color": "rgb(34, 34, 34)" } }
+  ]
+}

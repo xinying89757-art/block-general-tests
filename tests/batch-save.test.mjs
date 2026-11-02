@@ -196,3 +196,16 @@ test('a setting that throws after a partial apply is still restored before final
   assert.equal(run.results[0].rerunAloneResult.status, 'fail');
   assert.equal(events.includes('check'), false);
 });
+
+test('palette input readback mismatch survives as a structured failed batch result', async () => {
+  const run = await executeSettingBatches({ settings: [{ id: 'palette', key: 'palette', initialValue: '#123456' }],
+    adapter: { capture: async () => new Map(), apply: async () => {
+      const error = new Error('readback mismatch'); error.code = 'palette-write-readback-mismatch';
+      error.paletteReadback = { setValue: '#abcdef', readBackValue: '#000000', matched: false };
+      throw error;
+    }, save: async () => {}, check: async () => ({ status: 'pass' }), restore: async () => {} } });
+  assert.equal(run.results[0].status, 'fail');
+  assert.equal(run.results[0].batchResult.reason.code, 'palette-write-readback-mismatch');
+  assert.deepEqual(run.results[0].batchResult.evidence.paletteWrite,
+    { setValue: '#abcdef', readBackValue: '#000000', matched: false });
+});
