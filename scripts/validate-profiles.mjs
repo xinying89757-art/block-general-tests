@@ -10,6 +10,18 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const profilesDir = path.join(root, 'profiles');
 const capabilitiesDir = path.join(root, 'src/capabilities');
 const OPTIONAL_TEMPLATE_KEYS = new Set(['baselineNote', 'fixture', 'requirements']);
+const REVIEW_STATUSES = ['approved', 'pending-business', 'pending-data'];
+
+// 未填写审核状态的旧画像按待业务判断统计，不改写画像。
+export function capabilityReviewSummary(profile) {
+  const counts = Object.fromEntries(REVIEW_STATUSES.map((status) => [status, 0]));
+  const items = profile?.requirements?.capabilities;
+  for (const item of Array.isArray(items) ? items : []) {
+    const status = item && Object.hasOwn(item, 'reviewStatus') ? item.reviewStatus : 'pending-business';
+    if (REVIEW_STATUSES.includes(status)) counts[status] += 1;
+  }
+  return counts;
+}
 
 function matchesTemplateType(value, example) {
   if (Array.isArray(example)) return Array.isArray(value);
@@ -84,6 +96,9 @@ export function validateProfile(profile, template, { capabilities } = {}) {
       const ids = new Set();
       items.forEach((item, index) => {
         const label = `requirements.capabilities[${index}]`;
+        if (item && Object.hasOwn(item, 'reviewStatus') && !REVIEW_STATUSES.includes(item.reviewStatus)) {
+          errors.push(`${label}.reviewStatus 必须是 approved / pending-business / pending-data 之一`);
+        }
         const discoveredStyle = item?.capability === 'discovered-style-controls'
           && item?.mode === 'editor-setting'
           && /^discovered-style-[a-z0-9-]+$/i.test(String(item?.id || ''))
@@ -217,6 +232,8 @@ async function main() {
       continue;
     }
     const errors = validateProfile(profile, template, { capabilities: capabilityIds });
+    const review = capabilityReviewSummary(profile);
+    console.log(`${relativePath}: 能力审核状态 approved ${review.approved} / pending-business ${review['pending-business']} / pending-data ${review['pending-data']}`);
     const blockId = String(profile.blockId);
     const siteDirs = (await readdir(path.join(root, 'sites'), { withFileTypes: true }).catch(() => []))
       .filter((entry) => entry.isDirectory());

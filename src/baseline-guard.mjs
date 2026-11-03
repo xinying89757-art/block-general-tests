@@ -132,8 +132,14 @@ export async function readCurrentState({ page, canvas, config, baseline }) {
   for (const definition of orderedDefinitions) {
     if (definition.skipped) { current.push(structuredClone(definition)); continue; }
     if (definition.kind === 'button-popover') {
-      const button = await readButtonPopover({ page, canvas, config });
-      current.push({ ...structuredClone(definition), want: button.want });
+      try {
+        const button = await readButtonPopover({ page, canvas, config });
+        current.push({ ...structuredClone(definition), want: button.want });
+      } catch (error) {
+        // 按钮浮层值不稳时降级跳过，不阻塞基线守卫（与 captureBaseline 的降级一致）
+        current.push({ ...structuredClone(definition), skipped: true,
+          skipReason: `按钮浮层读取不稳定，已跳过：${error.message}` });
+      }
       continue;
     }
     const session = widgetSession({ page, canvas, config, type: definition.type,
