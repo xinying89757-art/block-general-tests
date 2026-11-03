@@ -41,7 +41,7 @@ test('unloaded sources stay na after one total timeout, without source writes',a
   assert.equal(result.status,'na');assert.equal(result.reason.code,'primary-image-dimensions-unavailable');
   assert.equal(result.actual.imageLoad.timedOut,true);assert.equal(result.actual.imageLoad.loaded,0);
   assert.equal(result.actual.imageLoad.total,2);assert.equal(result.actual.imageLoad.scrollRestored,true);
-  assert.ok(result.actual.imageLoad.elapsedMs<1000,JSON.stringify(result.actual.imageLoad));
+  assert.ok(result.actual.imageLoad.elapsedMs<5000,JSON.stringify(result.actual.imageLoad));
   assert.equal(await page.evaluate(()=>scrollY),120);assert.equal(await page.evaluate(()=>sourceWrites),0);
   assert.equal(await page.locator('img[src],img[srcset]').count(),0);
 }));

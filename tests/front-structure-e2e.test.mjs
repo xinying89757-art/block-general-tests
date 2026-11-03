@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
+import { testBrowserConfig } from './test-browser-config.mjs';
 import { readInstanceStructure } from '../src/front-structure.mjs';
 import { checkDesignRequirementFront } from '../src/design-spec-checklist.mjs';
 
 test('shared instance finder covers lazy/content/background images, linkless ul/div levels and options', async () => {
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await chromium.launch(testBrowserConfig());
   try {
     const page = await browser.newPage();
     await page.setContent(`<div class="target" style="width:360px">

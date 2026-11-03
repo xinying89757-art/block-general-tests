@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { chromium } from 'playwright-core';
+import { testBrowserConfig } from './test-browser-config.mjs';
 import { readInstanceStructure } from '../src/front-structure.mjs';
 import { checkDesignRequirementFront } from '../src/design-spec-checklist.mjs';
 
 const rootSelector = '[data-capture-node="0"]';
 async function captured(block, viewport, run) {
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await chromium.launch(testBrowserConfig());
   try {
     const page = await browser.newPage({ viewport: { width: viewport === 'pc' ? 1440 : 375, height: viewport === 'pc' ? 900 : 667 } });
     await page.goto(new URL(`./fixtures/captures/${block}/${viewport}.html`, import.meta.url).href);
