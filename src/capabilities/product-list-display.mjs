@@ -1,11 +1,36 @@
+import { normalizeSiteHost } from '../site-baseline.mjs';
+import { logMutation, markDone, markFailed } from '../mutation-journal.mjs';
 import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, productSnapshot, rememberCategoryState } from './effect-checks.mjs';
 import { categorySelectionChanges } from './product-category-select.mjs';
-import { savePage, openPreview } from '../editor.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText, fixtureCategoryState, findControl, controlValue } from './shared.mjs';
+import { savePage, openPreview, targetLanguage } from '../editor.mjs';
+import { selectFrontProvider, FrontProviderPublishedError } from '../front-provider.mjs';
+import { journalSnapshot, blockSelector, widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, previewSelector, TIMEOUT, checkReportText, fixtureCategoryState, findControl, controlValue } from './shared.mjs';
 import { executeSettingBatches } from '../batch-save.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
 import { retryDisplayFieldSnapshot } from '../display-field-front-check.mjs';
+import { listSession } from './product-list-effects.mjs';
+
+// Keep unknown/ambiguous instance identity null; never select an arbitrary wrap.
+async function mutationTarget(canvas, config, profile) {
+  const instanceId = await canvas.locator(blockSelector(config.blockId)).evaluateAll((wraps) => {
+    if (wraps.length !== 1) return null;
+    for (const node of [wraps[0], ...wraps[0].querySelectorAll('*')]) {
+      const attribute = [...node.attributes].find((attr) => /setting.?id/i.test(attr.name));
+      if (attribute?.value) return attribute.value;
+    }
+    return null;
+  });
+  return { siteHost: normalizeSiteHost(config.siteDomain), language: targetLanguage(config),
+    pageId: config.pageId ?? profile?.target?.pageId ?? null,
+    pageKind: config.resolvedTarget?.kind ?? profile?.target?.pageKind ?? null,
+    blockId: config.blockId, instanceId };
+}
+
+function mutationContext(canvas, config, profile) {
+  return config?.mutationJournal ? { journal: config.mutationJournal,
+    target: () => mutationTarget(canvas, config, profile), settingKey: 'product-list-display' } : undefined;
+}
 
 const SUITE = 'capability:product-list-display';
 const NAMES = {
@@ -88,6 +113,7 @@ export function assessAllProducts({ fixtureNames, actualNames, pagination, quant
 // Open a throwaway preview tab, run fn on its content frame, then close
 // the tab. Same pattern as block-color-scheme / module-width.
 async function withPreview(page, context, fn) {
+  if (selectFrontProvider().provider === 'published') throw new FrontProviderPublishedError();
   const before = new Set(context.pages());
   try {
     await savePage(page);
@@ -120,7 +146,7 @@ async function contentFrame(previewPage) {
 // is `.opt-btn .save` ("Inquire"), posting #comparedForm to
 // /phoenix/admin/prod/inquire. The checked display fields show on the
 // product cards (e.g. Brand) and as columns on the inquiry form.
-async function compareFrontCheck({ session, page, context, config, profile, report }) {
+async function compareFrontCheck({ session, page, canvas, context, config, profile, report }) {
   const id = 'pld-compare-front';
   const skip = (detail) => result(id, 'skip', detail);
   const fixtureNames = profile?.fixture?.products?.map(p => p.name) || [];
@@ -135,10 +161,20 @@ async function compareFrontCheck({ session, page, context, config, profile, repo
   const originalBrand = brand?.checked ?? null;
   const errors = [];
   const evidence = { originalCompare, originalBrand };
+  const journal = config?.mutationJournal;
+  let target;
+  let mutationSeq;
   const restore = async () => {
+    let restoreSeq;
+    const restoreErrorCount = errors.length;
     try {
       await session.cancel();
       await session.open();
+      if (journal) {
+        target ||= await mutationTarget(canvas, config, profile);
+        restoreSeq = await logMutation(journal, journalSnapshot({ op: 'restore', target, before: await session.read(),
+          after: probe.controls, restore: { kind: 'set-setting', settingKey: 'product-list-display', value: probe.controls } }));
+      }
       const current = await probeControls(session);
       const off = current.controls?.find((item) => item.type === 'radio' && item.label === originalCompare);
       if (off) await session.set(off, true);
@@ -163,9 +199,16 @@ async function compareFrontCheck({ session, page, context, config, profile, repo
       evidence.restoredBrand = restoredBrand;
       if (restoredCompare !== originalCompare) errors.push(`恢复后产品对比为 ${restoredCompare}，不是 ${originalCompare}`);
       if (originalBrand !== null && restoredBrand !== originalBrand) errors.push(`恢复后 Brand 勾选为 ${restoredBrand}，不是 ${originalBrand}`);
-    } catch (error) { errors.push(`恢复失败：${error.message}`); }
+    } catch (error) {
+      if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, error);
+      errors.push(`恢复失败：${error.message}`);
+    }
     try { await session.cancel(); } catch {}
     try { await savePage(page); } catch (error) { errors.push(`保存恢复页面失败：${error.message}`); }
+    if (restoreSeq !== undefined) {
+      if (errors.length > restoreErrorCount) await markFailed(journal, restoreSeq, new Error(errors.slice(restoreErrorCount).join('；')));
+      else await markDone(journal, restoreSeq);
+    }
   };
   try {
     if (!context) return skip('未提供浏览器 context，无法打开临时预览。');
@@ -173,6 +216,13 @@ async function compareFrontCheck({ session, page, context, config, profile, repo
     // visible), so open once up front: the dialog is closed here because
     // the preceding persist transactions end with cancel.
     await session.open();
+    if (journal) {
+      target = await mutationTarget(canvas, config, profile);
+      mutationSeq = await logMutation(journal, journalSnapshot({ op: 'set-setting', target, before: probe.controls,
+        after: probe.controls.map((item) => item.type === 'radio' && ['关闭', '开启'].includes(item.label)
+          ? { ...item, checked: item.label === '开启' } : item.type === 'checkbox' && item.label === 'Brand' ? { ...item, checked: true } : item),
+        restore: { kind: 'set-setting', settingKey: 'product-list-display', value: probe.controls } }));
+    }
     if (originalCompare === '关闭') await session.set(pair[1], true);
     if (brand && !brand.checked) await session.set(brand, true);
     await session.save();
@@ -264,11 +314,21 @@ async function compareFrontCheck({ session, page, context, config, profile, repo
     });
     errors.push(...flow.flowErrors);
     Object.assign(evidence, flow.flowEvidence);
+    if (mutationSeq !== undefined) {
+      if (errors.length) await markFailed(journal, mutationSeq, new Error(errors.join('；')));
+      else await markDone(journal, mutationSeq);
+    }
   } catch (error) {
-    errors.push(`前台效果验证失败：${error.message}`);
+    if (mutationSeq !== undefined) await markFailed(journal, mutationSeq, error);
+    if (error.code === 'FRONT_PROVIDER_PUBLISHED') {
+      evidence.frontDeferred = error.message;
+    } else {
+      errors.push(`前台效果验证失败：${error.message}`);
+    }
   } finally {
     await restore();
   }
+  if (!errors.length && evidence.frontDeferred) return result(id, 'deferred', evidence.frontDeferred, evidence);
   return result(id,
     errors.length ? 'fail' : 'pass',
     errors.length ? errors.join('；')
@@ -295,11 +355,11 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
   if (!oracle?.category || !Array.isArray(oracle.onShelf)) {
     return result(id, 'skip', '未提供后台分类和上架产品清单，无法比对。');
   }
-  const target = oracle.category;
+  const categoryName = oracle.category;
   const expected = [...oracle.onShelf];
   const offShelfCount = Number.isFinite(oracle.cmsTotal) ? Math.max(0, oracle.cmsTotal - expected.length) : null;
   const errors = [];
-  const evidence = { category: target, expected, cmsTotal: oracle.cmsTotal ?? null };
+  const evidence = { category: categoryName, expected, cmsTotal: oracle.cmsTotal ?? null };
   const sourceOf = (probe) => (probe.controls || []).filter((item) => item.type === 'radio' && item.name === 'selectProdType');
   const catsOf = (probe) => (probe.controls || []).filter((item) => item.type === 'checkbox' && item.name === 'leafProdGroup');
   const probe = await probeControls(session);
@@ -308,10 +368,20 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
   const originalSource = sources.find((item) => item.checked)?.label || '所有产品';
   const originalChecked = catsOf(probe).filter((item) => item.checked).map((item) => (item.label || '').trim());
   evidence.baseline = { dataSource: originalSource, checkedCategories: originalChecked };
+  const journal = config?.mutationJournal;
+  let target;
+  let mutationSeq;
   const restore = async () => {
+    let restoreSeq;
+    const restoreErrorCount = errors.length;
     try {
       await session.cancel();
       await session.open();
+      if (journal) {
+        target ||= await mutationTarget(canvas, config, profile);
+        restoreSeq = await logMutation(journal, journalSnapshot({ op: 'restore', target, before: await session.read(),
+          after: probe.controls, restore: { kind: 'set-setting', settingKey: 'product-list-display', value: probe.controls } }));
+      }
       if (originalSource === '选择部分产品分类') {
         const current = await probeControls(session);
         const partial = current.controls?.find((item) => item.type === 'radio' && item.name === 'selectProdType' && item.label === '选择部分产品分类');
@@ -339,9 +409,16 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
       const restoredSource = sourceOf(after).find((item) => item.checked)?.label;
       evidence.restored = { dataSource: restoredSource };
       if (restoredSource !== originalSource) errors.push(`恢复后数据来源为 ${restoredSource}，不是 ${originalSource}`);
-    } catch (error) { errors.push(`恢复失败：${error.message}`); }
+    } catch (error) {
+      if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, error);
+      errors.push(`恢复失败：${error.message}`);
+    }
     try { await session.cancel(); } catch {}
     try { await savePage(page); } catch (error) { errors.push(`保存恢复页面失败：${error.message}`); }
+    if (restoreSeq !== undefined) {
+      if (errors.length > restoreErrorCount) await markFailed(journal, restoreSeq, new Error(errors.slice(restoreErrorCount).join('；')));
+      else await markDone(journal, restoreSeq);
+    }
     // Let the canvas settle after the flip + restore saves (same lesson
     // as pcs-category-front: a still-reloading canvas can make the next
     // capability's dialog open time out).
@@ -354,6 +431,14 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
     if (!context) return result(id, 'skip', '未提供浏览器 context，无法打开临时预览。');
     const partial = sources.find((item) => item.label === '选择部分产品分类');
     if (!partial) return result(id, 'na', '本区块没有“选择部分产品分类”数据来源设置项。');
+    if (journal) {
+      target = await mutationTarget(canvas, config, profile);
+      mutationSeq = await logMutation(journal, journalSnapshot({ op: 'set-setting', target, before: probe.controls,
+        after: probe.controls.map((item) => item.type === 'radio' && item.name === 'selectProdType'
+          ? { ...item, checked: item.label === '选择部分产品分类' } : item.type === 'checkbox' && item.name === 'leafProdGroup'
+            ? { ...item, checked: (item.label || '').trim() === categoryName } : item),
+        restore: { kind: 'set-setting', settingKey: 'product-list-display', value: probe.controls } }));
+    }
     await session.set(partial, true);
     await session.save();
     await session.open();
@@ -366,11 +451,11 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
       const boxes = catsOf(after);
       if (!boxes.length) { errors.push('切到部分分类后弹窗里没有出现分类多选。'); }
       else {
-        for (const item of boxes.filter((x) => x.checked && (x.label || '').trim() !== target)) {
+        for (const item of boxes.filter((x) => x.checked && (x.label || '').trim() !== categoryName)) {
           await session.set(item, false);
         }
-        const targetNow = boxes.find((item) => (item.label || '').trim() === target);
-        if (!targetNow) { errors.push(`切到部分分类后找不到分类“${target}”`); }
+        const targetNow = boxes.find((item) => (item.label || '').trim() === categoryName);
+        if (!targetNow) { errors.push(`切到部分分类后找不到分类“${categoryName}”`); }
         else if (!targetNow.checked) await session.set(targetNow, true);
       }
       await session.save();
@@ -379,12 +464,12 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
       const verify = await probeControls(session, (items) => {
         const checked = catsOf({ controls: items }).filter((item) => item.checked).map((item) => (item.label || '').trim());
         return sourceOf({ controls: items }).find((item) => item.checked)?.label === '选择部分产品分类'
-          && checked.length === 1 && checked[0] === target;
+          && checked.length === 1 && checked[0] === categoryName;
       });
       const persistedSource = sourceOf(verify).find((item) => item.checked)?.label;
       const persistedChecked = catsOf(verify).filter((item) => item.checked).map((item) => (item.label || '').trim());
       evidence.persisted = { dataSource: persistedSource, checkedCategories: persistedChecked };
-      if (persistedSource !== '选择部分产品分类' || persistedChecked.length !== 1 || persistedChecked[0] !== target) {
+      if (persistedSource !== '选择部分产品分类' || persistedChecked.length !== 1 || persistedChecked[0] !== categoryName) {
         errors.push(`翻转后未保持单分类：数据来源=${persistedSource}，勾选分类=[${persistedChecked.join('、')}]`);
       }
       await session.cancel();
@@ -427,20 +512,31 @@ async function dataSourceCategoryFrontCheck({ session, page, canvas, context, co
       errors.push(...flow.flowErrors);
       Object.assign(evidence, flow.flowEvidence);
     }
+    if (mutationSeq !== undefined) {
+      if (errors.length) await markFailed(journal, mutationSeq, new Error(errors.join('；')));
+      else await markDone(journal, mutationSeq);
+    }
   } catch (error) {
-    errors.push(`前台效果验证失败：${error.message}`);
+    if (mutationSeq !== undefined) await markFailed(journal, mutationSeq, error);
+    if (error.code === 'FRONT_PROVIDER_PUBLISHED') {
+      evidence.frontDeferred = error.message;
+    } else {
+      errors.push(`前台效果验证失败：${error.message}`);
+    }
   } finally {
     await restore();
   }
+  if (!errors.length && evidence.frontDeferred) return result(id, 'deferred', evidence.frontDeferred, evidence);
   return result(id,
     errors.length ? 'fail' : 'pass',
     errors.length ? errors.join('；')
-      : `数据来源选部分分类（仅“${target}”）后，列表直接为后台的 ${expected.length} 个上架产品，与后台一致${offShelfCount == null ? '' : `，下架 ${offShelfCount} 个不展示`}，无需点导航。`,
-    evidence, { expected: `数据来源只选“${target}”后，产品列表应与后台的 ${expected.length} 个上架产品完全一致${offShelfCount == null ? '' : `，并排除 ${offShelfCount} 个下架产品`}。` });
+      : `数据来源选部分分类（仅“${categoryName}”）后，列表直接为后台的 ${expected.length} 个上架产品，与后台一致${offShelfCount == null ? '' : `，下架 ${offShelfCount} 个不展示`}，无需点导航。`,
+    evidence, { expected: `数据来源只选“${categoryName}”后，产品列表应与后台的 ${expected.length} 个上架产品完全一致${offShelfCount == null ? '' : `，并排除 ${offShelfCount} 个下架产品`}。` });
 }
 
 export async function runSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
-  if (config.frontOnly) return runProductListEffects({ page, canvas, context, config, capability, profile, report }, 'front');
+  const mutation = mutationContext(canvas, config, profile);
+  if (config.frontOnly) return runJournaledProductListEffects({ page, canvas, context, config, capability, profile, report }, 'front');
   // The dialog title and the wrap index come from the profile: 样本区块 uses
   // title 设置产品列表 at gallery wrap 0, while 另一样本区块 uses 设置与选取数据
   // at gallery wrap 1 (wrap 0 is the category dialog). Title alone is not
@@ -460,7 +556,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     // Data source is a 4-option radio in 另一样本区块 (所有产品 / 使用筛选条件 /
     // 选择指定产品 / 选择部分产品分类); 样本区块 has no such group, so a
     // missing group correctly degrades to na via radioGroupPersist.
-    checks.push(outcomeResult('pld-data-source-persist', await radioGroupPersist({ session, page,
+    checks.push(outcomeResult('pld-data-source-persist', await radioGroupPersist({ mutation, session, page,
       name: '列表数据来源', labels: ['所有产品', '使用筛选条件', '选择指定产品', '选择部分产品分类'] })));
     checks.push(config.deferFront ? result('pld-data-source-category-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
       : await dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability, profile, report }));
@@ -475,7 +571,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     // pagination=是 → per-page count; pagination=否 → total count.
     const paginationChecked = initial.controls.find((item) => item.type === 'radio' && item.name === 'pagination' && item.checked);
     const sizeMeaning = paginationChecked?.label === '是' ? '每页产品数量' : paginationChecked?.label === '否' ? '总数量' : '未知含义';
-    const sizeOutcome = pageSize ? await persistControl({ session, page,
+    const sizeOutcome = pageSize ? await persistControl({ mutation, session, page,
       target: pageSize, alternate: Number(pageSize.value) === 10 ? '20' : '10' }) : null;
     checks.push(sizeOutcome
       ? outcomeResult('pld-page-size-persist', { ...sizeOutcome,
@@ -486,13 +582,13 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       ['pld-pagination-persist', '分页展示', ['是', '否']],
       ['pld-compare-persist', '产品对比', ['关闭', '开启']],
     ]) {
-      checks.push(outcomeResult(id, await radioPersist({ session, page, name, prefixes })));
+      checks.push(outcomeResult(id, await radioPersist({ mutation, session, page, name, prefixes })));
     }
     checks.push(config.deferFront ? result('pld-compare-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
-      : await compareFrontCheck({ session, page, context, config, profile, report }));
+      : await compareFrontCheck({ session, page, canvas, context, config, profile, report }));
     const probe = await probeControls(session);
     const field = probe.controls && fieldsOf(probe.controls).find((item) => !item.disabled);
-    checks.push(field ? outcomeResult('pld-display-field-persist', await persistControl({ session, page,
+    checks.push(field ? outcomeResult('pld-display-field-persist', await persistControl({ mutation, session, page,
       target: field, alternate: !field.checked }))
       : result('pld-display-field-persist', probe.reason ? 'skip' : fieldsOf(probe.controls || []).length === 0 ? 'na' : 'skip',
         probe.reason || (fieldsOf(probe.controls || []).length === 0 ? '本区块没有展示字段设置项。' : '没有可切换的展示字段。')));
@@ -502,7 +598,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       if (last) { last.status = 'fail'; last.detail += `；最终取消失败：${error.message}`; }
     }
   }
-  checks.push(...await runProductListEffects({ page, canvas, context, config, capability, profile, report }, 'front'));
+  checks.push(...await runJournaledProductListEffects({ page, canvas, context, config, capability, profile, report }, 'front'));
   return checks;
 }
 
@@ -780,7 +876,7 @@ export async function runBatchSettingsLayer(args) {
     : await dataSourceCategoryFrontCheck({ session, page, canvas, context, config, capability, profile, report }));
   checksById.set('pld-compare-front', config.deferFront
     ? result('pld-compare-front', 'deferred', 'deferred-to-front-runner', { deferred: true })
-    : await compareFrontCheck({ session, page, context, config, capability, profile, report }));
+    : await compareFrontCheck({ session, page, canvas, context, config, capability, profile, report }));
   try { await session.cancel(); } catch (error) {
     const last = [...checksById.values()].at(-1);
     if (last) { last.status = 'fail'; last.detail += `；最终取消失败：${error.message}`; }
@@ -788,13 +884,13 @@ export async function runBatchSettingsLayer(args) {
   const order = ['pld-fields', 'pld-data-source-persist', 'pld-data-source-category-front', 'pld-page-size-persist',
     'pld-data-source-batch-effect', 'pld-pagination-persist', 'pld-pagination-batch-effect', 'pld-compare-persist',
     'pld-compare-batch-effect', 'pld-compare-front', 'pld-display-field-persist', 'pld-display-field-batch-effect', 'pld-size-batch-effect'];
-  return [...order.map((id) => checksById.get(id)).filter(Boolean), ...await runProductListEffects({ page, canvas, context, config, capability, profile, report }, 'front')];
+  return [...order.map((id) => checksById.get(id)).filter(Boolean), ...await runJournaledProductListEffects({ page, canvas, context, config, capability, profile, report }, 'front')];
 }
 
 export async function runFrontEffectsLayer(args) {
   const session = listSession(args);
   return [await dataSourceCategoryFrontCheck({ ...args, session }), await compareFrontCheck({ ...args, session }),
-    ...await runProductListEffects(args, 'front')];
+    ...await runJournaledProductListEffects(args, 'front')];
 }
 
 export async function runFrontLayer({ frame, config }) {
@@ -837,4 +933,10 @@ Object.assign(NAMES, {
 });
 export { displayFieldRequirements } from './product-list-effects.mjs';
 import { runProductListEffects } from './product-list-effects.mjs';
-export async function runBackendLayer(args) { return runProductListEffects(args, 'backend'); }
+export async function runBackendLayer(args) { return runJournaledProductListEffects(args, 'backend'); }
+
+// The list's effect implementations live in a separate file and use effectCheck.
+function runJournaledProductListEffects(args, layer) {
+  const mutation = mutationContext(args.canvas, args.config, args.profile);
+  return runProductListEffects(mutation ? { ...args, mutation } : args, layer);
+}
