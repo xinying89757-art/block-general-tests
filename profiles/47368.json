@@ -72,92 +72,106 @@
         "params": {
           "dialogTitle": "right-rail-color",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "module-width",
         "params": {
           "dialogTitle": "right-rail-width",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-display-fields",
         "params": {
           "dialogTitle": "设置与选取数据",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-pagination",
         "params": {
           "dialogTitle": "设置与选取数据",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-page-size",
         "params": {
           "dialogTitle": "设置与选取数据",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-product-count",
         "params": {
           "dialogTitle": "设置与选取数据",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-compare",
         "params": {
           "dialogTitle": "设置与选取数据",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-data-source",
         "params": {
           "dialogTitle": "设置与选取数据",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "btn-text",
         "params": {
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "btn-text",
         "params": {
           "wrapIndex": 1
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "btn-url",
         "params": {
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "btn-url",
         "params": {
           "wrapIndex": 1
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "btn-target",
         "params": {
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "btn-target",
         "params": {
           "wrapIndex": 1
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "discovered-style-rail-color-scheme-0-0-color",
@@ -179,7 +193,8 @@
           "identity": "name:colorVal0",
           "section": "区块配色",
           "position": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "discovered-style-rail-color-scheme-0-1-color",
@@ -201,7 +216,8 @@
           "identity": "name:colorVal1",
           "section": "区块配色",
           "position": 1
-        }
+        },
+        "reviewStatus": "pending-business"
       }
     ],
     "displayFieldTypes": []
