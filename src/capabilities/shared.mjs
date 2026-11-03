@@ -1,9 +1,13 @@
 import { closeToolbarMenusBeforeAction, savePage } from '../editor.mjs';
+import { logMutation, markDone, markFailed } from '../mutation-journal.mjs';
 import { waitForControlsReady, retryTransient, retryWithFreshControl, waitForEditorLoadingToClear,
   saveAndWait, readBackWithRetry, uiWaitConfig, waitForDialogState } from '../ui-waits.mjs';
 export { readBackWithRetry } from '../ui-waits.mjs';
 
 export const TIMEOUT = 10_000;
+// DOM control snapshots use undefined for inapplicable fields (e.g. options on
+// an INPUT). Omit those optional properties before passing data to the strict WAL.
+export const journalSnapshot = (value) => JSON.parse(JSON.stringify(value));
 const CONTROL_LABEL_WHITESPACE_PATTERN = '\\s+';
 export function normalizeControlLabel(text) {
   return String(text || '').replace(new RegExp(CONTROL_LABEL_WHITESPACE_PATTERN, 'g'), ' ').trim();
@@ -384,7 +388,7 @@ export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0
 
 // Radio group with any number of options (2-option groups keep using
 // radioPersist). Returns skip when the group cannot be located uniquely.
-export async function radioGroupPersist({ session, page, name, labels }) {
+export async function radioGroupPersist({ session, page, name, labels, mutation }) {
   const probe = await probeControls(session);
   if (probe.reason) return { status: 'skip', detail: `${name}：${probe.reason}` };
   const options = probe.controls.filter((item) => item.type === 'radio' && labels.includes(item.label));
@@ -406,7 +410,7 @@ export async function radioGroupPersist({ session, page, name, labels }) {
       }
       return controls;
     } };
-  const outcome = await persistControl({ session: groupSession, page, target: original, alternate: false });
+  const outcome = await persistControl({ session: groupSession, page, target: original, alternate: false, mutation });
   if (outcome.evidence) {
     outcome.evidence.originalLabel = original.label;
     outcome.evidence.alternateLabel = alternate.label;
@@ -430,15 +434,29 @@ export async function probeControls(session, accepts) {
 // A mutation is a transaction: verify the alternate persisted value, then always
 // attempt recovery, verify it, close the editor UI, and save the restored page.
 // Discovery failures skip; failures from the first attempted write onward fail.
-export async function persistControl({ session, page, target, alternate, afterSwitch, restoreValue = controlValue(target), restoreSource = 'snapshot' }) {
+export async function persistControl({ session, page, target, alternate, afterSwitch, restoreValue = controlValue(target), restoreSource = 'snapshot', mutation }) {
   const evidence = { control: target.label || target.context, original: controlValue(target), alternate, controlType: target.type,
     restoreTarget: restoreValue, restoreSource };
   const errors = [];
   let stage = '翻转控件';
+  const journal = mutation?.journal;
+  let mutationTarget;
+  let mutationSeq;
+  let initial;
+  let restoreSnapshot;
   try {
     // A previous transaction ends with the dialog closed. Reopen it here so
     // a persist that follows another one does not fail on a hidden dialog.
     if (typeof session.open === 'function') await session.open();
+    if (journal) {
+      mutationTarget = await mutation.target();
+      initial = await session.read();
+      restoreSnapshot = initial.map((item) => item.index === target.index
+        ? { ...item, ...(['checkbox', 'radio'].includes(item.type) ? { checked: restoreValue } : { value: restoreValue }) } : item);
+      mutationSeq = await logMutation(journal, journalSnapshot({ op: 'set-setting', target: mutationTarget, before: initial,
+        after: { ...target, ...(['checkbox', 'radio'].includes(target.type) ? { checked: alternate } : { value: alternate }) },
+        restore: { kind: 'set-setting', settingKey: mutation.settingKey, value: restoreSnapshot } }));
+    }
     await session.set(target, alternate);
     stage = '保存翻转状态';
     await session.save();
@@ -450,20 +468,34 @@ export async function persistControl({ session, page, target, alternate, afterSw
       async () => { await session.cancel(); await session.open(); });
     evidence.afterSave = actual ? controlValue(actual) : null;
     if (!actual || evidence.afterSave !== alternate) throw new Error('保存后值不符合预期');
+    if (mutationSeq !== undefined) await markDone(journal, mutationSeq);
     if (afterSwitch) {
       stage = '保存页面及预览效果';
       await session.cancel();
       await afterSwitch(evidence, (next) => { stage = next; });
     }
-  } catch (error) { errors.push(`${stage}失败：${error.message}`); }
+  } catch (error) {
+    if (mutationSeq !== undefined) await markFailed(journal, mutationSeq, error);
+    if (error.code === 'FRONT_PROVIDER_PUBLISHED') evidence.frontDeferred = error.message;
+    else errors.push(`${stage}失败：${error.message}`);
+  }
   finally {
     let restoreError;
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      let restoreSeq;
       try {
         stage = '恢复前重新打开';
         await session.cancel();
         await session.open();
         stage = '恢复原值';
+        if (journal) {
+          mutationTarget ||= await mutation.target();
+          const current = await session.read();
+          restoreSeq = await logMutation(journal, journalSnapshot({ op: 'restore', target: mutationTarget, before: current,
+            after: restoreSnapshot ?? current.map((item) => item.index === target.index
+              ? { ...item, ...(['checkbox', 'radio'].includes(item.type) ? { checked: restoreValue } : { value: restoreValue }) } : item),
+            restore: { kind: 'set-setting', settingKey: mutation.settingKey, value: restoreSnapshot ?? current } }));
+        }
         await session.set(target, restoreValue);
         stage = '保存恢复状态';
         await session.save();
@@ -475,9 +507,11 @@ export async function persistControl({ session, page, target, alternate, afterSw
           async () => { await session.cancel(); await session.open(); });
         evidence.restored = restored ? controlValue(restored) : null;
         if (!restored || evidence.restored !== restoreValue) throw new Error('未恢复目标值');
+        if (restoreSeq !== undefined) await markDone(journal, restoreSeq);
         restoreError = null;
         break;
       } catch (error) {
+        if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, error);
         restoreError = error;
         try { await session.cancel(); } catch { /* next attempt reopens explicitly */ }
       }
@@ -492,11 +526,14 @@ export async function persistControl({ session, page, target, alternate, afterSw
   const originalText = display(evidence.original);
   const restoreText = display(restoreValue);
   const alternateText = display(alternate);
+  if (!errors.length && evidence.frontDeferred) {
+    return { status: 'deferred', detail: evidence.frontDeferred, evidence };
+  }
   return { status: errors.length ? 'fail' : 'pass',
     detail: `控件“${evidence.control}”原值是“${originalText}”，改为“${alternateText}”后保存，重新打开${evidence.afterSave === alternate ? `仍为“${alternateText}”` : '未保持切换值'}，恢复目标为“${restoreText}”${evidence.restored === restoreValue ? '且回读一致' : '但回读不一致'}。${errors.join('；') || '恢复页面已保存。'}`, evidence };
 }
 
-export async function radioPersist({ session, page, name, prefixes, afterSwitch }) {
+export async function radioPersist({ session, page, name, prefixes, afterSwitch, mutation }) {
   const probe = await probeControls(session);
   if (probe.reason) return { status: 'skip', detail: `${name}：${probe.reason}` };
   const options = prefixes.map((prefix) => probe.controls.filter((item) => item.type === 'radio' && item.label.startsWith(prefix)));
@@ -522,7 +559,7 @@ export async function radioPersist({ session, page, name, prefixes, afterSwitch 
     if (!left || !right || left.checked === right.checked) throw new Error('radio 组保存后未保持唯一选中值');
     return controls;
   } };
-  const outcome = await persistControl({ session: radioSession, page, target: original, alternate: false, afterSwitch });
+  const outcome = await persistControl({ session: radioSession, page, target: original, alternate: false, afterSwitch, mutation });
   if (outcome.evidence) {
     outcome.evidence.originalLabel = original.label;
     outcome.evidence.alternateLabel = alternate.label;

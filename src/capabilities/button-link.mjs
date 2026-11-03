@@ -1,11 +1,34 @@
+import { normalizeSiteHost } from '../site-baseline.mjs';
+import { logMutation, markDone, markFailed } from '../mutation-journal.mjs';
 import { effectCheck, unavailable, readEffectRoot } from './effect-checks.mjs';
-import { baselineRestoreTarget, clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
+import { journalSnapshot, baselineRestoreTarget, clickSettings, controlSession, probeControls, persistControl, previewSelector, poll, TIMEOUT, checkReportText, blockSelector } from './shared.mjs';
 import { retryTransient, uiWaitConfig, visibleEditorLoadingOverlays, waitForEditorLoadingToClear } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
 import { createStableSnapshotDiagnostics, dismissReadOnlyPopover, readStableSnapshot, reloadDiscardAndVerify } from '../read-only-dismiss.mjs';
-import { closePageMenuIfOpen, reloadEditor, verifyEditorSiteIdentity } from '../editor.mjs';
+import { closePageMenuIfOpen, reloadEditor, verifyEditorSiteIdentity, targetLanguage } from '../editor.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
+
+// Keep unknown/ambiguous instance identity null; never select an arbitrary wrap.
+async function mutationTarget(canvas, config, profile) {
+  const instanceId = await canvas.locator(blockSelector(config.blockId)).evaluateAll((wraps) => {
+    if (wraps.length !== 1) return null;
+    for (const node of [wraps[0], ...wraps[0].querySelectorAll('*')]) {
+      const attribute = [...node.attributes].find((attr) => /setting.?id/i.test(attr.name));
+      if (attribute?.value) return attribute.value;
+    }
+    return null;
+  });
+  return { siteHost: normalizeSiteHost(config.siteDomain), language: targetLanguage(config),
+    pageId: config.pageId ?? profile?.target?.pageId ?? null,
+    pageKind: config.resolvedTarget?.kind ?? profile?.target?.pageKind ?? null,
+    blockId: config.blockId, instanceId };
+}
+
+function mutationContext(canvas, config, profile) {
+  return config?.mutationJournal ? { journal: config.mutationJournal,
+    target: () => mutationTarget(canvas, config, profile), settingKey: 'button-link' } : undefined;
+}
 
 const SUITE = 'capability:button-link';
 export const freshSettings = registerFreshSettingsCapability('button-link', createFreshDefinitions,
@@ -212,6 +235,9 @@ async function readButtonPopoverValue({ page, canvas, config, wrapIndex = 0, ses
     await waitForEditorLoadingToClear(canvas);
     stage = 'popover-open';
     await session.open();
+    // 给浮层一点时间稳定，避免刚打开时值还在填充导致 readStableSnapshot 超时
+    await new Promise((resolve) => setTimeout(resolve, 1500)).catch(() => {});
+    await waitForEditorLoadingToClear(canvas).catch(() => {});
     stage = 'control-snapshot';
     value = await readStableSnapshot(async () => {
       try {
@@ -338,8 +364,9 @@ export async function writeButtonPopover({ page, canvas, config, wrapIndex = 0, 
   } finally { await session.cancel(); }
 }
 
-export async function runSettingsLayer({ page, canvas, context, config }) {
-  if (config.frontOnly) return buttonEffectChecks({ page, canvas, context, config }, 'front');
+export async function runSettingsLayer({ page, canvas, context, config, profile }) {
+  const mutation = mutationContext(canvas, config, profile);
+  if (config.frontOnly) return buttonEffectChecks({ page, canvas, context, config, profile }, 'front');
   const session = popoverSession({ page, canvas, config });
   const ids = ['btn-state', 'btn-text-persist', 'btn-url-persist', 'btn-target-persist'];
   const checks = [];
@@ -371,7 +398,7 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
       ['btn-target-persist', 'target', !current.target.checked],
     ]) {
       if (id === 'btn-url-persist') {
-        checks.push(await urlPersistenceCheck({ page, canvas, context, config }, session));
+        checks.push(await urlPersistenceCheck({ page, canvas, context, config, profile }, session));
         continue;
       }
       const probe = await probeControls(session);
@@ -386,7 +413,7 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
       const restore = baselineRestoreTarget({ snapshot, baselineValue: baselineRestore,
         defaultValue: key === 'text' ? DEFAULT_TEXT : 'javascript:void(0)' });
       checks.push(!target || target.disabled || target.readOnly ? result(id, 'skip', probe.reason || '浮层控件缺失或不可编辑。')
-        : outcomeResult(id, await persistControl({ session, page, target, alternate,
+        : outcomeResult(id, await persistControl({ mutation, session, page, target, alternate,
           restoreValue: restore.value, restoreSource: restore.source })));
     }
   } finally {
@@ -395,7 +422,7 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
     }
     await canvas.locator(`[${MARKER}]`).evaluateAll((nodes) => nodes.forEach((node) => node.removeAttribute('data-autotest-button-link-root'))).catch(() => {});
   }
-  checks.push(...await buttonEffectChecks({ page, canvas, context, config }, 'front'));
+  checks.push(...await buttonEffectChecks({ page, canvas, context, config, profile }, 'front'));
   return checks;
 }
 
@@ -530,7 +557,10 @@ async function prepareBaidu(tx, session) {
     tx.evidence.restoredLink = { type: restored.selected, source: restored.source, value: restoreUrl.value,
       restoreTarget: restoreUrl.source };
   });
+  if (tx.hasMutationJournal) await tx.beforeMutation({ linkType: '域名', value: BAIDU },
+    { controls: await session.read(), linkType: tabs.selected, value: original.url.value });
   tx.evidence.baiduLinkType = await setLink(session, '域名', BAIDU);
+  await tx.mutationDone();
   return original;
 }
 
@@ -539,7 +569,7 @@ function txConfigBaseline(tx, label) {
 }
 
 async function urlPersistenceCheck(args, session) {
-  return effectCheck({ ...args, session, result, id: 'btn-url-persist', layer: 'settings', run: async (tx) => {
+  return effectCheck({ ...args, mutation: mutationContext(args.canvas, args.config, args.profile), session, result, id: 'btn-url-persist', layer: 'settings', run: async (tx) => {
     const original = await prepareBaidu(tx, session);
     tx.expected(`链接改为百度 ${BAIDU} 后保存重开应保持百度，恢复后链接及域名或邮箱类型应与原设置一致。`);
     const back = await buttonControls(session);
@@ -600,7 +630,7 @@ async function buttonEffectChecks(args, layer) {
   const checks = [];
   for (const kind of ['text', 'url', 'target']) {
     const session = popoverSession(args), id = `btn-${kind}-${layer}`;
-    checks.push(await effectCheck({ ...args, session, result, id, layer, run: async (tx) => {
+    checks.push(await effectCheck({ ...args, mutation: mutationContext(args.canvas, args.config, args.profile), session, result, id, layer, run: async (tx) => {
       const initial = await buttonControls(session);
       if (kind === 'text') {
         const value = initial.text.value === 'AUTOTEST-BTN' ? 'AUTOTEST-BTN-ALT' : 'AUTOTEST-BTN';
