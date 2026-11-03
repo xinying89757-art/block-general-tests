@@ -2,6 +2,10 @@
   "blockId": "47498",
   "capabilities": [
     {
+      "id": "block-color-scheme",
+      "status": "candidate"
+    },
+    {
       "id": "module-width",
       "status": "candidate"
     },
@@ -16,6 +20,19 @@
     {
       "id": "button-link",
       "status": "candidate"
+    },
+    {
+      "id": "block-style-spec",
+      "status": "candidate",
+      "styleSpec": {
+        "items": [],
+        "recordOnly": [],
+        "viewports": {
+          "pc": 1440,
+          "pad": 768,
+          "mobile": 375
+        }
+      }
     }
   ],
   "category": "待人工审核",
@@ -55,86 +72,187 @@
   "requirements": {
     "capabilities": [
       {
+        "id": "color-scheme",
+        "params": {
+          "dialogTitle": "right-rail-color",
+          "wrapIndex": 0
+        },
+        "reviewStatus": "pending-business"
+      },
+      {
         "id": "module-width",
         "params": {
           "dialogTitle": "right-rail-width",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "cff-fields",
         "params": {
           "dialogTitle": "设置自定义字段筛选",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-display-fields",
         "params": {
           "dialogTitle": "设置产品列表",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-pagination",
         "params": {
           "dialogTitle": "设置产品列表",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-page-size",
         "params": {
           "dialogTitle": "设置产品列表",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-product-count",
         "params": {
           "dialogTitle": "设置产品列表",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-compare",
         "params": {
           "dialogTitle": "设置产品列表",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
         "id": "pld-data-source",
         "params": {
           "dialogTitle": "设置产品列表",
           "wrapIndex": 0
-        }
+        },
+        "reviewStatus": "pending-business"
       },
       {
-        "id": "btn-text",
-        "params": {
-          "wrapIndex": 0
-        }
+        "id": "discovered-style-rail-color-scheme-0-0-color",
+        "capability": "discovered-style-controls",
+        "mode": "editor-setting",
+        "valueKind": "color",
+        "styleProperty": null,
+        "lifecycleSurface": "right-rail-flyout",
+        "editorControl": {
+          "regionType": "rail:color-scheme",
+          "regionTitle": "right-rail-color",
+          "wrapIndex": 0,
+          "index": 0,
+          "tag": "INPUT",
+          "type": "color",
+          "name": "colorVal0",
+          "label": "colorVal0",
+          "role": "color",
+          "identity": "name:colorVal0",
+          "section": "区块配色",
+          "position": 0
+        },
+        "reviewStatus": "pending-business"
       },
       {
-        "id": "btn-url",
-        "params": {
-          "wrapIndex": 0
-        }
+        "id": "discovered-style-rail-color-scheme-0-1-color",
+        "capability": "discovered-style-controls",
+        "mode": "editor-setting",
+        "valueKind": "color",
+        "styleProperty": null,
+        "lifecycleSurface": "right-rail-flyout",
+        "editorControl": {
+          "regionType": "rail:color-scheme",
+          "regionTitle": "right-rail-color",
+          "wrapIndex": 0,
+          "index": 1,
+          "tag": "INPUT",
+          "type": "color",
+          "name": "colorVal1",
+          "label": "colorVal1",
+          "role": "color",
+          "identity": "name:colorVal1",
+          "section": "区块配色",
+          "position": 1
+        },
+        "reviewStatus": "pending-business"
       },
       {
-        "id": "btn-target",
-        "params": {
-          "wrapIndex": 0
-        }
+        "id": "discovered-style-rail-color-scheme-0-2-color",
+        "capability": "discovered-style-controls",
+        "mode": "editor-setting",
+        "valueKind": "color",
+        "styleProperty": null,
+        "lifecycleSurface": "right-rail-flyout",
+        "editorControl": {
+          "regionType": "rail:color-scheme",
+          "regionTitle": "right-rail-color",
+          "wrapIndex": 0,
+          "index": 2,
+          "tag": "INPUT",
+          "type": "color",
+          "name": "colorVal2",
+          "label": "colorVal2",
+          "role": "color",
+          "identity": "name:colorVal2",
+          "section": "区块配色",
+          "position": 2
+        },
+        "reviewStatus": "pending-business"
       }
     ],
     "displayFieldTypes": []
   },
   "onboarding": {
     "status": "draft-unreviewed",
-    "discoveredAt": "2026-11-02T07:57:21.835Z",
+    "discoveredAt": "2026-11-03T02:03:51.545Z",
     "matched": [
+      {
+        "id": "color-scheme",
+        "capability": "block-color-scheme",
+        "kind": "right-rail-flyout",
+        "type": "rail:color-scheme",
+        "title": "right-rail-color",
+        "wrapIndex": 0,
+        "evidence": [
+          {
+            "type": "color",
+            "label": "colorVal0",
+            "value": "rgb(47, 73, 184)",
+            "controlIndex": 0,
+            "controlName": "colorVal0",
+            "role": "color"
+          },
+          {
+            "type": "color",
+            "label": "colorVal1",
+            "value": "rgb(242, 242, 245)",
+            "controlIndex": 1,
+            "controlName": "colorVal1",
+            "role": "color"
+          },
+          {
+            "type": "color",
+            "label": "colorVal2",
+            "value": "#EEF2F6",
+            "controlIndex": 2,
+            "controlName": "colorVal2",
+            "role": "color"
+          }
+        ]
+      },
       {
         "id": "module-width",
         "capability": "module-width",
@@ -623,51 +741,6 @@
             "controlName": "selectProdType"
           }
         ]
-      },
-      {
-        "id": "btn-text",
-        "capability": "button-link",
-        "kind": "button-popover",
-        "type": "phoenix_blocks_button",
-        "title": null,
-        "wrapIndex": 0,
-        "evidence": [
-          {
-            "type": "text",
-            "label": "按钮文本",
-            "value": "分类按钮"
-          }
-        ]
-      },
-      {
-        "id": "btn-url",
-        "capability": "button-link",
-        "kind": "button-popover",
-        "type": "phoenix_blocks_button",
-        "title": null,
-        "wrapIndex": 0,
-        "evidence": [
-          {
-            "type": "text",
-            "label": "链接网址",
-            "value": "javascript:void(0)"
-          }
-        ]
-      },
-      {
-        "id": "btn-target",
-        "capability": "button-link",
-        "kind": "button-popover",
-        "type": "phoenix_blocks_button",
-        "title": null,
-        "wrapIndex": 0,
-        "evidence": [
-          {
-            "type": "checkbox",
-            "label": "新窗口打开",
-            "value": false
-          }
-        ]
       }
     ],
     "unmapped": [
@@ -770,7 +843,786 @@
         "status": "unmapped"
       }
     ],
-    "pendingStyleEffects": [],
+    "pendingStyleEffects": [
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 0,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 0,
+        "controlName": "colorVal0",
+        "kind": "color",
+        "property": "color",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-0-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 0,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 0,
+        "controlName": "colorVal0",
+        "kind": "color",
+        "property": "backgroundColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-0-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 0,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 0,
+        "controlName": "colorVal0",
+        "kind": "color",
+        "property": "borderColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-0-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 0,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 0,
+        "controlName": "colorVal0",
+        "kind": "color",
+        "property": "outlineColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-0-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 0,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 0,
+        "controlName": "colorVal0",
+        "kind": "color",
+        "property": "textDecorationColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-0-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 0,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 0,
+        "controlName": "colorVal0",
+        "kind": "color",
+        "property": "accentColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-0-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 0,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 0,
+        "controlName": "colorVal0",
+        "kind": "color",
+        "property": "caretColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-0-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 0,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 0,
+        "controlName": "colorVal0",
+        "kind": "color",
+        "property": "columnRuleColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-0-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 0,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 0,
+        "controlName": "colorVal0",
+        "kind": "color",
+        "property": "fill",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-0-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 0,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 0,
+        "controlName": "colorVal0",
+        "kind": "color",
+        "property": "stroke",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-0-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-0-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-0-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 1,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 1,
+        "controlName": "colorVal1",
+        "kind": "color",
+        "property": "color",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-1-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 1,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 1,
+        "controlName": "colorVal1",
+        "kind": "color",
+        "property": "backgroundColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-1-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 1,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 1,
+        "controlName": "colorVal1",
+        "kind": "color",
+        "property": "borderColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-1-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 1,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 1,
+        "controlName": "colorVal1",
+        "kind": "color",
+        "property": "outlineColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-1-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 1,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 1,
+        "controlName": "colorVal1",
+        "kind": "color",
+        "property": "textDecorationColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-1-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 1,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 1,
+        "controlName": "colorVal1",
+        "kind": "color",
+        "property": "accentColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-1-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 1,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 1,
+        "controlName": "colorVal1",
+        "kind": "color",
+        "property": "caretColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-1-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 1,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 1,
+        "controlName": "colorVal1",
+        "kind": "color",
+        "property": "columnRuleColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-1-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 1,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 1,
+        "controlName": "colorVal1",
+        "kind": "color",
+        "property": "fill",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-1-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 1,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 1,
+        "controlName": "colorVal1",
+        "kind": "color",
+        "property": "stroke",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-1-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-1-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-1-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 2,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 2,
+        "controlName": "colorVal2",
+        "kind": "color",
+        "property": "color",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-2-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 2,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 2,
+        "controlName": "colorVal2",
+        "kind": "color",
+        "property": "backgroundColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-2-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 2,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 2,
+        "controlName": "colorVal2",
+        "kind": "color",
+        "property": "borderColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-2-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 2,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 2,
+        "controlName": "colorVal2",
+        "kind": "color",
+        "property": "outlineColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-2-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 2,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 2,
+        "controlName": "colorVal2",
+        "kind": "color",
+        "property": "textDecorationColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-2-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 2,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 2,
+        "controlName": "colorVal2",
+        "kind": "color",
+        "property": "accentColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-2-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 2,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 2,
+        "controlName": "colorVal2",
+        "kind": "color",
+        "property": "caretColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-2-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 2,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 2,
+        "controlName": "colorVal2",
+        "kind": "color",
+        "property": "columnRuleColor",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-2-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 2,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 2,
+        "controlName": "colorVal2",
+        "kind": "color",
+        "property": "fill",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-2-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-stroke"
+        ]
+      },
+      {
+        "requirementId": "color-scheme",
+        "evidenceIndex": 2,
+        "regionType": "rail:color-scheme",
+        "wrapIndex": 0,
+        "controlIndex": 2,
+        "controlName": "colorVal2",
+        "kind": "color",
+        "property": "stroke",
+        "status": "pending",
+        "reason": "awaiting-setting-unit-and-editor-effect-snapshot",
+        "settingUnitId": "auto-style-rail-color-scheme-0-2-color",
+        "checkIds": [
+          "auto-style-auto-style-rail-color-scheme-0-2-color-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-background-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-border-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-outline-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-text-decoration-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-accent-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-caret-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-column-rule-color",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-fill",
+          "auto-style-auto-style-rail-color-scheme-0-2-color-stroke"
+        ]
+      }
+    ],
+    "inventoryErrors": [
+      {
+        "regionType": "phoenix_blocks_text",
+        "capabilityCandidates": [],
+        "code": "SETTINGS_INVENTORY_ERROR",
+        "message": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('iframe.backstage-pc-proview').contentFrame().locator('.siteblocks-setting-wrap[data-appid=\"47498\"]').first().locator('.backstage-blocksEditor-wrap[data-blockseditor-type=\"phoenix_blocks_text\"]').first().locator('a.backstage-widgettool-btns[id^=\"editorBtn-\"]').first()\n",
+        "diagnostics": null,
+        "screenshot": null
+      },
+      {
+        "regionType": "phoenix_blocks_text",
+        "capabilityCandidates": [],
+        "code": "SETTINGS_INVENTORY_ERROR",
+        "message": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('iframe.backstage-pc-proview').contentFrame().locator('.siteblocks-setting-wrap[data-appid=\"47498\"]').first().locator('.backstage-blocksEditor-wrap[data-blockseditor-type=\"phoenix_blocks_text\"]').nth(1).locator('a.backstage-widgettool-btns[id^=\"editorBtn-\"]').first()\n",
+        "diagnostics": null,
+        "screenshot": null
+      },
+      {
+        "regionType": "phoenix_blocks_button",
+        "capabilityCandidates": [
+          "button-link"
+        ],
+        "code": "READBACK_UNSTABLE",
+        "message": "只读回读值在 10000ms 内未稳定。",
+        "diagnostics": null,
+        "screenshot": "reports/screenshots/inventory-button-popover-47498-1793671431216.png"
+      }
+    ],
     "note": "自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。"
   }
 }
