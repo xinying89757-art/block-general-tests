@@ -318,7 +318,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   let defaults = null;
   let defaultsError = null;
   try {
-    const defaultsValues = await adapter.readDefaults(fresh);
+    const defaultsValues = await adapter.readDefaults(fresh, prepared?.inventory);
     const defaultsPath = freshDefaultsPath(config.projectRoot || process.cwd(), config.siteHost, config.blockId);
     const priorDefaults = await (adapter.readDefaultsSnapshot?.(defaultsPath) ?? readFreshDefaultsSnapshot(defaultsPath)) || null;
     if (priorDefaults && (priorDefaults.siteHost !== config.siteHost || String(priorDefaults.blockId) !== String(config.blockId))) {

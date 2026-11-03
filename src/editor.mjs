@@ -465,16 +465,48 @@ export async function verifyEditorSiteIdentity(page, config) {
 }
 
 async function waitForEditorReady(page) {
-  await page.waitForTimeout(5_000);
+  const startedAt = Date.now();
+  const timeoutMs = Number(process.env.EDITOR_READY_TIMEOUT_MS) || 60_000;
+  const deadline = startedAt + timeoutMs;
   const know = page.getByText('我知道了', { exact: true }).first();
-  if (await know.isVisible()) await know.click();
-  try {
-    await retryEnvironmentTimeout(() => page.getByText('页面:', { exact: true }).first()
-      .waitFor({ state: 'visible', timeout: Number(process.env.EDITOR_READY_TIMEOUT_MS) || 60_000 }),
-    { stage: 'editor-load' });
-  } catch (error) {
-    throw entryError('ENV_EDITOR_LOAD_TIMEOUT', `编辑器未显示“页面:”，登录态可能已过期或编辑器未完成加载：${error.message}`);
+  const ready = page.getByText('页面:', { exact: true }).first();
+  let dismissed = false;
+  while (Date.now() < deadline) {
+    if (!dismissed && await know.isVisible().catch(() => false)) {
+      dismissed = await know.click().then(() => true).catch(() => false);
+    }
+    if (await ready.isVisible().catch(() => false)) {
+      console.log(`[editor] phase=editor-ready durationMs=${Date.now() - startedAt}`);
+      return;
+    }
+    await page.waitForTimeout(Math.min(100, Math.max(1, deadline - Date.now())));
   }
+  console.log(`[editor] phase=editor-ready durationMs=${Date.now() - startedAt} status=timeout`);
+  throw entryError('ENV_EDITOR_LOAD_TIMEOUT', '编辑器未显示“页面:”，登录态可能已过期或编辑器未完成加载。');
+}
+
+async function waitForCanvasReady(page, frame, timeoutMs = 60_000) {
+  const startedAt = Date.now();
+  const deadline = startedAt + timeoutMs;
+  let previous = '';
+  let stableSamples = 0;
+  while (Date.now() < deadline) {
+    const snapshot = await frame.locator('body').evaluate((body) => {
+      const root = document.documentElement;
+      const blockCount = document.querySelectorAll('[data-appid]').length;
+      if (!body.childElementCount && !blockCount) return '';
+      return [root?.scrollWidth || 0, root?.scrollHeight || 0, body.childElementCount, blockCount].join(':');
+    }).catch(() => '');
+    stableSamples = snapshot && snapshot === previous ? stableSamples + 1 : 0;
+    if (stableSamples >= 2) {
+      console.log(`[editor] phase=canvas-ready durationMs=${Date.now() - startedAt}`);
+      return;
+    }
+    previous = snapshot;
+    await page.waitForTimeout(100).catch(() => {});
+  }
+  console.log(`[editor] phase=canvas-ready durationMs=${Date.now() - startedAt} status=timeout`);
+  throw new Error(`Canvas did not reach a stable ready state within ${timeoutMs}ms.`);
 }
 
 // CMS field changes become visible after an editor reload; no publishing.
@@ -594,11 +626,13 @@ export async function gotoFreshTargetPage(page, target) {
   const items = await listMenuPages(page);
   const matches = items.filter((item) => item.id === String(target.id) || item.pageurl === target.url || item.href === target.url);
   if (matches.length !== 1) throw new Error(`Fresh system page selector matched ${matches.length} menu entries; expected one by id/url.`);
+  const startedAt = Date.now();
   await page.locator(`.backstage-topToolbar-pageBox a[data-href=${JSON.stringify(matches[0].href)}]`).click();
   await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
   const frame = page.frameLocator(CANVAS);
   await frame.locator('body').waitFor({ state: 'attached', timeout: 60_000 });
-  await page.waitForTimeout(3_000);
+  await waitForCanvasReady(page, frame);
+  console.log(`[editor] phase=fresh-target-navigation durationMs=${Date.now() - startedAt}`);
   return { frame, created: false, pageItem: matches[0] };
 }
 
