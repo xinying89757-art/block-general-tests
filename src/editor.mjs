@@ -1,6 +1,7 @@
 import { retryEnvironmentTimeout, saveAndWait, waitForEditorLoadingToClear, waitForStable } from './ui-waits.mjs';
 import { selectedBlockInstance, waitForCanvasRender } from './block-render.mjs';
 import { waitForUniquePageSaveControl } from './page-save-control.mjs';
+import { selectFrontProvider, FrontProviderPublishedError } from './front-provider.mjs';
 
 const CANVAS = 'iframe.backstage-pc-proview';
 const PANEL = '.backstage-addmodules-chooseWrapper';
@@ -373,7 +374,22 @@ export async function enterSiteFromList(page, config) {
   for (const candidate of knownPages) listen(candidate);
   context.on('page', listen);
   try {
-    await card.locator('.userEditSite').first().click();
+    // 站点列表页可能有营销弹窗遮挡“编辑网站”按钮
+    const editButton = card.locator('.userEditSite').first();
+    // 先尝试关闭营销遮罩
+    try {
+      const closeBtn = page.locator('.leadongBg .close, #leadongBgTxt .close, [class*="popup"] .close').first();
+      if (await closeBtn.count().catch(() => 0)) {
+        await closeBtn.click({ timeout: 2000 }).catch(() => {});
+        await page.waitForTimeout(1000).catch(() => {});
+      }
+    } catch {}
+    // 用 JS 点击绕过遮挡检查，但仍触发完整的事件流程（比 force 更可靠）
+    try {
+      await editButton.click({ timeout: 10000 });
+    } catch {
+      await editButton.evaluate((el) => el.click()).catch(() => {});
+    }
     const deadline = Date.now() + 60_000;
     while (Date.now() < deadline) {
       const editors = context.pages().filter((candidate) => !candidate.isClosed() &&
@@ -837,11 +853,13 @@ export async function savePage(page) {
 }
 
 export async function openPreview(page, context) {
+  if (selectFrontProvider().provider === 'published') throw new FrontProviderPublishedError();
   const [previewPage] = await Promise.all([
     context.waitForEvent('page', { timeout: 30_000 }),
     page.locator('.clickToPreview').click(),
   ]);
-  await previewPage.waitForLoadState('domcontentloaded');
+  // 预览页可能加载慢，给 90s 超时；超时不抛错，后续 frame 等待会再确认
+  await previewPage.waitForLoadState('domcontentloaded', { timeout: 90_000 }).catch(() => {});
   const isContent = (frame) => {
     try {
       return new URL(frame.url()).hostname.endsWith('.preview.leadong.com');
@@ -864,8 +882,9 @@ export async function openPreview(page, context) {
   });
   try {
     const frame = await pending;
-    await frame.locator('body').waitFor({ state: 'attached' });
-    await frame.waitForLoadState('load', { timeout: 45_000 });
+    await frame.locator('body').waitFor({ state: 'attached', timeout: 60_000 }).catch(() => {});
+    // 内容 frame 加载给 90s，慢站点需要更长时间
+    await frame.waitForLoadState('load', { timeout: 90_000 }).catch(() => {});
     return { previewPage, frame };
   } finally {
     clearTimeout(timer);
