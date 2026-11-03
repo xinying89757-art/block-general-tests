@@ -1,7 +1,10 @@
+import { normalizeSiteHost } from '../site-baseline.mjs';
+import { logMutation, markDone, markFailed } from '../mutation-journal.mjs';
 import { effectCheck, unavailable, readEffectRoot, sameSet, sentenceList, productSnapshot } from './effect-checks.mjs';
-import { blockSelector } from './shared.mjs';
+import { blockSelector, journalSnapshot } from './shared.mjs';
 import { normalizeColor } from './rail.mjs';
-import { savePage, openPreview } from '../editor.mjs';
+import { savePage, openPreview, targetLanguage } from '../editor.mjs';
+import { selectFrontProvider, FrontProviderPublishedError } from '../front-provider.mjs';
 import { fixedRequirementValues } from './signatures.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
@@ -63,6 +66,27 @@ const TEXT = {
     { name: '产品范围', prefixes: ['当前分类产品', '所有产品'] },
   ],
 };
+// Keep unknown/ambiguous instance identity null; never select an arbitrary wrap.
+async function mutationTarget(canvas, config, profile) {
+  const instanceId = await canvas.locator(SELECTORS.editorBlock(config.blockId)).evaluateAll((wraps) => {
+    if (wraps.length !== 1) return null;
+    for (const node of [wraps[0], ...wraps[0].querySelectorAll('*')]) {
+      const attribute = [...node.attributes].find((attr) => /setting.?id/i.test(attr.name));
+      if (attribute?.value) return attribute.value;
+    }
+    return null;
+  });
+  return { siteHost: normalizeSiteHost(config.siteDomain), language: targetLanguage(config),
+    pageId: config.pageId ?? profile?.target?.pageId ?? null,
+    pageKind: config.resolvedTarget?.kind ?? profile?.target?.pageKind ?? null,
+    blockId: config.blockId, instanceId };
+}
+
+function mutationContext(canvas, config, profile) {
+  return config?.mutationJournal ? { journal: config.mutationJournal,
+    target: () => mutationTarget(canvas, config, profile), settingKey: 'custom-filter-fields' } : undefined;
+}
+
 const SUITE = 'capability:custom-filter-fields';
 export const freshSettings = registerFreshSettingsCapability('custom-filter-fields', createFreshDefinitions);
 const NAMES = {
@@ -93,7 +117,7 @@ const fromOutcome = (id, outcome) => result(id, outcome.status, outcome.detail, 
     ? { expected: `启用“${outcome.evidence.field}”并保存后，预览中应出现以该字段命名的筛选组；恢复后应回到原勾选状态。` }
     : {});
 
-async function persistSpectrumColor({ session, page, original, alternate }) {
+async function persistSpectrumColor({ session, page, canvas, config, profile, original, alternate }) {
   const evidence = { original, alternate, strategy: null };
   const backgroundColorInput = session.root.locator('#customOnBgColor');
   if (await backgroundColorInput.count() !== 1) unavailable('筛选背景色控件不唯一，拒绝读写。');
@@ -139,7 +163,15 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
   let stage = '设置背景颜色';
   let mutationStarted = false;
   const errors = [];
+  const journal = config?.mutationJournal;
+  let target;
+  let mutationSeq;
   try {
+    if (journal) {
+      target = await mutationTarget(canvas, config, profile);
+      mutationSeq = await logMutation(journal, journalSnapshot({ op: 'set-setting', target, before: original,
+        after: alternate, restore: { kind: 'set-setting', settingKey: 'custom-filter-fields', value: original } }));
+    }
     mutationStarted = true;
     await set(alternate);
     stage = '保存翻转状态';
@@ -148,7 +180,9 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
     await session.open();
     evidence.afterSave = await readBack(alternate);
     if (evidence.afterSave !== alternate) throw new Error('保存重开后背景颜色未改变');
+    if (mutationSeq !== undefined) await markDone(journal, mutationSeq);
   } catch (error) {
+    if (mutationSeq !== undefined) await markFailed(journal, mutationSeq, error);
     if (stage === '设置背景颜色' && error.message.includes('Spectrum API 失败')) {
       // Both supported setters failed before a save; report the requested skip.
       try { await session.cancel(); } catch { /* final cleanup handles dialog state */ }
@@ -157,10 +191,16 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
     errors.push(`${stage}失败：${error.message}`);
   } finally {
     if (mutationStarted && errors.length) {
+      let restoreSeq;
       try {
         await session.cancel();
         await session.open();
         stage = '恢复原值';
+        if (journal) {
+          target ||= await mutationTarget(canvas, config, profile);
+          restoreSeq = await logMutation(journal, journalSnapshot({ op: 'restore', target, before: await read(),
+            after: original, restore: { kind: 'set-setting', settingKey: 'custom-filter-fields', value: original } }));
+        }
         await set(original);
         stage = '保存恢复状态';
         await session.save();
@@ -168,13 +208,23 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
         await session.open();
         evidence.restored = await readBack(original);
         if (evidence.restored !== original) throw new Error('未恢复原值');
-      } catch (error) { errors.push(`${stage}失败：${error.message}`); }
+        if (restoreSeq !== undefined) await markDone(journal, restoreSeq);
+      } catch (error) {
+        if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, error);
+        errors.push(`${stage}失败：${error.message}`);
+      }
     } else if (!errors.length) {
+      let restoreSeq;
       try {
         stage = '恢复前重新打开';
         await session.cancel();
         await session.open();
         stage = '恢复原值';
+        if (journal) {
+          target ||= await mutationTarget(canvas, config, profile);
+          restoreSeq = await logMutation(journal, journalSnapshot({ op: 'restore', target, before: await read(),
+            after: original, restore: { kind: 'set-setting', settingKey: 'custom-filter-fields', value: original } }));
+        }
         await set(original);
         stage = '保存恢复状态';
         await session.save();
@@ -182,7 +232,11 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
         await session.open();
         evidence.restored = await readBack(original);
         if (evidence.restored !== original) throw new Error('未恢复原值');
-      } catch (error) { errors.push(`${stage}失败：${error.message}`); }
+        if (restoreSeq !== undefined) await markDone(journal, restoreSeq);
+      } catch (error) {
+        if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, error);
+        errors.push(`${stage}失败：${error.message}`);
+      }
     }
     try { await session.cancel(); } catch (error) { errors.push(`退出设置失败：${error.message}`); }
     try { await savePage(page); } catch (error) { errors.push(`保存恢复页面失败：${error.message}`); }
@@ -193,6 +247,7 @@ async function persistSpectrumColor({ session, page, original, alternate }) {
 }
 
 async function withPreview(page, context, inspect) {
+  if (selectFrontProvider().provider === 'published') throw new FrontProviderPublishedError();
   const before = new Set(context.pages());
   try {
     await savePage(page);
@@ -209,8 +264,8 @@ async function withPreview(page, context, inspect) {
 }
 
 // Radio options use the verified v1 label prefixes; unidentified groups are only recorded.
-async function persistRadio(session, page, group, afterSwitch) {
-  return radioPersist({ session, page, ...group, afterSwitch });
+async function persistRadio(session, page, group, afterSwitch, mutation) {
+  return radioPersist({ mutation, session, page, ...group, afterSwitch });
 }
 
 async function scopeBaseline(page, context, config) {
@@ -312,6 +367,7 @@ export async function createFreshDefinitions(args) {
 }
 
 export async function runSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
+  const mutation = mutationContext(canvas, config, profile);
   const checks = [];
   const session = widgetSession({ page, canvas, config,
     type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
@@ -360,7 +416,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       checks.push(...['cff-settings-persist', 'cff-field-front-group']
         .map((id) => result(id, noFields ? 'na' : 'skip', noFields ? '本区块没有可选自定义筛选字段设置项。' : '没有可切换的自定义字段。')));
     } else {
-      checks.push(fromOutcome('cff-settings-persist', await persistControl({
+      checks.push(fromOutcome('cff-settings-persist', await persistControl({ mutation,
         session, page, target: field, alternate: !field.checked,
       })));
       if (config.deferFront) {
@@ -375,7 +431,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       } else if (!context) {
         checks.push(result('cff-field-front-group', 'skip', '未提供浏览器 context，无法打开临时预览。'));
       } else {
-        checks.push(fromOutcome('cff-field-front-group', await persistControl({ session, page,
+        checks.push(fromOutcome('cff-field-front-group', await persistControl({ mutation, session, page,
           target: field, alternate: !field.checked,
           afterSwitch: async (evidence, stage) => {
             stage('保存页面并打开临时预览');
@@ -412,7 +468,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
         try {
           await session.cancel();
           beforeScope = await scopeBaseline(page, context, config);
-        } catch (error) { beforeScope = { status: 'skip', detail: error.message }; }
+        } catch (error) { beforeScope = { status: error.code === 'FRONT_PROVIDER_PUBLISHED' ? 'deferred' : 'skip', detail: error.message }; }
       }
       // Scope changes depend on data. Record the alternate preview universe but
       // never assert a specific difference, unlike the two persistence-only groups.
@@ -420,9 +476,9 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
         stage('记录切换产品范围后的预览基线');
         try {
           evidence.scopePreview = { before: beforeScope, after: await scopeBaseline(page, context, config) };
-        } catch (error) { evidence.scopePreview = { before: beforeScope, after: { status: 'skip', detail: error.message } }; }
+        } catch (error) { evidence.scopePreview = { before: beforeScope, after: { status: error.code === 'FRONT_PROVIDER_PUBLISHED' ? 'deferred' : 'skip', detail: error.message } }; }
       } : undefined;
-      const outcome = await persistRadio(session, page, group, afterSwitch);
+      const outcome = await persistRadio(session, page, group, afterSwitch, mutation);
       if (group.name === '产品范围' && !context) outcome.detail += '；未提供 context，范围预览取证 skip。';
       else if (group.name === '产品范围' && outcome.evidence?.scopePreview) {
         const snapshot = outcome.evidence.scopePreview;
@@ -445,7 +501,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       && !/^请选择/.test(item.label));
     checks.push(!select || select.disabled || !option
       ? result('cff-select-persist', selectProbe.reason ? 'skip' : selects.length === 0 ? 'na' : 'skip', selectProbe.reason || (selects.length === 0 ? '本区块没有筛选后跳转页设置项。' : '未找到唯一的筛选后跳转页 select，或没有其他可选页。'))
-      : fromOutcome('cff-select-persist', await persistControl({ session, page, target: select, alternate: option.value })));
+      : fromOutcome('cff-select-persist', await persistControl({ mutation, session, page, target: select, alternate: option.value })));
 
     // The select persist leaves the dialog closed (and its DOM may be
     // detached); reopen before probing the color input.
@@ -457,7 +513,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     })).catch(() => null);
     checks.push(!color || color.title !== '背景颜色' || color.roles !== 'colorPicker' || !color.replacer
       ? result('cff-color-persist', color ? 'skip' : 'na', color ? '背景颜色控件结构不符合取色器定位条件。' : '本区块没有背景颜色设置项。', color)
-      : await persistSpectrumColor({ session, page, original: color.value, alternate: 'rgb(1, 2, 3)' }));
+      : await persistSpectrumColor({ session, page, canvas, config, profile, original: color.value, alternate: 'rgb(1, 2, 3)' }));
   } finally {
     try { await session.cancel(); } catch (error) {
       const last = checks.at(-1);
@@ -629,7 +685,7 @@ export function customGroupTitles(titles, builtinGroups = []) {
 }
 async function filterFieldsEffect(args, layer) {
   const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
-  return effectCheck({ ...args, session, result, id: `cff-fields-${layer}`, layer, run: async (tx) => {
+  return effectCheck({ ...args, mutation: mutationContext(args.canvas, args.config, args.profile), session, result, id: `cff-fields-${layer}`, layer, run: async (tx) => {
     const fields = filterFields(await tx.controls());
     if (!fields.length) unavailable('本区块没有自定义字段勾选设置项。', 'na');
     const names = new Set((args.profile?.fixture?.fields || []).map(field => field.name));
@@ -700,7 +756,7 @@ function filterBackground(root) {
 }
 async function backgroundEffect(args, layer) {
   const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
-  return effectCheck({ ...args, session, result, id: `cff-background-${layer}`, layer, run: async (tx) => {
+  return effectCheck({ ...args, mutation: mutationContext(args.canvas, args.config, args.profile), session, result, id: `cff-background-${layer}`, layer, run: async (tx) => {
     await tx.controls();
     const input = session.root.locator('#customOnBgColor');
     if (!await input.count()) unavailable('本区块没有筛选背景颜色设置项。', 'na');
@@ -711,6 +767,8 @@ async function backgroundEffect(args, layer) {
       await setFilterColor(session, args.page, original); await session.save(); await session.open();
       if (normalizeColor(await input.inputValue()) !== normalizeColor(original)) throw new Error('背景颜色恢复回读不一致');
     });
+    if (args.config?.mutationJournal) await tx.beforeMutation({ backgroundColor: alternate },
+      { controls: await session.read(), backgroundColor: original });
     await setFilterColor(session, args.page, alternate); await tx.save();
     const sample = layer === 'backend' ? await readEffectRoot(args.canvas, args.config, filterBackground)
       : await tx.observe((frame) => readEffectRoot(frame, args.config, filterBackground));
@@ -793,7 +851,7 @@ async function assertFilterSet(tx, frame, config, expected, label) {
 
 async function filterInteractionEffect(args, kind) {
   const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
-  return effectCheck({ ...args, session, result, id: `cff-${kind}-front`, layer: 'front', run: async (tx) => {
+  return effectCheck({ ...args, mutation: mutationContext(args.canvas, args.config, args.profile), session, result, id: `cff-${kind}-front`, layer: 'front', run: async (tx) => {
     const items = await tx.controls();
     let options;
     if (kind !== 'jump') options = radioPair(items, TEXT.radioGroups[{ logic: 0, trigger: 1, scope: 2 }[kind]]);
@@ -886,6 +944,10 @@ export async function runBackendLayer(args) {
 }
 
 async function fieldFrontGroupEffect(args) {
+  if (selectFrontProvider().provider === 'published') {
+    return result('cff-field-front-group', 'deferred', new FrontProviderPublishedError().message, { deferred: true });
+  }
+  const mutation = mutationContext(args.canvas, args.config, args.profile);
   const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: TEXT.dialogTitle });
   const probe = await probeControls(session);
   if (probe.reason) return result('cff-field-front-group', 'skip', probe.reason);
@@ -894,7 +956,7 @@ async function fieldFrontGroupEffect(args) {
   const field = fields.find((item) => fixtureNames.has(item.label) && !item.disabled && !item.checked) || fields.find((item) => fixtureNames.has(item.label) && !item.disabled);
   if (!field) return result('cff-field-front-group', fields.length ? 'skip' : 'na', '没有可切换的自定义筛选字段。');
   if (!args.context) return result('cff-field-front-group', 'skip', '未提供浏览器 context，无法打开临时预览。');
-  return fromOutcome('cff-field-front-group', await persistControl({ session, page: args.page,
+  return fromOutcome('cff-field-front-group', await persistControl({ mutation, session, page: args.page,
     target: field, alternate: !field.checked,
     afterSwitch: async (evidence, stage) => {
       stage('保存页面并打开临时预览');
@@ -1003,7 +1065,7 @@ async function fixtureOracleChecks(args, unavailableReason) {
     }
     const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: args.capability?.dialogTitle || TEXT.dialogTitle,
       wrapIndex: args.capability?.wrapIndex || 0 });
-    const outcome = await effectCheck({ ...args, session, result, id: scenario.id, layer: 'front', run: async (tx) => {
+    const outcome = await effectCheck({ ...args, mutation: mutationContext(args.canvas, args.config, args.profile), session, result, id: scenario.id, layer: 'front', run: async (tx) => {
       tx.expected(expected);
       const items = await tx.controls();
       const logic = policy.logic ? null : radioPair(items, TEXT.radioGroups[0]);
