@@ -31,6 +31,29 @@ const SELECTORS = {
   selected: '.prodfield-bottom',
   descendants: '*',
 };
+
+// Front-end DOM variants known to this capability. A block whose filter DOM
+// matches neither variant must be reported as unadapted — never force-checked
+// against the wrong structure. Profile may override via frontDom.
+export const FILTER_FRONT_SELECTORS = Object.freeze({
+  group: '.prodfield-single, .pf-field-group',
+  groupTitle: '.prodfield-left-fieldname, .pf-field-title',
+});
+
+// Resolve which front selectors to use for the given preview root.
+// Returns { adapted: true, selectors } when the structure is recognized,
+// or { adapted: false, reason } when unknown — the caller must report
+// "unadapted" instead of running checks against a guessed DOM.
+export function resolveFilterFrontSelectors(root, overrides = {}) {
+  const sel = { ...FILTER_FRONT_SELECTORS, ...overrides };
+  const hasGroup = (typeof root.querySelector === 'function')
+    ? Boolean(root.querySelector(sel.group))
+    : true; // non-DOM root (e.g. Playwright locator): skip probe, assume adapted
+  if (!hasGroup) {
+    return { adapted: false, reason: `unknown filter DOM (no ${sel.group})`, selectors: sel };
+  }
+  return { adapted: true, selectors: sel };
+}
 const TEXT = {
   dialogTitle: '设置自定义字段筛选', save: '保存', cancel: '取消', clear: 'Clear Filters',
   nonValues: ['all', 'reset', 'clear filters', 'search'],
