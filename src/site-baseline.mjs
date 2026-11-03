@@ -10,25 +10,77 @@ export function normalizeSiteHost(siteDomain) {
   return url.host.toLowerCase();
 }
 
-export function siteBaselinePath(root, siteHost, blockId) {
+/** @typedef {{pageKind?: string, pageId?: string|number}} BaselinePage */
+
+/**
+ * Resolve a page-scoped baseline when both page identity fields are supplied.
+ * @param {string} root Repository root.
+ * @param {string} siteHost Site URL or host.
+ * @param {string|number} blockId Numeric block identity.
+ * @param {BaselinePage} [page] Optional page identity; omitted preserves the legacy path.
+ * @returns {string} Baseline filename.
+ */
+export function siteBaselinePath(root, siteHost, blockId, { pageKind, pageId } = {}) {
   const host = normalizeSiteHost(siteHost);
   if (!/^\d+$/.test(String(blockId))) throw new Error(`Invalid block ID for site baseline: ${blockId}`);
+  if (pageKind != null && pageId != null) {
+    if (!/^[a-zA-Z0-9_-]+$/.test(String(pageKind)) || !/^[a-zA-Z0-9_-]+$/.test(String(pageId))) {
+      throw new Error('Invalid page identity for site baseline.');
+    }
+    return path.join(root, 'sites', host, `${pageKind}-${pageId}`, `${blockId}.baseline.json`);
+  }
   return path.join(root, 'sites', host, `${blockId}.baseline.json`);
 }
 
-export function validateSiteBaseline(baseline, { siteHost, blockId }) {
+/**
+ * Validate site/block and, for documents declaring a page, exact page identity.
+ * Legacy documents without page metadata remain readable.
+ * @param {Object} baseline Parsed baseline document.
+ * @param {{siteHost: string, blockId: string|number, pageKind?: string, pageId?: string|number}} identity Expected identity.
+ * @returns {Object} Validated document.
+ * @throws {Error} On format or identity mismatch.
+ */
+export function validateSiteBaseline(baseline, { siteHost, blockId, pageKind, pageId }) {
   const expectedHost = normalizeSiteHost(siteHost);
   if (!baseline || typeof baseline !== 'object' || Array.isArray(baseline)) throw new Error('Invalid site baseline document.');
   if (baseline.siteHost !== expectedHost) throw new Error(`Site baseline host mismatch: file=${baseline.siteHost} current=${expectedHost}`);
   if (String(baseline.blockId) !== String(blockId)) throw new Error(`Site baseline block mismatch: file=${baseline.blockId} current=${blockId}`);
+  if (Object.hasOwn(baseline, 'page') && (!baseline.page || pageKind == null || pageId == null
+    || baseline.page.pageKind !== pageKind || String(baseline.page.pageId) !== String(pageId))) {
+    throw new Error('Site baseline page mismatch.');
+  }
   if (baseline.version !== 1 || !Array.isArray(baseline.steps)) throw new Error('Unsupported site baseline format.');
   return baseline;
 }
 
-export async function readSiteBaseline(root, siteHost, blockId) {
-  const file = siteBaselinePath(root, siteHost, blockId);
+const warnedLegacyPaths = new Set();
+
+/**
+ * Prefer a page-scoped baseline; fall back to a legacy document with one warning per path.
+ * @param {string} root Repository root.
+ * @param {string} siteHost Site URL or host.
+ * @param {string|number} blockId Block identity.
+ * @param {BaselinePage} [page] Optional expected page identity.
+ * @returns {Promise<{file: string, baseline: Object|null}>} Resolved path and validated document.
+ */
+export async function readSiteBaseline(root, siteHost, blockId, { pageKind, pageId } = {}) {
+  let file = siteBaselinePath(root, siteHost, blockId, { pageKind, pageId });
+  const legacyFile = siteBaselinePath(root, siteHost, blockId);
   let parsed;
-  try { parsed = JSON.parse(await fs.readFile(file, 'utf8')); }
+  try {
+    let source;
+    try { source = await fs.readFile(file, 'utf8'); }
+    catch (error) {
+      if (error.code !== 'ENOENT' || file === legacyFile) throw error;
+      source = await fs.readFile(legacyFile, 'utf8');
+      if (!warnedLegacyPaths.has(legacyFile)) {
+        console.warn(`[baseline] Page baseline unavailable; using legacy baseline: ${legacyFile}`);
+        warnedLegacyPaths.add(legacyFile);
+      }
+      file = legacyFile;
+    }
+    parsed = JSON.parse(source);
+  }
   catch (error) {
     if (error.code === 'ENOENT') {
       const sitesDir = path.join(root, 'sites');
@@ -44,13 +96,23 @@ export async function readSiteBaseline(root, siteHost, blockId) {
     }
     throw error;
   }
-  return { file, baseline: validateSiteBaseline(parsed, { siteHost, blockId }) };
+  return { file, baseline: validateSiteBaseline(parsed, { siteHost, blockId, pageKind, pageId }) };
 }
 
+/**
+ * Write a baseline to its page-scoped or legacy path according to metadata.page.
+ * @param {string} root Repository root.
+ * @param {string} siteHost Site URL or host.
+ * @param {string|number} blockId Block identity.
+ * @param {Object[]} steps Captured baseline operations.
+ * @param {Object & {page?: BaselinePage}} [metadata] Serializable capture metadata.
+ * @returns {Promise<{file: string, baseline: Object}>} Written document and path.
+ */
 export async function writeSiteBaseline(root, siteHost, blockId, steps, metadata = {}) {
   const host = normalizeSiteHost(siteHost);
-  const file = siteBaselinePath(root, host, blockId);
-  const document = validateSiteBaseline({ version: 1, siteHost: host, blockId: String(blockId), ...metadata, steps }, { siteHost: host, blockId });
+  const page = metadata.page || {};
+  const file = siteBaselinePath(root, host, blockId, page);
+  const document = validateSiteBaseline({ version: 1, siteHost: host, blockId: String(blockId), ...metadata, steps }, { siteHost: host, blockId, ...page });
   await fs.mkdir(path.dirname(file), { recursive: true });
   await fs.writeFile(file, `${JSON.stringify(document, null, 2)}\n`, 'utf8');
   return { file, baseline: document };
