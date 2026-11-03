@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright-core';
+import { testBrowserConfig } from './test-browser-config.mjs';
 import { captureFrontInstance, sanitizeCaptureAttribute, sanitizeCaptureText } from '../src/instance-capture.mjs';
 import { fixtureFromCapture } from '../src/capture-fixture.mjs';
 import { readInstanceStructure } from '../src/front-structure.mjs';
@@ -39,11 +40,17 @@ test('fixture generation reconstructs the sanitized tree, excludes code and netw
 test('real browser capture sanitizes DOM/CDP/CSS and the fixture CLI reconstructs both viewports without external access', async () => {
   const css = '@media (min-width:1px) { #sample .content-card { display:block; width:90px; height:90px; color:#123456; } }\n'
     + '#sample .content-card:hover::before { content:"arrow"; color:#654321; --api-key:CSS-SECRET; } #outside {color:#abcdef}';
+  // Register cleanup immediately after acquiring each resource, so a later
+  // acquisition failure (e.g. browser launch) cannot leak earlier ones.
+  const cleanups = [];
   const server = http.createServer((_request, response) => { response.writeHead(200, { 'content-type': 'text/css' }); response.end(css); });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'instance-capture-'));
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  cleanups.push(() => new Promise((resolve) => server.close(resolve)));
   try {
+    const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'instance-capture-'));
+    cleanups.push(() => fs.rm(temp, { recursive: true, force: true }));
+    const browser = await chromium.launch(testBrowserConfig());
+    cleanups.push(() => browser.close());
     const page = await browser.newPage();
     await page.route('**/*', (route) => route.request().url().startsWith('http://127.0.0.1:') ? route.continue() : route.abort());
     await page.setContent(`<link rel="stylesheet" href="http://127.0.0.1:${server.address().port}/sheet.css?token=SHEET-SECRET">
@@ -109,5 +116,12 @@ test('real browser capture sanitizes DOM/CDP/CSS and the fixture CLI reconstruct
     assert.ok(structure.finderDebug.finders['nav-leaf'].reasonCounts['hierarchy-item-not-visible'] > 0);
     assert.ok(structure.finderDebug.finders['filter-option'].reasonCounts['no-native-or-aria-option-semantics'] > 0);
     await assert.rejects(execute(process.execPath, ['scripts/fixture-from-capture.mjs', captureDir, captureDir], { cwd: new URL('../', import.meta.url).pathname }), /must not overwrite/);
-  } finally { await browser.close(); await new Promise((resolve) => server.close(resolve)); await fs.rm(temp, { recursive: true, force: true }); }
+  } finally {
+    // Run cleanups in reverse acquisition order. Each cleanup was registered
+    // immediately after its resource was acquired, so a failure at any point
+    // (e.g. browser launch throwing) still releases everything acquired so far.
+    for (const cleanup of cleanups.reverse()) {
+      await cleanup().catch(() => {});
+    }
+  }
 });

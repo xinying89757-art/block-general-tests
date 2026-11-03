@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { openRailPanel, openRailPanelWithRetry, resolveRailToggle, RAIL } from '../src/capabilities/rail.mjs';
 import { chromium } from 'playwright-core';
+import { testBrowserConfig } from './test-browser-config.mjs';
 import fs from 'node:fs';
 import { readFreshWidthInventory, appendFreshSettingsInventory } from '../src/fresh-block-browser-adapter.mjs';
 
@@ -9,7 +10,7 @@ const capture = JSON.parse(fs.readFileSync(new URL('./fixtures/rail/rail-capture
 const selectedRail = (label) => capture.instances.find((item) => item.label === label).phases.selected.rails[0].html;
 
 async function withCapturedRail(html, callback) {
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await chromium.launch(testBrowserConfig());
   try {
     const page = await browser.newPage();
     await page.setContent(`<html><body>${html}</body></html>`);
@@ -141,7 +142,7 @@ test('rail opener reports a classified failure with attempted strategies when re
 });
 
 async function withOverlayRail({ removeOverlayAfterMs = null } = {}, callback) {
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await chromium.launch(testBrowserConfig());
   try {
     const page = await browser.newPage();
     await page.setContent(`<style>
