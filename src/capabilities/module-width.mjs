@@ -6,11 +6,14 @@ import { waitForStable } from '../ui-waits.mjs';
 // 自定义 1440 — not as the 1440px preset — so the effective value is what
 // is asserted, not which radio is checked. The globalApply checkbox is
 // never touched: it would apply the width to other modules.
-import { savePage, openPreview } from '../editor.mjs';
+import { savePage, openPreview, targetLanguage } from '../editor.mjs';
+import { selectFrontProvider, FrontProviderPublishedError } from '../front-provider.mjs';
 import { TIMEOUT, previewSelector, checkReportText, readBackWithRetry } from './shared.mjs';
 import { RAIL, openRailPanel, readModuleWidth, setModuleWidth, saveWidthPanel, cancelWidthPanel } from './rail.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
+import { normalizeSiteHost } from '../site-baseline.mjs';
+import { logMutation, markDone, markFailed } from '../mutation-journal.mjs';
 
 const SUITE = 'capability:module-width';
 export const freshSettings = registerFreshSettingsCapability('module-width', createFreshDefinitions);
@@ -105,6 +108,7 @@ async function measureWidth(frame, blockId) {
 }
 
 async function withPreview(page, context, fn) {
+  if (selectFrontProvider().provider === 'published') throw new FrontProviderPublishedError();
   const before = new Set(context.pages());
   try {
     await savePage(page);
@@ -117,7 +121,41 @@ async function withPreview(page, context, fn) {
   }
 }
 
-export async function runSettingsLayer({ page, canvas, context, config, capability }) {
+/**
+ * Resolve the pilot operation identity without guessing among multiple instances.
+ * @param {Object} canvas Playwright editor frame locator.
+ * @param {Object} config Runner configuration, including resolved page identity.
+ * @param {Object} [profile] Block profile with target metadata.
+ * @returns {Promise<import('../mutation-journal.mjs').MutationTarget>} Known identity fields; unavailable IDs are null.
+ */
+async function mutationTarget(canvas, config, profile) {
+  const instanceId = await canvas.locator(RAIL.wrap(config.blockId)).evaluateAll((wraps) => {
+    if (wraps.length !== 1) return null;
+    for (const node of [wraps[0], ...wraps[0].querySelectorAll('*')]) {
+      const attribute = [...node.attributes].find((attr) => /setting.?id/i.test(attr.name));
+      if (attribute?.value) return attribute.value;
+    }
+    return null;
+  });
+  return { siteHost: normalizeSiteHost(config.siteDomain), language: targetLanguage(config),
+    pageId: config.pageId ?? profile?.target?.pageId ?? null,
+    pageKind: config.resolvedTarget?.kind ?? profile?.target?.pageKind ?? null,
+    blockId: config.blockId, instanceId };
+}
+
+/**
+ * Exercise the width persistence flip and its existing effects, restoring in finally.
+ * Only mw-width-persist writes participate in the optional durable WAL pilot.
+ * @param {Object} args Capability runner context.
+ * @param {Object} args.page Editor page.
+ * @param {Object} args.canvas Editor frame locator.
+ * @param {Object} [args.context] Browser context for preview checks.
+ * @param {Object} args.config Runner config; mutationJournal is optional.
+ * @param {Object} args.capability Profile capability parameters.
+ * @param {Object} [args.profile] Block profile.
+ * @returns {Promise<Object[]>} Existing persistence/effect check results.
+ */
+export async function runSettingsLayer({ page, canvas, context, config, capability, profile }) {
   const checks = [];
   let panel;
   try {
@@ -147,34 +185,58 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
   // → save → reopen verify → preview measure.
   const persistErrors = [];
   const effectErrors = [];
+  let frontDeferred;
   const evidence = { initial, alt: null, restored: null, measureAlt: null, measureRestored: null };
   const readBack = async () => {
     await openRailPanel(canvas, config.blockId, RAIL.widthIcon, RAIL.widthPanel);
     return readModuleWidth(canvas);
   };
   const ready = () => openRailPanel(canvas, config.blockId, RAIL.widthIcon, RAIL.widthPanel);
+  const journal = config?.mutationJournal;
+  let target;
+  let mutationSeq;
   try {
+    if (journal) {
+      target = await mutationTarget(canvas, config, profile);
+      mutationSeq = await logMutation(journal, { op: 'set-setting', target, before: initial,
+        after: { preset: ALT_WIDTH }, restore: { kind: 'set-setting', settingKey: 'module-width', value: initial } });
+    }
     await setModuleWidth(canvas, { preset: ALT_WIDTH });
     await saveWidthPanel(canvas);
     evidence.alt = await readBackWithRetry(readBack, (value) => value.effective === 1200, ready);
     if (evidence.alt.effective !== 1200) {
       persistErrors.push(`改 1200px 保存重开后生效宽度为 ${JSON.stringify(evidence.alt.effective)}，不是 1200`);
-    } else if (context) {
-      evidence.measureAlt = await withPreview(page, context,
-        (frame) => measureWidth(frame, config.blockId));
-      if (evidence.measureAlt.maxWidth !== '1200px') {
-        effectErrors.push(`改 1200px 后前台容器 max-width 为 ${evidence.measureAlt.maxWidth}，不是 1200px`);
+      if (mutationSeq !== undefined) await markFailed(journal, mutationSeq, new Error(persistErrors.at(-1)));
+    } else {
+      if (mutationSeq !== undefined) await markDone(journal, mutationSeq);
+      if (context) {
+        evidence.measureAlt = await withPreview(page, context,
+          (frame) => measureWidth(frame, config.blockId));
+        if (evidence.measureAlt.maxWidth !== '1200px') {
+          effectErrors.push(`改 1200px 后前台容器 max-width 为 ${evidence.measureAlt.maxWidth}，不是 1200px`);
+        }
       }
     }
   } catch (error) {
-    persistErrors.push(`改 1200px 失败：${error.message}`);
+    if (mutationSeq !== undefined) await markFailed(journal, mutationSeq, error);
+    if (error.code === 'FRONT_PROVIDER_PUBLISHED') {
+      frontDeferred = error.message;
+    } else {
+      persistErrors.push(`改 1200px 失败：${error.message}`);
+    }
   } finally {
     // Restore the original width no matter what the flip did.
+    let restoreSeq;
     try {
       const current = await readModuleWidth(canvas).catch(() => null);
       const needsRestore = !current || current.effective !== initialEffective;
       if (needsRestore) {
         await openRailPanel(canvas, config.blockId, RAIL.widthIcon, RAIL.widthPanel);
+        if (journal) {
+          target ||= await mutationTarget(canvas, config, profile);
+          restoreSeq = await logMutation(journal, { op: 'restore', target, before: current,
+            after: initial, restore: { kind: 'set-setting', settingKey: 'module-width', value: initial } });
+        }
         if (initial.checked?.value === '-1') {
           await setModuleWidth(canvas, { custom: initial.customVal });
         } else if (initial.checked) {
@@ -186,16 +248,30 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
         (value) => value.effective === initialEffective, ready);
       if (evidence.restored.effective !== initialEffective) {
         persistErrors.push(`恢复后生效宽度为 ${JSON.stringify(evidence.restored.effective)}，不是 ${initialEffective}`);
-      } else if (context && evidence.measureAlt) {
-        evidence.measureRestored = await withPreview(page, context,
-          (frame) => measureWidth(frame, config.blockId));
-        const expected = initialEffective === 'fullscreen' ? 'none' : `${initialEffective}px`;
-        if (evidence.measureRestored.maxWidth !== expected) {
-          effectErrors.push(`恢复后前台容器 max-width 为 ${evidence.measureRestored.maxWidth}，不是 ${expected}`);
+        if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, new Error(persistErrors.at(-1)));
+      } else {
+        if (restoreSeq !== undefined) await markDone(journal, restoreSeq);
+        if (context && evidence.measureAlt) {
+          evidence.measureRestored = await withPreview(page, context,
+            (frame) => measureWidth(frame, config.blockId));
+          const expected = initialEffective === 'fullscreen' ? 'none' : `${initialEffective}px`;
+          if (evidence.measureRestored.maxWidth !== expected) {
+            effectErrors.push(`恢复后前台容器 max-width 为 ${evidence.measureRestored.maxWidth}，不是 ${expected}`);
+          }
         }
       }
     } catch (error) {
-      persistErrors.push(`恢复原宽度失败：${error.message}`);
+      if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, error);
+      if (error.code === 'FRONT_PROVIDER_PUBLISHED') {
+        frontDeferred = error.message;
+      } else {
+        persistErrors.push(`恢复原宽度失败：${error.message}`);
+      }
+    }
+    // A deferred preview never calls savePage; still save the restored width.
+    if (frontDeferred) {
+      try { await savePage(page); }
+      catch (error) { persistErrors.push(`保存恢复页面失败：${error.message}`); }
     }
   }
   checks.push(result('mw-width-persist',
@@ -203,8 +279,9 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     persistErrors.length ? persistErrors.join('；') : `切换为 1200px 后保存重开回读成功，恢复自定义宽度 ${BASE_WIDTH}px 后再次保存重开回读成功。`,
     evidence, { expected: `切换为 1200px 后保存重开应保持 1200px；恢复后应回到 ${initialEffective === 'fullscreen' ? '全屏' : `${initialEffective}px`}。` }));
   checks.push(result('mw-front-width',
-    effectErrors.length ? 'fail' : (evidence.measureAlt ? 'pass' : 'skip'),
+    effectErrors.length ? 'fail' : frontDeferred ? 'deferred' : (evidence.measureAlt ? 'pass' : 'skip'),
     effectErrors.length ? effectErrors.join('；')
+      : frontDeferred ? frontDeferred
       : evidence.measureAlt
         ? `改为 1200px 后前台容器最大宽度为 1200px，恢复后最大宽度为 ${evidence.measureRestored?.maxWidth}；只核对最大宽度，实际显示宽度受预览视口限制。`
         : '宽度翻转未完成，未能量取预览效果。',

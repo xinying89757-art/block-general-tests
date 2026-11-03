@@ -1,3 +1,5 @@
+import { normalizeSiteHost } from '../site-baseline.mjs';
+import { logMutation, markDone, markFailed } from '../mutation-journal.mjs';
 // Block color scheme (区块配色): the single scheme color in the right
 // icon rail (配色 → .siteblocks-setting-operateColor flyout). Figma Page 3
 // defines exactly one scheme, #1C4587, applied to: button text, slider,
@@ -16,11 +18,33 @@
 // accent-color instead. The category's selected state has no observable
 // instance on the Products page, so it is verified through the
 // stylesheet rule that paints it, if one exists.
-import { savePage, openPreview } from '../editor.mjs';
+import { savePage, openPreview, targetLanguage } from '../editor.mjs';
+import { selectFrontProvider, FrontProviderPublishedError } from '../front-provider.mjs';
 import { TIMEOUT, previewSelector, checkReportText, readBackWithRetry } from './shared.mjs';
 import { RAIL, openRailPanel, readSchemeColor, setSchemeColor, saveColorPanel, cancelColorPanel, normalizeColor } from './rail.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
+
+// Keep unknown/ambiguous instance identity null; never select an arbitrary wrap.
+async function mutationTarget(canvas, config, profile) {
+  const instanceId = await canvas.locator(RAIL.wrap(config.blockId)).evaluateAll((wraps) => {
+    if (wraps.length !== 1) return null;
+    for (const node of [wraps[0], ...wraps[0].querySelectorAll('*')]) {
+      const attribute = [...node.attributes].find((attr) => /setting.?id/i.test(attr.name));
+      if (attribute?.value) return attribute.value;
+    }
+    return null;
+  });
+  return { siteHost: normalizeSiteHost(config.siteDomain), language: targetLanguage(config),
+    pageId: config.pageId ?? profile?.target?.pageId ?? null,
+    pageKind: config.resolvedTarget?.kind ?? profile?.target?.pageKind ?? null,
+    blockId: config.blockId, instanceId };
+}
+
+function mutationContext(canvas, config, profile) {
+  return config?.mutationJournal ? { journal: config.mutationJournal,
+    target: () => mutationTarget(canvas, config, profile), settingKey: 'block-color-scheme' } : undefined;
+}
 
 const SUITE = 'capability:block-color-scheme';
 export const freshSettings = registerFreshSettingsCapability('block-color-scheme', createFreshDefinitions);
@@ -147,6 +171,7 @@ async function snapshotScheme(frame, blockId) {
 }
 
 async function withPreview(page, context, fn) {
+  if (selectFrontProvider().provider === 'published') throw new FrontProviderPublishedError();
   const before = new Set(context.pages());
   try {
     await savePage(page);
@@ -159,7 +184,7 @@ async function withPreview(page, context, fn) {
   }
 }
 
-export async function runSettingsLayer({ page, canvas, context, config }) {
+export async function runSettingsLayer({ page, canvas, context, config, profile }) {
   const checks = [];
   let initial;
   try {
@@ -202,6 +227,7 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
   // reopen verify → preview snapshot (must equal baseline).
   const persistErrors = [];
   const effectErrors = [];
+  let frontDeferred;
   const unmeasuredScopes = [];
   const evidence = { initial, alt: null, restored: null, base: null, altShot: null, restoredShot: null };
   const readBack = async () => {
@@ -213,19 +239,34 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
     evidence.base = await withPreview(page, context,
       (frame) => snapshotScheme(frame, config.blockId));
   } catch (error) {
+    if (error.code === 'FRONT_PROVIDER_PUBLISHED') {
+      checks.push(...['bcs-color-persist', 'bcs-front-effect']
+        .map((id) => result(id, 'deferred', error.message, { deferred: true })));
+      return checks;
+    }
     checks.push(result('bcs-color-persist', 'skip', `基线预览快照失败：${error.message}`),
       result('bcs-front-effect', 'skip', `基线预览快照失败：${error.message}`));
     return checks;
   }
+  const journal = config?.mutationJournal;
+  let target;
+  let mutationSeq;
   try {
     await openRailPanel(canvas, config.blockId, RAIL.colorIcon, RAIL.colorPanel);
+    if (journal) {
+      target = await mutationTarget(canvas, config, profile);
+      mutationSeq = await logMutation(journal, { op: 'set-setting', target, before: initial,
+        after: ALT_COLOR, restore: { kind: 'set-setting', settingKey: 'block-color-scheme', value: initial } });
+    }
     await setSchemeColor(canvas, ALT_COLOR);
     await saveColorPanel(canvas);
     evidence.alt = await readBackWithRetry(readBack,
       (value) => normalizeColor(value) === normalizeColor(ALT_COLOR), ready);
     if (normalizeColor(evidence.alt) !== normalizeColor(ALT_COLOR)) {
       persistErrors.push(`改 ${ALT_COLOR} 保存重开后配色为 ${evidence.alt}，不是 ${ALT_COLOR}`);
+      if (mutationSeq !== undefined) await markFailed(journal, mutationSeq, new Error(persistErrors.at(-1)));
     } else {
+      if (mutationSeq !== undefined) await markDone(journal, mutationSeq);
       evidence.altShot = await withPreview(page, context,
         (frame) => snapshotScheme(frame, config.blockId));
       const scope = [
@@ -257,12 +298,23 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
       }
     }
   } catch (error) {
-    persistErrors.push(`改 ${ALT_COLOR} 失败：${error.message}`);
+    if (mutationSeq !== undefined) await markFailed(journal, mutationSeq, error);
+    if (error.code === 'FRONT_PROVIDER_PUBLISHED') {
+      frontDeferred = error.message;
+    } else {
+      persistErrors.push(`改 ${ALT_COLOR} 失败：${error.message}`);
+    }
   } finally {
+    let restoreSeq;
     try {
       const current = await readBack().catch(() => null);
       if (normalizeColor(current) !== normalizeColor(initial)) {
         await openRailPanel(canvas, config.blockId, RAIL.colorIcon, RAIL.colorPanel);
+        if (journal) {
+          target ||= await mutationTarget(canvas, config, profile);
+          restoreSeq = await logMutation(journal, { op: 'restore', target, before: current,
+            after: initial, restore: { kind: 'set-setting', settingKey: 'block-color-scheme', value: initial } });
+        }
         await setSchemeColor(canvas, initial);
         await saveColorPanel(canvas);
       }
@@ -270,7 +322,9 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
         (value) => normalizeColor(value) === normalizeColor(initial), ready);
       if (normalizeColor(evidence.restored) !== normalizeColor(initial)) {
         persistErrors.push(`恢复后配色为 ${evidence.restored}，不是 ${initial}`);
+        if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, new Error(persistErrors.at(-1)));
       } else {
+        if (restoreSeq !== undefined) await markDone(journal, restoreSeq);
         evidence.restoredShot = await withPreview(page, context,
           (frame) => snapshotScheme(frame, config.blockId));
         for (const key of ['buttonBg', 'buttonText', 'activePageBg', 'clearText', 'optAccent']) {
@@ -280,7 +334,12 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
         }
       }
     } catch (error) {
-      persistErrors.push(`恢复原配色失败：${error.message}`);
+      if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, error);
+      if (error.code === 'FRONT_PROVIDER_PUBLISHED') {
+        frontDeferred = error.message;
+      } else {
+        persistErrors.push(`恢复原配色失败：${error.message}`);
+      }
     }
   }
   checks.push(result('bcs-color-persist',
@@ -291,8 +350,9 @@ export async function runSettingsLayer({ page, canvas, context, config }) {
   const unmeasuredNote = unmeasuredScopes.length
     ? `未量到（该区块未启用对应功能）：${unmeasuredScopes.join('、')}。` : '';
   checks.push(result('bcs-front-effect',
-    effectErrors.length ? 'fail' : (evidence.altShot ? (allUnmeasured ? 'skip' : 'pass') : 'skip'),
+    effectErrors.length ? 'fail' : frontDeferred ? 'deferred' : (evidence.altShot ? (allUnmeasured ? 'skip' : 'pass') : 'skip'),
     effectErrors.length ? effectErrors.join('；')
+      : frontDeferred ? frontDeferred
       : evidence.altShot
         ? allUnmeasured
           ? `改配色后没有可量到的生效范围：${unmeasuredScopes.join('、')}。`

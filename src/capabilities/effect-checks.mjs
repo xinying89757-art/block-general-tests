@@ -1,10 +1,12 @@
 // Independent effect transactions. Only the caller's block and throwaway
 // previews are inspected. The journal is populated BEFORE each attempted write.
 import { savePage, openPreview } from '../editor.mjs';
-import { baselineRestoreTarget, blockSelector, probeControls, findControl, controlValue, planCheckboxBatch, TIMEOUT } from './shared.mjs';
+import { selectFrontProvider, FrontProviderPublishedError } from '../front-provider.mjs';
+import { journalSnapshot, baselineRestoreTarget, blockSelector, probeControls, findControl, controlValue, planCheckboxBatch, TIMEOUT } from './shared.mjs';
 import { waitForStable, readBackWithRetry } from '../ui-waits.mjs';
 import { assertAllowedLinkUrl } from '../url-safety.mjs';
 import { withTimeout } from '../run-safety.mjs';
+import { logMutation, markDone, markFailed } from '../mutation-journal.mjs';
 
 export const sameSet = (left, right) => JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
 export const sentenceList = (items) => items.length ? items.join('、') : '无';
@@ -19,6 +21,7 @@ export function uniqueControl(items, predicate, absentMessage) {
 }
 
 export async function withEffectPreview(page, context, inspect) {
+  if (selectFrontProvider().provider === 'published') throw new FrontProviderPublishedError();
   if (!context) unavailable('未提供浏览器环境，无法打开临时预览。');
   const before = new Set(context.pages());
   try {
@@ -48,7 +51,10 @@ export async function readEffectRoot(frame, config, read, argument) {
   }
 }
 
-export async function effectCheck({ id, result, page, canvas, context, config, session, layer, run }) {
+export async function effectCheck({ id, result, page, canvas, context, config, session, layer, run, mutation }) {
+  if (layer === 'front' && selectFrontProvider().provider === 'published') {
+    return result(id, 'deferred', new FrontProviderPublishedError().message, { deferred: true });
+  }
   if (config.deferFront && layer === 'front') {
     return result(id, 'deferred', 'deferred-to-front-runner', { deferred: true });
   }
@@ -58,13 +64,31 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
   config.watchdogProgress?.();
   const errors = [], evidence = { observations: [], restored: [] }, journal = new Map(), pending = new Map();
   let status = 'pass', detail = '', expected;
+  const mutationJournal = mutation?.journal;
+  let target;
+  let initial;
+  const mutationSeqs = new Set();
+  const restoreSeqs = [];
+  const beforeMutation = async (after, before) => {
+    if (!mutationJournal) return;
+    target ||= await mutation.target();
+    const current = before ?? await session.read();
+    initial ??= current;
+    const mutationSeq = await logMutation(mutationJournal, journalSnapshot({ op: 'set-setting', target, before: current, after,
+      restore: { kind: 'set-setting', settingKey: mutation.settingKey, value: initial } }));
+    mutationSeqs.add(mutationSeq);
+  };
+  const mutationDone = async () => {
+    for (const mutationSeq of mutationSeqs) await markDone(mutationJournal, mutationSeq);
+    mutationSeqs.clear();
+  };
   const controls = async () => {
     const probe = await probeControls(session);
     if (probe.reason) unavailable('设置面板暂时读不到，未能继续效果检查。');
     return probe.controls;
   };
   const tx = {
-    evidence, controls,
+    evidence, controls, beforeMutation, mutationDone, hasMutationJournal: Boolean(mutationJournal),
     expected: (text) => { expected = text; },
     baselineValue: (type, label) => config.baselineValue?.(type, label),
     note: (text) => evidence.observations.push(text),
@@ -94,6 +118,8 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
         }
       }
       pending.set(key, { target: current, value });
+      if (mutationJournal) await beforeMutation({ ...current,
+        ...(['checkbox', 'radio'].includes(current.type) ? { checked: value } : { value }) }, items);
       await session.set(current, value);
     },
     setMany: async (changes, { restoreKey } = {}) => {
@@ -105,6 +131,10 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
       try { planned = planCheckboxBatch(items, changes); }
       catch (error) { unavailable(error.message); }
       for (const { target, value } of planned) pending.set(`control:${target.index}`, { target, value });
+      if (mutationJournal && planned.length) await beforeMutation(items.map((item) => {
+        const change = planned.find(({ target }) => target.index === item.index);
+        return change ? { ...item, checked: change.value } : item;
+      }), items);
       if (planned.length) await session.setMany(planned);
     },
     // For controls with a dedicated UI (Spectrum and button link type tabs).
@@ -119,6 +149,7 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
       const items = await readBackWithRetry(() => session.read(), matches,
         async () => { await session.cancel(); await session.open(); });
       if (!matches(items)) throw new Error('效果检查的设置值保存后未保持');
+      if (mutationJournal) await mutationDone();
       pending.clear();
       await session.cancel();
       await savePage(page);
@@ -134,12 +165,18 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
     });
     detail = evidence.observations.join('；') || '设置对应的效果与预期一致。';
   } catch (error) {
+    for (const mutationSeq of mutationSeqs) await markFailed(mutationJournal, mutationSeq, error);
+    mutationSeqs.clear();
     const environmentStatus = error.envStatus || config.environmentStatus;
     if (environmentStatus === 'env-paused' || environmentStatus === 'env-timeout') {
       status = environmentStatus;
       detail = error.message;
       evidence.error = error.message;
       try { if (error.envStatus) await config.onEnvironmentFailure?.(error); } catch {}
+    } else if (error.code === 'FRONT_PROVIDER_PUBLISHED') {
+      status = 'deferred';
+      detail = error.message;
+      evidence.frontDeferred = error.message;
     } else {
     status = error.effectStatus || 'fail';
     detail = error.effectStatus ? error.message : '效果检查操作失败，详细错误保留在结构化证据中。';
@@ -150,9 +187,17 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
     // Each undo/save is independent so a failed undo cannot suppress the rest.
     for (const { target, value, restore } of status === 'env-paused' || status === 'env-timeout'
       ? [] : [...journal.values()].reverse()) {
+      let restoreSeq;
       try {
         await session.cancel();
         await session.open();
+        if (mutationJournal) {
+          initial ??= await session.read();
+          restoreSeq = await logMutation(mutationJournal, journalSnapshot({ op: 'restore', target: await mutation.target(),
+            before: await session.read(), after: initial,
+            restore: { kind: 'set-setting', settingKey: mutation.settingKey, value: initial } }));
+          restoreSeqs.push(restoreSeq);
+        }
         if (restore) await restore();
         else {
           const current = findControl(await session.read(), target);
@@ -166,7 +211,9 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
           if (controlValue(findControl(back, target) || {}) !== value) throw new Error('恢复后重开读值不一致');
           evidence.restored.push({ label: target.label, value });
         }
+        if (restoreSeq !== undefined) await markDone(mutationJournal, restoreSeq);
       } catch (error) {
+        if (restoreSeq !== undefined) await markFailed(mutationJournal, restoreSeq, error);
         errors.push('恢复原设置失败，需检查原始证据。');
         (evidence.restoreErrors ||= []).push(error.message);
       }
@@ -175,7 +222,10 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
       try { await session.cancel(); } catch (error) { errors.push('退出设置面板失败。'); evidence.dismissError = error.message; }
     }
     if (journal.size && status !== 'env-paused' && status !== 'env-timeout') {
-      try { await savePage(page); } catch (error) { errors.push('保存恢复后的页面失败。'); evidence.saveError = error.message; }
+      try { await savePage(page); } catch (error) {
+        for (const restoreSeq of restoreSeqs) await markFailed(mutationJournal, restoreSeq, error);
+        errors.push('保存恢复后的页面失败。'); evidence.saveError = error.message;
+      }
     }
   }
   if (status === 'env-paused' || status === 'env-timeout') {
