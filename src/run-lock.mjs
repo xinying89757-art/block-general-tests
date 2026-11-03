@@ -27,7 +27,7 @@ function isFresh(lock) {
 
 // Other live runner processes on this machine, independent of lock files
 // (guards against a lock removed by hand or held in another checkout).
-const RUNNER = /(^|\/)(src\/run|scripts\/(check-baseline|restore-baseline|capture-baseline|probe-settings|add-block|setup-oracle-fixture))\.mjs$/;
+const RUNNER = /(^|\/)(src\/run|scripts\/(fresh-block|onboard-block|check-baseline|restore-baseline|capture-baseline|probe-settings|add-block|setup-oracle-fixture))\.mjs$/;
 export function otherRunnerProcesses(procRoot = '/proc', self = process.pid, parent = process.ppid) {
   let entries = [];
   try { entries = readdirSync(procRoot); } catch { return []; }

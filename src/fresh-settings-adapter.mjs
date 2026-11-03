@@ -315,8 +315,10 @@ export function currentValuesFromInventory(inventory) {
       const sensitive = control.type === 'password' || /password|token|secret|credential|密钥|密码/i.test(control.label || '');
       const value = sensitive ? '[redacted]' : control.type === 'checkbox' || control.type === 'radio'
         ? Boolean(control.checked) : (control.value ?? null);
-      const identityValue = sensitive ? '[redacted]' : (control.value || '');
-      values.push({ controlIdentity: `${region.type}:${region.wrapIndex}:${region.title || region.kind || ''}:${control.type}:${control.label || ''}:${identityValue}:${index}`,
+      // Identity contains only stable location info — never the mutable value.
+      // (Previously the value was embedded, so a default-text change made the
+      // diff algorithm report the same control as "deleted + added".)
+      values.push({ controlIdentity: `${region.type}:${region.wrapIndex}:${region.title || region.kind || ''}:${control.type}:${control.label || ''}:${index}`,
         controlIndex: control.index ?? index,
         region: region.regionKey || region.title || region.kind || region.type,
         wrapIndex: region.wrapIndex ?? 0,

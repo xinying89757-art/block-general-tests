@@ -76,7 +76,15 @@ export async function runCapabilityLayer(capabilities, layer, args, registry = c
       else if (['block-color-scheme', 'module-width'].includes(id)) selectedMethod = 'runSettingsLayer';
       else continue;
     }
-    if (typeof module?.[selectedMethod] !== 'function') continue;
+    if (typeof module?.[selectedMethod] !== 'function') {
+      const name = `${id} ${layer} 层未适配`;
+      const detail = `能力模块缺少方法 ${selectedMethod}，已上报为不适用而非静默跳过。`;
+      const check = { id: `${id}-${layer}-not-adapted`, name, status: 'na', detail, suite: `capability:${id}`,
+        ...checkReportText(name, 'na', detail, { missingMethod: selectedMethod }, `${id}-${layer}-not-adapted`) };
+      checks.push(check);
+      await args.config?.checkpointCheck?.(check, id, layer);
+      continue;
+    }
     if (layer === 'front' && args.config?.deferFront) {
       checks.push(...deferredCapabilityChecks(capability));
       continue;
@@ -526,7 +534,7 @@ async function main() {
           expected: '全部字段勾选状态应恢复运行前快照、保存，并经新会话回读一致。' });
       }
     }
-    if (config.batchSaveUsed && typeof config.verifyBatchBaseline === 'function') {
+    if (typeof config.verifyBatchBaseline === 'function') {
       const started = performance.now();
       try {
         const verification = await verifyBaselineWithRecovery({
