@@ -48,7 +48,7 @@ export function assessAllProducts({ fixtureNames, actualNames, pagination, quant
     countWithinQuantity: Number.isFinite(limit) && actualNames.length <= limit, actualCount: actualNames.length,
     quantity: limit, quantityMeaning: pagination ? '每页产品数量' : '显示产品总数量' };
 }
-function listSession(args) {
+export function listSession(args) {
   const base = widgetSession({ ...args, type: 'phoenix_blocks_gallery',
     title: args.capability?.dialogTitle || '设置产品列表', wrapIndex: args.capability?.wrapIndex ?? 0 });
   // The same quantity input changes its caption with pagination. Normalize

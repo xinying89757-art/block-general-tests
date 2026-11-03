@@ -169,7 +169,8 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
 }
 
 export async function captureBaseline(args) {
-  const inventory = await inventorySettings(args);
+  // 基线捕获时允许按钮浮层读失败降级（记为人工判断），不阻塞整个流程
+  const inventory = await inventorySettings({ ...args, degradeInventoryErrors: true });
   return inventory.map((region) => {
     const { title, type, wrapIndex, controls } = region;
     if (region.kind === 'button-popover') {
