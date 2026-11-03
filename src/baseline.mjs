@@ -147,7 +147,8 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
       await dialog.waitFor({ state: 'visible', timeout: TIMEOUT });
       const title = await readDialogTitle(dialog);
       if (!title) {
-        region.skipped = '读不到 dialog 标题';
+        Object.assign(region, degradeInventoryRegion(region,
+          Object.assign(new Error('读不到 dialog 标题'), { code: 'DIALOG_TITLE_UNREADABLE' })));
         await closeDialog(dialog);
         inventory.push(region);
         continue;
@@ -158,9 +159,7 @@ export async function inventorySettings({ page, canvas, config, blockId, onProgr
       if (includeControlSections) region.controls = await annotateControlSections(session.root, region.controls);
       await session.cancel();
     } catch (error) {
-      region.skipped = /Timeout.*exceeded/.test(error.message)
-        ? '打开后 10 秒内未出现 widget dialog（可能打开的是画布内浮层而非设置弹窗）'
-        : error.message;
+      Object.assign(region, degradeInventoryRegion(region, error));
       try { if (session) await session.cancel(); else if (dialog) await closeDialog(dialog); } catch {}
       await dismissCanvasPopover(page, canvas);
     }

@@ -152,12 +152,14 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
   let pageItem;
   let resolvedTarget;
   const readFreshInventory = async () => {
+    const startedAt = Date.now();
     let color;
     try {
       await openRailPanel(frame, config.blockId, RAIL.colorIcon, RAIL.colorPanel, { settingId: config.freshSettingId });
       color = await readSchemeColor(frame);
     } catch (error) {
-      color = { status: 'panel-unavailable', controls: [], notes: [error.message] };
+      color = { status: 'panel-unavailable', controls: [], notes: [error.message],
+        inventoryError: { regionType: 'color-scheme', code: 'RAIL_PANEL_UNAVAILABLE', message: error.message } };
     } finally {
       try { await cancelColorPanel(frame); } catch (error) {
         color = { ...(typeof color === 'object' ? color : {}), status: color?.status || 'panel-close-unavailable',
@@ -172,8 +174,10 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     });
     // Keep the button popover last: its verified close operation confirms
     // unchanged values when no non-saving dismissal is available.
-    return appendFreshSettingsInventory(color, width, () => inventorySettings({ page, canvas: frame, config, blockId: config.blockId,
+    const inventory = appendFreshSettingsInventory(color, width, () => inventorySettings({ page, canvas: frame, config, blockId: config.blockId,
       degradeInventoryErrors: true, includeControlSections: true }));
+    console.log(`[fresh-block] phase=settings-inventory durationMs=${Date.now() - startedAt}`);
+    return inventory;
   };
   const selectedCreated = (instance) => ({ blockId: String(config.blockId), settingId: instance.settingId,
     ordinal: instance.ordinal, position: instance.position });
@@ -239,10 +243,10 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       const args = { page, canvas: frame, frame, config,
         styleControlAdapter: createStyleControlBrowserAdapter({ page, canvas: frame, config }) };
       const inventory = await readFreshInventory();
-      if (discoverAndPrepareSettings) {
-        return discoverAndPrepareSettings({ ...args, inventory });
-      }
-      return settingsAdapter.prepare({ ...args, inventory });
+      const prepared = discoverAndPrepareSettings
+        ? await discoverAndPrepareSettings({ ...args, inventory })
+        : await settingsAdapter.prepare({ ...args, inventory });
+      return { ...prepared, inventory };
     },
     async deleteBlockInstance(instance) {
       if (String(instance.blockId) !== String(config.blockId)) {
@@ -290,14 +294,17 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
       console.error(`[fresh-block] pre-save guard report: ${file}`);
       return file;
     },
-    async readDefaults() {
-      const inventory = await readFreshInventory();
+    async readDefaults(_instance, inventorySnapshot) {
+      const inventory = inventorySnapshot || await readFreshInventory();
+      console.log(`[fresh-block] phase=defaults-inventory source=${inventorySnapshot ? 'snapshot' : 'fresh'}`);
       const values = currentValuesFromInventory(inventory);
       values.inventoryErrors = inventory.filter((region) => region.inventoryError).map((region) => region.inventoryError);
       return values;
     },
-    async readCurrentValues() {
-      return currentValuesFromInventory(await readFreshInventory());
+    async readCurrentValues(_instance, inventorySnapshot) {
+      const inventory = inventorySnapshot || await readFreshInventory();
+      console.log(`[fresh-block] phase=current-values-inventory source=${inventorySnapshot ? 'snapshot' : 'fresh'}`);
+      return currentValuesFromInventory(inventory);
     },
     async readPublishedValues(instance) {
       await page.reload({ waitUntil: 'domcontentloaded', timeout: config.navigationTimeoutMs });

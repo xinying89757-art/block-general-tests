@@ -693,11 +693,14 @@ test('fresh batch mode reruns failures alone, retains failing values, and never 
       check: async (_setting, { phase }) => ({ status: 'fail', expected: 'good', actual: 'bad', phase }) },
     finalState: 'retain-tested-values',
   }));
-  assert.equal(events.some(([kind]) => kind === 'restore'), false);
+  // P1-4: retain 模式下重跑前会调用 restore 做隔离（isolated-rerun-reset），
+  // 重跑完再重建保留态。restore 的 reason 不是 'restore-defaults'。
+  assert.ok(events.some(([kind]) => kind === 'restore'));
   assert.ok(events.some(([kind, phase]) => kind === 'apply' && phase === 'rerun-alone'));
   assert.ok(events.some(([kind, reason]) => kind === 'save' && reason === 'retain-failing-settings'));
   assert.deepEqual(run.timing.retainedFailures.selectedIds, ['bad']);
   assert.equal(run.results[0].rerunAloneResult.status, 'fail');
+  assert.equal(run.results[0].rerunAloneResult.isolated, true);
 });
 
 test('failed fresh setting remains on its failing value and the page is published', async () => {
@@ -1149,9 +1152,9 @@ test('current setting inventory records values with region and control identity'
     { type: 'text', label: 'Quantity', value: '12' },
     { type: 'password', label: 'API key', value: 'never-report-this' },
   ] }]), [
-    { controlIdentity: 'gallery:1:Settings:checkbox:Show name:name:0', controlIndex: 0, region: 'Settings', wrapIndex: 1, label: 'Show name', type: 'checkbox', value: true },
-    { controlIdentity: 'gallery:1:Settings:text:Quantity:12:1', controlIndex: 1, region: 'Settings', wrapIndex: 1, label: 'Quantity', type: 'text', value: '12' },
-    { controlIdentity: 'gallery:1:Settings:password:API key:[redacted]:2', controlIndex: 2, region: 'Settings', wrapIndex: 1, label: 'API key', type: 'password', value: '[redacted]' },
+    { controlIdentity: 'gallery:1:Settings:checkbox:Show name:0', controlIndex: 0, region: 'Settings', wrapIndex: 1, label: 'Show name', type: 'checkbox', value: true },
+    { controlIdentity: 'gallery:1:Settings:text:Quantity:1', controlIndex: 1, region: 'Settings', wrapIndex: 1, label: 'Quantity', type: 'text', value: '12' },
+    { controlIdentity: 'gallery:1:Settings:password:API key:2', controlIndex: 2, region: 'Settings', wrapIndex: 1, label: 'API key', type: 'password', value: '[redacted]' },
   ]);
 });
 

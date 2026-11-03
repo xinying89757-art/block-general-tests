@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { chromium } from 'playwright-core';
+import { testBrowserConfig } from './test-browser-config.mjs';
 import { readInstanceStructure } from '../src/front-structure.mjs';
 import { checkDesignRequirementFront } from '../src/design-spec-checklist.mjs';
 import { runFrontLayer } from '../src/capabilities/block-style-spec.mjs';
@@ -10,7 +11,7 @@ const rootSelector = '[data-capture-node="0"]';
 const requirement = { id: 'image-ratio', checkType: 'image-ratio', sourceText: 'Image ratio',
   checkStage: 'front', expected: { ratio: '1:1', centered: true }, params: {} };
 async function fixture(block, viewport, work) {
-  const browser = await chromium.launch({ channel: 'chrome' });
+  const browser = await chromium.launch(testBrowserConfig());
   try {
     const page = await browser.newPage({ viewport: { width: viewport === 'pc' ? 1440 : 375, height: viewport === 'pc' ? 900 : 667 } });
     await page.goto(new URL(`./fixtures/captures/${block}/${viewport}.html`, import.meta.url).href);

@@ -171,15 +171,15 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
         });
         const before = await readNames();
         flowEvidence.beforeClick = { count: before.length, names: before };
-        const clicked = await frame.evaluate((cat) => {
-          const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
-          const link = [...document.querySelectorAll('a')].find((el) => norm(el.innerText) === cat);
-          if (!link) return false;
-          link.click();
-          return true;
-        }, target);
-        if (!clicked) {
-          flowErrors.push(`预览里找不到分类导航链接“${target}”`);
+        // Scoped to the target instance root: a same-named link in another
+        // block or nav must never be clicked. Requires exactly one match.
+        const clickResult = await root.evaluate(findAndClickCategoryLink, target);
+        if (!clickResult.clicked) {
+          if (clickResult.reason === 'ambiguous') {
+            flowErrors.push(`预览里分类导航链接“${target}”有 ${clickResult.count} 个同名，不敢点（已限定在目标区块内）`);
+          } else {
+            flowErrors.push(`预览里找不到分类导航链接“${target}”`);
+          }
           return { flowErrors, flowEvidence };
         }
         // Poll until the product set stabilises (AJAX filter, ≤10s).
@@ -378,6 +378,20 @@ export function categoryPersistedControls(controls) {
   return (controls || []).filter((item) => (item.type === 'radio' && item.name === 'selectGroupWay')
     || (item.type === 'checkbox' && item.name === 'leafProdGroup'))
     .map((item) => ({ region: '设置产品分类', controlIndex: item.index, type: item.type }));
+}
+
+// Pure DOM helper: find the category nav link with the given text inside the
+// target block instance root and click it. Scoped to the instance root so a
+// same-named link in another block / nav can never be clicked by mistake.
+// Requires exactly one match; zero or multiple matches are reported instead
+// of guessing. Serializable: safe to pass directly to locator.evaluate().
+export function findAndClickCategoryLink(wrap, target) {
+  const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
+  const links = [...wrap.querySelectorAll('a')].filter((el) => norm(el.innerText) === target);
+  if (links.length === 0) return { clicked: false, reason: 'not-found' };
+  if (links.length > 1) return { clicked: false, reason: 'ambiguous', count: links.length };
+  links[0].click();
+  return { clicked: true };
 }
 
 export async function createFreshDefinitions(args) {

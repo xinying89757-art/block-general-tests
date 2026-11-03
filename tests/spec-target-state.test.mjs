@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
+import { testBrowserConfig } from './test-browser-config.mjs';
 import { checkDesignRequirementFront, validateDesignSpec } from '../src/design-spec-checklist.mjs';
 import { inferSpecState } from '../src/spec-target-state.mjs';
 import { importExtractedDesignSpec } from '../scripts/import-design-spec.mjs';
@@ -29,7 +30,7 @@ test('checklist state schema rejects unknown/ambiguous declarations and importer
 });
 
 async function fixture(work) {
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+  const browser = await chromium.launch(testBrowserConfig());
   try {
     const page = await browser.newPage({ viewport: { width: 600, height: 500 } });
     await page.setContent(`<style>.named{background:#111;color:#222;font-size:12px}.named:hover{background:#123abc}.named:focus{font-size:18px}.named:active{background:#ff0000}

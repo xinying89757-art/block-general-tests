@@ -194,12 +194,33 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
   return check;
 }
 
+// Default front-end DOM selectors for product blocks. New blocks with the
+// same setting semantics but different DOM must either override via profile
+// (selectors param) or be reported as unadapted — never silently checked
+// against the wrong structure.
+export const DEFAULT_FRONT_SELECTORS = Object.freeze({
+  productName: '.prodlist-pro-name',
+  list: '.one-pruduct-list, .pf-list-wrap, .one-pruduct-item',
+});
+
 // All snapshots count visible content; hidden grid/list duplicates are excluded.
-export function productSnapshot(root) {
+// selectors overrides the defaults (e.g. from profile frontDom).
+// Returns adapted:false when neither names nor list container match — the
+// caller must report "unadapted" instead of treating it as an empty list.
+// NOTE: defaults are inlined (not referencing DEFAULT_FRONT_SELECTORS) so the
+// function stays self-contained when serialized via locator.evaluate().
+export function productSnapshot(root, selectors = {}) {
+  const sel = {
+    productName: '.prodlist-pro-name',
+    list: '.one-pruduct-list, .pf-list-wrap, .one-pruduct-item',
+    ...selectors,
+  };
   const visible = (node) => node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden';
   const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
-  const names = [...root.querySelectorAll('.prodlist-pro-name')].filter(visible).map((node) => norm(node.innerText));
-  return { names, hasList: Boolean(root.querySelector('.one-pruduct-list, .pf-list-wrap, .one-pruduct-item')), count: names.length };
+  const names = [...root.querySelectorAll(sel.productName)].filter(visible).map((node) => norm(node.innerText));
+  const hasList = Boolean(root.querySelector(sel.list));
+  const adapted = names.length > 0 || hasList;
+  return { names, hasList, count: names.length, adapted, selectorUsed: sel.productName };
 }
 
 // Switching all/partial may itself rewrite checkbox state. Capture the entire

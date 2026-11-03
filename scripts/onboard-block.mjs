@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadConfig } from '../src/config.mjs';
 import { redact } from '../src/run.mjs';
 import { launchSession } from '../src/browser.mjs';
+import { acquireRunLock } from '../src/run-lock.mjs';
 import { savePage } from '../src/editor.mjs';
 import { writeCheckpoint } from '../src/run-safety.mjs';
 import { createFreshBlockBrowserAdapter } from '../src/fresh-block-browser-adapter.mjs';
@@ -68,8 +69,10 @@ let settingsAdapter = null;
 let mappingSummary = null;
 let generatedProfile = null;
 let lastProgress = null;
-const session = await launchSession(config);
+const runLock = acquireRunLock({ site: config.siteDomain, mode: `onboard-block:${blockId}` });
+let session;
 try {
+  session = await launchSession(config);
   const adapter = createFreshBlockBrowserAdapter({ config, session, targetPage: page,
     settingsAdapter: { get batchAdapter() { return settingsAdapter?.batchAdapter; }, prepare: (...input) => settingsAdapter.prepare(...input) },
     discoverAndPrepareSettings: async ({ page: editorPage, frame, inventory, styleControlAdapter }) => {
@@ -126,6 +129,7 @@ try {
   report.onboarding = { profileStatus: 'draft-unreviewed', ...mappingSummary };
   const safeReport = redact(report, config);
   await fs.writeFile(reportPath, `${JSON.stringify(safeReport, null, 2)}\n`);
+  if (safeReport.summary.fail > 0) process.exitCode = 1;
   const summaryPath = reportPath.replace(/\.json$/, '-summary-zh.md');
   const mapped = mappingSummary.mappedSettingIds.length ? mappingSummary.mappedSettingIds.map((id) => `- ${id}`).join('\n') : '- 无唯一命中的已知设置项';
   const unmapped = mappingSummary.unmappedControls.length ? mappingSummary.unmappedControls.map((item) => `- ${item.regionType || item.kind}：${item.control.label || '(无标签)'} [${item.control.type}]`).join('\n') : '- 无';
@@ -137,4 +141,7 @@ try {
   console.log(`[onboard] Chinese summary: ${summaryPath}`);
   console.log(`[onboard] ${passes} pass / ${fails} fail; published=${Boolean(safeReport.publishedConfirmed ?? safeReport.publishedAt)}`);
   }
-} finally { await session.browser.close(); }
+} finally {
+  try { await session?.browser.close(); }
+  finally { runLock.release(); }
+}

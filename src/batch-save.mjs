@@ -52,7 +52,8 @@ export async function verifyBaselineWithRecovery({ verify, recover }) {
   }
 }
 
-const outcomeStatus = (outcome) => outcome?.status || 'pass';
+const CHECK_OUTCOME_STATUSES = ['pass', 'fail', 'na', 'skip', 'record', 'human-review'];
+const outcomeStatus = (outcome) => CHECK_OUTCOME_STATUSES.includes(outcome?.status) ? outcome.status : 'fail';
 
 export function selectRetainedFailures(results, settings, metadata = {}) {
   const byId = new Map(settings.map((setting) => [setting.id, setting]));
@@ -100,6 +101,9 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
     try {
       const outcome = await adapter.check(setting, { phase, snapshot: snapshots.get?.(setting.id) ?? snapshots[setting.id] });
       batchInfo.checkMs += performance.now() - start;
+      if (!CHECK_OUTCOME_STATUSES.includes(outcome?.status)) {
+        return { status: 'fail', frameworkError: true, detail: 'check 返回了非法结果' };
+      }
       return { ...outcome, status: outcomeStatus(outcome) };
     } catch (error) {
       batchInfo.checkMs += performance.now() - start;
@@ -164,7 +168,16 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
         for (const setting of batch.settings) results.push({ id: setting.id, status: outcomeStatus(batchOutcomes.get(setting.id)),
           batchResult: batchOutcomes.get(setting.id) });
       } else {
-        if (finalState === 'restore') await restoreIds(batch.settings.map((item) => item.id), `failed-batch-${index}-reset`, batchInfo);
+        let isolatedRerun = typeof adapter.restore === 'function';
+        if (isolatedRerun) {
+          try {
+            await restoreIds(batch.settings.map((item) => item.id),
+              finalState === 'restore' ? `failed-batch-${index}-reset` : 'isolated-rerun-reset', batchInfo);
+          } catch {
+            // 隔离恢复失败时降级为非隔离重跑，不中断流程
+            isolatedRerun = false;
+          }
+        }
         for (const setting of failed) {
           const isolated = { saveMs: 0, applyMs: 0, checkMs: 0 };
           let rerun;
@@ -176,15 +189,18 @@ export async function executeSettingBatches({ settings, metadata = {}, adapter, 
             await save(`rerun-alone-${setting.id}`, isolated);
             rerun = await safeCheck(setting, 'rerun-alone', isolated);
           } catch (error) { rerun = { status: 'fail', detail: error.message, error: error.message }; }
-          if (finalState === 'restore') {
+          // Restore between isolated reruns so an earlier failed value cannot
+          // contaminate the next check. The finally path rebuilds retained failures.
+          if (isolatedRerun) {
             try { await restoreIds([setting.id], `rerun-alone-${setting.id}-restore`, isolated); }
             catch (error) { rerun = { ...rerun, restoreError: error.message, status: 'fail' }; }
           }
+          rerun = { ...rerun, isolated: isolatedRerun };
           results.push({ id: setting.id, status: 'fail', batchResult: batchOutcomes.get(setting.id), rerunAloneResult: rerun });
           batchInfo.rerunAlone = { ...(batchInfo.rerunAlone || {}), [setting.id]: isolated };
         }
         const passingPeers = batch.settings.filter((setting) => !failed.some((item) => item.id === setting.id));
-        if (finalState === 'restore') {
+        if (isolatedRerun) {
           for (const setting of passingPeers) {
             const start = performance.now();
             // An adapter may mutate the UI before a later action throws. Mark the

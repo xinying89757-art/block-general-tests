@@ -107,6 +107,76 @@ test('retain mode reports passing peers when one member of their saved batch fai
   assert.equal(run.results.find(({ id }) => id === 'peer-pass').batchResult.actual, 'changed');
 });
 
+test('retain mode saves a clean snapshot before each isolated rerun and rebuilds retained failures', async () => {
+  const events = [];
+  const baseline = { peer: 'peer-original', bad: 'bad-original', retry: 'retry-original' };
+  const values = { ...baseline };
+  let persisted = { ...baseline };
+  const settings = Object.keys(baseline).map((key) => ({ id: key, key, value: `${key}-tested` }));
+  const run = await executeSettingBatches({ settings, finalState: 'retain-tested-values', adapter: {
+    capture: async () => new Map(Object.entries(baseline)),
+    apply: async (setting, { phase }) => {
+      events.push(`apply:${setting.id}:${phase}`);
+      if (phase === 'rerun-alone') {
+        assert.deepEqual(values, baseline);
+        assert.deepEqual(persisted, baseline, 'snapshot reset must be saved before rerunning');
+      }
+      values[setting.key] = setting.value;
+    },
+    restore: async (setting, { snapshot, reason }) => {
+      events.push(`restore:${setting.id}:${reason}`);
+      values[setting.key] = snapshot;
+    },
+    save: async ({ reason }) => { events.push(`save:${reason}`); persisted = { ...values }; },
+    check: async (setting, { phase }) => {
+      if (phase === 'rerun-alone') {
+        assert.deepEqual(persisted, { ...baseline, [setting.key]: setting.value });
+      }
+      return { status: setting.id === 'bad' || (setting.id === 'retry' && phase === 'batch') ? 'fail' : 'pass' };
+    },
+  } });
+  const resetSave = events.indexOf('save:isolated-rerun-reset');
+  assert.ok(resetSave >= 0);
+  for (const setting of settings) {
+    const restore = events.indexOf(`restore:${setting.id}:isolated-rerun-reset`);
+    assert.ok(restore >= 0 && restore < resetSave);
+  }
+  assert.ok(resetSave < events.indexOf('apply:bad:rerun-alone'));
+  assert.ok(events.indexOf('save:rerun-alone-bad-restore') < events.indexOf('apply:retry:rerun-alone'));
+  assert.equal(run.results.find(({ id }) => id === 'bad').rerunAloneResult.isolated, true);
+  assert.deepEqual(run.results.find(({ id }) => id === 'retry').rerunAloneResult, { status: 'pass', isolated: true });
+  assert.deepEqual(run.timing.retainedFailures.selectedIds, ['bad']);
+  assert.deepEqual(persisted, { peer: 'peer-tested', bad: 'bad-tested', retry: 'retry-original' });
+});
+
+test('missing or invalid check outcomes fail closed with a framework error in both phases', async (t) => {
+  const invalid = [undefined, null, {}, { status: '' }, { status: 'unknown' }, { status: true }];
+  for (const [index, outcome] of invalid.entries()) {
+    await t.test(`invalid outcome ${index}`, async () => {
+      const run = await executeSettingBatches({ settings: [{ id: 'check', key: 'check' }], adapter: {
+        apply: async () => {}, save: async () => {}, restore: async () => {}, check: async () => outcome,
+      } });
+      assert.equal(run.results[0].status, 'fail');
+      for (const result of [run.results[0].batchResult, run.results[0].rerunAloneResult]) {
+        assert.equal(result.status, 'fail');
+        assert.equal(result.frameworkError, true);
+        assert.equal(result.detail, 'check 返回了非法结果');
+      }
+    });
+  }
+});
+
+test('valid batch check statuses retain their verdict and evidence without a framework error', async () => {
+  for (const status of ['pass', 'fail', 'na', 'skip', 'record', 'human-review']) {
+    const outcome = { status, expected: 'expected value', actual: 'actual value' };
+    const run = await executeSettingBatches({ settings: [{ id: 'check', key: 'check' }], adapter: {
+      apply: async () => {}, save: async () => {}, restore: async () => {}, check: async () => outcome,
+    } });
+    assert.equal(run.results[0].status, status);
+    assert.deepEqual(run.results[0].batchResult, outcome);
+  }
+});
+
 test('retain mode restores required dependencies between checks then reapplies the selected failing value', async () => {
   const events = [];
   const values = {};
