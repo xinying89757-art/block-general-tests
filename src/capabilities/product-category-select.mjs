@@ -1,8 +1,32 @@
+import { normalizeSiteHost } from '../site-baseline.mjs';
+import { logMutation, markDone, markFailed } from '../mutation-journal.mjs';
 import { effectCheck, unavailable, uniqueControl, readEffectRoot, sameSet, sentenceList, rememberCategoryState, productSnapshot } from './effect-checks.mjs';
-import { savePage, openPreview } from '../editor.mjs';
-import { widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText, readBackWithRetry, fixtureCategoryState } from './shared.mjs';
+import { savePage, openPreview, targetLanguage } from '../editor.mjs';
+import { selectFrontProvider, FrontProviderPublishedError } from '../front-provider.mjs';
+import { journalSnapshot, blockSelector, widgetSession, probeControls, persistControl, radioPersist, radioGroupPersist, findControl, controlValue, previewSelector, TIMEOUT, checkReportText, readBackWithRetry, fixtureCategoryState } from './shared.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
+
+// Keep unknown/ambiguous instance identity null; never select an arbitrary wrap.
+async function mutationTarget(canvas, config, profile) {
+  const instanceId = await canvas.locator(blockSelector(config.blockId)).evaluateAll((wraps) => {
+    if (wraps.length !== 1) return null;
+    for (const node of [wraps[0], ...wraps[0].querySelectorAll('*')]) {
+      const attribute = [...node.attributes].find((attr) => /setting.?id/i.test(attr.name));
+      if (attribute?.value) return attribute.value;
+    }
+    return null;
+  });
+  return { siteHost: normalizeSiteHost(config.siteDomain), language: targetLanguage(config),
+    pageId: config.pageId ?? profile?.target?.pageId ?? null,
+    pageKind: config.resolvedTarget?.kind ?? profile?.target?.pageKind ?? null,
+    blockId: config.blockId, instanceId };
+}
+
+function mutationContext(canvas, config, profile) {
+  return config?.mutationJournal ? { journal: config.mutationJournal,
+    target: () => mutationTarget(canvas, config, profile), settingKey: 'product-category-select' } : undefined;
+}
 
 const SUITE = 'capability:product-category-select';
 export const freshSettings = registerFreshSettingsCapability('product-category-select', createFreshDefinitions);
@@ -45,21 +69,31 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
   if (!oracle?.category || !Array.isArray(oracle.onShelf)) {
     return result(id, 'skip', '未提供后台分类和上架产品清单，无法比对。');
   }
-  const target = oracle.category;
+  const categoryName = oracle.category;
   const expected = [...oracle.onShelf];
   const offShelfCount = Number.isFinite(oracle.cmsTotal) ? Math.max(0, oracle.cmsTotal - expected.length) : null;
   const errors = [];
-  const evidence = { category: target, expected, cmsTotal: oracle.cmsTotal ?? null };
+  const evidence = { category: categoryName, expected, cmsTotal: oracle.cmsTotal ?? null };
   const probe = await probeControls(session);
   if (probe.reason) return result(id, 'skip', `无法读取产品分类弹窗：${probe.reason}`);
   const mode = probe.controls.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay');
   const originalMode = mode.find((item) => item.checked)?.label || '选择所有产品分类';
   const originalChecked = categoriesOf(probe.controls || []).filter((item) => item.checked).map((item) => (item.label || '').trim());
   evidence.baseline = { mode: originalMode, checkedCount: originalChecked.length };
+  const journal = config?.mutationJournal;
+  let target;
+  let mutationSeq;
   const restore = async () => {
+    let restoreSeq;
+    const restoreErrorCount = errors.length;
     try {
       await session.cancel();
       await session.open();
+      if (journal) {
+        target ||= await mutationTarget(canvas, config, profile);
+        restoreSeq = await logMutation(journal, journalSnapshot({ op: 'restore', target, before: await session.read(),
+          after: probe.controls, restore: { kind: 'set-setting', settingKey: 'product-category-select', value: probe.controls } }));
+      }
       if (originalMode === '选择部分产品分类') {
         const current = await probeControls(session);
         const partial = current.controls?.find((item) => item.type === 'radio' && item.name === 'selectGroupWay' && item.label === '选择部分产品分类');
@@ -91,9 +125,16 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
       evidence.restored = { mode: restoredMode, checkedCount: restoredChecked };
       if (restoredMode !== originalMode) errors.push(`恢复后选择方式为 ${restoredMode}，不是 ${originalMode}`);
       if (restoredChecked !== originalChecked.length) errors.push(`恢复后勾选 ${restoredChecked} 个，不是 ${originalChecked.length} 个`);
-    } catch (error) { errors.push(`恢复失败：${error.message}`); }
+    } catch (error) {
+      if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, error);
+      errors.push(`恢复失败：${error.message}`);
+    }
     try { await session.cancel(); } catch {}
     try { await savePage(page); } catch (error) { errors.push(`保存恢复页面失败：${error.message}`); }
+    if (restoreSeq !== undefined) {
+      if (errors.length > restoreErrorCount) await markFailed(journal, restoreSeq, new Error(errors.slice(restoreErrorCount).join('；')));
+      else await markDone(journal, restoreSeq);
+    }
     // Let the canvas settle after the flip + restore saves: the next
     // capability opens the canvas settings button, and a still-reloading
     // canvas makes its 10s wait time out (seen 2026-10-26).
@@ -108,6 +149,14 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
     // Identify by exact label: every leafProdGroup checkbox has value "on".
     const partial = mode.find((item) => item.label === '选择部分产品分类');
     if (!partial) return result(id, 'na', '本区块没有“选择部分产品分类”设置项。');
+    if (journal) {
+      target = await mutationTarget(canvas, config, profile);
+      mutationSeq = await logMutation(journal, journalSnapshot({ op: 'set-setting', target, before: probe.controls,
+        after: probe.controls.map((item) => item.type === 'radio' && item.name === 'selectGroupWay'
+          ? { ...item, checked: item.label === '选择部分产品分类' } : item.type === 'checkbox' && item.name === 'leafProdGroup'
+            ? { ...item, checked: (item.label || '').trim() === categoryName } : item),
+        restore: { kind: 'set-setting', settingKey: 'product-category-select', value: probe.controls } }));
+    }
     await session.set(partial, true);
     await session.save();
     await session.open();
@@ -117,11 +166,11 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
       // so fall through to the finally restore.
       errors.push(`切到部分后无法读取弹窗：${after.reason}`);
     } else {
-      for (const item of categoriesOf(after.controls || []).filter((x) => x.checked && (x.label || '').trim() !== target)) {
+      for (const item of categoriesOf(after.controls || []).filter((x) => x.checked && (x.label || '').trim() !== categoryName)) {
         await session.set(item, false);
       }
-      const targetNow = categoriesOf(after.controls || []).find((item) => (item.label || '').trim() === target);
-      if (!targetNow) { errors.push(`切到部分后找不到分类“${target}”`); }
+      const targetNow = categoriesOf(after.controls || []).find((item) => (item.label || '').trim() === categoryName);
+      if (!targetNow) { errors.push(`切到部分后找不到分类“${categoryName}”`); }
       else if (!targetNow.checked) await session.set(targetNow, true);
       await session.save();
       await savePage(page);
@@ -129,12 +178,12 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
       const verify = await probeControls(session, (items) => {
         const checked = categoriesOf(items).filter((item) => item.checked).map((item) => (item.label || '').trim());
         return items.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay').find((item) => item.checked)?.label === '选择部分产品分类'
-          && checked.length === 1 && checked[0] === target;
+          && checked.length === 1 && checked[0] === categoryName;
       });
       const persistedMode = verify.controls?.filter((item) => item.type === 'radio' && item.name === 'selectGroupWay').find((item) => item.checked)?.label;
       const persistedChecked = categoriesOf(verify.controls || []).filter((item) => item.checked).map((item) => (item.label || '').trim());
       evidence.persisted = { mode: persistedMode, checked: persistedChecked };
-      if (persistedMode !== '选择部分产品分类' || persistedChecked.length !== 1 || persistedChecked[0] !== target) {
+      if (persistedMode !== '选择部分产品分类' || persistedChecked.length !== 1 || persistedChecked[0] !== categoryName) {
         errors.push(`翻转后未保持单分类：方式=${persistedMode}，勾选=[${persistedChecked.join('、')}]`);
       }
       await session.cancel();
@@ -160,8 +209,8 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
         flowEvidence.navLinks = navCategories;
         if (navCategories === null) {
           flowErrors.push('预览里找不到分类导航容器 .pf-cate-wrap');
-        } else if (navCategories.length !== 1 || navCategories[0] !== target) {
-          flowErrors.push(`分类导航为“${navCategories.join('”、“')}”，应仅显示“${target}”`);
+        } else if (navCategories.length !== 1 || navCategories[0] !== categoryName) {
+          flowErrors.push(`分类导航为“${navCategories.join('”、“')}”，应仅显示“${categoryName}”`);
         }
         // Pre-click list (evidence only): setting the category does not
         // filter the list by itself.
@@ -171,14 +220,14 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
         });
         const before = await readNames();
         flowEvidence.beforeClick = { count: before.length, names: before };
-        // Scoped to the target instance root: a same-named link in another
+        // Scoped to the categoryName instance root: a same-named link in another
         // block or nav must never be clicked. Requires exactly one match.
-        const clickResult = await root.evaluate(findAndClickCategoryLink, target);
+        const clickResult = await root.evaluate(findAndClickCategoryLink, categoryName);
         if (!clickResult.clicked) {
           if (clickResult.reason === 'ambiguous') {
-            flowErrors.push(`预览里分类导航链接“${target}”有 ${clickResult.count} 个同名，不敢点（已限定在目标区块内）`);
+            flowErrors.push(`预览里分类导航链接“${categoryName}”有 ${clickResult.count} 个同名，不敢点（已限定在目标区块内）`);
           } else {
-            flowErrors.push(`预览里找不到分类导航链接“${target}”`);
+            flowErrors.push(`预览里找不到分类导航链接“${categoryName}”`);
           }
           return { flowErrors, flowEvidence };
         }
@@ -201,21 +250,32 @@ async function categoryFrontCheck({ session, page, canvas, context, config, capa
       errors.push(...flow.flowErrors);
       Object.assign(evidence, flow.flowEvidence);
     }
+    if (mutationSeq !== undefined) {
+      if (errors.length) await markFailed(journal, mutationSeq, new Error(errors.join('；')));
+      else await markDone(journal, mutationSeq);
+    }
   } catch (error) {
-    errors.push(`前台效果验证失败：${error.message}`);
+    if (mutationSeq !== undefined) await markFailed(journal, mutationSeq, error);
+    if (error.code === 'FRONT_PROVIDER_PUBLISHED') {
+      evidence.frontDeferred = error.message;
+    } else {
+      errors.push(`前台效果验证失败：${error.message}`);
+    }
   } finally {
     await restore();
   }
+  if (!errors.length && evidence.frontDeferred) return result(id, 'deferred', evidence.frontDeferred, evidence);
   return result(id,
     errors.length ? 'fail' : 'pass',
     errors.length ? errors.join('；')
-      : `只选“${target}”后导航仅剩该分类；点导航后列表为后台的 ${expected.length} 个上架产品，与后台一致${offShelfCount == null ? '' : `，下架 ${offShelfCount} 个不展示`}。`,
-    evidence, { expected: `只选“${target}”后导航应只显示该分类；点击后应显示后台的 ${expected.length} 个上架产品${offShelfCount == null ? '' : `，并排除 ${offShelfCount} 个下架产品`}。` });
+      : `只选“${categoryName}”后导航仅剩该分类；点导航后列表为后台的 ${expected.length} 个上架产品，与后台一致${offShelfCount == null ? '' : `，下架 ${offShelfCount} 个不展示`}。`,
+    evidence, { expected: `只选“${categoryName}”后导航应只显示该分类；点击后应显示后台的 ${expected.length} 个上架产品${offShelfCount == null ? '' : `，并排除 ${offShelfCount} 个下架产品`}。` });
 }
 
 // Open a throwaway preview tab, run fn on its content frame, then close
 // the tab. Same pattern as product-list-display.
 async function withPreview(page, context, fn) {
+  if (selectFrontProvider().provider === 'published') throw new FrontProviderPublishedError();
   const before = new Set(context.pages());
   try {
     await savePage(page);
@@ -229,6 +289,7 @@ async function withPreview(page, context, fn) {
 }
 
 export async function runSettingsLayer({ page, canvas, context, config, capability, profile, report }) {
+  const mutation = mutationContext(canvas, config, profile);
   if (config.frontOnly) return categoryEffects({ page, canvas, context, config, capability, profile, report }, 'front');
   const session = widgetSession({ page, canvas, config,
     type: 'phoenix_blocks_gallery', title: capability?.dialogTitle || '设置产品分类',
@@ -244,7 +305,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     checks.push(result('pcs-state', 'record',
       `选择方式=${modeChecked ? modeChecked.label : '未知'}；分类 ${categories.length} 个，已勾选 ${categories.filter((item) => item.checked).length} 个。`,
       { mode: modeChecked?.label, categories: categories.map((item) => ({ label: item.label, checked: item.checked, disabled: item.disabled })) }));
-    checks.push(outcomeResult('pcs-mode-persist', await radioPersist({ session, page,
+    checks.push(outcomeResult('pcs-mode-persist', await radioPersist({ mutation, session, page,
       name: '分类选择方式', prefixes: ['选择所有产品分类', '选择部分产品分类'] })));
     // Category checkboxes are disabled while mode is 选择所有产品分类, so
     // the category transaction first switches to 选择部分产品分类, flips one
@@ -256,30 +317,53 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
       if (!currentMode) return result('pcs-category-persist', 'skip', '无法读取当前分类选择方式。');
       const errors = [];
       const modeWasAll = currentMode.label === '选择所有产品分类';
+      const journal = config?.mutationJournal;
+      let journalTarget;
+      let mutationSeq;
       try {
         if (modeWasAll) {
           const partial = probe.controls.find((item) => item.type === 'radio' && item.name === 'selectGroupWay' && item.label === '选择部分产品分类');
           if (!partial) return result('pcs-category-persist', 'skip', '找不到“选择部分产品分类”选项。');
+          if (journal) {
+            journalTarget = await mutationTarget(canvas, config, profile);
+            mutationSeq = await logMutation(journal, journalSnapshot({ op: 'set-setting', target: journalTarget, before: probe.controls,
+              after: probe.controls.map((item) => item.type === 'radio' && item.name === 'selectGroupWay'
+                ? { ...item, checked: item.label === '选择部分产品分类' } : item),
+              restore: { kind: 'set-setting', settingKey: 'product-category-select', value: probe.controls } }));
+          }
           await session.set(partial, true);
           await session.save();
           await session.open();
         }
         const afterMode = await probeControls(session);
+        if (mutationSeq !== undefined) {
+          if (afterMode.reason) await markFailed(journal, mutationSeq, new Error(afterMode.reason));
+          else await markDone(journal, mutationSeq);
+        }
         if (afterMode.reason) return result('pcs-category-persist', 'skip', afterMode.reason);
         const target = categoriesOf(afterMode.controls).find((item) => !item.disabled && item.label.trim() === profile?.fixture?.category?.name);
         if (!target) return result('pcs-category-persist', 'skip', '切到“部分”后仍无可切换的分类。');
-        const outcome = await persistControl({ session, page, target, alternate: !target.checked });
+        const outcome = await persistControl({ mutation, session, page, target, alternate: !target.checked });
         return result('pcs-category-persist', outcome.status,
           `分类“${target.label}”：${outcome.detail}`, outcome.evidence);
-      } catch (error) { errors.push(error.message); return result('pcs-category-persist', 'fail', errors.join('；')); }
+      } catch (error) {
+        if (mutationSeq !== undefined) await markFailed(journal, mutationSeq, error);
+        errors.push(error.message); return result('pcs-category-persist', 'fail', errors.join('；'));
+      }
       finally {
         if (modeWasAll) {
+          let restoreSeq;
           try {
             await session.cancel();
             await session.open();
             const back = await probeControls(session);
             const all = back.controls?.find((item) => item.type === 'radio' && item.name === 'selectGroupWay' && item.label === '选择所有产品分类');
             if (all) {
+              if (journal) {
+                journalTarget ||= await mutationTarget(canvas, config, profile);
+                restoreSeq = await logMutation(journal, journalSnapshot({ op: 'restore', target: journalTarget, before: back.controls,
+                  after: probe.controls, restore: { kind: 'set-setting', settingKey: 'product-category-select', value: probe.controls } }));
+              }
               await session.set(all, true);
               await session.save();
               await session.open();
@@ -287,8 +371,15 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
                 async () => findControl(await session.read(), all), (item) => item?.checked,
                 async () => { await session.cancel(); await session.open(); });
               if (!restored?.checked) errors.push('选择方式未恢复为“选择所有产品分类”');
+              if (restoreSeq !== undefined) {
+                if (!restored?.checked) await markFailed(journal, restoreSeq, new Error(errors.at(-1)));
+                else await markDone(journal, restoreSeq);
+              }
             }
-          } catch (error) { errors.push(`恢复选择方式失败：${error.message}`); }
+          } catch (error) {
+            if (restoreSeq !== undefined) await markFailed(journal, restoreSeq, error);
+            errors.push(`恢复选择方式失败：${error.message}`);
+          }
           try { await session.cancel(); } catch {}
           if (errors.length) {
             const last = checks.at(-1);
@@ -492,7 +583,7 @@ async function categoryEffects(args, layer, onlyKinds = null) {
   for (const kind of ['mode', 'categories'].filter((item) => !onlyKinds || onlyKinds.includes(item))) {
     const session = widgetSession({ ...args, type: 'phoenix_blocks_gallery',
       title: args.capability?.dialogTitle || '设置产品分类', wrapIndex: args.capability?.wrapIndex ?? 0 });
-    checks.push(await effectCheck({ ...args, session, result, id: `pcs-${kind}-${layer}`, layer, run: async (tx) => {
+    checks.push(await effectCheck({ ...args, mutation: mutationContext(args.canvas, args.config, args.profile), session, result, id: `pcs-${kind}-${layer}`, layer, run: async (tx) => {
       const controls = await tx.controls();
       const all = uniqueControl(controls, (item) => item.type === 'radio' && item.name === 'selectGroupWay'
         && item.label === '选择所有产品分类', '本区块没有分类选择方式设置项。');

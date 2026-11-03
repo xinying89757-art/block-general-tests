@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from './config.mjs';
 import { launchSession } from './browser.mjs';
-import { openEditor, ensureTargetPage, addBlockIfNeeded, savePage, openPreview, resolveTargetPage, getPreviewShareLink } from './editor.mjs';
+import { openEditor, ensureTargetPage, addBlockIfNeeded, savePage, openPreview, resolveTargetPage, getPreviewShareLink, verifyCurrentPageIdentity } from './editor.mjs';
 import { applyBaseline, captureBaseline } from './baseline.mjs';
 import { baselineValueFor, guardBaseline } from './baseline-guard.mjs';
 import { prepareFixture, restoreFixture } from './fixture.mjs';
@@ -19,10 +19,12 @@ import * as moduleWidth from './capabilities/module-width.mjs';
 import * as blockStyleSpec from './capabilities/block-style-spec.mjs';
 import { checkReportText } from './capabilities/shared.mjs';
 import { acquireRunLock } from './run-lock.mjs';
+import { acquireLease, renewLease, releaseLease, LeaseConflictError } from './lease.mjs';
 import { createPauseDetector, createProgressWatchdog, retryWithEnvironmentRecovery, RunTimeoutError, withTimeout, writeCheckpoint } from './run-safety.mjs';
 import { spawnSync } from 'node:child_process';
 import { readSiteBaseline, writeSiteBaseline } from './site-baseline.mjs';
 import { verifyBaselineWithRecovery } from './batch-save.mjs';
+import { findPendingJournals, getPendingMutations, openJournal, recoverFromJournal } from './mutation-journal.mjs';
 export { frontRunPhases, shouldRunLayer } from './front-results.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -190,11 +192,82 @@ export function formatBaselineGuard(guard) {
   return `[block] 基线守卫：发现 ${rows.length} 项残留，已恢复；新会话复验${guard.verifiedFresh ? '通过（无差异）' : '失败'}\n${rows.join('\n')}`;
 }
 
+/**
+ * Report pending WAL entries before any browser/session work. The pilot has no
+ * registered recovery executor: unresolved entries must remain pending.
+ * @returns {Promise<number>} Count of unresolved operations across journals.
+ */
+async function reportPendingJournals() {
+  let unresolved = 0;
+  for (const runId of await findPendingJournals()) {
+    for (const { seq, op, target, before, after, status } of await getPendingMutations(runId)) {
+      console.log(`[mutation-journal] ${JSON.stringify({ event: 'pending', runId, seq, op, target, before, after, status })}`);
+    }
+    const summary = await recoverFromJournal(runId, async () => ({ recovered: false, reason: 'no-executor-registered' }));
+    console.log(`[mutation-journal] ${JSON.stringify({ event: 'recovery-summary', runId, ...summary })}`);
+    unresolved += summary.unresolved.length;
+  }
+  return unresolved;
+}
+
+/**
+ * Read the stable page ID from the menu entry matching the active page label.
+ * Missing or ambiguous identities remain null; page names are never used as IDs.
+ * @param {Object} page Playwright editor page.
+ * @returns {Promise<string|null>} Known stable page identity.
+ */
+async function journalPageId(page) {
+  try {
+    const label = await verifyCurrentPageIdentity(page);
+    return await page.evaluate((name) => {
+      const norm = (value) => (value || '').replace(/\s+/g, ' ').trim();
+      const links = [...document.querySelectorAll('.backstage-topToolbar-pageBox a[data-href]')]
+        .filter((link) => norm(link.textContent) === name || norm(link.getAttribute('title')) === name);
+      if (links.length !== 1) return null;
+      const link = links[0];
+      const row = link.closest('.backstage-topToolbar-list') || link.parentElement;
+      return link.getAttribute('data-id') || link.getAttribute('pageid') || link.id
+        || row?.querySelector('.page_edit_btn[pk], .page_setting[pk]')?.getAttribute('pk') || null;
+    }, label);
+  } catch { return null; }
+}
+
+/** @returns {Promise<void>} Run recovery reporting or the configured block suite. */
 async function main() {
+  const unresolved = await reportPendingJournals();
+  if (process.argv.includes('--recover-only')) {
+    console.log(`[mutation-journal] ${JSON.stringify({ event: 'scan-complete', unresolved })}`);
+    if (unresolved) process.exitCode = 1;
+    return;
+  }
   const config = loadConfig();
   const runLock = acquireRunLock({ site: config.siteDomain, mode: config.frontOnly ? 'front' : 'full' });
   console.log(`[block] 运行锁已取得：${runLock.record.host} pid=${runLock.record.pid} mode=${runLock.record.mode}`);
-  console.log('[block] 注意：盒子端 live run 与 Mac 前台 run 使用独立文件系统锁，必须人工确保两者不重叠。');
+  const leaseResourceKey = 'site:' + String(config.siteDomain).replace(/^https?:\/\//i, '').split('/')[0].toLowerCase();
+  const leaseResult = acquireLease(leaseResourceKey, { ttlMs: 300_000 });
+  if (!leaseResult.acquired) {
+    const { ownerId, runId, expiresAt } = leaseResult.holder;
+    const message = `站点 lease 已被持有：ownerId=${ownerId} runId=${runId} expiresAt=${new Date(expiresAt).toLocaleString()}。请等对方释放 / 联系持有者 / 确认对方已死后用 node scripts/lease.mjs clear --resource ${leaseResourceKey} 清理。`;
+    console.error(`[lease] ${message}`);
+    throw new Error(message);
+  }
+  let currentLease = leaseResult.lease;
+  let leaseLost = false; // 供后续写入门禁扩展。
+  console.log(`[lease] 已取得：${leaseResourceKey} ownerId=${currentLease.ownerId} runId=${currentLease.runId} epoch=${currentLease.epoch}`);
+  const leaseHeartbeat = setInterval(() => {
+    // renewLease 是同步文件接口，放入 Promise 链以统一捕获续租异常。
+    Promise.resolve().then(() => renewLease(currentLease)).then((updated) => {
+      currentLease = updated;
+    }).catch((error) => {
+      if (error instanceof LeaseConflictError) {
+        console.error('[lease] 严重警告：lease 已丢失，停止新写入；后续写入可能覆盖其他机器的操作。');
+        clearInterval(leaseHeartbeat);
+        leaseLost = true;
+      } else {
+        console.error('[lease] 续租失败:', error.message);
+      }
+    });
+  }, 60_000).unref();
   let profile = null;
   try {
     profile = JSON.parse(await readFile(path.resolve(projectRoot, config.profile || `profiles/${config.blockId}.json`), 'utf8'));
@@ -223,6 +296,7 @@ async function main() {
   const timestamp = startedAt.replace(/[:.]/g, '-');
   const safeBlockId = String(config.blockId).replace(/[^a-zA-Z0-9_-]/g, '_');
   const runId = `${safeBlockId}-${timestamp}`;
+  config.mutationJournal = await openJournal(runId);
   const reportDir = path.resolve(projectRoot, config.reportDir);
   const screenshotDir = path.resolve(projectRoot, config.screenshotDir);
   const reportPath = path.join(reportDir, `report-${runId}.json`);
@@ -307,6 +381,7 @@ async function main() {
     stage = 'goto-target-page';
     const target = await ensureTargetPage(session.page, config);
     canvas = target.frame;
+    config.pageId = await journalPageId(session.page);
     const pageCreated = target.created;
     report.page = { ...config.resolvedTarget, created: pageCreated };
     stage = 'add-block';
@@ -602,6 +677,10 @@ async function main() {
   if (safeReport.failure) console.error(`[block] ${safeReport.failure.stage}：${safeReport.failure.message}`);
   for (const error of safeReport.artifactErrors) console.error(`[block] 截图 ${error.artifact}：${error.message}`);
   if (report.status === 'failed') process.exitCode = 1;
+  clearInterval(leaseHeartbeat);
+  try { releaseLease(currentLease); }
+  catch (error) { console.error('[lease] 释放失败:', error.message); }
+  console.log('[lease] 已释放');
   runLock.release();
 }
 
