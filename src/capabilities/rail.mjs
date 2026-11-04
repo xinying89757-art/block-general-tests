@@ -9,6 +9,44 @@ import { waitForControlsReady, retryTransient, retryWithFreshControl,
   waitForEditorLoadingToClear, saveAndWait } from '../ui-waits.mjs';
 import { closeToolbarMenusBeforeAction, waitForEditorOverlaysBeforeAction } from '../editor.mjs';
 
+export function describeInterceptingElement(message) {
+  // 从完整元素摘要取起始标签，避免把闭合标签当成拦截元素。
+  const match = String(message ?? '').match(/<([a-z][\w:-]*)\b((?:[^<>"']|"[^"]*"|'[^']*')*)>[^\r\n]*?\s+intercepts pointer events/i);
+  if (!match) return null;
+  const attributes = new Map();
+  for (const attr of match[2].matchAll(/\s+([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/g)) {
+    attributes.set(attr[1].toLowerCase(), attr[2] ?? attr[3] ?? attr[4]);
+  }
+  const classes = (attributes.get('class') || '').trim().split(/\s+/).filter(Boolean);
+  return match[1].toLowerCase() + (attributes.has('id') ? `#${attributes.get('id')}` : '')
+    + classes.map((name) => `.${name}`).join('');
+}
+
+export function isStaleBackdropInterceptor(detail) {
+  // Inspect only the described hit element, excluding diagnostic annotations
+  // and the probe's ancestor chain. Both class tokens must belong to that hit.
+  const element = String(detail ?? '').replace(/^hit-test:/, '').split(/[\s(;]/, 1)[0];
+  const classes = new Set(element.split('.').slice(1));
+  return ['backstage-dialog-overlay', 'layui-layer-shade'].some((name) => classes.has(name))
+    && ['hide', 'hidden', 'invisible'].some((name) => classes.has(name));
+}
+
+export async function probeClickInterceptor(toggle) {
+  return toggle.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const hit = element.ownerDocument.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    if (!hit || element.contains(hit)) return null;
+    const describe = (node) => node.tagName.toLowerCase() + (node.hasAttribute('id') ? `#${node.id}` : '')
+      + [...node.classList].map((name) => `.${name}`).join('');
+    const chain = [];
+    // 保留命中元素和最多六层祖先，便于定位实际拦截区域。
+    for (let node = hit, depth = 0; node && depth <= 6; node = node.parentElement, depth += 1) {
+      chain.push(describe(node));
+    }
+    return { hit: describe(hit), chain: chain.join(' < ') };
+  });
+}
+
 export const RAIL = {
   wrap: (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`,
   rail: '.siteblocks-setting-operateTools',
@@ -371,9 +409,33 @@ export async function openRailPanel(canvas, blockId, iconSelector, panelSelector
       await toggle.scrollIntoViewIfNeeded({ timeout });
       try { await toggle.click({ timeout }); }
       catch (cause) {
+        // Selecting a fresh block can rebuild its toolbar between Playwright's
+        // actionability check and the click. Re-resolve the scoped locator and
+        // invoke the control once when that specific detach race occurs.
+        if (/detached from the DOM/i.test(String(cause?.message || ''))) {
+          try {
+            await toggle.evaluate((node) => node.click());
+            return;
+          } catch (retryCause) {
+            if (!/intercepts pointer events/i.test(String(retryCause?.message || ''))) throw retryCause;
+            cause = retryCause;
+          }
+        }
         if (!/intercepts pointer events/i.test(String(cause?.message || ''))) throw cause;
         const blockers = await waitForEditorOverlaysBeforeAction(canvas, { timeoutMs: 100 });
-        const detail = blockers.length ? blockers.join('; ') : String(cause.message).match(/<[^>]+> intercepts pointer events/)?.[0] || 'unknown overlay';
+        let detail = blockers.length ? blockers.join('; ') : describeInterceptingElement(cause.message);
+        if (!detail) {
+          const interceptor = await probeClickInterceptor(toggle).catch(() => null);
+          detail = interceptor ? `hit-test:${interceptor.hit} (${interceptor.chain})` : 'unknown overlay';
+        }
+        if (isStaleBackdropInterceptor(detail)) {
+          try {
+            // Closed backdrops can retain pointer events, as with page save.
+            // The caller still verifies that the requested panel actually opens.
+            await toggle.evaluate((node) => node.click());
+            return;
+          } catch { /* preserve the interception diagnostic if the bypass fails */ }
+        }
         const error = new Error(`rail-toggle-intercepted: ${detail}`);
         error.code = 'rail-toggle-intercepted';
         error.interceptingElements = blockers;

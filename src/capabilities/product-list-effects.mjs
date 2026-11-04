@@ -184,6 +184,7 @@ async function inspectProducts(tx, args, layer) {
 async function sourceEffect(args, layer, kind) {
   const session = listSession(args);
   return effectCheck({ ...args, session, result, id: `pld-source-${kind}-${layer}`, layer, run: async (tx) => {
+    tx.phase('read-controls');
     const items = await tx.controls();
     const labels = { all: '所有产品', filter: '使用筛选条件', products: '选择指定产品', category: '选择部分产品分类' };
     const source = uniqueControl(items, (item) => item.type === 'radio' && item.name === 'selectProdType'
@@ -202,6 +203,7 @@ async function sourceEffect(args, layer, kind) {
       ? `来源设为“所有产品”后应包含全部 ${fixture.length} 件 AUTOTEST 产品；其余站点产品允许出现，可见数量遵守分页/数量上限。`
       : `来源设为“${labels[kind]}”后，产品列表中的 AUTOTEST 名单应恰好为 ${fixture.length} 件：${sentenceList(fixture)}。`);
     if (kind === 'category') rememberCategoryState(tx, session, items, 'selectProdType');
+    tx.phase('set-source');
     await tx.set(source, true); await tx.save();
     if (kind === 'category') {
       if (!oracle.category) unavailable('缺少目标分类名称夹具。');
@@ -220,11 +222,14 @@ async function sourceEffect(args, layer, kind) {
     const current = await tx.controls();
     const pagination = current.filter((item) => item.type === 'radio' && item.name === 'pagination' && item.label === '否');
     const size = listSize(current);
+    tx.phase('set-size-pagination');
     await tx.set(size, String(kind === 'all' ? 100 : Math.max(1, fixture.length)));
     if (pagination.length === 1) await tx.set(pagination[0], true);
     await tx.save();
+    tx.phase('read-products');
     const actual = await inspectProducts(tx, args, layer);
     tx.evidence.products = { wanted: fixture, actual: actual.names };
+    tx.phase('assert');
     if (kind === 'all') {
       const assessment = assessAllProducts({ fixtureNames: fixture, actualNames: actual.names,
         pagination: false, quantity: 100 });
