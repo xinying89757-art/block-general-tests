@@ -164,19 +164,39 @@ export async function closeToolbarMenusBeforeAction(scope) {
 const EDITOR_DIALOGS = '.backstage-dialog:visible, [role="dialog"]:visible, dialog:visible';
 const EDITOR_OVERLAYS = '.backstage-dialog-overlay, .layui-layer-shade, [data-editor-overlay]';
 
-async function blockingEditorOverlays(scope) {
+export async function blockingEditorOverlays(scope) {
   return scope.locator('body').evaluate((body, selector) => {
     const visible = (element) => {
+      // 隐藏类表示遮罩已关闭，即使仍占布局且保留指针事件也不应阻塞操作。
+      if (['hide', 'hidden', 'invisible'].some((name) => element.classList.contains(name))) return false;
       const style = getComputedStyle(element);
       return element.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden'
         && style.pointerEvents !== 'none';
     };
-    return [...body.ownerDocument.querySelectorAll(selector)].filter(visible).map((element) => {
+    const describe = (element, generic = false) => {
       const style = getComputedStyle(element);
       const classes = typeof element.className === 'string' ? element.className.trim() : '';
-      const name = element.tagName.toLowerCase() + (classes ? `.${classes.split(/\s+/).join('.')}` : '');
-      return `${name} (pointer-events:${style.pointerEvents}, z-index:${style.zIndex})`;
-    });
+      const name = element.tagName.toLowerCase() + (element.hasAttribute('id') ? `#${element.id}` : '')
+        + (classes ? `.${classes.split(/\s+/).join('.')}` : '');
+      return `${name} (${generic ? 'generic-fixed-overlay, ' : ''}pointer-events:${style.pointerEvents}, z-index:${style.zIndex})`;
+    };
+    const document = body.ownerDocument;
+    const { innerWidth: width, innerHeight: height } = document.defaultView;
+    const known = [...document.querySelectorAll(selector)].filter(visible).map((element) => describe(element));
+    // 未知遮罩需覆盖中心或至少四分之一视口，避免把边缘工具栏误判为遮罩。
+    const generic = [...document.querySelectorAll('div')].filter((element) => {
+      if (element.matches(selector) || !visible(element)) return false;
+      const style = getComputedStyle(element);
+      const zIndex = Number(style.zIndex);
+      if (style.position !== 'fixed' || !Number.isFinite(zIndex) || zIndex < 1000) return false;
+      const rect = element.getBoundingClientRect();
+      const coversCenter = rect.left <= width / 2 && rect.right >= width / 2
+        && rect.top <= height / 2 && rect.bottom >= height / 2;
+      const area = Math.max(0, Math.min(rect.right, width) - Math.max(rect.left, 0))
+        * Math.max(0, Math.min(rect.bottom, height) - Math.max(rect.top, 0));
+      return coversCenter || area >= width * height * 0.25;
+    }).map((element) => describe(element, true));
+    return [...known, ...generic];
   }, EDITOR_OVERLAYS).catch(() => []);
 }
 

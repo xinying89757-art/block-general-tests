@@ -1,5 +1,6 @@
 import { closeToolbarMenusBeforeAction, savePage } from '../editor.mjs';
 import { logMutation, markDone, markFailed } from '../mutation-journal.mjs';
+import { withTimeout, RunTimeoutError } from '../run-safety.mjs';
 import { waitForControlsReady, retryTransient, retryWithFreshControl, waitForEditorLoadingToClear,
   saveAndWait, readBackWithRetry, uiWaitConfig, waitForDialogState } from '../ui-waits.mjs';
 export { readBackWithRetry } from '../ui-waits.mjs';
@@ -19,7 +20,7 @@ export function baselineRestoreTarget({ snapshot, baselineValue, defaultValue })
 }
 // Bare numeric IDs identify fields; e.g. 826554_1 identifies a value option.
 export const isFieldCheckbox = (item) => item.type === 'checkbox'
-  && /^\d+$/.test(item.value || '') && item.label !== '全选';
+  && (item.value || '').length > 0 && !String(item.value).includes('_') && item.label !== '全选';
 export const blockSelector = (id) => `.siteblocks-setting-wrap[data-appid=${JSON.stringify(String(id))}]`;
 // Preview root: the data-appid wrap exists for every block. The LA class
 // (e.g. LA样本区块) is block-specific: 另一样本区块 has no LA class in preview, so
@@ -311,10 +312,26 @@ export function controlSession(root, lifecycle) {
 }
 
 export function widgetSession({ page, canvas, config, type, title, wrapIndex = 0 }) {
-  const dialogRoot = page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe')
-    .filter({ hasText: title }).first();
-  const root = page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe')
-    .filter({ hasText: title }).filter({ visible: true }).first();
+  // 通用流程兼容多种对话框标题：不同区块的同类型对话框标题可能不同
+  // （如 phoenix_blocks_gallery 有"设置产品列表"和"设置与选取数据"两种）。
+  // profile 指定的 title 优先，找不到时自动尝试已知的同类型标题变体。
+  const KNOWN_TITLES = {
+    phoenix_blocks_gallery: ['设置与选取数据', '设置产品列表'],
+    phoenix_blocks_filterStyle: ['设置自定义字段筛选'],
+  };
+  const titlesToTry = title
+    ? [title, ...(KNOWN_TITLES[type] || []).filter(t => t !== title)]
+    : (KNOWN_TITLES[type] || []);
+  // 构造匹配任一标题的 locator：用 hasText 正则同时匹配多个标题
+  const titlePattern = titlesToTry.length
+    ? new RegExp(titlesToTry.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'))
+    : null;
+  const dialogRoot = titlePattern
+    ? page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe').filter({ hasText: titlePattern }).first()
+    : page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe').first();
+  const root = titlePattern
+    ? page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe').filter({ hasText: titlePattern }).filter({ visible: true }).first()
+    : page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe').filter({ visible: true }).first();
   const anyDialog = page.locator('.backstage-dialog.backstage-dialog-widgetsettinsframe')
     .filter({ visible: true }).first();
   const open = async ({ timeout = Math.max(TIMEOUT, uiWaitConfig().timeout) } = {}) => {
@@ -420,15 +437,23 @@ export async function radioGroupPersist({ session, page, name, labels, mutation 
 }
 
 export async function probeControls(session, accepts) {
+  const timeoutMs = uiWaitConfig().probeTimeoutMs;
   try {
-    await session.open();
-    const controls = accepts
-      ? await readBackWithRetry(() => session.read(), accepts,
-        async () => { await session.cancel(); await session.open(); })
-      : await session.read();
+    const controls = await withTimeout(async () => {
+      await session.open();
+      return accepts
+        ? await readBackWithRetry(() => session.read(), accepts,
+          async () => { await session.cancel(); await session.open(); })
+        : await session.read();
+    }, timeoutMs, '控件探查', { settleMs: 0 });
     return { controls };
   }
-  catch (error) { return { reason: `控件探查不可用：${error.message}` }; }
+  catch (error) {
+    if (error instanceof RunTimeoutError) {
+      return { reason: `控件探查超时（${Math.round(timeoutMs / 1000)}s），可能设置面板未打开或控件未加载` };
+    }
+    return { reason: `控件探查不可用：${error.message}` };
+  }
 }
 
 // A mutation is a transaction: verify the alternate persisted value, then always
