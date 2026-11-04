@@ -89,6 +89,12 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
   };
   const tx = {
     evidence, controls, beforeMutation, mutationDone, hasMutationJournal: Boolean(mutationJournal),
+    phase: (name) => {
+      const at = new Date().toISOString();
+      console.log(`[progress] ${at} 效果检查 ${id} 阶段：${name}`);
+      (evidence.phases ||= []).push({ name, at });
+      config.watchdogProgress?.();
+    },
     expected: (text) => { expected = text; },
     baselineValue: (type, label) => config.baselineValue?.(type, label),
     note: (text) => evidence.observations.push(text),
@@ -140,19 +146,24 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
     // For controls with a dedicated UI (Spectrum and button link type tabs).
     remember: (key, restore) => { if (!journal.has(key)) journal.set(key, { restore }); },
     save: async () => {
+      tx.phase('save:dialog-save');
       await session.save();
+      tx.phase('save:dialog-reopen');
       await session.open();
       const matches = (items) => [...pending.values()].every(({ target, value }) => {
         const item = findControl(items, target);
         return item && controlValue(item) === value;
       });
+      tx.phase('save:readback');
       const items = await readBackWithRetry(() => session.read(), matches,
         async () => { await session.cancel(); await session.open(); });
       if (!matches(items)) throw new Error('效果检查的设置值保存后未保持');
       if (mutationJournal) await mutationDone();
       pending.clear();
       await session.cancel();
+      tx.phase('save:page-save');
       await savePage(page);
+      tx.phase('save:done');
     },
     observe: async (read, argument) => layer === 'backend'
       ? readEffectRoot(canvas, config, read, argument)

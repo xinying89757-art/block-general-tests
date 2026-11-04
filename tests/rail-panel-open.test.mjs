@@ -141,7 +141,7 @@ test('rail opener reports a classified failure with attempted strategies when re
   });
 });
 
-async function withOverlayRail({ removeOverlayAfterMs = null } = {}, callback) {
+async function withOverlayRail({ removeOverlayAfterMs = null, hiddenClass = 'hide' } = {}, callback) {
   const browser = await chromium.launch(testBrowserConfig());
   try {
     const page = await browser.newPage();
@@ -155,7 +155,7 @@ async function withOverlayRail({ removeOverlayAfterMs = null } = {}, callback) {
     </style><div class="siteblocks-setting-wrap" data-appid="fixture-block">
       <div class="siteblocks-setting-operateTools"><a class="block_telescopic" href="#">toggle</a></div>
       <div class="moduleWidth"><input type="text" value="fixture">panel</div>
-    </div><div class="backstage-dialog-overlay hide"></div>
+    </div><div class="backstage-dialog-overlay ${hiddenClass}"></div>
     <script>
       document.querySelector('.block_telescopic').addEventListener('click', () => document.querySelector('.moduleWidth').classList.add('open'));
       ${removeOverlayAfterMs === null ? '' : `setTimeout(() => document.querySelector('.backstage-dialog-overlay')?.remove(), ${removeOverlayAfterMs});`}
@@ -171,13 +171,22 @@ test('a hidden-class backdrop that detaches clears before clicking the rail togg
   });
 });
 
-test('a persistent hidden-class backdrop fails with rail-toggle-intercepted and its summary', async () => {
+test('a persistent hidden-class backdrop permits a DOM click that opens the rail panel', async () => {
   await withOverlayRail({}, async (page) => {
+    const { panel } = await openRailPanel(page, 'fixture-block', RAIL.widthIcon, RAIL.widthPanel);
+    assert.equal(await panel.isVisible(), true);
+    assert.equal(await page.locator('.backstage-dialog-overlay.hide').count(), 1);
+  });
+});
+
+test('a visible backdrop still fails with rail-toggle-intercepted and its summary', async () => {
+  await withOverlayRail({ hiddenClass: '' }, async (page) => {
     await assert.rejects(openRailPanel(page, 'fixture-block', RAIL.widthIcon, RAIL.widthPanel), (error) => {
       assert.equal(error.code, 'rail-toggle-intercepted');
-      assert.match(error.message, /backstage-dialog-overlay\.hide/);
+      assert.match(error.message, /div\.backstage-dialog-overlay /);
       assert.match(error.message, /pointer-events:auto/);
       return true;
     });
+    assert.equal(await page.locator('.moduleWidth').isVisible(), false);
   });
 });

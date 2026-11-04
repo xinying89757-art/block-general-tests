@@ -1,5 +1,5 @@
-// Read at call time so values from the repository's .env are available too.
-// Defaults: controls 15s, saves 45s, unchanged UI/network window 1s.
+// 调用时读取环境变量，确保仓库 .env 中的配置也能生效。
+// 默认值：控件就绪 15 秒、保存 45 秒、控件探查 60 秒、界面及网络稳定窗口 1 秒。
 export function uiWaitConfig() {
   const ms = (name, fallback) => {
     const value = Number(process.env[name]);
@@ -8,6 +8,7 @@ export function uiWaitConfig() {
   return {
     timeout: ms('UI_READY_TIMEOUT_MS', 15_000),
     saveTimeout: ms('UI_SAVE_TIMEOUT_MS', 45_000),
+    probeTimeoutMs: ms('PROBE_TIMEOUT_MS', 60_000),
     stableMs: ms('UI_STABLE_MS', 1_000),
   };
 }
