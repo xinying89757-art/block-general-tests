@@ -1,0 +1,2275 @@
+{
+  "blockId": "47948",
+  "capabilities": [
+    {
+      "id": "module-width",
+      "status": "candidate"
+    },
+    {
+      "id": "product-list-display",
+      "status": "candidate",
+      "dialogTitle": "设置与选取数据"
+    },
+    {
+      "id": "custom-filter-fields",
+      "status": "candidate"
+    }
+  ],
+  "category": "待人工审核",
+  "dataMode": "static",
+  "dataSource": {
+    "entities": [],
+    "scope": "待人工审核",
+    "system": "content-management"
+  },
+  "figma": {
+    "fileKey": "",
+    "framesObserved": [],
+    "url": ""
+  },
+  "knownInteractions": [],
+  "name": "待人工审核：自动盘点草稿",
+  "specificChecks": [],
+  "suites": {
+    "category": true,
+    "common": true,
+    "dynamicData": false,
+    "specific": true
+  },
+  "target": {
+    "createdByTest": false,
+    "language": "en",
+    "page": "BIAUYnyOREPZ",
+    "pageKind": "system",
+    "pageId": "BIAUYnyOREPZ",
+    "pageUrl": "/products.html",
+    "pageKindNote": "由 onboarding 命令显式指定；草稿需人工审核。"
+  },
+  "testData": {
+    "requirements": [],
+    "status": "unreviewed-no-fixture-oracle"
+  },
+  "requirements": {
+    "capabilities": [
+      {
+        "id": "module-width",
+        "params": {
+          "dialogTitle": "right-rail-width",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-display-fields",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-pagination",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-page-size",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-product-count",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "pld-data-source",
+        "params": {
+          "dialogTitle": "设置与选取数据",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "cff-fields",
+        "params": {
+          "dialogTitle": "设置自定义字段筛选",
+          "wrapIndex": 0
+        }
+      },
+      {
+        "id": "cff-fields",
+        "params": {
+          "dialogTitle": "设置自定义字段筛选",
+          "wrapIndex": 1
+        }
+      }
+    ],
+    "displayFieldTypes": []
+  },
+  "onboarding": {
+    "status": "draft-unreviewed",
+    "discoveredAt": "2026-11-03T09:58:56.974Z",
+    "matched": [
+      {
+        "id": "module-width",
+        "capability": "module-width",
+        "kind": "right-rail-flyout",
+        "type": "rail:module-width",
+        "title": "right-rail-width",
+        "wrapIndex": 0,
+        "evidence": {
+          "_trimmed": true,
+          "_original_count": 8,
+          "_note": "完整证据已在本地备份，GitHub 上为精简版以符合推送大小限制",
+          "sample": [
+            {
+              "type": "radio",
+              "label": "1200px",
+              "value": "1",
+              "controlIndex": 0,
+              "controlName": "modulewidth"
+            },
+            {
+              "type": "radio",
+              "label": "1440px",
+              "value": "2",
+              "controlIndex": 1,
+              "controlName": "modulewidth"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pld-display-fields",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "evidence": {
+          "_trimmed": true,
+          "_original_count": 20,
+          "_note": "完整证据已在本地备份，GitHub 上为精简版以符合推送大小限制",
+          "sample": [
+            {
+              "type": "checkbox",
+              "label": "全选 Circular Connector M12 Circular Waterproof Connector 产品名称 M25 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector Automotive Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch AUTOTEST-筛选分类",
+              "value": "on",
+              "controlIndex": 6
+            },
+            {
+              "type": "checkbox",
+              "label": "全选 Circular Connector M12 Circular Waterproof Connector 产品名称 M25 Circular Waterproof Connector Aviation Waterproof plug connector New energy Connector Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector Automotive Connector Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks Ground Modular Terminal Blocks Ground Modular Terminal Blocks Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector PLC Connector PLC Connector High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector Sensor Connector E-CON Connector BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612 Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector Electric Wire Harness Series Industrial Servo Harness Connector Other Battery Connector Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch AUTOTEST-筛选分类",
+              "value": "on",
+              "controlIndex": 108
+            }
+          ]
+        }
+      },
+      {
+        "id": "pld-pagination",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "evidence": {
+          "_trimmed": true,
+          "_original_count": 4,
+          "_note": "完整证据已在本地备份，GitHub 上为精简版以符合推送大小限制",
+          "sample": [
+            {
+              "type": "radio",
+              "label": "是",
+              "value": "1",
+              "controlIndex": 320,
+              "controlName": "pagination"
+            },
+            {
+              "type": "radio",
+              "label": "否",
+              "value": "0",
+              "controlIndex": 321,
+              "controlName": "pagination"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pld-page-size",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "evidence": {
+          "_trimmed": true,
+          "_original_count": 3,
+          "_note": "完整证据已在本地备份，GitHub 上为精简版以符合推送大小限制",
+          "sample": [
+            {
+              "type": "text",
+              "label": "",
+              "value": "20",
+              "controlIndex": 322
+            },
+            {
+              "type": "radio",
+              "label": "是",
+              "value": "1",
+              "controlIndex": 320,
+              "controlName": "pagination"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pld-product-count",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "evidence": {
+          "_trimmed": true,
+          "_original_count": 3,
+          "_note": "完整证据已在本地备份，GitHub 上为精简版以符合推送大小限制",
+          "sample": [
+            {
+              "type": "text",
+              "label": "",
+              "value": "20",
+              "controlIndex": 322
+            },
+            {
+              "type": "radio",
+              "label": "是",
+              "value": "1",
+              "controlIndex": 320,
+              "controlName": "pagination"
+            }
+          ]
+        }
+      },
+      {
+        "id": "pld-data-source",
+        "capability": "product-list-display",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "evidence": {
+          "_trimmed": true,
+          "_original_count": 1,
+          "_note": "完整证据已在本地备份，GitHub 上为精简版以符合推送大小限制",
+          "sample": [
+            {
+              "type": "radio",
+              "label": "所有产品",
+              "value": "0",
+              "controlIndex": 1,
+              "controlName": "selectProdType"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cff-fields",
+        "capability": "custom-filter-fields",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_filterStyle",
+        "title": "设置自定义字段筛选",
+        "wrapIndex": 0,
+        "evidence": {
+          "_trimmed": true,
+          "_original_count": 167,
+          "_note": "完整证据已在本地备份，GitHub 上为精简版以符合推送大小限制",
+          "sample": [
+            {
+              "type": "checkbox",
+              "label": "全选 测试多选 正式版测试多选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
+              "value": "on",
+              "controlIndex": 0
+            },
+            {
+              "type": "checkbox",
+              "label": "测试多选",
+              "value": "898508",
+              "controlIndex": 2,
+              "controlName": "langBarSort"
+            }
+          ]
+        }
+      },
+      {
+        "id": "cff-fields",
+        "capability": "custom-filter-fields",
+        "kind": "widget-dialog",
+        "type": "phoenix_blocks_filterStyle",
+        "title": "设置自定义字段筛选",
+        "wrapIndex": 1,
+        "evidence": {
+          "_trimmed": true,
+          "_original_count": 167,
+          "_note": "完整证据已在本地备份，GitHub 上为精简版以符合推送大小限制",
+          "sample": [
+            {
+              "type": "checkbox",
+              "label": "全选 测试多选 正式版测试多选 AUTOTEST-单选按钮A AUTOTEST-下拉列表 AUTOTEST-多选 Category Rated Current Installation Method Spacing Rated voltage",
+              "value": "on",
+              "controlIndex": 0
+            },
+            {
+              "type": "checkbox",
+              "label": "测试多选",
+              "value": "898508",
+              "controlIndex": 2,
+              "controlName": "langBarSort"
+            }
+          ]
+        }
+      }
+    ],
+    "unmapped": [
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 2,
+          "type": "radio",
+          "label": "使用筛选条件",
+          "context": "使用筛选条件",
+          "name": "selectProdType",
+          "value": "1",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 3,
+          "type": "radio",
+          "label": "选择指定产品",
+          "context": "选择指定产品",
+          "name": "selectProdType",
+          "value": "2",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 4,
+          "type": "radio",
+          "label": "选择部分产品分类",
+          "context": "选择部分产品分类",
+          "name": "selectProdType",
+          "value": "5",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 7,
+          "type": "checkbox",
+          "label": "Circular Connector M12 Circular Waterproof Connector 产品名称 M25 Circular Waterproof Connector Aviation Waterproof plug connector",
+          "context": "Circular Connector M12 Circular Waterproof Connector 产品名称 M25 Circular Waterproof Connector Aviation Waterproof plug connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 8,
+          "type": "checkbox",
+          "label": "M12 Circular Waterproof Connector 产品名称",
+          "context": "M12 Circular Waterproof Connector 产品名称",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 9,
+          "type": "checkbox",
+          "label": "产品名称",
+          "context": "产品名称",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 10,
+          "type": "checkbox",
+          "label": "M25 Circular Waterproof Connector",
+          "context": "M25 Circular Waterproof Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 11,
+          "type": "checkbox",
+          "label": "Aviation Waterproof plug connector",
+          "context": "Aviation Waterproof plug connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 12,
+          "type": "checkbox",
+          "label": "New energy Connector",
+          "context": "New energy Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 13,
+          "type": "checkbox",
+          "label": "Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector",
+          "context": "Wire-to-board Connector IDC Connector Box Header Connector Ejector Header Connector Wafer Connector Connector FPC/FFC Connector IDC-type Ejector Header Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 14,
+          "type": "checkbox",
+          "label": "IDC Connector",
+          "context": "IDC Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 15,
+          "type": "checkbox",
+          "label": "Box Header Connector",
+          "context": "Box Header Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 16,
+          "type": "checkbox",
+          "label": "Ejector Header Connector",
+          "context": "Ejector Header Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 17,
+          "type": "checkbox",
+          "label": "Wafer Connector Connector",
+          "context": "Wafer Connector Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 18,
+          "type": "checkbox",
+          "label": "FPC/FFC Connector",
+          "context": "FPC/FFC Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 19,
+          "type": "checkbox",
+          "label": "IDC-type Ejector Header Connector",
+          "context": "IDC-type Ejector Header Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 20,
+          "type": "checkbox",
+          "label": "Automotive Connector",
+          "context": "Automotive Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 21,
+          "type": "checkbox",
+          "label": "Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch",
+          "context": "Pin Header Connector 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.2mm Pitch 2.54mm Pitch 2.5mm Pitch 2.675mm Pitch 2.8mm Pitch 3.0mm Pitch 3.96mm Pitch 4.2mm Pitch 5.08mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 22,
+          "type": "checkbox",
+          "label": "1.0mm Pitch",
+          "context": "1.0mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 23,
+          "type": "checkbox",
+          "label": "1.27mm Pitch",
+          "context": "1.27mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 24,
+          "type": "checkbox",
+          "label": "1.27X2.54mm Pitch",
+          "context": "1.27X2.54mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 25,
+          "type": "checkbox",
+          "label": "2.0mm Pitch",
+          "context": "2.0mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 26,
+          "type": "checkbox",
+          "label": "2.2mm Pitch",
+          "context": "2.2mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 27,
+          "type": "checkbox",
+          "label": "2.54mm Pitch",
+          "context": "2.54mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 28,
+          "type": "checkbox",
+          "label": "2.5mm Pitch",
+          "context": "2.5mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 29,
+          "type": "checkbox",
+          "label": "2.675mm Pitch",
+          "context": "2.675mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 30,
+          "type": "checkbox",
+          "label": "2.8mm Pitch",
+          "context": "2.8mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 31,
+          "type": "checkbox",
+          "label": "3.0mm Pitch",
+          "context": "3.0mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 32,
+          "type": "checkbox",
+          "label": "3.96mm Pitch",
+          "context": "3.96mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 33,
+          "type": "checkbox",
+          "label": "4.2mm Pitch",
+          "context": "4.2mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 34,
+          "type": "checkbox",
+          "label": "5.08mm Pitch",
+          "context": "5.08mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 35,
+          "type": "checkbox",
+          "label": "Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch",
+          "context": "Female Header Connector 0.8mm Pitch 1.0mm Pitch 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 36,
+          "type": "checkbox",
+          "label": "0.8mm Pitch",
+          "context": "0.8mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 42,
+          "type": "checkbox",
+          "label": "Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks",
+          "context": "Terminal Blocks Spring Terminal Blocks Feed Through Terminal Blocks PCB Soldering Terminal Barrier Terminal Blocks PCS Universal Screw Terminal Blocks",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 43,
+          "type": "checkbox",
+          "label": "Spring Terminal Blocks",
+          "context": "Spring Terminal Blocks",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 44,
+          "type": "checkbox",
+          "label": "Feed Through Terminal Blocks",
+          "context": "Feed Through Terminal Blocks",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 45,
+          "type": "checkbox",
+          "label": "PCB Soldering Terminal",
+          "context": "PCB Soldering Terminal",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 46,
+          "type": "checkbox",
+          "label": "Barrier Terminal Blocks",
+          "context": "Barrier Terminal Blocks",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 47,
+          "type": "checkbox",
+          "label": "PCS Universal Screw Terminal Blocks",
+          "context": "PCS Universal Screw Terminal Blocks",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 48,
+          "type": "checkbox",
+          "label": "Ground Modular Terminal Blocks Ground Modular Terminal Blocks",
+          "context": "Ground Modular Terminal Blocks Ground Modular Terminal Blocks",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 49,
+          "type": "checkbox",
+          "label": "Ground Modular Terminal Blocks",
+          "context": "Ground Modular Terminal Blocks",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 50,
+          "type": "checkbox",
+          "label": "Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector",
+          "context": "Lathe-turned Pin Header Machined IC Socket Connector Power Pin Header Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 51,
+          "type": "checkbox",
+          "label": "Machined IC Socket Connector",
+          "context": "Machined IC Socket Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 52,
+          "type": "checkbox",
+          "label": "Power Pin Header Connector",
+          "context": "Power Pin Header Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 53,
+          "type": "checkbox",
+          "label": "PLC Connector PLC Connector",
+          "context": "PLC Connector PLC Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 54,
+          "type": "checkbox",
+          "label": "PLC Connector",
+          "context": "PLC Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 55,
+          "type": "checkbox",
+          "label": "High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector",
+          "context": "High-speed Connector OPS Connector PCI/SFP Shielding Cover/PCMC Connector YFCS-YFCT Male/Female Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 56,
+          "type": "checkbox",
+          "label": "OPS Connector",
+          "context": "OPS Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 57,
+          "type": "checkbox",
+          "label": "PCI/SFP Shielding Cover/PCMC Connector",
+          "context": "PCI/SFP Shielding Cover/PCMC Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 58,
+          "type": "checkbox",
+          "label": "YFCS-YFCT Male/Female Connector",
+          "context": "YFCS-YFCT Male/Female Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 59,
+          "type": "checkbox",
+          "label": "Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector",
+          "context": "Board to Board Connector Floating Board to Board Connector High-current Board to Board Connector Board to Board Connector High-speed Board to Board Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 60,
+          "type": "checkbox",
+          "label": "Floating Board to Board Connector",
+          "context": "Floating Board to Board Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 61,
+          "type": "checkbox",
+          "label": "High-current Board to Board Connector",
+          "context": "High-current Board to Board Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 62,
+          "type": "checkbox",
+          "label": "Board to Board Connector",
+          "context": "Board to Board Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 63,
+          "type": "checkbox",
+          "label": "High-speed Board to Board Connector",
+          "context": "High-speed Board to Board Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 64,
+          "type": "checkbox",
+          "label": "Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector",
+          "context": "Electric Motor Connector 5015 Aviation Socket& Plug Connector YD28 Aviation Socket& Plug Connector Servo Motor Power Encoder Connector CM10 Servo Motor Connector Encoder Battery Box Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 65,
+          "type": "checkbox",
+          "label": "5015 Aviation Socket& Plug Connector",
+          "context": "5015 Aviation Socket& Plug Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 66,
+          "type": "checkbox",
+          "label": "YD28 Aviation Socket& Plug Connector",
+          "context": "YD28 Aviation Socket& Plug Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 67,
+          "type": "checkbox",
+          "label": "Servo Motor Power Encoder Connector",
+          "context": "Servo Motor Power Encoder Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 68,
+          "type": "checkbox",
+          "label": "CM10 Servo Motor Connector",
+          "context": "CM10 Servo Motor Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 69,
+          "type": "checkbox",
+          "label": "Encoder Battery Box Connector",
+          "context": "Encoder Battery Box Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 70,
+          "type": "checkbox",
+          "label": "Sensor Connector E-CON Connector",
+          "context": "Sensor Connector E-CON Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 71,
+          "type": "checkbox",
+          "label": "E-CON Connector",
+          "context": "E-CON Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 72,
+          "type": "checkbox",
+          "label": "BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612",
+          "context": "BackPlane Connector 3511 Series DIN 41612 3512 Series DIN 41612 3513 Series DIN 41612 3515 Series DIN 41612 3516 Series DIN 41612 3517 Series DIN 41612 3535 Series DIN 41612",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 73,
+          "type": "checkbox",
+          "label": "3511 Series DIN 41612",
+          "context": "3511 Series DIN 41612",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 74,
+          "type": "checkbox",
+          "label": "3512 Series DIN 41612",
+          "context": "3512 Series DIN 41612",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 75,
+          "type": "checkbox",
+          "label": "3513 Series DIN 41612",
+          "context": "3513 Series DIN 41612",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 76,
+          "type": "checkbox",
+          "label": "3515 Series DIN 41612",
+          "context": "3515 Series DIN 41612",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 77,
+          "type": "checkbox",
+          "label": "3516 Series DIN 41612",
+          "context": "3516 Series DIN 41612",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 78,
+          "type": "checkbox",
+          "label": "3517 Series DIN 41612",
+          "context": "3517 Series DIN 41612",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 79,
+          "type": "checkbox",
+          "label": "3535 Series DIN 41612",
+          "context": "3535 Series DIN 41612",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 80,
+          "type": "checkbox",
+          "label": "Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector",
+          "context": "Card Edge Power Connector Card Edge Power Connector CE Connector SLOT Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 81,
+          "type": "checkbox",
+          "label": "Card Edge Power Connector",
+          "context": "Card Edge Power Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 82,
+          "type": "checkbox",
+          "label": "CE Connector",
+          "context": "CE Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 83,
+          "type": "checkbox",
+          "label": "SLOT Connector",
+          "context": "SLOT Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 84,
+          "type": "checkbox",
+          "label": "IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector",
+          "context": "IDC Connector Red Micro Match Connector White Micro Match Connector JU254 Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 85,
+          "type": "checkbox",
+          "label": "Red Micro Match Connector",
+          "context": "Red Micro Match Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 86,
+          "type": "checkbox",
+          "label": "White Micro Match Connector",
+          "context": "White Micro Match Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 87,
+          "type": "checkbox",
+          "label": "JU254 Connector",
+          "context": "JU254 Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 88,
+          "type": "checkbox",
+          "label": "I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector",
+          "context": "I/O connector PCR Connector D-SUB Connector RJ45 Connector SCSI Connector IEEE1394 Connector SIM Card Holder Connector D-sub Zinc Alloy Shell Connector USB Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 89,
+          "type": "checkbox",
+          "label": "PCR Connector",
+          "context": "PCR Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 90,
+          "type": "checkbox",
+          "label": "D-SUB Connector",
+          "context": "D-SUB Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 91,
+          "type": "checkbox",
+          "label": "RJ45 Connector",
+          "context": "RJ45 Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 92,
+          "type": "checkbox",
+          "label": "SCSI Connector",
+          "context": "SCSI Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 93,
+          "type": "checkbox",
+          "label": "IEEE1394 Connector",
+          "context": "IEEE1394 Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 94,
+          "type": "checkbox",
+          "label": "SIM Card Holder Connector",
+          "context": "SIM Card Holder Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 95,
+          "type": "checkbox",
+          "label": "D-sub Zinc Alloy Shell Connector",
+          "context": "D-sub Zinc Alloy Shell Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 96,
+          "type": "checkbox",
+          "label": "USB Connector",
+          "context": "USB Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 97,
+          "type": "checkbox",
+          "label": "Electric Wire Harness Series Industrial Servo Harness Connector",
+          "context": "Electric Wire Harness Series Industrial Servo Harness Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 98,
+          "type": "checkbox",
+          "label": "Industrial Servo Harness Connector",
+          "context": "Industrial Servo Harness Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 99,
+          "type": "checkbox",
+          "label": "Other Battery Connector",
+          "context": "Other Battery Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 100,
+          "type": "checkbox",
+          "label": "Battery Connector",
+          "context": "Battery Connector",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 101,
+          "type": "checkbox",
+          "label": "Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch",
+          "context": "Box Header Connector 1.27mm Pitch 1.27X2.54mm Pitch 2.0mm Pitch 2.54mm Pitch",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 106,
+          "type": "checkbox",
+          "label": "AUTOTEST-筛选分类",
+          "context": "AUTOTEST-筛选分类",
+          "name": "leafProdGroup",
+          "value": "on",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 209,
+          "type": "checkbox",
+          "label": "热门产品",
+          "context": "热门产品",
+          "value": "",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 210,
+          "type": "checkbox",
+          "label": "新产品",
+          "context": "新产品",
+          "value": "",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 211,
+          "type": "checkbox",
+          "label": "推荐产品",
+          "context": "推荐产品",
+          "value": "",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 212,
+          "type": "text",
+          "label": "搜索",
+          "context": "搜索",
+          "value": "",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 214,
+          "type": "text",
+          "label": "共163页 到第页",
+          "context": "共163页 到第页",
+          "value": "",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 342,
+          "type": "checkbox",
+          "label": "Brand",
+          "context": "Brand",
+          "name": "compSort",
+          "value": "-3",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 343,
+          "type": "checkbox",
+          "label": "Product Code",
+          "context": "Product Code",
+          "name": "compSort",
+          "value": "-4",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 344,
+          "type": "checkbox",
+          "label": "Model",
+          "context": "Model",
+          "name": "compSort",
+          "value": "-5",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 345,
+          "type": "checkbox",
+          "label": "Brief",
+          "context": "Brief",
+          "name": "compSort",
+          "value": "-9",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 346,
+          "type": "checkbox",
+          "label": "图纸",
+          "context": "图纸",
+          "name": "compSort",
+          "value": "889998",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 347,
+          "type": "checkbox",
+          "label": "测试多选",
+          "context": "测试多选",
+          "name": "compSort",
+          "value": "898508",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 348,
+          "type": "checkbox",
+          "label": "正式版测试多选",
+          "context": "正式版测试多选",
+          "name": "compSort",
+          "value": "899828",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 349,
+          "type": "checkbox",
+          "label": "AUTOTEST-单选按钮A",
+          "context": "AUTOTEST-单选按钮A",
+          "name": "compSort",
+          "value": "911778",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 350,
+          "type": "checkbox",
+          "label": "AUTOTEST-下拉列表",
+          "context": "AUTOTEST-下拉列表",
+          "name": "compSort",
+          "value": "911788",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 351,
+          "type": "checkbox",
+          "label": "AUTOTEST-多选",
+          "context": "AUTOTEST-多选",
+          "name": "compSort",
+          "value": "911798",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 352,
+          "type": "checkbox",
+          "label": "Category",
+          "context": "Category",
+          "name": "compSort",
+          "value": "889928",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 353,
+          "type": "checkbox",
+          "label": "Rated Current",
+          "context": "Rated Current",
+          "name": "compSort",
+          "value": "889968",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 354,
+          "type": "checkbox",
+          "label": "Installation Method",
+          "context": "Installation Method",
+          "name": "compSort",
+          "value": "889958",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 355,
+          "type": "checkbox",
+          "label": "Spacing",
+          "context": "Spacing",
+          "name": "compSort",
+          "value": "889948",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      },
+      {
+        "kind": "widget-dialog",
+        "regionType": "phoenix_blocks_gallery",
+        "title": "设置与选取数据",
+        "wrapIndex": 0,
+        "control": {
+          "index": 356,
+          "type": "checkbox",
+          "label": "Rated voltage",
+          "context": "Rated voltage",
+          "name": "compSort",
+          "value": "889988",
+          "checked": false,
+          "disabled": false
+        },
+        "status": "unmapped"
+      }
+    ],
+    "pendingStyleEffects": [],
+    "note": "自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。"
+  }
+}
