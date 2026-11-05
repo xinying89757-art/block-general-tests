@@ -56,6 +56,16 @@ export function mapDiscoveredInventory(inventory, { rules = signatures } = {}) {
     })) };
 }
 
+function recordOnlyInventory(matched, reviewedItems = []) {
+  const reviewedIds = new Set(reviewedItems.map((item) => item.id));
+  return (matched || []).filter((item) => !reviewedIds.has(`inventory-${item.id}`)).map((item) => ({
+    id: `inventory-${item.id}`,
+    name: `${item.capability} inventory (${item.id})`,
+    inventoryCapability: item.capability,
+    note: 'No front-end selector is reviewed for this discovered inventory item.',
+  }));
+}
+
 export function buildDraftProfile(template, { blockId, page, mapping, observedAt = new Date().toISOString() }) {
   if (!template || typeof template !== 'object' || !Array.isArray(mapping?.requirements)
     || !Array.isArray(mapping?.capabilities) || !Array.isArray(mapping?.unmapped)) {
@@ -90,10 +100,17 @@ export function buildDraftProfile(template, { blockId, page, mapping, observedAt
       controlName: evidence.controlName || null, kind, property,
       status: 'pending', reason: 'awaiting-setting-unit-and-editor-effect-snapshot' }));
   }));
-  if (pendingStyleEffects.length && !profile.capabilities.some((item) => item.id === 'block-style-spec')) {
-    profile.capabilities.push({ id: 'block-style-spec', status: 'candidate', styleSpec: {
-      items: [], recordOnly: [], viewports: { pc: 1440, pad: 768, mobile: 375 },
-    } });
+  if (mapping.matched.length || pendingStyleEffects.length) {
+    let styleCapability = profile.capabilities.find((item) => item.id === 'block-style-spec');
+    if (!styleCapability) {
+      styleCapability = { id: 'block-style-spec', status: 'candidate', styleSpec: {
+        items: [], recordOnly: [], viewports: { pc: 1440, pad: 768, mobile: 375 },
+      } };
+      profile.capabilities.push(styleCapability);
+    }
+    styleCapability.styleSpec ||= { items: [], recordOnly: [], viewports: { pc: 1440, pad: 768, mobile: 375 } };
+    styleCapability.styleSpec.items ||= [];
+    styleCapability.styleSpec.recordOnly = recordOnlyInventory(mapping.matched, styleCapability.styleSpec.items);
   }
   profile.testData = { requirements: [], status: 'unreviewed-no-fixture-oracle' };
   profile.specificChecks = [];
