@@ -128,6 +128,7 @@ export async function writeFreshDefaultsSnapshot(file, snapshot) {
 export function buildFreshReport({ runId, siteHost, blockId, page, instance, capabilities = [],
   defaults, batch, currentValues, publishedReadback = null, editorLink, frontLink, publishedAt,
   editorPublishSucceeded = false, frontVerification = null,
+  frontMode = 'preview', frontModeReason = 'env:FRONT_PROVIDER=preview',
   deletedSettingIds = [], moduleLibraryPreflight = null, flowErrors = [], styleScopeLearning = [], humanReview = [], profile }) {
   const checks = batch.results.map((check) => applyHumanReviewVerdict(check, { profile }));
   const failures = checks.filter((item) => item.status === 'fail').map((item) => ({
@@ -158,6 +159,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
       changedElementCount, mappedCheckCount, fallbackCandidateCount, expectedValues, phase }) => ({ settingId, capability,
       status, reason, changedElementCount, mappedCheckCount, fallbackCandidateCount, expectedValues: expectedValues || {}, phase })),
     publishedReadback,
+    frontMode, frontModeReason,
     links: { editor: editorLink || null, front: frontLink || null },
     editorPublishSucceeded: Boolean(editorPublishSucceeded),
     frontVerification,
@@ -175,7 +177,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
  * block numbers are snapshotted and must remain.
  */
 export async function runFreshBlockFlow({ config, adapter, settings = [], metadata = {}, capabilities = [],
-  runId = new Date().toISOString(), onProgress = async () => {} }) {
+  runId = new Date().toISOString(), onProgress = async () => {}, onPageOpened = async () => {} }) {
   if (!config?.page || !['custom', 'system'].includes(config.page.kind)) {
     throw new Error('Fresh block flow requires an explicit page config; set FRESH_PAGE_KIND and its page fields.');
   }
@@ -186,6 +188,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     if (typeof adapter?.[method] !== 'function') throw new Error(`Fresh block adapter is missing ${method}().`);
   }
   const opened = await adapter.openPage(config.page);
+  await onPageOpened({ opened, page: config.page });
   await onProgress({ stage: 'page-opened' });
   const deletedSettingIds = [];
   const stableRead = () => readStableBlockInventory(() => adapter.listAllBlockInstances(), {
@@ -496,6 +499,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
     frontVerification: publishAttempt?.frontVerification || null,
     editorPublishSucceeded: publishAttempt?.publishSignal?.status === 'confirmed',
     publishedAt: published?.publishedAt || null,
+    frontMode: config.frontMode || 'preview', frontModeReason: config.frontModeReason || 'env:FRONT_PROVIDER=preview',
     deletedSettingIds, moduleLibraryPreflight: config.moduleLibraryPreflight || null, flowErrors,
     styleScopeLearning: prepared?.styleScopeDiagnostics || [], humanReview: prepared?.humanReview || [], profile: prepared?.reportProfile });
   await adapter.writeReport?.(report);

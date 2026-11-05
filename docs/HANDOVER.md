@@ -6,6 +6,8 @@
 
 已有测试页按画像运行 `BLOCK_ID=<id> npm run test:block`；分段可用 `CAPABILITY_FILTER` 与 `CHECK_GROUP`。新的干净现场通过 `scripts/fresh-block.mjs`，必须显式传入页面类型/ID/URL。它仅处理页面上区块号等于目标的实例，添加一个默认实例，然后由 `freshSettings` 单元及 batch planner 执行；默认配置、替代值和 oracle 沿用画像与已有断言。单元、依赖、持久控件和 lifecycle 详见 `docs/setting-units.md`。报告的失败留在现场时要记录冲突设置与证据。
 
+`fresh-block` 默认用一次 preview 探测选择 `preview` 或 `published`；入口报告记录 `frontMode` 与 `frontModeReason`。preview 会在当前页面发布后，于同一机器用带时间戳的 URL 执行与 `front-style-only` 共用的前台检查；无法加载时检查延期。published 保留 Mac 前台结果与 `merge:fresh-front` 流程。入口运行全程持有站点 lease，普通回归无需手工设置 `FRONT_PROVIDER`。
+
 ## Onboarding 与模块库
 
 新区块可用 `scripts/onboard-block.mjs --block <id> --page-kind system --page-id <id> --page-url <path>` 接入。先从 `profiles/TEMPLATE.json` 生成未审核草稿，唯一通用签名可自动映射；歧义会停止，未知项保留为 `unmapped`。人工补齐夹具和 expected/oracle 后才作为常规画像使用。未找到目标模块时会生成结构化环境结果，不会把它记成 assertion fail。
