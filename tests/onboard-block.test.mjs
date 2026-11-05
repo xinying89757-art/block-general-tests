@@ -29,7 +29,7 @@ test('onboarding splits one setting identity across regions with distinct wrap i
   assert.deepEqual(mapping.requirements.map((item) => item.id), ['btn-text', 'btn-text']);
   assert.deepEqual(mapping.requirements.map((item) => item.params.wrapIndex), [0, 1]);
   const profile = buildDraftProfile(template, { blockId: 'generic-123', page: { kind: 'system', id: 'page-id' }, mapping });
-  assert.deepEqual(validateProfile(profile, template, { capabilities: new Set(['button-link']) }), []);
+  assert.deepEqual(validateProfile(profile, template, { capabilities: new Set(profile.capabilities.map((item) => item.id)) }), []);
 });
 
 test('onboarding fails closed when matching regions have duplicate wrap indexes', () => {
@@ -77,7 +77,10 @@ test('generated profile is a draft with only detected capabilities and no guesse
   assert.equal(Object.hasOwn(profile, 'fixture'), false);
   assert.equal(Object.hasOwn(profile, 'baseline'), false);
   assert.deepEqual(profile.onboarding.unmapped, []);
-  assert.deepEqual(validateProfile(profile, template, { capabilities: new Set(['button-link']) }), []);
+  const styleSpec = profile.capabilities.find((item) => item.id === 'block-style-spec')?.styleSpec;
+  assert.deepEqual(styleSpec.recordOnly.map((item) => item.inventoryCapability), ['button-link']);
+  assert.equal(styleSpec.recordOnly[0].id, 'inventory-btn-text');
+  assert.deepEqual(validateProfile(profile, template, { capabilities: new Set(profile.capabilities.map((item) => item.id)) }), []);
 });
 
 test('onboarding records color effects as pending but does not infer font-size controls', () => {

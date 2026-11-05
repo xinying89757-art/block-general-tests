@@ -25,8 +25,83 @@
       "id": "block-style-spec",
       "status": "candidate",
       "styleSpec": {
-        "items": [],
-        "recordOnly": [],
+        "items": [
+          {
+            "id": "inventory-btn-text",
+            "name": "按钮文字（已盘点值）",
+            "kind": "text-content",
+            "selectorCandidates": [
+              "*"
+            ],
+            "text": null,
+            "runValueSource": {
+              "control": {
+                "region": "button-popover",
+                "label": "按钮文本"
+              },
+              "settingCheckIds": [
+                "btn-text-persist"
+              ]
+            },
+            "note": "Exact persisted inventory value is checked as visible text within the target block; uses no block-specific class selector."
+          }
+        ],
+        "recordOnly": [
+          {
+            "id": "inventory-color-scheme",
+            "name": "block-color-scheme inventory (color-scheme)",
+            "inventoryCapability": "block-color-scheme",
+            "note": "No front-end selector is reviewed for this discovered inventory item."
+          },
+          {
+            "id": "inventory-module-width",
+            "name": "module-width inventory (module-width)",
+            "inventoryCapability": "module-width",
+            "note": "No front-end selector is reviewed for this discovered inventory item."
+          },
+          {
+            "id": "inventory-cff-fields",
+            "name": "custom-filter-fields inventory (cff-fields)",
+            "inventoryCapability": "custom-filter-fields",
+            "note": "No front-end selector is reviewed for this discovered inventory item."
+          },
+          {
+            "id": "inventory-pld-display-fields",
+            "name": "product-list-display inventory (pld-display-fields)",
+            "inventoryCapability": "product-list-display",
+            "note": "No front-end selector is reviewed for this discovered inventory item."
+          },
+          {
+            "id": "inventory-pld-pagination",
+            "name": "product-list-display inventory (pld-pagination)",
+            "inventoryCapability": "product-list-display",
+            "note": "No front-end selector is reviewed for this discovered inventory item."
+          },
+          {
+            "id": "inventory-pld-page-size",
+            "name": "product-list-display inventory (pld-page-size)",
+            "inventoryCapability": "product-list-display",
+            "note": "No front-end selector is reviewed for this discovered inventory item."
+          },
+          {
+            "id": "inventory-pld-product-count",
+            "name": "product-list-display inventory (pld-product-count)",
+            "inventoryCapability": "product-list-display",
+            "note": "No front-end selector is reviewed for this discovered inventory item."
+          },
+          {
+            "id": "inventory-pld-compare",
+            "name": "product-list-display inventory (pld-compare)",
+            "inventoryCapability": "product-list-display",
+            "note": "No front-end selector is reviewed for this discovered inventory item."
+          },
+          {
+            "id": "inventory-pld-data-source",
+            "name": "product-list-display inventory (pld-data-source)",
+            "inventoryCapability": "product-list-display",
+            "note": "No front-end selector is reviewed for this discovered inventory item."
+          }
+        ],
         "viewports": {
           "pc": 1440,
           "pad": 768,
