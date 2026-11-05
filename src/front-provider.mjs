@@ -40,6 +40,16 @@ export function selectFrontProvider(env = process.env) {
   };
 }
 
+/** Resolve the entry mode once; explicit preview/published always overrides detection. */
+export function resolveFrontMode(env = process.env, detection = null) {
+  const value = String(env.FRONT_PROVIDER ?? '').trim().toLowerCase();
+  if (value === 'preview' || value === 'published') {
+    return { frontMode: value, frontModeReason: `env:FRONT_PROVIDER=${value}`, detect: false };
+  }
+  const result = detection || { available: true, reason: '默认使用预览入口。' };
+  return { frontMode: result.available ? 'preview' : 'published', frontModeReason: result.reason, detect: true };
+}
+
 /**
  * Open a throwaway editor preview and look for its content frame by hostname.
  * The deadline covers clicking, opening the tab and waiting for the frame

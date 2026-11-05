@@ -85,6 +85,7 @@ BLOCK_ID=<id> npm run test:block
 `node scripts/merge-reports.mjs <报告1> <报告2> [输出]` 合并成一份完整报告
 （检查按 ID 去重、后一段覆盖前一段；summary 重算；记 `mergedFrom`）。
 例如：`CAPABILITY_FILTER=button-link,product-category-select,custom-filter-fields npm run test:block`。
+fresh-block 入口默认自动选择 preview/published，运行时不要手工设置 `FRONT_PROVIDER`。
 
 **Mac 前台运行流程**：盒子端先运行 `bash scripts/pack-for-mac.sh`，把打印出的
 `dist/block-tests-<时间戳>.tar.gz` 用 CopyFromBox 传到 Mac 的项目目录。Mac 在项目目录执行

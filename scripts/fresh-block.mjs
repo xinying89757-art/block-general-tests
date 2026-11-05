@@ -13,6 +13,10 @@ import { writeCheckpoint } from '../src/run-safety.mjs';
 import { createFreshBlockBrowserAdapter } from '../src/fresh-block-browser-adapter.mjs';
 import { createFreshSettingsAdapter } from '../src/fresh-settings-adapter.mjs';
 import { parseFreshPageConfig, runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
+import { detectPreviewAvailable, resolveFrontMode } from '../src/front-provider.mjs';
+import { runFrontChecks } from '../src/front-check-runner.mjs';
+import { runFinalFrontChecks } from '../src/fresh-front-final.mjs';
+import { acquireFreshRunLease } from '../src/fresh-run-lease.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 function cliEnv(argv, env) {
@@ -54,9 +58,17 @@ const profilePath = path.resolve(root, 'profiles', `${config.blockId}.json`);
 const profile = JSON.parse(await fs.readFile(profilePath, 'utf8'));
 if (String(profile.blockId) !== String(config.blockId)) throw new Error('Profile block identity does not match BLOCK_ID.');
 const runLock = acquireRunLock({ site: config.siteDomain, mode: `fresh-block:${config.blockId}` });
+let siteLease;
+try { siteLease = acquireFreshRunLease({ siteHost: config.siteDomain, runId: `fresh-${config.blockId}-${Date.now()}` }); }
+catch (error) { runLock.release(); throw error; }
 let session;
 try {
   session = await launchSession(config);
+  const requestedMode = String(env.FRONT_PROVIDER ?? '').trim().toLowerCase();
+  const explicitMode = requestedMode === 'preview' || requestedMode === 'published';
+  if (!explicitMode) process.env.FRONT_PROVIDER = 'auto';
+  let frontMode = explicitMode ? resolveFrontMode(env) : null;
+  if (frontMode) process.env.FRONT_PROVIDER = frontMode.frontMode;
   const runId = `fresh-${config.blockId}-${Date.now()}`;
   const checkpointPath = path.join(root, '.run-state', `${runId}.json`);
   const settingsAdapter = await createFreshSettingsAdapter({
@@ -72,14 +84,39 @@ try {
   });
   const adapter = createFreshBlockBrowserAdapter({ config, session,
     targetPage: page, settingsAdapter });
-  const report = await runFreshBlockFlow({ config: { ...config, projectRoot: root, siteHost, blockId: config.blockId, page },
+  const flowConfig = { ...config, projectRoot: root, siteHost, blockId: config.blockId, page,
+    frontMode: frontMode?.frontMode || 'preview', frontModeReason: frontMode?.frontModeReason || 'auto-detection-pending' };
+  let report = await runFreshBlockFlow({ config: flowConfig,
     adapter, runId,
+    onPageOpened: async () => {
+      if (!frontMode) {
+        const detection = await detectPreviewAvailable(session.page, session.context);
+        frontMode = resolveFrontMode(env, detection);
+        flowConfig.frontMode = frontMode.frontMode;
+        flowConfig.frontModeReason = frontMode.frontModeReason;
+        process.env.FRONT_PROVIDER = frontMode.frontMode;
+      }
+    },
     onProgress: async (event) => {
+      siteLease.assertValid();
       const entry = { at: new Date().toISOString(), ...event };
       console.log(`[fresh-progress] ${JSON.stringify(entry)}`);
       await writeCheckpoint(checkpointPath, { runId, blockId: config.blockId, pageKind: page.kind,
         stage: event.stage, progressAt: entry.at, counts: { target: event.targetCount ?? null, checks: event.checkCount ?? null } });
     } });
+  siteLease.assertValid();
+  if (report.publishedConfirmed) {
+    const frontPage = await session.context.newPage();
+    try {
+      const finalFront = await runFinalFrontChecks({ report, mode: frontMode.frontMode, frontLink: report.links?.front,
+        page: frontPage, runChecks: (pageHandle) => runFrontChecks({ page: pageHandle, profile,
+          blockId: config.blockId, settingId: report.block?.settingId || null,
+          settingsReport: { block: report.block, checks: report.checks, styleScopeLearning: report.styleScopeLearning },
+          imageLoadTimeoutMs: config.imageLoadTimeoutMs, actionTimeoutMs: config.actionTimeoutMs }) });
+      report = finalFront.report;
+    } finally { await frontPage.close().catch(() => {}); }
+  }
+  siteLease.assertValid();
   const reportDir = path.resolve(root, config.reportDir || 'reports');
   await fs.mkdir(reportDir, { recursive: true });
   const reportPath = path.join(reportDir, `fresh-block-${config.blockId}-${Date.now()}.json`);
@@ -91,5 +128,5 @@ try {
   console.log(`[fresh-block] ${verdictCountsZh(safeReport.summary)} / ${notAdapted} not-adapted capabilities; published=${Boolean(safeReport.publishedConfirmed ?? safeReport.publishedAt)}`);
 } finally {
   try { await session?.browser.close(); }
-  finally { runLock.release(); }
+  finally { try { siteLease.release(); } finally { runLock.release(); } }
 }
