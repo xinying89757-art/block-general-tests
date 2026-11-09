@@ -134,18 +134,20 @@ try {
       report.fixture = { applied: !preparation.skipped, records: preparation.records, writes: preparation.writes,
         ...(preparation.skipped ? { reason: '筛选字段组不可用。' } : {}) };
       report.checks.push(...preparation.checks);
+      let previewUnavailableReason = '';
       if (!preparation.skipped) {
         let preview;
         try {
           preview = await openPreview(session.page, session.context);
           report.checks.push(...await runFilterFrontLayer({ frame: preview.frame, config }));
         } catch (error) {
-          report.checks.push({ id: 'cff-preview-unavailable', status: 'skip', detail: error.message });
+          previewUnavailableReason = `编辑器预览不可用：${error.message}`;
+          report.checks.push(...['cff-preview-unavailable', 'cff-facet-narrow', 'cff-clear-restore'].map(id => ({ id, status: 'skip', detail: previewUnavailableReason }))); 
         } finally { await preview?.previewPage.close().catch(() => {}); }
       }
       const currentCanvas = (await reloadEditor(session.page, config)).frame;
       const capability = profile.capabilities.find(item => item.id === 'custom-filter-fields');
-      report.checks.push(...await fixtureOracleChecks({ page: session.page, canvas: currentCanvas, context: session.context, config, profile, capability, report }));
+      report.checks.push(...await fixtureOracleChecks({ page: session.page, canvas: currentCanvas, context: session.context, config, profile, capability, report }, previewUnavailableReason));
     } catch (error) {
       preparation ||= error.fixturePreparation;
       report.fixture = { applied: false, reason: error.message, failedStep: error.fixtureStep || null,

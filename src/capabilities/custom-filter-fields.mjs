@@ -786,6 +786,13 @@ function radioPair(items, group) {
     || options[0][0].name !== options[1][0].name) unavailable(`${group.name}设置组无法唯一确定。`);
   return options.map(([item]) => item);
 }
+// A single-field result is independent of intersection/union. If the editor
+// exposes no logic or trigger controls, leave them untouched; the preview
+// still has to prove the exact product set. Ambiguous partial groups fail closed.
+export function optionalOracleRadioPair(items, group) {
+  const present = items.some(item => item.type === 'radio' && group.prefixes.some(prefix => item.label.startsWith(prefix)));
+  return present ? radioPair(items, group) : null;
+}
 async function enableOracleFields(tx, oracle) {
   const fields = filterFields(await tx.controls());
   const titles = Array.isArray(oracle) ? oracle : oracle.fields.map((condition) => condition.title);
@@ -1068,8 +1075,9 @@ export async function fixtureOracleChecks(args, unavailableReason) {
     const outcome = await effectCheck({ ...args, mutation: mutationContext(args.canvas, args.config, args.profile), session, result, id: scenario.id, layer: 'front', run: async (tx) => {
       tx.expected(expected);
       const items = await tx.controls();
-      const logic = policy.logic ? null : radioPair(items, TEXT.radioGroups[0]);
-      const trigger = policy.trigger ? null : radioPair(items, TEXT.radioGroups[1]);
+      const logic = policy.logic ? null : scenario.indexes.length === 1
+        ? optionalOracleRadioPair(items, TEXT.radioGroups[0]) : radioPair(items, TEXT.radioGroups[0]);
+      const trigger = policy.trigger ? null : optionalOracleRadioPair(items, TEXT.radioGroups[1]);
       await enableOracleFields(tx, table.fields.map((field) => field.title));
       if (trigger) await tx.set(trigger[0], true);
       if (logic) await tx.set(logic[scenario.union ? 1 : 0], true);

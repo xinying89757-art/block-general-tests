@@ -43,3 +43,11 @@ test('partial fixtures are drafted and display-only types remain separate', () =
   assert.equal(fixturePlan(profile).fields.length, 5);
   validateFixture(profile.fixture, profile.requirements);
 });
+
+test('single-field oracle permits absent controls without guessing incomplete radio groups', async () => {
+  const { optionalOracleRadioPair } = await import('../src/capabilities/custom-filter-fields.mjs');
+  const group = { name: '筛选逻辑', prefixes: ['交集', '并集'] };
+  assert.equal(optionalOracleRadioPair([], group), null);
+  assert.throws(() => optionalOracleRadioPair([{ type: 'radio', label: '交集', name: 'logic' }], group));
+  assert.equal(optionalOracleRadioPair([{ type: 'radio', label: '交集', name: 'logic' }, { type: 'radio', label: '并集', name: 'logic' }], group).length, 2);
+});
