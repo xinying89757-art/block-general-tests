@@ -785,7 +785,10 @@ test('editor success remains distinct from an unreachable runner front path', as
   assert.equal(report.publishedAt, null);
   assert.equal(report.confirmationSource, null);
   assert.equal(report.frontVerification.status, 'front-unreachable-from-runner');
-  assert.equal(report.failures.at(-1).classification, 'front-unreachable-from-runner');
+  assert.ok(report.checks.some(({ id, status, classification }) => id === 'fresh-publish-confirmed'
+    && status === 'deferred' && classification === 'front-unreachable-from-runner'));
+  assert.ok(report.checks.some(({ id, status }) => id === 'fresh-front-checks' && status === 'deferred'));
+  assert.ok(report.publishedReadback, 'editor readback still runs after the editor confirms publication');
   assert.equal(report.frontVerification.reachability.rootProbe.server, 'Pingora');
 });
 
