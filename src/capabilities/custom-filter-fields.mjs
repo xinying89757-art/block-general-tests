@@ -1067,7 +1067,9 @@ export async function fixtureOracleChecks(args, unavailableReason) {
     const expected = `${policy.trigger === '更改筛选项后自动筛选' ? '更改筛选项后自动筛选' : '手动点击搜索后'}，${scenario.indexes.map((i) => table.fields[i - 1].title).join('、')}取第一值的${scenario.union ? '并集' : '交集'}应恰好显示 ${sentenceList(scenario.products)}。`;
     const reason = unavailableReason || (args.report?.fixture?.applied === false ? '夹具准备未成功完成，未执行依赖夹具的精确集合检查。' : '') || policy.skip || policy.na;
     if (reason) {
-      checks.push(result(scenario.id, policy.na && !unavailableReason && args.report?.fixture?.applied !== false ? 'na' : 'skip', `${reason}${note ? `；${note}` : ''}`, undefined, { expected }));
+      const deferred = Boolean(/编辑器预览不可用/.test(unavailableReason || '') && args.report?.fixture?.applied !== false);
+      checks.push(result(scenario.id, deferred ? 'deferred' : policy.na && !unavailableReason && args.report?.fixture?.applied !== false ? 'na' : 'skip', `${reason}${note ? `；${note}` : ''}`, undefined, { expected,
+        ...(deferred ? { classification: 'preview-unavailable-use-published-front' } : {}) }));
       continue;
     }
     const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: args.capability?.dialogTitle || TEXT.dialogTitle,

@@ -54,11 +54,13 @@ export function aggregateFilterDesignRequirement(requirement, profile, checks, f
   });
   const failed = fixtureState?.applied !== false && rows.some(row => row.status === 'fail');
   const complete = fixtureState?.applied !== false && types.length > 0 && rows.every(row => row.status === 'pass' && Array.isArray(row.actual));
-  const status = failed ? 'fail' : complete ? 'pass' : 'human-review';
-  const code = complete ? 'filter-oracle-passed' : failed ? 'filter-oracle-failed' : fixtureState?.applied === false ? 'filter-fixture-unavailable' : 'filter-oracle-unavailable';
+  const deferred = fixtureState?.applied === true && rows.some(row => row.status === 'deferred')
+    && rows.every(row => row.status === 'deferred' || row.status === 'pass' && Array.isArray(row.actual));
+  const status = failed ? 'fail' : complete ? 'pass' : deferred ? 'deferred' : 'human-review';
+  const code = complete ? 'filter-oracle-passed' : failed ? 'filter-oracle-failed' : deferred ? 'preview-unavailable-use-published-front' : fixtureState?.applied === false ? 'filter-fixture-unavailable' : 'filter-oracle-unavailable';
   return { id: `design-${requirement.id}`, name: requirement.sourceText, sourceText: requirement.sourceText, status,
     expected: { ...requirement.expected, types }, actual: rows, evidence: { types: rows, fixture: fixtureState || null },
-    detail: complete ? '各类型单值筛选均符合夹具真值表。' : failed ? '至少一种类型的筛选结果与真值表不符。' : '夹具或单值筛选证据不完整，需人工判断。',
+    detail: complete ? '各类型单值筛选均符合夹具真值表。' : failed ? '至少一种类型的筛选结果与真值表不符。' : deferred ? '预览不可用，等待公开前台筛选结果。' : '夹具或单值筛选证据不完整，需人工判断。',
     reason: { code, stage: 'front', ...(status === 'human-review' ? { humanReviewRequired: true } : {}) } };
 }
 export function finalizeFilterDesignChecks(profile, report) {

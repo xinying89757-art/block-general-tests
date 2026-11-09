@@ -35,6 +35,19 @@ test('aggregation reports pass, fail and missing fixture evidence', () => {
   assert.equal(aggregateFilterDesignRequirement(requirement, profile, checks, { applied: false }).reason.code, 'filter-fixture-unavailable');
 });
 
+test('preview-unavailable oracle results defer design verdict only with an applied fixture', async () => {
+  const { fixtureOracleChecks } = await import('../src/capabilities/custom-filter-fields.mjs');
+  const fixture = buildDefaultFilterFixture(types);
+  const profile = { fixture };
+  const checks = await fixtureOracleChecks({ profile, report: { fixture: { applied: true } } }, '编辑器预览不可用：内容 frame 未加载');
+  assert.equal(checks.filter(check => check.id.startsWith('cff-oracle-single-')).every(check => check.status === 'deferred' && check.classification === 'preview-unavailable-use-published-front'), true);
+  const derived = aggregateFilterDesignRequirement(requirement, profile, checks, { applied: true });
+  assert.equal(derived.status, 'deferred');
+  assert.equal(derived.reason.code, 'preview-unavailable-use-published-front');
+  assert.equal(aggregateFilterDesignRequirement(requirement, profile, checks, { applied: false }).status, 'human-review');
+  assert.equal(aggregateFilterDesignRequirement(requirement, profile, checks.slice(1), { applied: true }).status, 'human-review');
+});
+
 test('partial fixtures are drafted and display-only types remain separate', () => {
   const profile = { blockId: 'test', requirements: { displayFieldTypes: ['色卡'] }, fixture: { fields: [{ type: '文本字段' }] },
     designSpec: { requirements: [structuredClone(requirement)] } };
