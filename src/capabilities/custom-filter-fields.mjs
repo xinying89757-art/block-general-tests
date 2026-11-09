@@ -29,7 +29,7 @@ const SELECTORS = {
   // .prodfield-left-fieldname, and 另一样本区块's .pf-field-group / .pf-field-title
   // (values are label.pf-opt in both).
   group: '.prodfield-single, .pf-field-group',
-  groupTitle: '.prodfield-left-fieldname, .pf-field-title',
+  groupTitle: '.prodfield-left-fieldname, .pf-field-title, .pf-group-title',
   value: 'label',
   selected: '.prodfield-bottom',
   descendants: '*',
@@ -40,7 +40,7 @@ const SELECTORS = {
 // against the wrong structure. Profile may override via frontDom.
 export const FILTER_FRONT_SELECTORS = Object.freeze({
   group: '.prodfield-single, .pf-field-group',
-  groupTitle: '.prodfield-left-fieldname, .pf-field-title',
+  groupTitle: '.prodfield-left-fieldname, .pf-field-title, .pf-group-title',
 });
 
 // Resolve which front selectors to use for the given preview root.
@@ -662,7 +662,7 @@ function filterOracle(args) {
   return args.capability?.oracle?.fields ? args.capability.oracle : null;
 }
 function groupSnapshot(root) {
-  const titles = [...root.querySelectorAll('.prodfield-left-fieldname, .pf-field-title')]
+  const titles = [...root.querySelectorAll('.prodfield-left-fieldname, .pf-field-title, .pf-group-title')]
     .filter((node) => node.getClientRects().length > 0
       && node.ownerDocument.defaultView.getComputedStyle(node).visibility !== 'hidden')
     .map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
@@ -803,12 +803,9 @@ async function enableOracleFields(tx, oracle) {
   }
 }
 export async function selectFilterValue(root, condition) {
-  // Probe v27: the fixed ^\s*...$ regex matches the title element itself
-  // (count 1), but group.filter({ has: root title locator }) still gives 0.
-  // The inner locator carries root's (the block's) selector prefix, so
-  // inside :has() it looks for the block INSIDE the group, which cannot
-  // match. Find the group by index with a DOM exact-title match instead
-  // (same approach as frontSnapshot), then filter its labels directly.
+  // Probe v27: find the group by index with a DOM exact-title match, then
+  // apply the value via label / <select> / free-text input depending on the
+  // published or preview control variant.
   const exact = (text) => new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
   const groupIndex = await root.evaluate((node, { group, groupTitle, wanted }) => {
     const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
@@ -819,18 +816,36 @@ export async function selectFilterValue(root, condition) {
   if (groupIndex < 0) unavailable(`预览中无法唯一确定筛选组“${condition.title}”。`);
   const group = root.locator(SELECTORS.group).nth(groupIndex);
   const labels = group.locator('label').filter({ hasText: exact(condition.value) });
-  if (await labels.count() !== 1) unavailable(`预览中无法唯一确定筛选值“${condition.value}”。`);
-  const interactive = await labels.evaluate((node) => {
-    for (let current = node; current; current = current.parentElement) {
-      if (getComputedStyle(current).pointerEvents === 'none') return false;
+  const labelCount = await labels.count();
+  if (labelCount === 1) {
+    const interactive = await labels.evaluate((node) => {
+      for (let current = node; current; current = current.parentElement) {
+        if (getComputedStyle(current).pointerEvents === 'none') return false;
+      }
+      return !node.querySelector('input:disabled') && node.getClientRects().length > 0;
+    });
+    if (!interactive) unavailable('预览筛选表单不可交互，未强制点击。');
+    await labels.click({ timeout: TIMEOUT });
+  } else if (labelCount === 0) {
+    const select = group.locator('select');
+    if (await select.count() === 1) {
+      const option = select.locator('option').filter({ hasText: exact(condition.value) });
+      if (await option.count() !== 1) unavailable(`预览中无法唯一确定筛选值“${condition.value}”。`);
+      const value = await option.getAttribute('value');
+      await select.selectOption(value === null ? { label: condition.value } : value);
+    } else {
+      const textInput = group.locator('input[type="text"], textarea');
+      if (await textInput.count() !== 1) unavailable(`预览中无法唯一确定筛选值“${condition.value}”。`);
+      await textInput.fill(condition.value, { timeout: TIMEOUT });
     }
-    return !node.querySelector('input:disabled') && node.getClientRects().length > 0;
-  });
-  if (!interactive) unavailable('预览筛选表单不可交互，未强制点击。');
-  await labels.click({ timeout: TIMEOUT });
+  } else {
+    unavailable(`预览中无法唯一确定筛选值“${condition.value}”。`);
+  }
   const selected = await poll(() => root.evaluate((node, value) => {
     const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
     return [...node.querySelectorAll('label')].some((label) => norm(label.innerText) === value && label.querySelector('input:checked'))
+      || [...node.querySelectorAll('select')].some((select) => [...select.selectedOptions].some((option) => norm(option.textContent) === value))
+      || [...node.querySelectorAll('input[type="text"], textarea')].some((input) => norm(input.value) === value)
       || [...node.querySelectorAll('.prodfield-bottom, .pf-selected, .pf-tags')].some((tag) => norm(tag.innerText).includes(value));
   }, condition.value), Boolean);
   if (!selected.matched) throw new Error('点击后没有观察到选中值');

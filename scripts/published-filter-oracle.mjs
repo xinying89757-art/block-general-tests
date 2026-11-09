@@ -53,14 +53,15 @@ try {
         throw new Error('固定手动触发但无法唯一定位可见搜索按钮');
       }
       if (policy.trigger !== '更改筛选项后自动筛选') await clickSearch(root);
+      const universe = new Set(table.products);
       let observed;
       for (let attempt = 0; attempt < 20; attempt++) {
         observed = await root.evaluate(productSnapshot);
-        if (observed.hasList && sameSet(observed.names.filter(name => name.startsWith('AUTOTEST-')), scenario.products)) break;
+        if (observed.hasList && sameSet(observed.names.filter(name => universe.has(name)), scenario.products)) break;
         await page.waitForTimeout(500);
       }
       if (!observed.hasList) throw new Error('无法读取产品列表');
-      const actual = observed.names.filter(name => name.startsWith('AUTOTEST-'));
+      const actual = observed.names.filter(name => universe.has(name));
       row.evidence.actual = actual; row.evidence.productSets = [{ label: scenario.id, expected: scenario.products, actual }]; row.actual = JSON.stringify(actual);
       row.status = sameSet(actual, scenario.products) ? 'pass' : 'fail';
       row.detail = `预期 ${row.expected}；实际 ${row.actual}`; row.evidenceText = [row.detail];
