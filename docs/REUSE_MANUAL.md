@@ -520,3 +520,7 @@ CMS 分类入口、分类 ID、产品分类控件、字段 ID 及字段类型修
 ## 29. fresh-block 前台不可达处理（v1.20）
 
 编辑器确认发布但目标前台和站点根路径均被运行器判定为不可达时，公开实例确认与前台检查标记 deferred，保留网络证据；发布仍不标记为已确认。流程继续重载编辑器回读已声明持久控件。47948 测试站实跑：编辑器发布成功信号，前台及根路径返回 Pingora HTTP 500，发布后 12 个持久控件回读一致；前台与公开发布确认待补验。画像仍为 draft-unreviewed。
+
+## 30. 47948 覆盖感知复测（v1.21）
+
+2026-11-09 在指定测试站 Products 页完成 generic fresh-block 三批设置测试：pass 8、fail 0、na 1、human-review 2、record 4、deferred 2，另有 2 项 not-applicable。展示字段盘点为 record，未声明的展示字段类型为 human-review；设计需求覆盖保留布局分带、筛选类型及图片比例冲突，画像仍为 draft-unreviewed。编辑器报告发布成功，前台及根路径仍为 Pingora HTTP 500，公开确认及前台检查延后；发布后 12 个持久控件回读一致。未运行 line-height 检查或全局交互扫描。
