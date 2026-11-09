@@ -6,6 +6,14 @@ const DEFAULT_HOSTS = Object.freeze([
 ]);
 const FRONTEND_SUFFIXES = Object.freeze(['ldwebsite.com', 'ldyjz.com', 'ldmfyh.com']);
 
+export const CHROMIUM_DISABLE_HTTPS_UPGRADES_ARGS = Object.freeze([
+  // Chromium may auto-upgrade http://*.ldwebsite.com to https://, but many
+  // Leadong test fronts only serve content on HTTP while HTTPS returns nginx 403.
+  // Front-only runners must stay on the requested scheme.
+  '--disable-features=HttpsUpgrades,HttpsFirstBalancedModeAutoEnable,HttpsFirstModeV2',
+]);
+
+
 function normalizeRule(value) {
   if (typeof value !== 'string') throw new TypeError('HTTPS_UPGRADE_HOSTS must contain host names');
   const rule = value.trim().toLowerCase().replace(/\.$/, '');
@@ -84,7 +92,7 @@ export async function installHttpsUpgrade(context, rules = DEFAULT_HOSTS) {
       if (headers.location && isDowngradeLoop(headers.location, request.url(), hosts)) {
         const error = new Error(`HTTPS upgrade downgrade loop detected: ${request.url()} -> ${headers.location}`);
         error.code = 'HTTPS_UPGRADE_DOWNGRADE_LOOP';
-        console.warn(`[https-upgrade] ${error.message}`);
+        console.warn(`[https-upgrade] ${error.code}: ${error.message}. The HTTPS endpoint redirected back to HTTP; if plaintext HTTP is blocked (for example by Pingora), use a reachable published front or fix the network route.`);
         await route.abort('failed').catch(() => {});
         return;
       }

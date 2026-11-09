@@ -9,7 +9,7 @@ import { executeSettingBatches } from '../batch-save.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
 import { retryDisplayFieldSnapshot } from '../display-field-front-check.mjs';
-import { listSession } from './product-list-effects.mjs';
+import { cardFieldSnapshot, listSession } from './product-list-effects.mjs';
 
 // Keep unknown/ambiguous instance identity null; never select an arbitrary wrap.
 async function mutationTarget(canvas, config, profile) {
@@ -35,6 +35,7 @@ function mutationContext(canvas, config, profile) {
 const SUITE = 'capability:product-list-display';
 const NAMES = {
   'pld-fields': '产品列表展示字段与勾选状态',
+  'pld-display-field-types-requirement': '产品列表展示字段 CMS 类型期望',
   'pld-page-size-persist': '每页产品数量保存回读与恢复',
   'pld-pagination-persist': '分页展示保存回读与恢复',
   'pld-compare-persist': '产品对比保存回读与恢复',
@@ -95,6 +96,36 @@ function result(id, status, detail, evidence, textFields = {}) {
 const outcomeResult = (id, outcome) => result(id, outcome.status, outcome.detail, outcome.evidence);
 const fieldsOf = (controls) => controls.filter((item) => item.type === 'checkbox'
   && item.value && item.value !== 'on' && item.label !== '全选');
+
+
+// Inventory of display-field checkboxes is always recordable when controls exist.
+// Empty displayFieldTypes means "CMS type expectations undeclared" — that is
+// human-review for type-gated effects, NOT a reason to skip the inventory
+// record. Card layout bands (1-4 / 5-10 / 11+) and filter-field supported
+// types are different requirement classes and must not be fabricated into
+// displayFieldTypes.
+export function buildDisplayFieldsCoverageChecks(fields, profile, makeResult = result) {
+  const raw = profile?.requirements?.displayFieldTypes;
+  const types = Array.isArray(raw) ? raw.map((item) => String(item || '').trim()).filter(Boolean) : [];
+  const count = Array.isArray(fields) ? fields.length : 0;
+  const inventoryDetail = types.length
+    ? `展示字段 ${count} 个（排除全选，含系统属性与自定义字段）；需求类型：${types.join('、')}。`
+    : `展示字段 ${count} 个（排除全选，含系统属性与自定义字段）。画像未声明 displayFieldTypes；不得把筛选支持类型或卡片布局分带（1-4/5-10/11+）误当作 CMS 字段类型期望。`;
+  const checks = [makeResult('pld-fields', 'record', inventoryDetail, fields)];
+  if (!types.length) {
+    const reviewDetail = '产品列表展示字段缺少 CMS 类型期望（displayFieldTypes）。布局分带与筛选字段支持类型是不同需求，需人工补充类型期望或明确本项仅作盘点。';
+    checks.push(makeResult('pld-display-field-types-requirement', 'human-review', reviewDetail, {
+      missingRequirement: 'displayFieldTypes',
+      note: 'layout-bands-are-not-field-types',
+    }, {
+      reason: { code: 'display-field-types-undeclared', stage: 'capability-effect',
+        humanReviewRequired: true, humanReviewReason: reviewDetail },
+      classification: 'human-review',
+    }));
+  }
+  return checks;
+}
+
 
 export function assessAllProducts({ fixtureNames, actualNames, pagination, quantity }) {
   const counts = Object.fromEntries(fixtureNames.map((name) => [name,
@@ -550,9 +581,7 @@ export async function runSettingsLayer({ page, canvas, context, config, capabili
     if (initial.reason) return ['pld-fields', 'pld-page-size-persist', 'pld-pagination-persist', 'pld-compare-persist', 'pld-compare-front', 'pld-data-source-category-front', 'pld-display-field-persist', 'pld-data-source-persist']
       .map((id) => result(id, 'skip', `无法读取产品列表弹窗：${initial.reason}`));
     const fields = fieldsOf(initial.controls);
-    checks.push(Array.isArray(profile?.requirements?.displayFieldTypes) && profile.requirements.displayFieldTypes.length
-      ? result('pld-fields', 'record', `展示字段 ${fields.length} 个（排除全选，含系统属性与自定义字段）；需求类型：${profile.requirements.displayFieldTypes.join('、')}。`, fields)
-      : result('pld-fields', 'skip', '需求未提供，需人工补充', fields));
+    checks.push(...buildDisplayFieldsCoverageChecks(fields, profile));
     // Data source is a 4-option radio in 另一样本区块 (所有产品 / 使用筛选条件 /
     // 选择指定产品 / 选择部分产品分类); 样本区块 has no such group, so a
     // missing group correctly degrades to na via radioGroupPersist.
@@ -748,9 +777,7 @@ export async function createProductListBatchDefinitions(args) {
     name: '列表数据来源', options: sources }));
 
   const fields = fieldsOf(controls);
-  checksById.set('pld-fields', Array.isArray(profile?.requirements?.displayFieldTypes) && profile.requirements.displayFieldTypes.length
-    ? result('pld-fields', 'record', `展示字段 ${fields.length} 个（排除全选，含系统属性与自定义字段）；需求类型：${profile.requirements.displayFieldTypes.join('、')}。`, fields)
-    : result('pld-fields', 'skip', '需求未提供，需人工补充', fields));
+  for (const check of buildDisplayFieldsCoverageChecks(fields, profile)) checksById.set(check.id, check);
 
   const numbers = controls.filter((item) => !item.disabled && !item.readOnly && ['text', 'number'].includes(item.type)
     && /^\d+$/.test(item.value) && Number(item.value) >= 1 && Number(item.value) <= 100);
@@ -881,7 +908,7 @@ export async function runBatchSettingsLayer(args) {
     const last = [...checksById.values()].at(-1);
     if (last) { last.status = 'fail'; last.detail += `；最终取消失败：${error.message}`; }
   }
-  const order = ['pld-fields', 'pld-data-source-persist', 'pld-data-source-category-front', 'pld-page-size-persist',
+  const order = ['pld-fields', 'pld-display-field-types-requirement', 'pld-data-source-persist', 'pld-data-source-category-front', 'pld-page-size-persist',
     'pld-data-source-batch-effect', 'pld-pagination-persist', 'pld-pagination-batch-effect', 'pld-compare-persist',
     'pld-compare-batch-effect', 'pld-compare-front', 'pld-display-field-persist', 'pld-display-field-batch-effect', 'pld-size-batch-effect'];
   return [...order.map((id) => checksById.get(id)).filter(Boolean), ...await runJournaledProductListEffects({ page, canvas, context, config, capability, profile, report }, 'front')];

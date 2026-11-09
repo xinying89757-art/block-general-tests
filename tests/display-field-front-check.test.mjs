@@ -13,11 +13,20 @@ test('display-field front expectations use the capability write and label readba
 test('display-field front checker distinguishes pass, confirmed missing, and unresolved cards', () => {
   assert.equal(assessDisplayFieldCards({ cards: [{ visible: true, labels: ['Material'] }],
     fieldLabel: 'Material', expectedVisible: true }).status, 'pass');
-  assert.equal(assessDisplayFieldCards({ cards: [{ visible: true, labels: [] }],
-    fieldLabel: 'Material', expectedVisible: true }).status, 'fail');
+  const missing = assessDisplayFieldCards({ cards: [{ visible: true, labels: [] }],
+    fieldLabel: 'Material', expectedVisible: true });
+  assert.equal(missing.status, 'human-review');
+  assert.equal(missing.reason.code, 'display-field-no-visible-labels');
+  assert.match(missing.detail, /字段值缺失/);
+  const partial = assessDisplayFieldCards({ cards: [{ visible: true, labels: ['Material'] },
+    { visible: true, labels: [] }], fieldLabel: 'Material', expectedVisible: true });
+  assert.equal(partial.status, 'human-review');
+  assert.equal(partial.reason.code, 'display-field-partial-visible-labels');
   assert.equal(assessDisplayFieldCards({ cards: [], fieldLabel: 'Material', expectedVisible: true }).status, 'human-review');
   assert.equal(assessDisplayFieldCards({ cards: [{ visible: true, labels: [] }],
     fieldLabel: 'Material', expectedVisible: false }).status, 'pass');
+  assert.equal(assessDisplayFieldCards({ cards: [{ visible: true, labels: ['Material'] }],
+    fieldLabel: 'Material', expectedVisible: false }).status, 'fail');
 });
 
 test('canvas snapshots retry transiently empty product-card content with a finite attempt count', async () => {
@@ -46,5 +55,7 @@ test('front capability check emits a merged-row verdict from the resolved instan
   assert.equal(check.evidence.cardCount, 2);
   const missingPage = { evaluate: async () => ({ rootCount: 1, cards: [{ visible: true, labels: [] }] }) };
   const [missing] = await runDisplayFieldFrontChecks({ page: missingPage, rootSelector: '[data-instance]', settingsReport: report });
-  assert.equal(missing.status, 'fail');
+  assert.equal(missing.status, 'human-review');
+  assert.equal(missing.reason.code, 'display-field-no-visible-labels');
+  assert.match(missing.detail, /字段值缺失/);
 });

@@ -51,6 +51,11 @@ export function assessDisplayFieldCards({ cards, fieldLabel, expectedVisible } =
     reason: { code: 'display-field-cards-unresolved' }, matchedCards: null, cardCount: 0 };
   const present = cards.map((card) => Boolean(card?.visible && card?.labels?.includes(fieldLabel)));
   const matchedCards = present.filter(Boolean).length;
+  if (expectedVisible && matchedCards < cards.length) return { status: 'human-review',
+    reason: { code: matchedCards === 0 ? 'display-field-no-visible-labels' : 'display-field-partial-visible-labels' },
+    detail: matchedCards === 0 ? '所有产品卡均未显示字段标签，无法自动区分效果异常与产品字段值缺失或隐藏。'
+      : '部分产品卡未显示字段标签，无法自动区分效果异常与产品字段值缺失或隐藏。',
+    matchedCards, cardCount: cards.length, expectedVisible, fieldLabel };
   const pass = expectedVisible ? matchedCards === cards.length : matchedCards === 0;
   return { status: pass ? 'pass' : 'fail', reason: { code: pass ? 'display-field-front-match' : 'display-field-front-mismatch' },
     matchedCards, cardCount: cards.length, expectedVisible, fieldLabel };
@@ -115,8 +120,8 @@ export async function runDisplayFieldFrontChecks({ page, rootSelector, settingsR
     }
     const check = { id: expectation.id, name: '展示字段前台可见性', status: result.status,
       setting: 'display-field', expected: expectation.expectedVisible,
-      actual: result.matchedCards, detail: result.status === 'pass' ? '前台产品卡展示字段与本次保存值一致。'
-        : result.status === 'fail' ? '前台产品卡展示字段与本次保存值不一致。' : '前台产品卡或字段标签无法唯一读取，需人工判断。',
+      actual: result.matchedCards, detail: result.detail || (result.status === 'pass' ? '前台产品卡展示字段与本次保存值一致。'
+        : result.status === 'fail' ? '前台产品卡展示字段与本次保存值不一致。' : '前台产品卡或字段标签无法唯一读取，需人工判断。'),
       reason: { stage: 'front', code: result.reason.code },
       evidence: { fieldLabel: expectation.fieldLabel, expectedVisible: expectation.expectedVisible,
         matchedCards: result.matchedCards, cardCount: result.cardCount, sourceCheckId: expectation.sourceCheckId,

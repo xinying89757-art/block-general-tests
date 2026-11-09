@@ -1,3 +1,4 @@
+import { applyFilterFixtureFromDesignSpec } from './filter-design-fixture.mjs';
 import { signatures, matchCapabilities } from './capabilities/signatures.mjs';
 import { inferStyleValueKind } from './style-effect-learning.mjs';
 
@@ -119,7 +120,7 @@ export function buildDraftProfile(template, { blockId, page, mapping, observedAt
     pendingStyleEffects,
     ...(mapping.inventoryErrors?.length ? { inventoryErrors: structuredClone(mapping.inventoryErrors) } : {}),
     note: '自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。' };
-  return profile;
+  return applyFilterFixtureFromDesignSpec(profile);
 }
 
 export function summarizeDraftMapping(mapping) {

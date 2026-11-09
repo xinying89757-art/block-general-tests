@@ -400,3 +400,15 @@ test('front-style setup errors create per-check error reasons without changing a
   assert.equal(sanitizeFrontStyleUrl('https://u:p@example.test/a?t=4&token=x#hash'), 'https://example.test/a?t=4');
   assert.equal(sanitizeFrontStyleError(error).message.includes('token=[redacted]'), true);
 });
+
+test('buildFrontStyleExecutionErrors tolerates missing block-style-spec capability', () => {
+  const [check] = buildFrontStyleExecutionErrors({
+    capability: undefined,
+    blockId: '47948',
+    stage: 'locate-block',
+    error: { message: 'unique front instance not found', class: 'locate' },
+  });
+  assert.equal(check.status, 'error');
+  assert.match(check.detail, /locate-block/);
+  assert.equal(check.errorDiagnostic.message, 'unique front instance not found');
+});

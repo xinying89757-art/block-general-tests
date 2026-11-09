@@ -40,8 +40,8 @@ export function fixturePlan(profile) {
 export async function ensureFixtureData({ page, profile, cms, previous = null }) {
   const plan = fixturePlan(profile), records = { fields: {}, products: {}, category: null }, writes = [];
   let step = '列出现有自定义字段';
-  const atStep = (name) => { step = name; };
-  const attachStep = (error) => { error.fixtureStep ||= step; throw error; };
+  const atStep = (name) => { step = name; console.log(`[fixture] ${name}`); };
+  const attachStep = (error) => { error.fixtureStep ||= step; error.fixtureProgress = { records, writes }; throw error; };
   try {
   const existing = await cms.listCustomFields(page);
   for (const field of plan.fields) {
@@ -51,16 +51,19 @@ export async function ensureFixtureData({ page, profile, cms, previous = null })
     if (!found) { atStep(`创建字段 ${field.name}`); found = await cms.createCustomField(page, field); writes.push(`create-field:${field.name}`); }
     else {
       atStep(`核对字段 ${field.name} 选项`);
-      const options = found.type === field.type ? await cms.readCustomFieldOptions(page, field.name) : [];
-      const missing = field.options.filter(o => !options.includes(o));
+      const enumerated = [1, 2, 3].includes(field.typeCode);
+      const options = enumerated && found.type === field.type ? await cms.readCustomFieldOptions(page, field.name) : [];
+      const missing = enumerated ? field.options.filter(o => !options.includes(o)) : [];
       if (found.status !== '开启' || missing.length || found.type !== field.type) { atStep(`更新字段 ${field.name}`); await cms.updateCustomField(page, field.name, { missing, type: field.type, enable: found.status !== '开启' }); writes.push(`update-field:${field.name}`); }
     }
     atStep(`回读字段 ${field.name} 身份`);
     const verified = await cms.getCustomFieldIdentity(page, field.name);
     if (!verified?.id || verified.type !== field.type || verified.status !== '开启') throw new Error(`字段 ${field.name} 身份/类型/状态回读失败。`);
     atStep(`回读字段 ${field.name} 选项`);
-    const options = await cms.readCustomFieldOptions(page, field.name);
-    if (field.options.some(o => !options.includes(o))) throw new Error(`字段 ${field.name} 选项回读失败。`);
+    if ([1, 2, 3].includes(field.typeCode)) {
+      const options = await cms.readCustomFieldOptions(page, field.name);
+      if (field.options.some(o => !options.includes(o))) throw new Error(`字段 ${field.name} 选项回读失败。`);
+    }
     records.fields[field.name] = verified.id;
   }
   // A site may be unable to host a new category (Leadong category limit).
@@ -88,6 +91,7 @@ export async function ensureFixtureData({ page, profile, cms, previous = null })
     if (!id) { atStep(`创建产品 ${product.name}`); id = await cms.createProduct(page, product); writes.push(`create-product:${product.name}`); }
     atStep(`回读产品 ${product.name} 身份`);
     if (!id || await cms.findProduct(page, product.name) !== id) throw new Error(`产品 ${product.name} 身份回读失败。`);
+    atStep(`回读产品 ${product.name} 字段值`);
     const actual = await cms.readProductFieldValues(page, id, Object.keys(product.values));
     const changed = Object.fromEntries(Object.entries(product.values).filter(([name, value]) => !sameValue(actual[name], value)));
     if (Object.keys(changed).length) { atStep(`更新产品 ${product.name} 字段值`); const updated = await cms.setProductFieldValues(page, id, changed); if (Object.entries(changed).some(([n,v]) => !sameValue(updated[n],v))) throw new Error(`产品 ${product.name} 字段回读失败。`); writes.push(`update-product:${product.name}`); }
@@ -104,7 +108,7 @@ export async function ensureFixtureData({ page, profile, cms, previous = null })
   } catch (error) { attachStep(error); }
 }
 export function fixtureRecordPath(config, root = 'fixtures-state') {
-  const host = new URL(config.siteDomain).host.toLowerCase();
+  const host = new URL(/^https?:\/\//i.test(config.siteDomain) ? config.siteDomain : `https://${config.siteDomain}`).host.toLowerCase();
   if (!host || !config.blockId) throw new Error('夹具记录需要站点 host 与区块 ID。');
   return path.join(root, `${createHash('sha256').update(`${host}\0${config.blockId}`).digest('hex')}.json`);
 }

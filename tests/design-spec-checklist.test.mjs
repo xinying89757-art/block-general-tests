@@ -2,7 +2,7 @@ import { measuredImagePage } from './helpers/image-page.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { checkDesignRequirementEditor, checkDesignRequirementFront, extractWrittenColorValues,
-  countInstanceColorMatches, normalizeDesignColor, runWrittenColorFrontChecks, validateDesignSpec } from '../src/design-spec-checklist.mjs';
+  assessTextTruncation, countInstanceColorMatches, normalizeDesignColor, runWrittenColorFrontChecks, validateDesignSpec } from '../src/design-spec-checklist.mjs';
 import { importExtractedDesignSpec } from '../scripts/import-design-spec.mjs';
 import { finalizeFrontStyleReport } from '../src/front-style-report.mjs';
 import { addStyleFailureReasons, breakageFindings, isMobileInstanceOverlap, mobileChecklistMode } from '../src/capabilities/block-style-spec.mjs';
@@ -474,4 +474,28 @@ test('written 区块配色 checks use only report current values and accept any 
   assert.equal(checks[0].reason.expectedSource, 'run-report.currentValues');
   const unavailable = await runWrittenColorFrontChecks({ page: null, rootSelector: null, settingsReport });
   assert.ok(unavailable.every((item) => item.status === 'na' && item.reason.code === 'instance-root-unavailable'));
+});
+
+
+test('truncation assesses nowrap, overflow exercise, wrapping and multiline snapshots', async () => {
+  const single = { whiteSpace: 'nowrap', overflow: 'hidden', overflowX: 'hidden', textOverflow: 'clip',
+    webkitLineClamp: 'none', clientWidth: 100, scrollWidth: 100, clientHeight: 20, scrollHeight: 20, fontSize: '16px', lineHeight: '20px' };
+  const assess = (element, expected = { maxLines: 1 }) => assessTextTruncation([element], expected);
+  assert.equal(assess(single).pass, true);
+  assert.equal(assess(single).code, 'text-truncation-style-matched-overflow-unexercised');
+  assert.equal(assess(single).overflowExercised, false);
+  assert.equal('lineHeight' in assess(single).elements[0], false);
+  assert.equal(assess({ ...single, scrollWidth: 150 }).code, 'text-truncation-matched');
+  assert.equal(assess(single, { maxLines: 1, overflow: 'ellipsis' }).pass, false);
+  assert.equal(assess({ ...single, textOverflow: 'ellipsis' }, { maxLines: 1, overflow: 'ellipsis' }).pass, true);
+  assert.equal(assess({ ...single, whiteSpace: 'normal', overflow: 'visible', overflowX: 'visible' }).pass, false);
+  assert.equal(assess({ lineClamp: 2, ellipsized: true }, { maxLines: 2, overflow: 'ellipsis' }).pass, true);
+  assert.equal(assess({ lineClamp: 1, ellipsized: true }, { maxLines: 2, overflow: 'ellipsis' }).pass, false);
+  const item = { id: 'single', checkType: 'text-truncation', sourceText: 'One line', expected: { maxLines: 1 }, checkStage: 'front', params: {} };
+  const check = (elements) => checkDesignRequirementFront(item, { profile: profile([item]), rootSelector: '.i',
+    page: { evaluate: async () => ({ rootFound: true, elements }) } });
+  assert.equal((await check([single])).status, 'pass');
+  const unresolved = await check([]);
+  assert.equal(unresolved.status, 'human-review');
+  assert.equal(unresolved.reason.code, 'text-truncation-elements-unresolved');
 });

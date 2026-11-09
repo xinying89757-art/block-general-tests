@@ -260,7 +260,7 @@ export async function effectCheck({ id, result, page, canvas, context, config, s
 // (selectors param) or be reported as unadapted — never silently checked
 // against the wrong structure.
 export const DEFAULT_FRONT_SELECTORS = Object.freeze({
-  productName: '.prodlist-pro-name',
+  productName: '.prodlist-pro-name, .pf-name-text',
   list: '.one-pruduct-list, .pf-list-wrap, .one-pruduct-item',
 });
 
@@ -272,13 +272,13 @@ export const DEFAULT_FRONT_SELECTORS = Object.freeze({
 // function stays self-contained when serialized via locator.evaluate().
 export function productSnapshot(root, selectors = {}) {
   const sel = {
-    productName: '.prodlist-pro-name',
+    productName: '.prodlist-pro-name, .pf-name-text',
     list: '.one-pruduct-list, .pf-list-wrap, .one-pruduct-item',
     ...selectors,
   };
   const visible = (node) => node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden';
   const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
-  const names = [...root.querySelectorAll(sel.productName)].filter(visible).map((node) => norm(node.innerText));
+  const names = [...new Set([...root.querySelectorAll(sel.productName)].filter(visible).map((node) => norm(node.innerText)).filter(Boolean))];
   const hasList = Boolean(root.querySelector(sel.list));
   const adapted = names.length > 0 || hasList;
   return { names, hasList, count: names.length, adapted, selectorUsed: sel.productName };

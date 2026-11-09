@@ -1,4 +1,5 @@
 import { applyHumanReviewVerdict, collectHumanReview, countVerdicts } from './human-review.mjs';
+import { accountDesignRequirementCoverage } from './design-spec-model.mjs';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { executeSettingBatches, planSettingBatches } from './batch-save.mjs';
@@ -151,6 +152,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
     moduleLibraryPreflight,
     defaults, capabilities, batches: batch.batches, checks, summary: countVerdicts(checks), failures,
     humanReview: [...new Map([...humanReview, ...collectHumanReview(checks)].map((item) => [String(item.id).replace(/^design-/, ''), item])).values()],
+    designRequirementCoverage: accountDesignRequirementCoverage(profile, checks),
     retainedFailures: batch.timing.retainedFailures || { selectedIds: [], suppressed: [] },
     timing: batch.timing, settingsMode: 'BATCH_SAVE / retain-tested-values', flowErrors,
     // Diagnostics intentionally omit matched selector paths; the profile owns
@@ -400,11 +402,14 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
   let published = null;
   let publishAttempt = null;
   let publishedReadback = null;
+  let editorPublishWithUnreachableFront = false;
   if (!batchExecutionFailed) {
     try { await onProgress({ stage: 'publish-started' }); publishAttempt = await adapter.publishPage({ settingId: fresh.settingId });
       // A click is not proof: require an editor success signal and the exact
       // instance on the cache-busted public page when the adapter reports them.
       const unconfirmed = !publishAttempt || publishAttempt.confirmed !== true;
+      editorPublishWithUnreachableFront = unconfirmed && publishAttempt?.publishSignal?.status === 'confirmed'
+        && publishAttempt?.frontVerification?.status === 'front-unreachable-from-runner';
       if (!unconfirmed) published = publishAttempt;
       await onProgress({ stage: unconfirmed ? 'publish-unconfirmed' : 'published',
         ...(publishAttempt?.publishSignal ? { signal: publishAttempt.publishSignal.status } : {}),
@@ -412,10 +417,13 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
       if (unconfirmed) {
         const detail = `发布未确认：编辑器信号=${publishAttempt?.publishSignal?.status || 'n/a'}，前台=${publishAttempt?.frontVerification?.status || 'n/a'}`;
         flowErrors.push({ stage: 'publish-confirmation', message: detail, frontVerification: publishAttempt?.frontVerification || null });
-        batch.results.push({ id: 'fresh-publish-confirmed', status: 'fail',
+        batch.results.push({ id: 'fresh-publish-confirmed', status: editorPublishWithUnreachableFront ? 'deferred' : 'fail',
           ...(publishAttempt?.frontVerification?.status === 'front-unreachable-from-runner'
             ? { classification: 'front-unreachable-from-runner' } : {}), detail,
           batchResult: { expected: '编辑器出现发布成功提示，且带 ?t= 的前台页面包含本次新加的区块实例。', actual: detail, detail } });
+        if (editorPublishWithUnreachableFront) batch.results.push({ id: 'fresh-front-checks', status: 'deferred',
+          classification: 'front-unreachable-from-runner',
+          expected: '发布后的前台检查可以访问目标页面并执行。', actual: detail, detail });
       } }
     catch (error) {
       const screenshot = await captureFailure('publish');
@@ -426,7 +434,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
           detail: error.message, screenshot,
           ...(error.publishDiagnostics ? { diagnostics: error.publishDiagnostics } : {}) } });
     }
-    if (published) {
+    if (published || editorPublishWithUnreachableFront) {
       try {
         const readbackValues = await adapter.readPublishedValues(fresh);
         const hasDeclaredScope = Array.isArray(prepared?.persistedControls);
@@ -472,7 +480,7 @@ export async function runFreshBlockFlow({ config, adapter, settings = [], metada
         batch.results.push(check);
         flowErrors.push({ stage: 'post-publish-readback', message: error.message, screenshot });
       }
-      if (typeof prepared?.runPostPublishChecks === 'function') {
+      if (published && typeof prepared?.runPostPublishChecks === 'function') {
         try {
           const postPublishChecks = await prepared.runPostPublishChecks({ published,
             frontLink: published.frontLink || opened.frontLink, config, instance: fresh,

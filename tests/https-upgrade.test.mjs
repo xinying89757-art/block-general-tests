@@ -112,4 +112,5 @@ test('aborts (does not crash) on an HTTPS-to-HTTP redirect loop and warns with a
   try { await handler(route); } finally { console.warn = originalWarn; }
   assert.equal(aborted, 'failed');
   assert.ok(warnings.some((message) => message.includes('HTTPS upgrade downgrade loop')));
+  assert.ok(warnings.some((message) => message.includes('HTTPS_UPGRADE_DOWNGRADE_LOOP') && message.includes('Pingora')));
 });

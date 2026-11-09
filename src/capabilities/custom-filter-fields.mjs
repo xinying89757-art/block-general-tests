@@ -29,7 +29,7 @@ const SELECTORS = {
   // .prodfield-left-fieldname, and 另一样本区块's .pf-field-group / .pf-field-title
   // (values are label.pf-opt in both).
   group: '.prodfield-single, .pf-field-group',
-  groupTitle: '.prodfield-left-fieldname, .pf-field-title',
+  groupTitle: '.prodfield-left-fieldname, .pf-field-title, .pf-group-title',
   value: 'label',
   selected: '.prodfield-bottom',
   descendants: '*',
@@ -40,7 +40,7 @@ const SELECTORS = {
 // against the wrong structure. Profile may override via frontDom.
 export const FILTER_FRONT_SELECTORS = Object.freeze({
   group: '.prodfield-single, .pf-field-group',
-  groupTitle: '.prodfield-left-fieldname, .pf-field-title',
+  groupTitle: '.prodfield-left-fieldname, .pf-field-title, .pf-group-title',
 });
 
 // Resolve which front selectors to use for the given preview root.
@@ -662,7 +662,7 @@ function filterOracle(args) {
   return args.capability?.oracle?.fields ? args.capability.oracle : null;
 }
 function groupSnapshot(root) {
-  const titles = [...root.querySelectorAll('.prodfield-left-fieldname, .pf-field-title')]
+  const titles = [...root.querySelectorAll('.prodfield-left-fieldname, .pf-field-title, .pf-group-title')]
     .filter((node) => node.getClientRects().length > 0
       && node.ownerDocument.defaultView.getComputedStyle(node).visibility !== 'hidden')
     .map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
@@ -786,6 +786,13 @@ function radioPair(items, group) {
     || options[0][0].name !== options[1][0].name) unavailable(`${group.name}设置组无法唯一确定。`);
   return options.map(([item]) => item);
 }
+// A single-field result is independent of intersection/union. If the editor
+// exposes no logic or trigger controls, leave them untouched; the preview
+// still has to prove the exact product set. Ambiguous partial groups fail closed.
+export function optionalOracleRadioPair(items, group) {
+  const present = items.some(item => item.type === 'radio' && group.prefixes.some(prefix => item.label.startsWith(prefix)));
+  return present ? radioPair(items, group) : null;
+}
 async function enableOracleFields(tx, oracle) {
   const fields = filterFields(await tx.controls());
   const titles = Array.isArray(oracle) ? oracle : oracle.fields.map((condition) => condition.title);
@@ -795,38 +802,55 @@ async function enableOracleFields(tx, oracle) {
     await tx.set(found[0], true);
   }
 }
-async function selectFilterValue(root, condition) {
-  // Probe v27: the fixed ^\s*...$ regex matches the title element itself
-  // (count 1), but group.filter({ has: root title locator }) still gives 0.
-  // The inner locator carries root's (the block's) selector prefix, so
-  // inside :has() it looks for the block INSIDE the group, which cannot
-  // match. Find the group by index with a DOM exact-title match instead
-  // (same approach as frontSnapshot), then filter its labels directly.
+export async function selectFilterValue(root, condition) {
+  // Probe v27: find the group by index with a DOM exact-title match, then
+  // apply the value via label / <select> / free-text input depending on the
+  // published or preview control variant.
   const exact = (text) => new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
   const groupIndex = await root.evaluate((node, { group, groupTitle, wanted }) => {
     const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
-    return [...node.querySelectorAll(group)].findIndex((item) => norm(item.querySelector(groupTitle)?.innerText) === wanted);
+    const matches = [...node.querySelectorAll(group)].map((item, index) => ({ item, index }))
+      .filter(({ item }) => norm(item.querySelector(groupTitle)?.innerText) === wanted);
+    return matches.length === 1 ? matches[0].index : -1;
   }, { group: SELECTORS.group, groupTitle: SELECTORS.groupTitle, wanted: condition.title });
   if (groupIndex < 0) unavailable(`预览中无法唯一确定筛选组“${condition.title}”。`);
   const group = root.locator(SELECTORS.group).nth(groupIndex);
   const labels = group.locator('label').filter({ hasText: exact(condition.value) });
-  if (await labels.count() !== 1) unavailable(`预览中无法唯一确定筛选值“${condition.value}”。`);
-  const interactive = await labels.evaluate((node) => {
-    for (let current = node; current; current = current.parentElement) {
-      if (getComputedStyle(current).pointerEvents === 'none') return false;
+  const labelCount = await labels.count();
+  if (labelCount === 1) {
+    const interactive = await labels.evaluate((node) => {
+      for (let current = node; current; current = current.parentElement) {
+        if (getComputedStyle(current).pointerEvents === 'none') return false;
+      }
+      return !node.querySelector('input:disabled') && node.getClientRects().length > 0;
+    });
+    if (!interactive) unavailable('预览筛选表单不可交互，未强制点击。');
+    await labels.click({ timeout: TIMEOUT });
+  } else if (labelCount === 0) {
+    const select = group.locator('select');
+    if (await select.count() === 1) {
+      const option = select.locator('option').filter({ hasText: exact(condition.value) });
+      if (await option.count() !== 1) unavailable(`预览中无法唯一确定筛选值“${condition.value}”。`);
+      const value = await option.getAttribute('value');
+      await select.selectOption(value === null ? { label: condition.value } : value);
+    } else {
+      const textInput = group.locator('input[type="text"], textarea');
+      if (await textInput.count() !== 1) unavailable(`预览中无法唯一确定筛选值“${condition.value}”。`);
+      await textInput.fill(condition.value, { timeout: TIMEOUT });
     }
-    return !node.querySelector('input:disabled') && node.getClientRects().length > 0;
-  });
-  if (!interactive) unavailable('预览筛选表单不可交互，未强制点击。');
-  await labels.click({ timeout: TIMEOUT });
+  } else {
+    unavailable(`预览中无法唯一确定筛选值“${condition.value}”。`);
+  }
   const selected = await poll(() => root.evaluate((node, value) => {
     const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
     return [...node.querySelectorAll('label')].some((label) => norm(label.innerText) === value && label.querySelector('input:checked'))
+      || [...node.querySelectorAll('select')].some((select) => [...select.selectedOptions].some((option) => norm(option.textContent) === value))
+      || [...node.querySelectorAll('input[type="text"], textarea')].some((input) => norm(input.value) === value)
       || [...node.querySelectorAll('.prodfield-bottom, .pf-selected, .pf-tags')].some((tag) => norm(tag.innerText).includes(value));
   }, condition.value), Boolean);
   if (!selected.matched) throw new Error('点击后没有观察到选中值');
 }
-async function clickSearch(root) {
+export async function clickSearch(root) {
   // Probe v30/v31: the search button is visibility:hidden in the editor
   // preview (inline style, before and after selection), so a Playwright
   // visible click can never work there; but the product list narrows on
@@ -1043,7 +1067,7 @@ export function fixtureScenarioPolicy(profile, union) {
   if (scope === '当前分类产品' && !profile?.fixture?.category?.name?.startsWith('AUTOTEST-')) return { skip: '当前分类固定，缺少 AUTOTEST 夹具分类' };
   return { logic, trigger, scope };
 }
-async function fixtureOracleChecks(args, unavailableReason) {
+export async function fixtureOracleChecks(args, unavailableReason) {
   let table;
   try { table = buildFixtureTruthTable(args.profile.fixture); }
   catch (error) { return [result('cff-oracle-fixture', 'skip', `夹具准备条件未满足：${error.message}`)]; }
@@ -1060,7 +1084,9 @@ async function fixtureOracleChecks(args, unavailableReason) {
     const expected = `${policy.trigger === '更改筛选项后自动筛选' ? '更改筛选项后自动筛选' : '手动点击搜索后'}，${scenario.indexes.map((i) => table.fields[i - 1].title).join('、')}取第一值的${scenario.union ? '并集' : '交集'}应恰好显示 ${sentenceList(scenario.products)}。`;
     const reason = unavailableReason || (args.report?.fixture?.applied === false ? '夹具准备未成功完成，未执行依赖夹具的精确集合检查。' : '') || policy.skip || policy.na;
     if (reason) {
-      checks.push(result(scenario.id, policy.na && !unavailableReason && args.report?.fixture?.applied !== false ? 'na' : 'skip', `${reason}${note ? `；${note}` : ''}`, undefined, { expected }));
+      const deferred = Boolean(/编辑器预览不可用/.test(unavailableReason || '') && args.report?.fixture?.applied !== false);
+      checks.push(result(scenario.id, deferred ? 'deferred' : policy.na && !unavailableReason && args.report?.fixture?.applied !== false ? 'na' : 'skip', `${reason}${note ? `；${note}` : ''}`, undefined, { expected,
+        ...(deferred ? { classification: 'preview-unavailable-use-published-front' } : {}) }));
       continue;
     }
     const session = widgetSession({ ...args, type: 'phoenix_blocks_filterStyle', title: args.capability?.dialogTitle || TEXT.dialogTitle,
@@ -1068,8 +1094,9 @@ async function fixtureOracleChecks(args, unavailableReason) {
     const outcome = await effectCheck({ ...args, mutation: mutationContext(args.canvas, args.config, args.profile), session, result, id: scenario.id, layer: 'front', run: async (tx) => {
       tx.expected(expected);
       const items = await tx.controls();
-      const logic = policy.logic ? null : radioPair(items, TEXT.radioGroups[0]);
-      const trigger = policy.trigger ? null : radioPair(items, TEXT.radioGroups[1]);
+      const logic = policy.logic ? null : scenario.indexes.length === 1
+        ? optionalOracleRadioPair(items, TEXT.radioGroups[0]) : radioPair(items, TEXT.radioGroups[0]);
+      const trigger = policy.trigger ? null : optionalOracleRadioPair(items, TEXT.radioGroups[1]);
       await enableOracleFields(tx, table.fields.map((field) => field.title));
       if (trigger) await tx.set(trigger[0], true);
       if (logic) await tx.set(logic[scenario.union ? 1 : 0], true);

@@ -785,7 +785,10 @@ test('editor success remains distinct from an unreachable runner front path', as
   assert.equal(report.publishedAt, null);
   assert.equal(report.confirmationSource, null);
   assert.equal(report.frontVerification.status, 'front-unreachable-from-runner');
-  assert.equal(report.failures.at(-1).classification, 'front-unreachable-from-runner');
+  assert.ok(report.checks.some(({ id, status, classification }) => id === 'fresh-publish-confirmed'
+    && status === 'deferred' && classification === 'front-unreachable-from-runner'));
+  assert.ok(report.checks.some(({ id, status }) => id === 'fresh-front-checks' && status === 'deferred'));
+  assert.ok(report.publishedReadback, 'editor readback still runs after the editor confirms publication');
   assert.equal(report.frontVerification.reachability.rootProbe.server, 'Pingora');
 });
 
@@ -1133,6 +1136,52 @@ test('persisted readback projection carries a degraded inventory error with orig
     assert.equal(error.inventoryError.diagnostics.loadingMaskVisible, true);
     return true;
   });
+});
+
+test('currentValuesFromInventory attaches non-writable inventoryErrors for defaults consumers', () => {
+  const inventory = [
+    { type: 'rail', title: 'Color', controls: [], inventoryError: {
+      regionType: 'rail', code: 'RAIL_INVENTORY_FAILED', message: 'rail open failed',
+      diagnostics: { stage: 'panel-open', visible: false },
+    } },
+    { type: 'gallery', title: 'Settings', wrapIndex: 0, controls: [
+      { type: 'text', label: 'Quantity', value: '12' },
+    ] },
+  ];
+  // Mirrors readDefaults / readCurrentValues: producer attaches metadata; callers must not reassign.
+  const values = currentValuesFromInventory(inventory);
+  assert.equal(values.length, 1);
+  assert.equal(values[0].label, 'Quantity');
+  assert.equal(values.inventoryErrors.length, 1);
+  assert.equal(values.inventoryErrors[0].code, 'RAIL_INVENTORY_FAILED');
+  assert.equal(values.inventoryErrors[0].regionName, 'Color');
+  assert.equal(values.inventoryErrors[0].diagnostics.stage, 'panel-open');
+  assert.equal(Object.prototype.propertyIsEnumerable.call(values, 'inventoryErrors'), false);
+  assert.equal(Object.keys(values).includes('inventoryErrors'), false);
+  assert.deepEqual(JSON.parse(JSON.stringify(values)), [
+    { controlIdentity: 'gallery:0:Settings:text:Quantity:0', controlIndex: 0, region: 'Settings', wrapIndex: 0,
+      label: 'Quantity', type: 'text', value: '12' },
+  ]);
+  assert.throws(() => { values.inventoryErrors = []; }, TypeError);
+});
+
+test('fresh defaults path keeps inventoryErrors without reassignment and without failing the inventory stage', async () => {
+  const adapter = fakeAdapter([{ blockId: '55', settingId: 'old-one', ordinal: 0 }]);
+  adapter.prepareSettings = async () => ({
+    settings: [], staticResults: [], capabilityResults: [],
+    batchAdapter: { capture: async () => new Map(), apply: async () => {}, save: async () => {},
+      check: async () => ({ status: 'pass' }) },
+  });
+  adapter.readDefaults = async () => currentValuesFromInventory([{
+    type: 'rail', title: 'Color', controls: [], inventoryError: {
+      code: 'RAIL_INVENTORY_FAILED', message: 'rail open failed', diagnostics: { stage: 'panel-open' },
+    },
+  }]);
+  const report = await runFreshBlockFlow({ config, adapter });
+  assert.equal(report.defaults?.inventoryErrors?.[0]?.code, 'RAIL_INVENTORY_FAILED');
+  assert.equal(report.defaults?.inventoryErrors?.[0]?.regionName, 'Color');
+  assert.equal(report.checks.find((item) => item.id === 'fresh-defaults-inventory')?.status, undefined);
+  assert.ok(!(report.flowErrors || []).some((item) => item.stage === 'defaults-inventory'));
 });
 
 test('fresh setting definitions are prepared only after the fresh instance reloads', async () => {

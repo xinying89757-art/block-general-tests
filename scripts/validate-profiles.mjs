@@ -149,7 +149,7 @@ export function validateProfile(profile, template, { capabilities } = {}) {
   if (profile.requirements && Object.hasOwn(profile.requirements, 'displayFieldTypes') && (!Array.isArray(profile.requirements.displayFieldTypes) || !profile.requirements.displayFieldTypes.every(v => typeof v === 'string'))) errors.push('requirements.displayFieldTypes 必须是字符串数组');
 
   if (Object.hasOwn(profile, 'baseline')) errors.push('baseline 必须位于 sites/<site-host>/<block-id>.baseline.json');
-  if (Object.hasOwn(profile, 'fixture')) errors.push('fixture 是站点数据引用，必须放在 sites/<site-host>/<block-id>.baseline.json.fixtureRefs');
+  if (Object.hasOwn(profile, 'fixture') && profile.testData?.status !== 'fixture-drafted-from-design-spec') errors.push('fixture 是站点数据引用，必须放在 sites/<site-host>/<block-id>.baseline.json.fixtureRefs；设计稿 AUTOTEST 草案除外。');
 
   if (Array.isArray(profile.capabilities)) {
     const ids = new Set();

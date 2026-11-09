@@ -27,16 +27,16 @@ function frontConfirmsAddedInstance(boxReport, frontReport) {
   const url = frontReport?.finalUrl || frontReport?.url || frontReport?.links?.front || '';
   const checkedAt = frontReport?.finishedAt || frontReport?.checkedAt || frontReport?.startedAt;
   const identity = frontReportIdentity(frontReport, checkedAt);
-  let cacheBusted = false;
-  try { cacheBusted = Boolean(new URL(url).searchParams.get('t')); } catch {}
+  let validUrl = false;
+  try { validUrl = ['http:', 'https:'].includes(new URL(url).protocol); } catch {}
   return Boolean(identity && checkedAt && settingId && String(frontSettingId || '') === String(settingId)
     && String(frontReport?.instanceResolution || '').includes('block-number+settingId')
     && Number(frontReport?.blockInstances ?? frontReport?.instanceCount ?? 0) > 0
-    && cacheBusted && reportBlockId(frontReport) === reportBlockId(boxReport));
+    && validUrl && reportBlockId(frontReport) === reportBlockId(boxReport));
 }
 
 function isFrontUnreachableFailure(row) {
-  if (row?.status !== 'fail') return false;
+  if (!['fail', 'deferred'].includes(row?.status)) return false;
   const codes = [row.classification, row.reason?.code, row.reason?.classification,
     row.evidence?.classification, row.batchResult?.classification]
     .filter((value) => typeof value === 'string');
@@ -146,7 +146,7 @@ export function mergeFreshFrontReports(boxReport, frontReport) {
       : displayFront ? mergeDisplayFieldSources(box, displayFront)
       : selectedSource === 'front' ? front : box;
     const keptFailure = isFrontUnreachableFailure(box) && !confirmsAddedInstance
-      ? { ...box, detail: '前台未找到本次新实例：Mac 前台报告未能以缓存刷新 URL 确认同一个新 settingId。',
+      ? { ...box, detail: '前台未确认本次新实例：Mac 前台报告未能以充分证据确认同一个新 settingId。',
         frontResolution: { status: 'not-confirmed', frontReportId: frontReportIdentity(frontReport,
           frontReport.finishedAt || frontReport.checkedAt || frontReport.startedAt)?.id || null,
           frontSettingId: frontReport.settingId ?? frontReport.block?.settingId ?? null,

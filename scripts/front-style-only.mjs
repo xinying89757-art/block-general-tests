@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { imageLoadTimeout } from '../src/image-readiness.mjs';
+import { CHROMIUM_DISABLE_HTTPS_UPGRADES_ARGS } from '../src/network-https-upgrade.mjs';
 // Front-only runner for the block-style-spec capability: opens a PUBLIC
 // front page (no login, no editor), finds the block by number and runs the
 // profile's existing styleSpec assertions (runFrontLayer). Generic: site,
@@ -83,7 +84,7 @@ process.once('SIGINT', onSigint);
 process.once('SIGTERM', onSigterm);
 try {
   progress(stage);
-  browser = await chromium.launch({ headless: true, ...(args.channel ? { channel: args.channel } : {}) });
+  browser = await chromium.launch({ headless: true, ...(args.channel ? { channel: args.channel } : {}), args: [...CHROMIUM_DISABLE_HTTPS_UPGRADES_ARGS] });
   if (abortReason) throw new Error(`Front style run interrupted: ${abortReason.kind}`);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: args['strict-tls'] !== '1' });
   const page = await context.newPage();
@@ -128,7 +129,7 @@ try {
   const safe = sanitizeFrontStyleError(error);
   report.error = safe.message; exitCode = 1;
   if (!report.checks.length) report.checks = attachFrontStyleInstance(buildFrontStyleExecutionErrors({ capability, blockId, stage, error: safe,
-    viewport: capability.styleSpec?.viewports }), report.settingId);
+    viewport: capability?.styleSpec?.viewports }), report.settingId);
   else Object.assign(report, preservePartialFrontStyleReport(report, { stage, error: safe }));
   try {
     const pg = browser?.contexts()[0]?.pages()[0];

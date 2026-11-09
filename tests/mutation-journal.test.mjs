@@ -423,7 +423,7 @@ async function capabilityFixture(t, name, initialControls = [], options = {}) {
     setSchemeColor: async (_canvas, value) => { recordWrite('scheme', value); scheme = value; },
     saveColorPanel: async () => { events.push({ kind: 'save-color' }); }, cancelColorPanel: async () => {},
   });
-  const listEffectsUrl = await stub('list-effects.mjs', null, { listSession: () => session, runProductListEffects: async () => [],
+  const listEffectsUrl = await stub('list-effects.mjs', null, { cardFieldSnapshot: () => [], listSession: () => session, runProductListEffects: async () => [],
     displayFieldRequirements: () => [] });
   const extras = ['mutationTarget'];
   if (name === 'custom-filter-fields') extras.push('persistSpectrumColor');

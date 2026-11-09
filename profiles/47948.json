@@ -47,7 +47,7 @@
   },
   "testData": {
     "requirements": [],
-    "status": "unreviewed-no-fixture-oracle"
+    "status": "fixture-drafted-from-design-spec"
   },
   "requirements": {
     "capabilities": [
@@ -2271,5 +2271,186 @@
     ],
     "pendingStyleEffects": [],
     "note": "自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。"
+  },
+  "designSpec": {
+    "source": {
+      "fileKey": "li2DvtCykHCYvqellPT4aW",
+      "nodeId": "1671:76"
+    },
+    "requirements": [
+      {
+        "id": "custom-field-layout-bands",
+        "checkType": "manual",
+        "sourceText": "按照勾选的顺序展示：1-4自定义字段，都在上面依次排列，5-10在下方两列展示，11-最后在下方一行依次展示，中间用分割线隔开",
+        "expected": {},
+        "checkStage": "front",
+        "params": {
+          "note": "Card custom-field LAYOUT bands; not CMS displayFieldTypes."
+        }
+      },
+      {
+        "id": "product-name-truncation",
+        "checkType": "text-truncation",
+        "sourceText": "产品名称一行展示，超出隐藏",
+        "expected": {
+          "maxLines": 1
+        },
+        "checkStage": "front",
+        "params": {}
+      },
+      {
+        "id": "product-tag-visibility",
+        "checkType": "manual",
+        "sourceText": "如设置了产品标签应展示出来",
+        "expected": {},
+        "checkStage": "front",
+        "params": {}
+      },
+      {
+        "id": "filter-field-supported-types",
+        "checkType": "manual",
+        "sourceText": "支持类型：下拉、单选、多选、文本字段",
+        "expected": {
+          "types": [
+            "下拉列表",
+            "单选按钮",
+            "多选按钮",
+            "文本字段"
+          ]
+        },
+        "checkStage": "editor",
+        "params": {
+          "note": "Custom FILTER field types; must not be copied into requirements.displayFieldTypes."
+        }
+      },
+      {
+        "id": "filter-dual-column-sync",
+        "checkType": "manual",
+        "sourceText": "分为两列，可以分别勾选自定义字段 / 如数据相同，一方勾选后，另一方也应该勾选",
+        "expected": {},
+        "checkStage": "front",
+        "params": {}
+      },
+      {
+        "id": "module-width-default-1440",
+        "checkType": "module-width",
+        "sourceText": "1440px",
+        "expected": {
+          "expandable": true,
+          "default": "1440px"
+        },
+        "checkStage": "editor",
+        "params": {}
+      }
+    ],
+    "overrides": [],
+    "unsupportedRequirements": [
+      {
+        "id": "image-ratio-conflict",
+        "sourceText": "说明芯片/标注「4:3」 vs 产品列表描述「容器3:4」",
+        "reason": "Spec conflict unresolved; owner must choose before any automated image-ratio assertion. Remains human-review."
+      },
+      {
+        "id": "height-fit-content",
+        "sourceText": "根据内容高度自适应",
+        "reason": "height-fit has no automated checker; human review required."
+      }
+    ]
+  },
+  "fixture": {
+    "filterFieldTypes": [
+      "下拉列表",
+      "单选按钮",
+      "多选按钮",
+      "文本字段"
+    ],
+    "fields": [
+      {
+        "name": "AUTOTEST-下拉列表",
+        "type": "下拉列表",
+        "typeCode": 2,
+        "options": [
+          "下拉列表-A",
+          "下拉列表-B"
+        ]
+      },
+      {
+        "name": "AUTOTEST-单选按钮",
+        "type": "单选按钮",
+        "typeCode": 1,
+        "options": [
+          "单选按钮-A",
+          "单选按钮-B"
+        ]
+      },
+      {
+        "name": "AUTOTEST-多选按钮",
+        "type": "多选按钮",
+        "typeCode": 3,
+        "options": [
+          "多选按钮-A",
+          "多选按钮-B"
+        ]
+      },
+      {
+        "name": "AUTOTEST-文本字段",
+        "type": "文本字段",
+        "typeCode": 0,
+        "options": [
+          "文本字段-A",
+          "文本字段-B"
+        ]
+      }
+    ],
+    "category": {
+      "name": "AUTOTEST-筛选分类"
+    },
+    "products": [
+      {
+        "name": "AUTOTEST-47948-筛选-基准",
+        "values": {
+          "AUTOTEST-下拉列表": "下拉列表-A",
+          "AUTOTEST-单选按钮": "单选按钮-A",
+          "AUTOTEST-多选按钮": "多选按钮-A",
+          "AUTOTEST-文本字段": "文本字段-A"
+        }
+      },
+      {
+        "name": "AUTOTEST-47948-筛选-翻转1",
+        "values": {
+          "AUTOTEST-下拉列表": "下拉列表-B",
+          "AUTOTEST-单选按钮": "单选按钮-A",
+          "AUTOTEST-多选按钮": "多选按钮-A",
+          "AUTOTEST-文本字段": "文本字段-A"
+        }
+      },
+      {
+        "name": "AUTOTEST-47948-筛选-翻转2",
+        "values": {
+          "AUTOTEST-下拉列表": "下拉列表-A",
+          "AUTOTEST-单选按钮": "单选按钮-B",
+          "AUTOTEST-多选按钮": "多选按钮-A",
+          "AUTOTEST-文本字段": "文本字段-A"
+        }
+      },
+      {
+        "name": "AUTOTEST-47948-筛选-翻转3",
+        "values": {
+          "AUTOTEST-下拉列表": "下拉列表-A",
+          "AUTOTEST-单选按钮": "单选按钮-A",
+          "AUTOTEST-多选按钮": "多选按钮-B",
+          "AUTOTEST-文本字段": "文本字段-A"
+        }
+      },
+      {
+        "name": "AUTOTEST-47948-筛选-翻转4",
+        "values": {
+          "AUTOTEST-下拉列表": "下拉列表-A",
+          "AUTOTEST-单选按钮": "单选按钮-A",
+          "AUTOTEST-多选按钮": "多选按钮-A",
+          "AUTOTEST-文本字段": "文本字段-B"
+        }
+      }
+    ]
   }
 }

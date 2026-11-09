@@ -20,7 +20,7 @@ const makeRoot = ({ names = [], hasList = false } = {}) => {
   const nameNodes = names.map(visibleNode);
   return {
     querySelectorAll: (sel) => {
-      if (sel === '.prodlist-pro-name' || sel === '.custom-name') return nameNodes;
+      if (sel === '.prodlist-pro-name' || sel === '.prodlist-pro-name, .pf-name-text' || sel === '.custom-name') return nameNodes;
       return [];
     },
     querySelector: (sel) => {
@@ -53,7 +53,18 @@ test('productSnapshot accepts custom selectors (profile override)', () => {
   assert.equal(snap.adapted, true);
 });
 
+test('productSnapshot reads pf-name-text when prodlist-pro-name is absent', () => {
+  const nameNodes = [visibleNode('AUTOTEST-A'), visibleNode('AUTOTEST-B')];
+  const root = {
+    querySelectorAll: (sel) => (String(sel).includes('.pf-name-text') ? nameNodes : []),
+    querySelector: (sel) => (String(sel).includes('.pf-list-wrap') ? visibleNode() : null),
+  };
+  const snap = productSnapshot(root);
+  assert.deepEqual(snap.names, ['AUTOTEST-A', 'AUTOTEST-B']);
+  assert.equal(snap.adapted, true);
+});
+
 test('DEFAULT_FRONT_SELECTORS documents the known variants', () => {
-  assert.equal(DEFAULT_FRONT_SELECTORS.productName, '.prodlist-pro-name');
+  assert.equal(DEFAULT_FRONT_SELECTORS.productName, '.prodlist-pro-name, .pf-name-text');
   assert.ok(DEFAULT_FRONT_SELECTORS.list.includes('.pf-list-wrap'));
 });

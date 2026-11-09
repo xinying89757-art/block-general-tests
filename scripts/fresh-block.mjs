@@ -1,3 +1,9 @@
+import { prepareFixture, restoreFixture } from '../src/fixture.mjs';
+import { fixtureOracleChecks, runFrontLayer as runFilterFrontLayer } from '../src/capabilities/custom-filter-fields.mjs';
+import { reloadEditor, openPreview } from '../src/editor.mjs';
+import { finalizeFilterDesignChecks, isFilterSupportedTypes } from '../src/filter-design-fixture.mjs';
+import { countVerdicts, collectHumanReview } from '../src/human-review.mjs';
+import { accountDesignRequirementCoverage } from '../src/design-spec-model.mjs';
 import { verdictCountsZh } from '../src/human-review.mjs';
 // Explicit fresh-block workflow. Capability-owned definitions feed one shared
 // batch adapter; unsupported capabilities stay visible as not-adapted.
@@ -12,7 +18,8 @@ import { savePage } from '../src/editor.mjs';
 import { writeCheckpoint } from '../src/run-safety.mjs';
 import { createFreshBlockBrowserAdapter } from '../src/fresh-block-browser-adapter.mjs';
 import { createFreshSettingsAdapter } from '../src/fresh-settings-adapter.mjs';
-import { parseFreshPageConfig, runFreshBlockFlow } from '../src/fresh-block-flow.mjs';
+import { parseFreshPageConfig, runFreshBlockFlow, targetBlockInstances } from '../src/fresh-block-flow.mjs';
+import { runDesignSpecEditorChecks } from '../src/design-spec-checklist.mjs';
 import { detectPreviewAvailable, resolveFrontMode } from '../src/front-provider.mjs';
 import { runFrontChecks } from '../src/front-check-runner.mjs';
 import { runFinalFrontChecks } from '../src/fresh-front-final.mjs';
@@ -86,7 +93,21 @@ try {
     targetPage: page, settingsAdapter });
   const flowConfig = { ...config, projectRoot: root, siteHost, blockId: config.blockId, page,
     frontMode: frontMode?.frontMode || 'preview', frontModeReason: frontMode?.frontModeReason || 'auto-detection-pending' };
-  let report = await runFreshBlockFlow({ config: flowConfig,
+  let report;
+  if (env.FRESH_REUSE_EXISTING === '1') {
+    const opened = await adapter.openPage(page);
+    const instances = targetBlockInstances(await adapter.listAllBlockInstances(), config.blockId);
+    if (instances.length !== 1 || !instances[0].settingId) throw new Error('复用模式要求页面恰有一个可识别的目标区块实例。');
+    if (env.FRESH_SETTING_ID && instances[0].settingId !== env.FRESH_SETTING_ID) throw new Error('目标实例与指定 settingId 不符，拒绝运行。');
+    config.freshSettingId = instances[0].settingId;
+    process.env.FRONT_PROVIDER = 'preview';
+    frontMode = { frontMode: 'preview', frontModeReason: 'reuse-existing-preview' };
+    report = { schemaVersion: 1, flow: 'fresh-block-reuse-fixture-oracle', runId, siteHost, blockId: config.blockId,
+      page, block: instances[0], lifecycle: { reusedSettingId: instances[0].settingId }, links: opened,
+      frontMode: 'preview', checks: await runDesignSpecEditorChecks({ ...profile, designSpec: { ...profile.designSpec,
+        requirements: (profile.designSpec?.requirements || []).filter(isFilterSupportedTypes) } }, []), capabilities: [],
+      publishedConfirmed: false, flowErrors: [], startedAt: new Date().toISOString() };
+  } else report = await runFreshBlockFlow({ config: flowConfig,
     adapter, runId,
     onPageOpened: async () => {
       if (!frontMode) {
@@ -105,6 +126,52 @@ try {
         stage: event.stage, progressAt: entry.at, counts: { target: event.targetCount ?? null, checks: event.checkCount ?? null } });
     } });
   siteLease.assertValid();
+  if (profile.fixture && profile.capabilities?.some(item => item.id === 'custom-filter-fields')) {
+    let preparation;
+    try {
+      const canvas = (await reloadEditor(session.page, config)).frame;
+      preparation = await prepareFixture({ page: session.page, canvas, context: session.context, config, profile });
+      report.fixture = { applied: !preparation.skipped, records: preparation.records, writes: preparation.writes,
+        ...(preparation.skipped ? { reason: '筛选字段组不可用。' } : {}) };
+      report.checks.push(...preparation.checks);
+      let previewUnavailableReason = '';
+      if (!preparation.skipped) {
+        let preview;
+        try {
+          preview = await openPreview(session.page, session.context);
+          report.checks.push(...await runFilterFrontLayer({ frame: preview.frame, config }));
+        } catch (error) {
+          previewUnavailableReason = `编辑器预览不可用：${error.message}`;
+          report.checks.push(...['cff-preview-unavailable', 'cff-facet-narrow', 'cff-clear-restore'].map(id => ({ id, status: 'skip', detail: previewUnavailableReason }))); 
+        } finally { await preview?.previewPage.close().catch(() => {}); }
+      }
+      const currentCanvas = (await reloadEditor(session.page, config)).frame;
+      const capability = profile.capabilities.find(item => item.id === 'custom-filter-fields');
+      report.checks.push(...await fixtureOracleChecks({ page: session.page, canvas: currentCanvas, context: session.context, config, profile, capability, report }, previewUnavailableReason));
+    } catch (error) {
+      preparation ||= error.fixturePreparation;
+      report.fixture = { applied: false, reason: error.message, failedStep: error.fixtureStep || null,
+        records: preparation?.records, writes: preparation?.writes };
+      report.checks.push(...(preparation?.checks || []), { id: 'fixture-prep', name: 'AUTOTEST 夹具准备', status: 'fail', detail: error.message });
+    } finally {
+      if (preparation?.originalFieldStates && !preparation.restored) {
+        try {
+          const canvas = (await reloadEditor(session.page, config)).frame;
+          await restoreFixture({ page: session.page, canvas, config, originalFieldStates: preparation.originalFieldStates });
+          report.fixture.restored = true;
+        } catch (error) {
+          report.fixture.restored = false;
+          report.checks.push({ id: 'fixture-restore', name: '夹具设置恢复', status: 'fail', detail: error.message });
+        }
+      }
+    }
+  }
+  finalizeFilterDesignChecks(profile, report);
+  report.summary = countVerdicts(report.checks);
+  report.failures = report.checks.filter(check => check.status === 'fail').map(check => ({ checkId: check.id, detail: check.detail, expected: check.expected, actual: check.actual }));
+  report.finishedAt = new Date().toISOString();
+  report.humanReview = collectHumanReview(report.checks);
+  report.designRequirementCoverage = accountDesignRequirementCoverage(profile, report.checks);
   if (report.publishedConfirmed) {
     const frontPage = await session.context.newPage();
     try {

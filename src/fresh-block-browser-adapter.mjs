@@ -297,9 +297,10 @@ export function createFreshBlockBrowserAdapter({ config, session, targetPage, se
     async readDefaults(_instance, inventorySnapshot) {
       const inventory = inventorySnapshot || await readFreshInventory();
       console.log(`[fresh-block] phase=defaults-inventory source=${inventorySnapshot ? 'snapshot' : 'fresh'}`);
-      const values = currentValuesFromInventory(inventory);
-      values.inventoryErrors = inventory.filter((region) => region.inventoryError).map((region) => region.inventoryError);
-      return values;
+      // inventoryErrors are attached non-enumerably by currentValuesFromInventory.
+      // Do not reassign: that property is non-writable by design so degraded-region
+      // diagnostics stay attached to the flattened values array.
+      return currentValuesFromInventory(inventory);
     },
     async readCurrentValues(_instance, inventorySnapshot) {
       const inventory = inventorySnapshot || await readFreshInventory();
