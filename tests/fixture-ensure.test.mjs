@@ -58,3 +58,14 @@ test('category limit degrades: fields/products still ensured, category recorded 
   const { fixtureCategoryState } = await import('../src/capabilities/shared.mjs');
   assert.match(fixtureCategoryState(profile,{fixture:{records:r.records}}).reason,/不可用/);
 });
+
+test('free-text fields use product values rather than nonexistent CMS option inputs', async () => {
+  const { buildDefaultFilterFixture } = await import('../src/filter-design-fixture.mjs');
+  const fixture = buildDefaultFilterFixture(['文本字段']);
+  const p = { fixture, requirements: { displayFieldTypes: [] } };
+  const m = mock();
+  m.api.readCustomFieldOptions = async () => { throw new Error('text fields have no option inputs'); };
+  await ensureFixtureData({ profile: p, cms: m.api });
+  const again = await ensureFixtureData({ profile: p, cms: m.api });
+  assert.deepEqual(again.writes, []);
+});

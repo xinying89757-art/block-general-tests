@@ -51,16 +51,19 @@ export async function ensureFixtureData({ page, profile, cms, previous = null })
     if (!found) { atStep(`创建字段 ${field.name}`); found = await cms.createCustomField(page, field); writes.push(`create-field:${field.name}`); }
     else {
       atStep(`核对字段 ${field.name} 选项`);
-      const options = found.type === field.type ? await cms.readCustomFieldOptions(page, field.name) : [];
-      const missing = field.options.filter(o => !options.includes(o));
+      const enumerated = [1, 2, 3].includes(field.typeCode);
+      const options = enumerated && found.type === field.type ? await cms.readCustomFieldOptions(page, field.name) : [];
+      const missing = enumerated ? field.options.filter(o => !options.includes(o)) : [];
       if (found.status !== '开启' || missing.length || found.type !== field.type) { atStep(`更新字段 ${field.name}`); await cms.updateCustomField(page, field.name, { missing, type: field.type, enable: found.status !== '开启' }); writes.push(`update-field:${field.name}`); }
     }
     atStep(`回读字段 ${field.name} 身份`);
     const verified = await cms.getCustomFieldIdentity(page, field.name);
     if (!verified?.id || verified.type !== field.type || verified.status !== '开启') throw new Error(`字段 ${field.name} 身份/类型/状态回读失败。`);
     atStep(`回读字段 ${field.name} 选项`);
-    const options = await cms.readCustomFieldOptions(page, field.name);
-    if (field.options.some(o => !options.includes(o))) throw new Error(`字段 ${field.name} 选项回读失败。`);
+    if ([1, 2, 3].includes(field.typeCode)) {
+      const options = await cms.readCustomFieldOptions(page, field.name);
+      if (field.options.some(o => !options.includes(o))) throw new Error(`字段 ${field.name} 选项回读失败。`);
+    }
     records.fields[field.name] = verified.id;
   }
   // A site may be unable to host a new category (Leadong category limit).
