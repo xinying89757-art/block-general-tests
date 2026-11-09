@@ -1,4 +1,5 @@
 import { applyHumanReviewVerdict, collectHumanReview, countVerdicts } from './human-review.mjs';
+import { accountDesignRequirementCoverage } from './design-spec-model.mjs';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { executeSettingBatches, planSettingBatches } from './batch-save.mjs';
@@ -151,6 +152,7 @@ export function buildFreshReport({ runId, siteHost, blockId, page, instance, cap
     moduleLibraryPreflight,
     defaults, capabilities, batches: batch.batches, checks, summary: countVerdicts(checks), failures,
     humanReview: [...new Map([...humanReview, ...collectHumanReview(checks)].map((item) => [String(item.id).replace(/^design-/, ''), item])).values()],
+    designRequirementCoverage: accountDesignRequirementCoverage(profile, checks),
     retainedFailures: batch.timing.retainedFailures || { selectedIds: [], suppressed: [] },
     timing: batch.timing, settingsMode: 'BATCH_SAVE / retain-tested-values', flowErrors,
     // Diagnostics intentionally omit matched selector paths; the profile owns

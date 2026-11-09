@@ -2271,5 +2271,83 @@
     ],
     "pendingStyleEffects": [],
     "note": "自动映射仅复用唯一命中的通用签名；未推断预期值、夹具或断言。"
+  },
+  "designSpec": {
+    "source": {
+      "fileKey": "li2DvtCykHCYvqellPT4aW",
+      "nodeId": "1671:76"
+    },
+    "requirements": [
+      {
+        "id": "custom-field-layout-bands",
+        "checkType": "manual",
+        "sourceText": "按照勾选的顺序展示：1-4自定义字段，都在上面依次排列，5-10在下方两列展示，11-最后在下方一行依次展示，中间用分割线隔开",
+        "expected": {},
+        "checkStage": "front",
+        "params": {
+          "note": "Card custom-field LAYOUT bands; not CMS displayFieldTypes."
+        }
+      },
+      {
+        "id": "product-name-truncation",
+        "checkType": "text-truncation",
+        "sourceText": "产品名称一行展示，超出隐藏",
+        "expected": {
+          "maxLines": 1
+        },
+        "checkStage": "front",
+        "params": {}
+      },
+      {
+        "id": "product-tag-visibility",
+        "checkType": "manual",
+        "sourceText": "如设置了产品标签应展示出来",
+        "expected": {},
+        "checkStage": "front",
+        "params": {}
+      },
+      {
+        "id": "filter-field-supported-types",
+        "checkType": "manual",
+        "sourceText": "支持类型：下拉、单选、多选、文本字段",
+        "expected": {},
+        "checkStage": "editor",
+        "params": {
+          "note": "Custom FILTER field types; must not be copied into requirements.displayFieldTypes."
+        }
+      },
+      {
+        "id": "filter-dual-column-sync",
+        "checkType": "manual",
+        "sourceText": "分为两列，可以分别勾选自定义字段 / 如数据相同，一方勾选后，另一方也应该勾选",
+        "expected": {},
+        "checkStage": "front",
+        "params": {}
+      },
+      {
+        "id": "module-width-default-1440",
+        "checkType": "module-width",
+        "sourceText": "1440px",
+        "expected": {
+          "expandable": true,
+          "default": "1440px"
+        },
+        "checkStage": "editor",
+        "params": {}
+      }
+    ],
+    "overrides": [],
+    "unsupportedRequirements": [
+      {
+        "id": "image-ratio-conflict",
+        "sourceText": "说明芯片/标注「4:3」 vs 产品列表描述「容器3:4」",
+        "reason": "Spec conflict unresolved; owner must choose before any automated image-ratio assertion. Remains human-review."
+      },
+      {
+        "id": "height-fit-content",
+        "sourceText": "根据内容高度自适应",
+        "reason": "height-fit has no automated checker; human review required."
+      }
+    ]
   }
 }

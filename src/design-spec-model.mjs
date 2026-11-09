@@ -98,6 +98,41 @@ const TYPE_SET = new Set(DESIGN_CHECK_TYPES);
 const NODE_ID = /^[0-9]+:[0-9]+$/;
 const FILE_KEY = /^[A-Za-z0-9_-]+$/;
 
+
+// Map designSpec requirements to live check outcomes so unexecuted / unsupported
+// design items remain visible in coverage accounting (human-review counts must
+// not look empty merely because a checker never ran).
+export function accountDesignRequirementCoverage(profile, checks = []) {
+  const byId = new Map((checks || []).map((check) => [String(check.id || '').replace(/^design-/, ''), check]));
+  const requirements = profile?.designSpec?.requirements || [];
+  const unsupported = listUnsupportedDesignRequirements(profile);
+  const unsupportedIds = new Set(unsupported.map((item) => item.id));
+  const rows = requirements.map((requirement) => {
+    const check = byId.get(requirement.id);
+    const plan = designRequirementPlan(requirement);
+    const unsupportedStages = (plan.stages || []).filter((stage) => stage.status === 'unsupported').map((stage) => stage.stage);
+    if (check) {
+      return { id: requirement.id, checkType: requirement.checkType, sourceText: requirement.sourceText,
+        status: check.status, evidence: 'check', stages: plan.stages };
+    }
+    if (unsupportedStages.length || unsupportedIds.has(requirement.id)) {
+      return { id: requirement.id, checkType: requirement.checkType, sourceText: requirement.sourceText,
+        status: 'human-review', evidence: 'unsupported-or-manual', stages: plan.stages,
+        reason: 'No automated checker ran; listed for human review.' };
+    }
+    return { id: requirement.id, checkType: requirement.checkType, sourceText: requirement.sourceText,
+      status: 'unexecuted', evidence: 'missing-check', stages: plan.stages,
+      reason: 'Design requirement present in profile but no matching check outcome was produced.' };
+  });
+  for (const item of unsupported) {
+    if (rows.some((row) => row.id === item.id)) continue;
+    rows.push({ id: item.id, checkType: item.checkType, sourceText: item.sourceText,
+      status: 'human-review', evidence: 'unsupportedRequirements', stages: item.stages,
+      reason: item.reason });
+  }
+  return rows;
+}
+
 export function validateDesignSpec(spec, profileId = '(unknown)') {
   const errors = [];
   const add = (path, message) => errors.push({ profileId, path: `designSpec${path}`, message });
