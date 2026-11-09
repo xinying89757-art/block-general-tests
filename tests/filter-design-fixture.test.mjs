@@ -32,7 +32,7 @@ test('aggregation reports pass, fail and missing fixture evidence', () => {
   const pass = aggregateFilterDesignRequirement(requirement, profile, checks, { applied: true });
   assert.equal(pass.status, 'pass'); assert.deepEqual(pass.actual[0].expected, pass.actual[0].actual);
   checks[1].status = 'fail'; assert.equal(aggregateFilterDesignRequirement(requirement, profile, checks, { applied: true }).status, 'fail');
-  assert.equal(aggregateFilterDesignRequirement(requirement, profile, [], { applied: false }).reason.code, 'filter-fixture-unavailable');
+  assert.equal(aggregateFilterDesignRequirement(requirement, profile, checks, { applied: false }).reason.code, 'filter-fixture-unavailable');
 });
 
 test('partial fixtures are drafted and display-only types remain separate', () => {

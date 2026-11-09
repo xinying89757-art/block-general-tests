@@ -52,8 +52,8 @@ export function aggregateFilterDesignRequirement(requirement, profile, checks, f
       expected: field ? (profile.fixture.products || []).filter(p => p.values?.[field.name] === field.options[0]).map(p => p.name) : [],
       actual: sets?.actual ?? null, status: check?.status || 'missing', checkId: check?.id || null, detail: check?.detail || null };
   });
-  const failed = rows.some(row => row.status === 'fail');
-  const complete = types.length > 0 && rows.every(row => row.status === 'pass' && Array.isArray(row.actual));
+  const failed = fixtureState?.applied !== false && rows.some(row => row.status === 'fail');
+  const complete = fixtureState?.applied !== false && types.length > 0 && rows.every(row => row.status === 'pass' && Array.isArray(row.actual));
   const status = failed ? 'fail' : complete ? 'pass' : 'human-review';
   const code = complete ? 'filter-oracle-passed' : failed ? 'filter-oracle-failed' : fixtureState?.applied === false ? 'filter-fixture-unavailable' : 'filter-oracle-unavailable';
   return { id: `design-${requirement.id}`, name: requirement.sourceText, sourceText: requirement.sourceText, status,
