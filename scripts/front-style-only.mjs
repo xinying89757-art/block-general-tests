@@ -128,7 +128,7 @@ try {
   const safe = sanitizeFrontStyleError(error);
   report.error = safe.message; exitCode = 1;
   if (!report.checks.length) report.checks = attachFrontStyleInstance(buildFrontStyleExecutionErrors({ capability, blockId, stage, error: safe,
-    viewport: capability.styleSpec?.viewports }), report.settingId);
+    viewport: capability?.styleSpec?.viewports }), report.settingId);
   else Object.assign(report, preservePartialFrontStyleReport(report, { stage, error: safe }));
   try {
     const pg = browser?.contexts()[0]?.pages()[0];
