@@ -1,7 +1,7 @@
 import { prepareFixture, restoreFixture } from '../src/fixture.mjs';
 import { fixtureOracleChecks, runFrontLayer as runFilterFrontLayer } from '../src/capabilities/custom-filter-fields.mjs';
 import { reloadEditor, openPreview } from '../src/editor.mjs';
-import { finalizeFilterDesignChecks } from '../src/filter-design-fixture.mjs';
+import { finalizeFilterDesignChecks, isFilterSupportedTypes } from '../src/filter-design-fixture.mjs';
 import { countVerdicts, collectHumanReview } from '../src/human-review.mjs';
 import { accountDesignRequirementCoverage } from '../src/design-spec-model.mjs';
 import { verdictCountsZh } from '../src/human-review.mjs';
@@ -104,7 +104,8 @@ try {
     frontMode = { frontMode: 'preview', frontModeReason: 'reuse-existing-preview' };
     report = { schemaVersion: 1, flow: 'fresh-block-reuse-fixture-oracle', runId, siteHost, blockId: config.blockId,
       page, block: instances[0], lifecycle: { reusedSettingId: instances[0].settingId }, links: opened,
-      frontMode: 'preview', checks: await runDesignSpecEditorChecks(profile, []), capabilities: [],
+      frontMode: 'preview', checks: await runDesignSpecEditorChecks({ ...profile, designSpec: { ...profile.designSpec,
+        requirements: (profile.designSpec?.requirements || []).filter(isFilterSupportedTypes) } }, []), capabilities: [],
       publishedConfirmed: false, flowErrors: [], startedAt: new Date().toISOString() };
   } else report = await runFreshBlockFlow({ config: flowConfig,
     adapter, runId,
