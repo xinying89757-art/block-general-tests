@@ -332,9 +332,14 @@ export function currentValuesFromInventory(inventory) {
   }
   // Keep degraded-region diagnostics alongside the flattened values so a
   // failed persisted-control projection can report the inventory failure.
-  Object.defineProperty(values, 'inventoryErrors', { value: (inventory || [])
-    .filter((region) => region?.inventoryError).map((region) => ({ ...structuredClone(region.inventoryError),
-      regionName: region.regionKey || region.title || region.kind || region.type })), enumerable: false });
+  Object.defineProperty(values, 'inventoryErrors', {
+    value: (inventory || [])
+      .filter((region) => region?.inventoryError).map((region) => ({ ...structuredClone(region.inventoryError),
+        regionName: region.regionKey || region.title || region.kind || region.type })),
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
   return values;
 }
 
