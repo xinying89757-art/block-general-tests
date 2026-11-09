@@ -802,7 +802,7 @@ async function enableOracleFields(tx, oracle) {
     await tx.set(found[0], true);
   }
 }
-async function selectFilterValue(root, condition) {
+export async function selectFilterValue(root, condition) {
   // Probe v27: the fixed ^\s*...$ regex matches the title element itself
   // (count 1), but group.filter({ has: root title locator }) still gives 0.
   // The inner locator carries root's (the block's) selector prefix, so
@@ -812,7 +812,9 @@ async function selectFilterValue(root, condition) {
   const exact = (text) => new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
   const groupIndex = await root.evaluate((node, { group, groupTitle, wanted }) => {
     const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
-    return [...node.querySelectorAll(group)].findIndex((item) => norm(item.querySelector(groupTitle)?.innerText) === wanted);
+    const matches = [...node.querySelectorAll(group)].map((item, index) => ({ item, index }))
+      .filter(({ item }) => norm(item.querySelector(groupTitle)?.innerText) === wanted);
+    return matches.length === 1 ? matches[0].index : -1;
   }, { group: SELECTORS.group, groupTitle: SELECTORS.groupTitle, wanted: condition.title });
   if (groupIndex < 0) unavailable(`预览中无法唯一确定筛选组“${condition.title}”。`);
   const group = root.locator(SELECTORS.group).nth(groupIndex);
@@ -833,7 +835,7 @@ async function selectFilterValue(root, condition) {
   }, condition.value), Boolean);
   if (!selected.matched) throw new Error('点击后没有观察到选中值');
 }
-async function clickSearch(root) {
+export async function clickSearch(root) {
   // Probe v30/v31: the search button is visibility:hidden in the editor
   // preview (inline style, before and after selection), so a Playwright
   // visible click can never work there; but the product list narrows on
