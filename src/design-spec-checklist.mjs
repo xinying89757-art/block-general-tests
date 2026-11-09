@@ -753,33 +753,89 @@ function requirementResult(requirement, status, expected, actual, reasonCode, de
     reason: { code: reasonCode, ...(status === 'na' ? { humanReviewRequired: true } : {}) } });
 }
 
+export function assessTextTruncation(elements, expected) {
+  const maxLines = Number(expected.maxLines);
+  const assessed = elements.map((item) => {
+    const clamp = Number(item.lineClamp ?? Number.parseInt(item.webkitLineClamp, 10)) || null;
+    const ellipsis = item.textOverflow === 'ellipsis' || item.ellipsized === true || clamp > 0;
+    const clipped = [item.overflow, item.overflowX, item.overflowY].some((value) => ['hidden', 'clip'].includes(value));
+    const overflowing = Number(item.scrollWidth) > Number(item.clientWidth)
+      || Number(item.scrollHeight) > Number(item.clientHeight) || item.overflowing === true;
+    const lineHeight = Number.parseFloat(item.lineHeight) || Number.parseFloat(item.fontSize);
+    const estimatedLines = lineHeight > 0 && Number(item.clientHeight) > 0 ? Number(item.clientHeight) / lineHeight : null;
+    const constraint = maxLines === 1
+      ? (clamp === 1 || (['nowrap', 'pre'].includes(item.whiteSpace) && clipped))
+      : (clamp !== null ? clamp === maxLines : clipped && estimatedLines !== null && estimatedLines <= maxLines + 0.1);
+    const { lineHeight: _lineHeight, ...recorded } = item;
+    return { ...recorded, overflowing, styleMatched: constraint && (expected.overflow !== 'ellipsis' || ellipsis) };
+  });
+  const pass = assessed.every((item) => item.styleMatched);
+  const overflowExercised = assessed.some((item) => item.overflowing);
+  return { elements: assessed, overflowExercised, pass,
+    code: !pass ? 'text-truncation-mismatch' : !overflowExercised && maxLines === 1
+      ? 'text-truncation-style-matched-overflow-unexercised' : 'text-truncation-matched' };
+}
+
 async function checkTextTruncation(requirement, page, rootSelector) {
   const selectorCandidates = [...new Set([requirement.params?.selector, ...(requirement.params?.selectorCandidates || [])].filter(Boolean))];
   const expectedLines = Number(requirement.expected?.maxLines);
   if (!Number.isFinite(expectedLines) || expectedLines < 1) return requirementResult(requirement, 'na', requirement.expected, null,
     'text-truncation-expected-lines-unavailable', '清单没有提供有效的最大行数，需人工复核。');
-  const actual = await page.evaluate(({ rootSelector, selectorCandidates }) => {
-    const root = document.querySelector(rootSelector);
-    if (!root) return { rootFound: false, elements: [] };
+  const snapshot = await page.evaluate(({ rootSelector, selectorCandidates }) => {
+    const roots = document.querySelectorAll(rootSelector);
+    if (roots.length !== 1) return { rootFound: false, rootCount: roots.length, elements: [] };
+    const root = roots[0];
+    const visible = (node) => {
+      const rect = node.getBoundingClientRect();
+      if (!rect.width || !rect.height) return false;
+      for (let current = node; current; current = current.parentElement) {
+        const style = getComputedStyle(current);
+        if (style.display === 'none' || ['hidden', 'collapse'].includes(style.visibility) || Number(style.opacity) === 0) return false;
+        if (current === root) break;
+      }
+      return true;
+    };
     let nodes = [];
     for (const selector of selectorCandidates) { try { nodes.push(...root.querySelectorAll(selector)); } catch {} }
-    if (!selectorCandidates.length) nodes = [...root.querySelectorAll('*')].filter((node) => {
+    if (!selectorCandidates.length) {
+      const signature = (node) => `${node.tagName}|${[...node.classList].filter((name) => !/blockCon\d+/i.test(name)).sort().join('.')}`;
+      const hasContent = (node) => node.querySelector('a[href],img,picture,[role="img"]')
+        && (node.innerText || node.textContent || '').trim();
+      const groups = [];
+      for (const parent of [root, ...root.querySelectorAll('*')]) {
+        const bySignature = new Map();
+        for (const child of parent.children) {
+          if (!visible(child) || !hasContent(child)) continue;
+          const key = signature(child);
+          bySignature.set(key, [...(bySignature.get(key) || []), child]);
+        }
+        for (const group of bySignature.values()) if (group.length >= 2) groups.push(group);
+      }
+      groups.sort((a, b) => b.length - a.length);
+      nodes = (groups[0] || []).flatMap((card) => {
+        const candidates = [...card.querySelectorAll('a[href],h1,h2,h3,h4,h5,h6,[role="heading"],[class*="name" i]')]
+          .filter(visible).map((node) => ({ node, text: (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim() }))
+          .filter((entry) => entry.text);
+        candidates.sort((a, b) => b.text.length - a.text.length || a.node.querySelectorAll('*').length - b.node.querySelectorAll('*').length);
+        return candidates.length ? [candidates[0].node] : [];
+      });
+    }
+    return { rootFound: true, elements: [...new Set(nodes)].filter(visible).map((node) => {
       const s = getComputedStyle(node);
-      return Number.parseInt(s.webkitLineClamp, 10) > 0 || (s.overflow === 'hidden' && node.scrollHeight > node.clientHeight);
-    });
-    return { rootFound: true, elements: [...new Set(nodes)].filter((node) => {
-      const r = node.getBoundingClientRect(), s = getComputedStyle(node);
-      return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
-    }).map((node) => { const s = getComputedStyle(node); const lineClamp = Number.parseInt(s.webkitLineClamp, 10) || null; return { lineClamp,
-      overflow: s.textOverflow, ellipsized: lineClamp > 0 || s.textOverflow === 'ellipsis', display: s.display, overflowY: s.overflowY,
-      clipped: node.scrollHeight > node.clientHeight, clientHeight: node.clientHeight, scrollHeight: node.scrollHeight }; }) };
+      return { text: (node.innerText || node.textContent || '').trim().slice(0, 160),
+        whiteSpace: s.whiteSpace, overflow: s.overflow, overflowX: s.overflowX, overflowY: s.overflowY,
+        textOverflow: s.textOverflow, webkitLineClamp: s.webkitLineClamp, display: s.display,
+        clientWidth: node.clientWidth, scrollWidth: node.scrollWidth, clientHeight: node.clientHeight,
+        scrollHeight: node.scrollHeight, fontSize: s.fontSize, lineHeight: s.lineHeight };
+    }) };
   }, { rootSelector, selectorCandidates });
-  if (!actual.rootFound || !actual.elements.length) return requirementResult(requirement, 'na', requirement.expected, actual,
+  if (!snapshot.rootFound || !snapshot.elements.length) return requirementResult(requirement, 'na', requirement.expected, snapshot,
     'text-truncation-elements-unresolved', '目标文本元素无法从实例内可靠识别，需人工复核。');
-  const pass = actual.elements.every((item) => item.lineClamp === expectedLines
-    && (requirement.expected?.overflow !== 'ellipsis' || item.ellipsized));
-  return requirementResult(requirement, pass ? 'pass' : 'fail', requirement.expected, actual,
-    pass ? 'text-truncation-matched' : 'text-truncation-mismatch', pass ? '文本行数限制符合清单。' : '文本行数限制与清单不一致。');
+  const { pass, code, ...assessment } = assessTextTruncation(snapshot.elements, requirement.expected);
+  const actual = { ...snapshot, ...assessment };
+  return requirementResult(requirement, pass ? 'pass' : 'fail', requirement.expected, actual, code,
+    !pass ? '文本行数限制与清单不一致。' : !assessment.overflowExercised && expectedLines === 1
+      ? '单行截断样式符合清单，但文本未超出容器，未实际触发溢出。' : '文本行数限制符合清单。');
 }
 
 async function checkImageRatio(requirement, page, rootSelector, imageLoadTimeoutMs) {
