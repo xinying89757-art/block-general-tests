@@ -92,7 +92,7 @@ export async function installHttpsUpgrade(context, rules = DEFAULT_HOSTS) {
       if (headers.location && isDowngradeLoop(headers.location, request.url(), hosts)) {
         const error = new Error(`HTTPS upgrade downgrade loop detected: ${request.url()} -> ${headers.location}`);
         error.code = 'HTTPS_UPGRADE_DOWNGRADE_LOOP';
-        console.warn(`[https-upgrade] ${error.message}`);
+        console.warn(`[https-upgrade] ${error.code}: ${error.message}. The HTTPS endpoint redirected back to HTTP; if plaintext HTTP is blocked (for example by Pingora), use a reachable published front or fix the network route.`);
         await route.abort('failed').catch(() => {});
         return;
       }
