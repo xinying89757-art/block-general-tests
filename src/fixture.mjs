@@ -145,6 +145,7 @@ export async function prepareFixture({ page, canvas, context, config, profile })
     completed = true;
     return prepared;
   } catch (error) {
+    if (error.fixtureProgress) { prepared.records = error.fixtureProgress.records; prepared.writes = error.fixtureProgress.writes; }
     error.fixturePreparation = prepared;
     throw error;
   } finally {

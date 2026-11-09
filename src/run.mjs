@@ -1,3 +1,4 @@
+import { finalizeFilterDesignChecks } from './filter-design-fixture.mjs';
 import { applyHumanReviewVerdict } from './human-review.mjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -407,7 +408,7 @@ async function main() {
       profile.baseline = baseline; // Runtime-only bridge for existing capability APIs.
     }
     baseline = baselineDocument.steps;
-    if (baselineDocument.fixtureRefs) profile.fixture = baselineDocument.fixtureRefs;
+    if (baselineDocument.fixtureRefs && Object.keys(baselineDocument.fixtureRefs).length) profile.fixture = baselineDocument.fixtureRefs;
     if (profile) profile.baseline = baseline; // Runtime-only bridge; profiles remain site-independent.
     config.verifyBatchBaseline = async () => guardBaseline({ page: session?.page, canvas, config, baseline });
     config.recoverEnvironment = async (reason, recoveryOptions = {}) => {
@@ -652,6 +653,7 @@ async function main() {
     }
   }
 
+  finalizeFilterDesignChecks(profile, report);
   report.checks = report.checks.map((check) => applyHumanReviewVerdict(check, { profile }));
   report.environmentEvents = environmentEvents;
   if (report.failure?.status && Object.hasOwn(report.summary, report.failure.status)

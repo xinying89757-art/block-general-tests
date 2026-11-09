@@ -1043,7 +1043,7 @@ export function fixtureScenarioPolicy(profile, union) {
   if (scope === '当前分类产品' && !profile?.fixture?.category?.name?.startsWith('AUTOTEST-')) return { skip: '当前分类固定，缺少 AUTOTEST 夹具分类' };
   return { logic, trigger, scope };
 }
-async function fixtureOracleChecks(args, unavailableReason) {
+export async function fixtureOracleChecks(args, unavailableReason) {
   let table;
   try { table = buildFixtureTruthTable(args.profile.fixture); }
   catch (error) { return [result('cff-oracle-fixture', 'skip', `夹具准备条件未满足：${error.message}`)]; }

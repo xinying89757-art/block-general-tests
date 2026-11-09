@@ -1,3 +1,4 @@
+import { isFilterSupportedTypes, parseFilterSupportedTypes } from './filter-design-fixture.mjs';
 import { applyHumanReviewVerdict } from './human-review.mjs';
 import { readSpecTargetState, specScopeMapping, validateSpecState } from './spec-target-state.mjs';
 import { markUniqueFrontInstance } from './front-instance-root.mjs';
@@ -72,6 +73,14 @@ function checkDesignRequirementEditorRaw(requirement, { profile, inventory = [] 
   if (override) return checkResult(requirement, 'na', { classification: 'known-exception',
     detail: `已知例外：${override.reason}`, reason: { code: 'waived', reason: override.reason } });
   if (!['editor', 'both'].includes(requirement.checkStage)) return null;
+  if (isFilterSupportedTypes(requirement)) {
+    const types = parseFilterSupportedTypes(requirement.sourceText);
+    const covered = types.length && types.every(type => profile?.fixture?.filterFieldTypes?.includes(type)
+      && profile.fixture.fields?.some(field => field.type === type && field.options?.length >= 2));
+    return checkResult(requirement, covered ? 'deferred' : 'human-review', {
+      expected: { ...requirement.expected, types }, detail: covered ? '筛选类型由预览单值真值表判定。' : '筛选夹具不可用，无法执行类型真值表。',
+      reason: { code: covered ? 'filter-oracle-pending' : 'filter-fixture-unavailable', ...(!covered ? { humanReviewRequired: true } : {}) } });
+  }
   if (requirement.checkType !== 'module-width') return checkResult(requirement, 'na', {
     detail: '此设计要求尚无可重复的编辑器阶段 oracle。', reason: { code: 'editor-checker-unavailable' } });
   if (!requirement.expected?.expandable) return checkResult(requirement, 'na', {

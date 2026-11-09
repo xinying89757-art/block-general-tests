@@ -41,7 +41,7 @@ export async function ensureFixtureData({ page, profile, cms, previous = null })
   const plan = fixturePlan(profile), records = { fields: {}, products: {}, category: null }, writes = [];
   let step = '列出现有自定义字段';
   const atStep = (name) => { step = name; };
-  const attachStep = (error) => { error.fixtureStep ||= step; throw error; };
+  const attachStep = (error) => { error.fixtureStep ||= step; error.fixtureProgress = { records, writes }; throw error; };
   try {
   const existing = await cms.listCustomFields(page);
   for (const field of plan.fields) {
@@ -104,7 +104,7 @@ export async function ensureFixtureData({ page, profile, cms, previous = null })
   } catch (error) { attachStep(error); }
 }
 export function fixtureRecordPath(config, root = 'fixtures-state') {
-  const host = new URL(config.siteDomain).host.toLowerCase();
+  const host = new URL(/^https?:\/\//i.test(config.siteDomain) ? config.siteDomain : `https://${config.siteDomain}`).host.toLowerCase();
   if (!host || !config.blockId) throw new Error('夹具记录需要站点 host 与区块 ID。');
   return path.join(root, `${createHash('sha256').update(`${host}\0${config.blockId}`).digest('hex')}.json`);
 }

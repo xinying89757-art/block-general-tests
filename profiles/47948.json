@@ -47,7 +47,7 @@
   },
   "testData": {
     "requirements": [],
-    "status": "unreviewed-no-fixture-oracle"
+    "status": "fixture-drafted-from-design-spec"
   },
   "requirements": {
     "capabilities": [
@@ -2310,7 +2310,14 @@
         "id": "filter-field-supported-types",
         "checkType": "manual",
         "sourceText": "支持类型：下拉、单选、多选、文本字段",
-        "expected": {},
+        "expected": {
+          "types": [
+            "下拉列表",
+            "单选按钮",
+            "多选按钮",
+            "文本字段"
+          ]
+        },
         "checkStage": "editor",
         "params": {
           "note": "Custom FILTER field types; must not be copied into requirements.displayFieldTypes."
@@ -2347,6 +2354,102 @@
         "id": "height-fit-content",
         "sourceText": "根据内容高度自适应",
         "reason": "height-fit has no automated checker; human review required."
+      }
+    ]
+  },
+  "fixture": {
+    "filterFieldTypes": [
+      "下拉列表",
+      "单选按钮",
+      "多选按钮",
+      "文本字段"
+    ],
+    "fields": [
+      {
+        "name": "AUTOTEST-下拉列表",
+        "type": "下拉列表",
+        "typeCode": 2,
+        "options": [
+          "下拉列表-A",
+          "下拉列表-B"
+        ]
+      },
+      {
+        "name": "AUTOTEST-单选按钮",
+        "type": "单选按钮",
+        "typeCode": 1,
+        "options": [
+          "单选按钮-A",
+          "单选按钮-B"
+        ]
+      },
+      {
+        "name": "AUTOTEST-多选按钮",
+        "type": "多选按钮",
+        "typeCode": 3,
+        "options": [
+          "多选按钮-A",
+          "多选按钮-B"
+        ]
+      },
+      {
+        "name": "AUTOTEST-文本字段",
+        "type": "文本字段",
+        "typeCode": 0,
+        "options": [
+          "文本字段-A",
+          "文本字段-B"
+        ]
+      }
+    ],
+    "category": {
+      "name": "AUTOTEST-筛选分类"
+    },
+    "products": [
+      {
+        "name": "AUTOTEST-47948-筛选-基准",
+        "values": {
+          "AUTOTEST-下拉列表": "下拉列表-A",
+          "AUTOTEST-单选按钮": "单选按钮-A",
+          "AUTOTEST-多选按钮": "多选按钮-A",
+          "AUTOTEST-文本字段": "文本字段-A"
+        }
+      },
+      {
+        "name": "AUTOTEST-47948-筛选-翻转1",
+        "values": {
+          "AUTOTEST-下拉列表": "下拉列表-B",
+          "AUTOTEST-单选按钮": "单选按钮-A",
+          "AUTOTEST-多选按钮": "多选按钮-A",
+          "AUTOTEST-文本字段": "文本字段-A"
+        }
+      },
+      {
+        "name": "AUTOTEST-47948-筛选-翻转2",
+        "values": {
+          "AUTOTEST-下拉列表": "下拉列表-A",
+          "AUTOTEST-单选按钮": "单选按钮-B",
+          "AUTOTEST-多选按钮": "多选按钮-A",
+          "AUTOTEST-文本字段": "文本字段-A"
+        }
+      },
+      {
+        "name": "AUTOTEST-47948-筛选-翻转3",
+        "values": {
+          "AUTOTEST-下拉列表": "下拉列表-A",
+          "AUTOTEST-单选按钮": "单选按钮-A",
+          "AUTOTEST-多选按钮": "多选按钮-B",
+          "AUTOTEST-文本字段": "文本字段-A"
+        }
+      },
+      {
+        "name": "AUTOTEST-47948-筛选-翻转4",
+        "values": {
+          "AUTOTEST-下拉列表": "下拉列表-A",
+          "AUTOTEST-单选按钮": "单选按钮-A",
+          "AUTOTEST-多选按钮": "多选按钮-A",
+          "AUTOTEST-文本字段": "文本字段-B"
+        }
       }
     ]
   }

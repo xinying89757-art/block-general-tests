@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { applyFilterFixtureFromDesignSpec } from '../src/filter-design-fixture.mjs';
 // Generic importer: maps extracted Figma JSON into a profile checklist while
 // preserving source text/values and excluding the original URL field.
 import fs from 'node:fs/promises';
@@ -91,7 +92,7 @@ export function importExtractedDesignSpec(profile, spec) {
     || sourceNode((spec.typography || []).find((item) => item.sourceNodeId)?.sourceNodeId);
   if (!/^[A-Za-z0-9_-]+$/.test(fileKey) || !nodeId) throw new Error('Extracted design spec requires a Figma file key and source node id.');
   profile.designSpec = { source: { fileKey, nodeId }, requirements: requirementsFromSpec(spec), overrides: [] };
-  return profile;
+  return applyFilterFixtureFromDesignSpec(profile);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
