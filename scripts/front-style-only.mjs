@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { imageLoadTimeout } from '../src/image-readiness.mjs';
+import { CHROMIUM_DISABLE_HTTPS_UPGRADES_ARGS } from '../src/network-https-upgrade.mjs';
 // Front-only runner for the block-style-spec capability: opens a PUBLIC
 // front page (no login, no editor), finds the block by number and runs the
 // profile's existing styleSpec assertions (runFrontLayer). Generic: site,
@@ -83,7 +84,7 @@ process.once('SIGINT', onSigint);
 process.once('SIGTERM', onSigterm);
 try {
   progress(stage);
-  browser = await chromium.launch({ headless: true, ...(args.channel ? { channel: args.channel } : {}) });
+  browser = await chromium.launch({ headless: true, ...(args.channel ? { channel: args.channel } : {}), args: [...CHROMIUM_DISABLE_HTTPS_UPGRADES_ARGS] });
   if (abortReason) throw new Error(`Front style run interrupted: ${abortReason.kind}`);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: args['strict-tls'] !== '1' });
   const page = await context.newPage();

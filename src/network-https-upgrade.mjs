@@ -6,6 +6,14 @@ const DEFAULT_HOSTS = Object.freeze([
 ]);
 const FRONTEND_SUFFIXES = Object.freeze(['ldwebsite.com', 'ldyjz.com', 'ldmfyh.com']);
 
+export const CHROMIUM_DISABLE_HTTPS_UPGRADES_ARGS = Object.freeze([
+  // Chromium may auto-upgrade http://*.ldwebsite.com to https://, but many
+  // Leadong test fronts only serve content on HTTP while HTTPS returns nginx 403.
+  // Front-only runners must stay on the requested scheme.
+  '--disable-features=HttpsUpgrades,HttpsFirstBalancedModeAutoEnable,HttpsFirstModeV2',
+]);
+
+
 function normalizeRule(value) {
   if (typeof value !== 'string') throw new TypeError('HTTPS_UPGRADE_HOSTS must contain host names');
   const rule = value.trim().toLowerCase().replace(/\.$/, '');
