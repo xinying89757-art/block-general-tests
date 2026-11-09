@@ -91,6 +91,7 @@ export async function ensureFixtureData({ page, profile, cms, previous = null })
     if (!id) { atStep(`创建产品 ${product.name}`); id = await cms.createProduct(page, product); writes.push(`create-product:${product.name}`); }
     atStep(`回读产品 ${product.name} 身份`);
     if (!id || await cms.findProduct(page, product.name) !== id) throw new Error(`产品 ${product.name} 身份回读失败。`);
+    atStep(`回读产品 ${product.name} 字段值`);
     const actual = await cms.readProductFieldValues(page, id, Object.keys(product.values));
     const changed = Object.fromEntries(Object.entries(product.values).filter(([name, value]) => !sameValue(actual[name], value)));
     if (Object.keys(changed).length) { atStep(`更新产品 ${product.name} 字段值`); const updated = await cms.setProductFieldValues(page, id, changed); if (Object.entries(changed).some(([n,v]) => !sameValue(updated[n],v))) throw new Error(`产品 ${product.name} 字段回读失败。`); writes.push(`update-product:${product.name}`); }

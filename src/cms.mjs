@@ -430,7 +430,7 @@ async function openProduct(page, prodId) {
 }
 // Browser-side discovery/read/write uses field text, never option_<fixed ID>.
 // Container layouts and multi-checkbox markup remain first-live-run checks.
-function productFields({ names, values }) {
+export function productFields({ names, values }) {
   const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
   const title = (t) => norm(t).replace(/^[*＊]\s*/, '').replace(/\s*[：:]$/, '');
   const available = (node) => node.getClientRects().length || [...(node.labels || [])].some((label) => label.getClientRects().length);
@@ -441,11 +441,11 @@ function productFields({ names, values }) {
     const groups = [];
     for (const label of labels) {
       for (let parent = label; parent && !['BODY', 'HTML', 'FORM'].includes(parent.tagName); parent = parent.parentElement) {
-        const controls = [...parent.querySelectorAll('input[type="radio"], input[type="checkbox"], select')].filter(available);
+        const controls = [...parent.querySelectorAll('input[type="radio"], input[type="checkbox"], input[type="text"], select')].filter(available);
         if (!controls.length) continue;
         const types = new Set(controls.map((input) => input.tagName === 'SELECT' ? 'select' : input.type));
         const groupNames = new Set(controls.map((input) => input.name));
-        if (types.size === 1 && (controls[0].tagName === 'SELECT' ? controls.length === 1 : groupNames.size === 1 && controls[0].name)) groups.push(controls);
+        if (types.size === 1 && (['SELECT', 'text'].includes(controls[0].tagName === 'SELECT' ? 'SELECT' : controls[0].type) ? controls.length === 1 : groupNames.size === 1 && controls[0].name)) groups.push(controls);
         break;
       }
     }
@@ -460,7 +460,12 @@ function productFields({ names, values }) {
     if (values) {
       const wanted = values[name];
       if (typeof wanted !== 'string') throw new Error(`字段“${name}”要求单个字符串值。`);
-      if (type === 'select') {
+      if (type === 'text') {
+        if (controls[0].disabled || controls[0].readOnly) throw new Error(`字段“${name}”文本框不可编辑。`);
+        controls[0].value = wanted;
+        controls[0].dispatchEvent(new Event('input', { bubbles: true }));
+        controls[0].dispatchEvent(new Event('change', { bubbles: true }));
+      } else if (type === 'select') {
         const options = [...controls[0].options].filter((option) => norm(option.text) === wanted && !option.disabled);
         if (options.length !== 1 || controls[0].disabled) throw new Error(`字段“${name}”无法唯一选择“${wanted}”。`);
         controls[0].value = options[0].value;
@@ -472,7 +477,8 @@ function productFields({ names, values }) {
         else for (const input of controls) if (input.checked !== (input === targets[0])) input.click();
       }
     }
-    if (type === 'select') result[name] = norm(controls[0].selectedOptions[0]?.text);
+    if (type === 'text') result[name] = controls[0].value;
+    else if (type === 'select') result[name] = norm(controls[0].selectedOptions[0]?.text);
     else {
       const checked = controls.filter((input) => input.checked).map(optionLabel);
       if (type === 'radio' && checked.length > 1) throw new Error(`字段“${name}”单选组有多个选中值。`);
