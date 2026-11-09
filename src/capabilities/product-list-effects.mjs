@@ -101,7 +101,7 @@ async function effectListFields(tx, session) {
   return choices;
 }
 
-function cardFieldSnapshot(root, fieldLabels = []) {
+export function cardFieldSnapshot(root, fieldLabels = []) {
   const visible = (node) => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden';
   const norm = (text) => (text || '').replace(/\s+/g, ' ').trim();
   const cards = [...root.querySelectorAll('.one-pruduct-item')].filter(visible);

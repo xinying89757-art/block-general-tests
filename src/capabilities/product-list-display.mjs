@@ -9,7 +9,7 @@ import { executeSettingBatches } from '../batch-save.mjs';
 import { createFreshLifecycle } from '../fresh-settings-adapter.mjs';
 import { registerFreshSettingsCapability } from '../setting-units.mjs';
 import { retryDisplayFieldSnapshot } from '../display-field-front-check.mjs';
-import { listSession } from './product-list-effects.mjs';
+import { cardFieldSnapshot, listSession } from './product-list-effects.mjs';
 
 // Keep unknown/ambiguous instance identity null; never select an arbitrary wrap.
 async function mutationTarget(canvas, config, profile) {

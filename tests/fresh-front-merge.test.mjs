@@ -58,7 +58,7 @@ test('Mac report without the newly-added instance preserves a clear publish fail
   for (const frontReport of frontReports) {
     const row = mergeFreshFrontReports(boxReport, frontReport).checks[0];
     assert.equal(row.status, 'fail');
-    assert.equal(row.detail, '前台未找到本次新实例：Mac 前台报告未能以缓存刷新 URL 确认同一个新 settingId。');
+    assert.equal(row.detail, '前台未确认本次新实例：Mac 前台报告未能以充分证据确认同一个新 settingId。');
   }
 });
 
@@ -98,16 +98,33 @@ test('front-only output without a run id confirms the new instance using source 
   assert.equal(mismatched.merge.addedInstanceConfirmed, false);
 });
 
-test('front report without a cache-busted URL does not confirm an unreachable publish row', () => {
+test('strong instance resolution confirms an unreachable publish row without a cache-busted URL', () => {
   const boxReport = { ...box, lifecycle: { addedSettingId: 'instance-new' }, checks: [
     { id: 'fresh-publish-confirmed', status: 'fail', classification: 'front-unreachable-from-runner' },
   ] };
   const frontReport = { ...front, settingId: 'instance-new', blockInstances: 1,
-    instanceResolution: 'block-number+settingId', url: 'https://test.invalid/page',
+    instanceResolution: 'block-number+settingId', url: 'http://test.invalid/page',
     finishedAt: '2026-11-02T04:04:00.000Z' };
   const merged = mergeFreshFrontReports(boxReport, frontReport);
-  assert.equal(merged.checks[0].status, 'fail');
-  assert.equal(merged.merge.addedInstanceConfirmed, false);
+  assert.equal(merged.checks[0].status, 'pass');
+  assert.equal(merged.merge.addedInstanceConfirmed, true);
+  const weak = mergeFreshFrontReports(boxReport, { ...frontReport, instanceResolution: 'block-number' });
+  assert.equal(weak.checks[0].status, 'fail');
+  assert.equal(weak.merge.addedInstanceConfirmed, false);
+});
+
+test('confirmed instance resolves deferred unreachable rows without matching front check ids', () => {
+  const boxReport = { ...box, lifecycle: { addedSettingId: 'instance-new' }, checks: [
+    { id: 'fresh-publish-confirmed', status: 'deferred', classification: 'front-unreachable-from-runner' },
+    { id: 'fresh-front-checks', status: 'deferred', classification: 'front-unreachable-from-runner' },
+  ] };
+  const frontReport = { ...front, runId: 'mac-front', settingId: 'instance-new', blockInstances: 1,
+    instanceResolution: 'block-number+settingId', url: 'http://test.invalid/page',
+    finishedAt: '2026-11-02T04:04:00.000Z', checks: [] };
+  const merged = mergeFreshFrontReports(boxReport, frontReport);
+  assert.deepEqual(merged.checks.map((row) => row.status), ['pass', 'pass']);
+  assert.deepEqual(merged.merge.frontResolvedIds, ['fresh-publish-confirmed', 'fresh-front-checks']);
+  assert.ok(merged.checks.every((row) => row.resolvedBy === 'front-report'));
 });
 
 test('front display-field verdict replaces only the canvas checker limitation', () => {
