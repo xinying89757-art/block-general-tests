@@ -34,3 +34,12 @@ test('aggregation reports pass, fail and missing fixture evidence', () => {
   checks[1].status = 'fail'; assert.equal(aggregateFilterDesignRequirement(requirement, profile, checks, { applied: true }).status, 'fail');
   assert.equal(aggregateFilterDesignRequirement(requirement, profile, [], { applied: false }).reason.code, 'filter-fixture-unavailable');
 });
+
+test('partial fixtures are drafted and display-only types remain separate', () => {
+  const profile = { blockId: 'test', requirements: { displayFieldTypes: ['色卡'] }, fixture: { fields: [{ type: '文本字段' }] },
+    designSpec: { requirements: [structuredClone(requirement)] } };
+  applyFilterFixtureFromDesignSpec(profile);
+  assert.deepEqual(profile.requirements.displayFieldTypes, ['色卡']);
+  assert.equal(fixturePlan(profile).fields.length, 5);
+  validateFixture(profile.fixture, profile.requirements);
+});

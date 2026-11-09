@@ -27,9 +27,15 @@ export function applyFilterFixtureFromDesignSpec(profile) {
   let usable = false;
   try { validateFixture(profile.fixture, profile.requirements); fixturePlan(profile); usable = types.every(t => profile.fixture.filterFieldTypes?.includes(t)); } catch { /* draft below */ }
   if (!usable) {
-    // Do not silently replace user-owned fixture data; only an absent/empty fixture is drafted.
-    if (profile.fixture && (profile.fixture.fields?.length || profile.fixture.products?.length)) return profile;
-    profile.fixture = buildDefaultFilterFixture(types, { blockId: profile.blockId });
+    const draft = buildDefaultFilterFixture(types, { blockId: profile.blockId });
+    const displayOnly = [...new Set(profile.requirements?.displayFieldTypes || [])].filter(type => !types.includes(type));
+    if (displayOnly.length) {
+      if (displayOnly.some(type => FIELD_TYPE_CODES[type] === undefined)) throw new Error('展示字段包含未知类型，无法草拟夹具。');
+      draft.displayFields = { fields: displayOnly.map(type => ({ name: `AUTOTEST-${type}`, type,
+        typeCode: FIELD_TYPE_CODES[type], options: [`${type}-A`, `${type}-B`],
+        values: Object.fromEntries(draft.products.map(product => [product.name, `${type}-A`])) })) };
+    }
+    profile.fixture = draft;
     profile.testData = { ...profile.testData, status: 'fixture-drafted-from-design-spec' };
   }
   return profile;
