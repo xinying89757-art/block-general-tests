@@ -270,8 +270,16 @@ async function settleCmsNavigation(page, action) {
   page.on('request', onRequest); page.on('requestfinished', onDone); page.on('requestfailed', onDone);
   try {
     await action();
-    await waitForStable(async () => ({ pending: pending.size, revision,
-      tables: await page.locator('table:visible').allTextContents() }), (state) => state.pending === 0);
+    try {
+      await waitForStable(async () => ({ pending: pending.size, revision,
+        tables: await page.locator('table:visible').allTextContents() }), (state) => state.pending === 0);
+    } catch (error) {
+      const requests = [...pending].map(request => {
+        try { return new URL(request.url()).pathname; } catch { return 'unknown'; }
+      });
+      error.message += `；CMS 未完成请求数=${pending.size}，请求路径=${requests.join(',') || '无'}，请求变化次数=${revision}`;
+      throw error;
+    }
   } finally {
     page.off('request', onRequest); page.off('requestfinished', onDone); page.off('requestfailed', onDone);
   }

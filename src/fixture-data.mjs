@@ -40,7 +40,7 @@ export function fixturePlan(profile) {
 export async function ensureFixtureData({ page, profile, cms, previous = null }) {
   const plan = fixturePlan(profile), records = { fields: {}, products: {}, category: null }, writes = [];
   let step = '列出现有自定义字段';
-  const atStep = (name) => { step = name; };
+  const atStep = (name) => { step = name; console.log(`[fixture] ${name}`); };
   const attachStep = (error) => { error.fixtureStep ||= step; error.fixtureProgress = { records, writes }; throw error; };
   try {
   const existing = await cms.listCustomFields(page);
