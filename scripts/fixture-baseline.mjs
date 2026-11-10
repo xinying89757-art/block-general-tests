@@ -49,9 +49,10 @@ try {
     if (new URL(config.siteDomain || `http://${args['site-host']}`).host !== String(args['site-host']).replace(/^https?:\/\//, '')) {
       throw new Error('Configured site host does not match the requested site host.');
     }
+    config.siteDomain ||= `https://${args['site-host']}`;
     const session = await launchSession(config);
     browser = session.browser;
-    const cmsPage = await cms.openProdPage(session.context);
+    const cmsPage = await cms.openProdPage(session.context, config);
     adapter = createCmsFixtureAdapter(cmsPage, cms);
   }
   const result = await runFixtureBaseline({ args, spec, report, records, inventory, adapter });

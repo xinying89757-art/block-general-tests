@@ -30,7 +30,7 @@ const matchName = `(() => {
 })()`;
 try {
   const { page } = await openEditor(session.page, config);
-  const cms = await openProdPage(session.context);
+  const cms = await openProdPage(session.context, config);
   await cms.evaluate(() => {
     const el = [...document.querySelectorAll('[action="prod_new_add"], [data-action="prod_new_add"]')]
       .find((e) => e.getClientRects().length > 0);

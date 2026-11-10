@@ -11,7 +11,7 @@ const { browser, context, page } = await launchSession(config);
 let code = 1;
 try {
   await openEditor(page, config);
-  const prod = await openProdPage(context);
+  const prod = await openProdPage(context, config);
   const u = new URL(prod.url()); u.search = ''; u.searchParams.set('invokeAction', 'prod_group_list');
   const load = async () => { await prod.goto(u.href, { waitUntil: 'load' }); await prod.waitForTimeout(6000); };
   await load();

@@ -23,7 +23,7 @@ try {
   const { page } = await openEditor(session.page, config);
   const { frame: canvas } = await ensureTargetPage(page, config);
   // CMS state (read-only).
-  const cmsPage = await openProdPage(session.context);
+  const cmsPage = await openProdPage(session.context, config);
   try {
     const fields = await listCustomFields(cmsPage);
     out.cms.fields = fields.map((f) => `${f.name} (${f.type} ${f.status})`);

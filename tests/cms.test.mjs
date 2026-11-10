@@ -31,3 +31,59 @@ test('product custom text field is resolved by its own title, written and read b
     assert.equal((await page.evaluate(productFields, { names: ['AUTOTEST-文本字段'] }))['AUTOTEST-文本字段'], '文本字段-A');
   } finally { await browser.close(); }
 });
+
+function mockCmsEntry({ popup = false, entryCount = 1, loggedOut = false, siteMatches = true } = {}) {
+  const events = [];
+  const pages = [];
+  const cmsPage = {
+    url: () => 'https://website.leadong.com/prod', isClosed: () => false,
+    locator: (selector) => selector.includes('password') ? { count: async () => 0 }
+      : { filter: () => ({ first: () => ({ waitFor: async () => {} }) }) },
+    close: async () => { events.push('close-cms'); },
+  };
+  const entry = { filter: () => entry, count: async () => entryCount, click: async () => {
+    events.push('click-content');
+    if (popup) pages.push(cmsPage); else currentUrl = cmsPage.url();
+  } };
+  const card = {
+    locator: (selector) => selector.startsWith('a[href]')
+      ? { evaluateAll: async () => [siteMatches ? 'https://example.test/' : 'https://other.test/'] }
+      : { count: async () => 0 },
+    scrollIntoViewIfNeeded: async () => {}, getByText: () => entry,
+  };
+  let currentUrl = 'about:blank';
+  const page = {
+    goto: async (url) => { events.push(`goto:${url}`); currentUrl = loggedOut ? 'https://www.leadong.com/login.html' : url; },
+    url: () => currentUrl, frames: () => [], isClosed: () => false,
+    locator: (selector) => {
+      if (selector === '.mySiteBox') return { count: async () => 1, nth: () => card };
+      if (selector.includes('password') && currentUrl.includes('/prod')) return { count: async () => 0 };
+      if (selector.includes('prod_list')) return { filter: () => ({ first: () => ({ waitFor: async () => {} }) }) };
+      return { first: () => ({ isVisible: async () => false }) };
+    },
+    waitForTimeout: async () => {}, close: async () => { events.push('close-entry'); },
+  };
+  const context = { newPage: async () => { pages.push(page); return page; }, pages: () => pages };
+  return { context, events, page, cmsPage };
+}
+
+test('CMS entry selects the authenticated site and clicks 内容管理, including popup navigation', async () => {
+  const { openProdPage } = await import('../src/cms.mjs');
+  for (const popup of [false, true]) {
+    const mock = mockCmsEntry({ popup });
+    const result = await openProdPage(mock.context, { siteDomain: 'https://example.test' });
+    assert.equal(result, popup ? mock.cmsPage : mock.page);
+    assert.deepEqual(mock.events.slice(0, 2), ['goto:https://www.leadong.com/website.html', 'click-content']);
+    assert.equal(mock.events.includes('close-entry'), popup);
+  }
+});
+
+test('CMS entry refuses expired login, wrong site and ambiguous controls and closes its page', async () => {
+  const { openProdPage } = await import('../src/cms.mjs');
+  for (const [options, expected] of [[{ loggedOut: true }, /登录态/], [{ siteMatches: false }, /匹配到 0/], [{ entryCount: 2 }, /应唯一/]]) {
+    const mock = mockCmsEntry(options);
+    await assert.rejects(openProdPage(mock.context, { siteDomain: 'https://example.test' }), expected);
+    assert.ok(mock.events.includes('close-entry'));
+    assert.ok(!mock.events.includes('click-content'));
+  }
+});

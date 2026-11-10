@@ -15,7 +15,7 @@ const out = { at: new Date().toISOString(), prodId: 'tLKqQzCgrcmI' };
 const session = await launchSession(config);
 try {
   await openEditor(session.page, config);
-  const cms = await openProdPage(session.context);
+  const cms = await openProdPage(session.context, config);
   // readProductFieldValues navigates to the product edit page; the page
   // stays there, so the raw evaluate below reads the same live form.
   out.normalRead = await readProductFieldValues(cms, 'tLKqQzCgrcmI', ['测试单选按钮A', '测试下拉列表', 'AUTOTEST-多选']);

@@ -15,7 +15,7 @@ const session = await launchSession(config);
 const output = { at: new Date().toISOString(), category: null, products: [] };
 try {
   await openEditor(session.page, config);
-  const page = await openProdPage(session.context);
+  const page = await openProdPage(session.context, config);
   try {
     const category = await findCategory(page, fixture.category.name);
     output.category = category ? { name: fixture.category.name, id: category.id } : { name: fixture.category.name, found: false };

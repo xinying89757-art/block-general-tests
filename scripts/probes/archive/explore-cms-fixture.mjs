@@ -10,7 +10,7 @@ const out = {};
 const dumpInputs = (p) => p.evaluate(() => [...document.querySelectorAll('input,select')].map(n => ({ tag: n.tagName, type: n.type, name: n.name, id: n.id, value: n.type === 'password' ? '' : String(n.value).slice(0, 60), checked: n.checked, visible: !!n.getClientRects().length, label: (n.closest('label')?.innerText || n.parentElement?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 60) })));
 try {
   await openEditor(page, config);
-  const prod = await openProdPage(context);
+  const prod = await openProdPage(context, config);
   out.fields = await listCustomFields(prod);
   const row = prod.locator('table tr').filter({ has: prod.locator('td').filter({ hasText: /^AUTOTEST-单选按钮A$/ }) }).filter({ visible: true });
   await row.locator('[action="prod_field_edit"], [data-action="prod_field_edit"]').first().click();

@@ -15,7 +15,7 @@ const out = { at: new Date().toISOString(), site: config.siteDomain, steps: {} }
 const session = await launchSession(config);
 try {
   const { page } = await openEditor(session.page, config);
-  const cms = await openProdPage(session.context);
+  const cms = await openProdPage(session.context, config);
   const popups = [];
   session.context.on('page', (p) => popups.push(p.url()));
   const listEntries = () => cms.evaluate(() => {

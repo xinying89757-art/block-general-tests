@@ -18,7 +18,7 @@ const snap = (p) => p.evaluate(() => {
 });
 try {
   await openEditor(page, config);
-  const prod = await openProdPage(context);
+  const prod = await openProdPage(context, config);
   await click(prod, 'prod_group_list'); await prod.waitForTimeout(5000);
   out.list = await snap(prod);
   await click(prod, 'prod_group_add'); await prod.waitForTimeout(4000);

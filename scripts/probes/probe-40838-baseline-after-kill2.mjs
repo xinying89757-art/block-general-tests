@@ -41,7 +41,7 @@ try {
   };
   await sess.cancel();
 
-  const cms = await openProdPage(session.context);
+  const cms = await openProdPage(session.context, config);
   out.products = {};
   for (const [name, id] of PRODUCTS) {
     const found = await findProduct(cms, name);

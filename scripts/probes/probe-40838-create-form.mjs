@@ -15,7 +15,7 @@ const out = { at: new Date().toISOString(), site: config.siteDomain };
 const session = await launchSession(config);
 try {
   const { page } = await openEditor(session.page, config);
-  const cms = await openProdPage(session.context);
+  const cms = await openProdPage(session.context, config);
   // Click 添加产品 (same entry createProduct uses: action prod_new_add).
   const clicked = await cms.evaluate(() => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();

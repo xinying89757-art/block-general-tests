@@ -16,7 +16,7 @@ try {
   const { page } = await openEditor(session.page, config);
   for (let i = 1; i <= 4; i++) {
     const attempt = { n: i };
-    const cms = await openProdPage(session.context);
+    const cms = await openProdPage(session.context, config);
     try {
       const t0 = Date.now();
       try {

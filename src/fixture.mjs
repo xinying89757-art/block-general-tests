@@ -81,7 +81,7 @@ export async function prepareFixture({ page, canvas, context, config, profile })
   let completed = false;
   try {
     try {
-      cmsPage = await openProdPage(context);
+      cmsPage = await openProdPage(context, config);
       const previous = await readFixtureRecord(config);
       const ensured = await ensureFixtureData({ page: cmsPage, profile, cms, previous });
       await writeFixtureRecord(config, ensured.records);
