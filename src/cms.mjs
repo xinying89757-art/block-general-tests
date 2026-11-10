@@ -5,6 +5,7 @@ import { saveAndWait, waitForStable } from './ui-waits.mjs';
 import { SITE_LIST_URL, waitForSiteList, selectSiteCard } from './editor.mjs';
 
 const PROD_URL = 'https://website.leadong.com/prod';
+const PROD_ORIGIN = new URL(PROD_URL).origin;
 const TIMEOUT = 15_000;
 export const FIELD_TYPE_CODES = Object.freeze({
   文本字段: 0, 单选按钮: 1, 下拉列表: 2, 多选按钮: 3, 色卡: 4, 下载文件: 5, 文本域: 8,
@@ -36,9 +37,16 @@ async function clickAction(page, action, text) {
   // check above so a wrong or ambiguous target still fails loudly.
   await target.evaluate((el) => el.click());
 }
+function isProdSpaUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.origin === PROD_ORIGIN && /^\/(?:prod|phoenix\/website)\/?$/.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
 async function assertProd(page) {
-  const url = new URL(page.url());
-  if (url.origin !== new URL(PROD_URL).origin || url.pathname !== '/prod'
+  if (!isProdSpaUrl(page.url())
     || await page.locator('input[type="password"]:visible').count()) {
     throw new Error('CMS 登录态/SSO 不可用：未进入产品管理 SPA；请检查登录态及站点的内容管理入口。');
   }
@@ -100,9 +108,7 @@ export async function openProdPage(context, config, { timeoutMs = 60_000, pollMs
       const candidates = context.pages().filter((candidate) => !candidate.isClosed()
         && (candidate === page || !knownPages.has(candidate)));
       for (const candidate of candidates) {
-        let url;
-        try { url = new URL(candidate.url()); } catch { continue; }
-        if (url.origin === new URL(PROD_URL).origin && url.pathname === '/prod') {
+        if (isProdSpaUrl(candidate.url())) {
           await assertProd(candidate);
           if (candidate !== page) await page.close();
           return candidate;

@@ -34,13 +34,19 @@ test('product custom text field is resolved by its own title, written and read b
   } finally { await browser.close(); }
 });
 
-function mockCmsEntry({ popup = false, entryCount = 1, loggedOut = false, siteMatches = true, timeout = false } = {}) {
+const prodSpaUrls = ['/prod', '/prod/', '/phoenix/website', '/phoenix/website/']
+  .map((pathname) => `https://website.leadong.com${pathname}`);
+
+function mockCmsEntry({ popup = false, entryCount = 1, loggedOut = false, siteMatches = true, timeout = false,
+  cmsUrl = prodSpaUrls[0], passwordCount = 0, missingProdList = false } = {}) {
   const events = [];
   const pages = [];
+  const prodList = { filter: () => ({ first: () => ({ waitFor: async () => {
+    if (missingProdList) throw new Error('missing prod_list');
+  } }) }) };
   const cmsPage = {
-    url: () => 'https://website.leadong.com/prod', isClosed: () => false,
-    locator: (selector) => selector.includes('password') ? { count: async () => 0 }
-      : { filter: () => ({ first: () => ({ waitFor: async () => {} }) }) },
+    url: () => cmsUrl, isClosed: () => false,
+    locator: (selector) => selector.includes('password') ? { count: async () => passwordCount } : prodList,
     close: async () => { events.push('close-cms'); },
   };
   const entry = { filter: () => entry, count: async () => entryCount, click: async () => {
@@ -59,8 +65,8 @@ function mockCmsEntry({ popup = false, entryCount = 1, loggedOut = false, siteMa
     url: () => currentUrl, frames: () => [], isClosed: () => false,
     locator: (selector) => {
       if (selector === '.mySiteBox') return { count: async () => 1, nth: () => card };
-      if (selector.includes('password') && currentUrl.includes('/prod')) return { count: async () => 0 };
-      if (selector.includes('prod_list')) return { filter: () => ({ first: () => ({ waitFor: async () => {} }) }) };
+      if (selector.includes('password') && currentUrl === cmsUrl) return { count: async () => passwordCount };
+      if (selector.includes('prod_list')) return prodList;
       return { first: () => ({ isVisible: async () => false }) };
     },
     waitForTimeout: async () => {}, close: async () => { events.push('close-entry'); },
@@ -69,14 +75,50 @@ function mockCmsEntry({ popup = false, entryCount = 1, loggedOut = false, siteMa
   return { context, events, page, cmsPage };
 }
 
-test('CMS entry selects the authenticated site and clicks 内容管理, including popup navigation', async () => {
+test('CMS entry accepts both SPA paths and trailing slashes via same-tab and popup navigation', async (t) => {
   const { openProdPage } = await import('../src/cms.mjs');
-  for (const popup of [false, true]) {
-    const mock = mockCmsEntry({ popup });
-    const result = await openProdPage(mock.context, { siteDomain: 'https://example.test' });
-    assert.equal(result, popup ? mock.cmsPage : mock.page);
-    assert.deepEqual(mock.events.slice(0, 2), ['goto:https://www.leadong.com/website.html', 'click-content']);
-    assert.equal(mock.events.includes('close-entry'), popup);
+  for (const cmsUrl of prodSpaUrls) {
+    for (const popup of [false, true]) {
+      await t.test(`${new URL(cmsUrl).pathname} ${popup ? 'popup' : 'same-tab'}`, async () => {
+        const mock = mockCmsEntry({ popup, cmsUrl });
+        const result = await openProdPage(mock.context, { siteDomain: 'https://example.test' });
+        assert.equal(result, popup ? mock.cmsPage : mock.page);
+        assert.deepEqual(mock.events.slice(0, 2), ['goto:https://www.leadong.com/website.html', 'click-content']);
+        assert.equal(mock.events.filter((event) => event.startsWith('goto:')).length, 1);
+        assert.equal(mock.events.includes('close-entry'), popup);
+      });
+    }
+  }
+});
+
+test('CMS follow-on product lookup accepts both SPA paths before and after the unchanged /prod action navigation', async (t) => {
+  const { findProduct } = await import('../src/cms.mjs');
+  for (const cmsUrl of prodSpaUrls) {
+    await t.test(new URL(cmsUrl).pathname, async () => {
+      const mock = mockCmsEntry({ cmsUrl });
+      const navigations = [];
+      const page = mock.cmsPage;
+      page.goto = async (url, options) => { navigations.push({ url, options }); };
+      page.waitForTimeout = async () => {};
+      page.evaluate = async () => [{ productName: 'AUTOTEST-lookup', productId: 'id-exact' }];
+      assert.equal(await findProduct(page, 'AUTOTEST-lookup'), 'id-exact');
+      assert.deepEqual(navigations, [{
+        url: 'https://website.leadong.com/prod?invokeAction=prod_list_sub',
+        options: { waitUntil: 'load', timeout: 60_000 },
+      }]);
+    });
+  }
+});
+
+test('CMS SPA assertions still reject password forms and missing product controls on either path', async () => {
+  const { openProdPage } = await import('../src/cms.mjs');
+  for (const cmsUrl of prodSpaUrls) {
+    for (const [options, expected] of [[{ passwordCount: 1 }, /登录态\/SSO 不可用/], [{ missingProdList: true }, /未看到产品管理入口 prod_list/]]) {
+      const mock = mockCmsEntry({ popup: true, cmsUrl, ...options });
+      await assert.rejects(openProdPage(mock.context, { siteDomain: 'https://example.test' }), expected);
+      assert.ok(mock.events.includes('close-cms'));
+      assert.ok(mock.events.includes('close-entry'));
+    }
   }
 });
 
@@ -87,6 +129,50 @@ test('CMS entry refuses expired login, wrong site and ambiguous controls and clo
     await assert.rejects(openProdPage(mock.context, { siteDomain: 'https://example.test' }), expected);
     assert.ok(mock.events.includes('close-entry'));
     assert.ok(!mock.events.includes('click-content'));
+  }
+});
+
+test('CMS entry times out with diagnostics and follow-on checks reject URLs outside the two SPA paths', async (t) => {
+  const { openProdPage, findProduct } = await import('../src/cms.mjs');
+  for (const cmsUrl of [
+    'https://website.leadong.com/',
+    'https://website.leadong.com/phoenix/website/other',
+    'https://website.leadong.com/phoenix/websites',
+    'https://website.leadong.com/prod/doUpdate',
+    'https://website.leadong.com/prod/group/doAdd',
+    'https://website.leadong.com/prod//',
+    'http://website.leadong.com/prod',
+    'https://other.example.test/phoenix/website',
+    'about:blank',
+    'invalid-url',
+  ]) {
+    await t.test(cmsUrl, async (subtest) => {
+      const mock = mockCmsEntry({ popup: true, cmsUrl });
+      await assert.rejects(findProduct(mock.cmsPage, 'AUTOTEST-lookup'), /登录态\/SSO 不可用/);
+      const screenshots = [];
+      for (const page of [mock.page, mock.cmsPage]) {
+        page.screenshot = async ({ path: file }) => { screenshots.push(file); };
+      }
+      let polls = 0;
+      let now = Date.now();
+      subtest.mock.method(Date, 'now', () => now);
+      mock.page.waitForTimeout = async () => { polls++; now += 10; };
+      const logs = [];
+      const originalError = console.error;
+      console.error = (...args) => logs.push(args.join(' '));
+      try {
+        await assert.rejects(openProdPage(mock.context, { siteDomain: 'https://example.test' }, { timeoutMs: 10 }), /点击内容管理后未进入产品管理 SPA/);
+        assert.ok(polls > 0);
+        assert.match(logs.join('\n'), /CMS entry timeout pages:.*page-1 \(entry\):.*page-2 \(other\):/);
+        assert.equal(screenshots.length, 2);
+        assert.equal(path.basename(path.dirname(path.dirname(screenshots[0]))), 'cms-entry-timeout');
+        assert.ok(mock.events.includes('close-cms'));
+        assert.ok(mock.events.includes('close-entry'));
+      } finally {
+        console.error = originalError;
+        if (screenshots.length) await rm(path.dirname(screenshots[0]), { recursive: true, force: true });
+      }
+    });
   }
 });
 
