@@ -4,7 +4,8 @@ import { resolveImageRatioSource } from './image-geometry.mjs';
 export const DESIGN_CHECK_TYPES = Object.freeze([
   'color-default', 'color-scope', 'typography', 'module-width', 'height-fit',
   'text-truncation', 'image-ratio', 'overflow-threshold', 'nav-hierarchy-levels', 'search-box-per-field',
-  'default-expand', 'selected-tag-behaviour', 'mobile-layout', 'manual',
+  'default-expand', 'selected-tag-behaviour', 'mobile-layout',
+  'filter-oracle', 'filter-interaction', 'filter-layout', 'manual',
 ]);
 
 // The fixed catalog is shared by the dry-run planner and report assembly.
@@ -23,6 +24,9 @@ export const DESIGN_CHECK_SUPPORT = Object.freeze({
   'default-expand': { front: 'implemented', needs: ['expected.level', 'hierarchy controls'] },
   'selected-tag-behaviour': { front: 'unsupported', needs: ['human review'] },
   'mobile-layout': { front: 'implemented', needs: ['structured expected values', 'mobile viewport'] },
+  'filter-oracle': { front: 'implemented', needs: ['expected.resultSet or cases, including empty sets'] },
+  'filter-interaction': { front: 'implemented', needs: ['expected interaction'] },
+  'filter-layout': { front: 'implemented', editor: 'implemented', needs: ['expected.columns or layout flags'] },
   manual: { front: 'unsupported', needs: ['human review'] },
 });
 

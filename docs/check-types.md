@@ -22,6 +22,9 @@ incomplete, and which rows need human review. It does not launch a browser.
 | `default-expand` | — | Yes | `expected.level` and optional `expected.collapsedLevel`; profile selectors optional |
 | `selected-tag-behaviour` | — | Unsupported / human review | preserve original text in `designSpec.unsupportedRequirements` until a reusable oracle exists |
 | `mobile-layout` | — | Yes | structured expected properties and `params.selectorCandidates`, role, or structure; run at mobile viewport |
+| `filter-oracle` | Deferred to front | Yes | `expected.resultSet` or `cases` (empty sets are valid); combination rules use same-field union and cross-field intersection; 暂缓 / 待确认 rows are record-only |
+| `filter-interaction` | Deferred to front | Yes | interaction expected values such as collapsing only the clicked column |
+| `filter-layout` | Yes (structure) | Yes | `expected.columns` or layout flags |
 | `manual` | — | Unsupported / human review | preserve original text and why it is not automated in `designSpec.unsupportedRequirements` |
 
 Every emitted verdict carries `reason.code` as a string. A supported type may

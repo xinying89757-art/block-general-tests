@@ -6,6 +6,7 @@ import { readInstanceStructure } from './front-structure.mjs';
 import { preparePrimaryImages } from './image-readiness.mjs';
 import { resolveImageRatioSource } from './image-geometry.mjs';
 
+import { evaluateFilterRequirement } from './filter-evidence.mjs';
 import { DESIGN_CHECK_TYPES, DESIGN_CHECK_SUPPORT, designCheckSupport, designRequirementPlan, listUnsupportedDesignRequirements, buildDesignHumanReview } from './design-spec-model.mjs';
 export { DESIGN_CHECK_TYPES, DESIGN_CHECK_SUPPORT, designCheckSupport, designRequirementPlan, listUnsupportedDesignRequirements, buildDesignHumanReview } from './design-spec-model.mjs';
 import { validateDesignSpec, validateDesignProfiles } from './design-spec-model.mjs';
@@ -73,6 +74,11 @@ function checkDesignRequirementEditorRaw(requirement, { profile, inventory = [] 
   if (override) return checkResult(requirement, 'na', { classification: 'known-exception',
     detail: `已知例外：${override.reason}`, reason: { code: 'waived', reason: override.reason } });
   if (!['editor', 'both'].includes(requirement.checkStage)) return null;
+  if (['filter-oracle', 'filter-interaction', 'filter-layout'].includes(requirement.checkType)) {
+    const verdict = evaluateFilterRequirement(requirement, {});
+    if (verdict.status === 'record') return checkResult(requirement, 'record', { detail: verdict.detail, reason: verdict.reason });
+    return checkResult(requirement, 'deferred', { detail: '筛选结果在前台阶段用证据判定。', reason: { code: 'filter-oracle-pending' } });
+  }
   if (isFilterSupportedTypes(requirement)) {
     const types = parseFilterSupportedTypes(requirement.sourceText);
     const covered = types.length && types.every(type => profile?.fixture?.filterFieldTypes?.includes(type)
@@ -1008,7 +1014,7 @@ async function checkMobileLayout(requirement, page, rootSelector) {
     pass ? 'mobile-layout-matched' : 'mobile-layout-mismatch', pass ? '移动端布局符合清单。' : '移动端布局与清单不一致。');
 }
 
-async function checkDesignRequirementFrontRaw(requirement, { profile, page, rootSelector, frontChecks = [], settingsReport = null, imageLoadTimeoutMs } = {}) {
+async function checkDesignRequirementFrontRaw(requirement, { profile, page, rootSelector, frontChecks = [], settingsReport = null, imageLoadTimeoutMs, filterEvidence = null } = {}) {
   const override = overrideFor(profile?.designSpec, requirement.id);
   if (override) return checkResult(requirement, 'na', { classification: 'known-exception',
     detail: `已知例外：${override.reason}`, reason: { code: 'waived', reason: override.reason } });
@@ -1153,6 +1159,11 @@ async function checkDesignRequirementFrontRaw(requirement, { profile, page, root
       ? '目标区块实例中至少一个元素呈现规范颜色。' : '目标区块实例中没有元素呈现规范颜色。', actual,
     reason: { code: pass ? 'expected-color-found-in-instance' : 'expected-color-not-found-in-instance',
       expectedSource: 'designSpec.requirement.expected.value', propertiesChecked: ['color', 'backgroundColor', 'borderColor'] } });
+  }
+  if (['filter-oracle', 'filter-interaction', 'filter-layout'].includes(requirement.checkType)
+    || (requirement.checkType === 'mobile-layout' && requirement.expected?.filtersToggleButton != null)) {
+    const verdict = evaluateFilterRequirement(requirement, filterEvidence || {});
+    return checkResult(requirement, verdict.status, { detail: verdict.detail, actual: verdict.actual, reason: verdict.reason });
   }
   if (!page || !rootSelector) return checkResult(requirement, 'na', { detail: '目标区块实例根节点不可用。', reason: { code: 'instance-root-unavailable' } });
   if (requirement.checkType === 'text-truncation') return checkTextTruncation(requirement, page, rootSelector);

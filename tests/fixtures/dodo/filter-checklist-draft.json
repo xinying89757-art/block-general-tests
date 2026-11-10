@@ -1,0 +1,331 @@
+{
+  "block": "47948",
+  "scope": "产品筛选",
+  "status": "draft",
+  "author": "Dodo",
+  "createdAt": "2026-11-10T11:05+08:00",
+  "source": {
+    "fileKey": "li2DvtCykHCYvqellPT4aW",
+    "nodeId": "1698:5856",
+    "notesNodes": [
+      "1674:3876",
+      "1698:5856"
+    ]
+  },
+  "schemaNote": "现有 design-checklist.schema.json 的 checkType 枚举里没有筛选类检查。下面 filter-* 是建议新增的通用检查类型，进仓库前由 pumpkin 决定是加进 catalog，还是暂记为 manual。",
+  "fixture": {
+    "note": "筛选真值来自 CMS 里 5 个 AUTOTEST 产品的字段值，不能从前台反推。上次运行 fixture.source=published-front-assumption，未回读 CMS，开跑前必须先回读。",
+    "products": {
+      "AUTOTEST-47948-筛选-基准": {
+        "下拉": "A",
+        "单选": "A",
+        "多选": "A",
+        "文本": "A"
+      },
+      "AUTOTEST-47948-筛选-翻转1": {
+        "下拉": "非A",
+        "单选": "A",
+        "多选": "A",
+        "文本": "A"
+      },
+      "AUTOTEST-47948-筛选-翻转2": {
+        "下拉": "A",
+        "单选": "非A",
+        "多选": "A",
+        "文本": "A"
+      },
+      "AUTOTEST-47948-筛选-翻转3": {
+        "下拉": "A",
+        "单选": "A",
+        "多选": "非A",
+        "文本": "A"
+      },
+      "AUTOTEST-47948-筛选-翻转4": {
+        "下拉": "A",
+        "单选": "A",
+        "多选": "A",
+        "文本": "非A"
+      }
+    }
+  },
+  "requirements": [
+    {
+      "id": "filter-two-columns",
+      "checkType": "filter-layout",
+      "checkStage": "both",
+      "viewport": "pc",
+      "target": "产品筛选区",
+      "expected": {
+        "columns": 2,
+        "eachColumnSelectsCustomFieldsIndependently": true
+      },
+      "sourceText": "产品筛选2列；分为两列，可以分别勾选自定义字段",
+      "sourceNode": "1674:3897; I1698:6553;95:125; I1698:6423;101:487; I1698:6436;101:487"
+    },
+    {
+      "id": "filter-column-sync",
+      "checkType": "manual",
+      "checkStage": "editor",
+      "status": "暂缓",
+      "target": "两列筛选的字段勾选",
+      "expected": null,
+      "sourceText": "如数据相同，一方勾选后，另一方也应该勾选",
+      "sourceNode": "I1698:6553;95:125",
+      "decision": "Xinying 2026-11-10：暂缓，不验证"
+    },
+    {
+      "id": "filter-type-dropdown",
+      "checkType": "filter-oracle",
+      "checkStage": "front",
+      "viewport": "pc",
+      "target": "下拉类型自定义字段筛选",
+      "params": {
+        "fieldType": "下拉",
+        "select": "A"
+      },
+      "expected": {
+        "renders": [
+          "属性名称",
+          "属性值"
+        ],
+        "resultSet": [
+          "基准",
+          "翻转2",
+          "翻转3",
+          "翻转4"
+        ],
+        "excludes": [
+          "翻转1"
+        ]
+      },
+      "sourceText": "支持类型：下拉、单选、多选、文本字段",
+      "sourceNode": "I1698:6553;95:125"
+    },
+    {
+      "id": "filter-type-radio",
+      "checkType": "filter-oracle",
+      "checkStage": "front",
+      "viewport": "pc",
+      "target": "单选类型自定义字段筛选",
+      "params": {
+        "fieldType": "单选",
+        "select": "A"
+      },
+      "expected": {
+        "renders": [
+          "属性名称",
+          "属性值"
+        ],
+        "resultSet": [
+          "基准",
+          "翻转1",
+          "翻转3",
+          "翻转4"
+        ],
+        "excludes": [
+          "翻转2"
+        ]
+      },
+      "sourceText": "支持类型：下拉、单选、多选、文本字段",
+      "sourceNode": "I1698:6553;95:125"
+    },
+    {
+      "id": "filter-type-checkbox",
+      "checkType": "filter-oracle",
+      "checkStage": "front",
+      "viewport": "pc",
+      "target": "多选类型自定义字段筛选",
+      "params": {
+        "fieldType": "多选",
+        "select": "A"
+      },
+      "expected": {
+        "renders": [
+          "属性名称",
+          "属性值"
+        ],
+        "resultSet": [
+          "基准",
+          "翻转1",
+          "翻转2",
+          "翻转4"
+        ],
+        "excludes": [
+          "翻转3"
+        ]
+      },
+      "sourceText": "支持类型：下拉、单选、多选、文本字段",
+      "sourceNode": "I1698:6553;95:125"
+    },
+    {
+      "id": "filter-type-text",
+      "checkType": "filter-oracle",
+      "checkStage": "front",
+      "viewport": "pc",
+      "target": "文本类型自定义字段筛选",
+      "params": {
+        "fieldType": "文本",
+        "select": "A",
+        "match": "完全一致"
+      },
+      "expected": {
+        "renders": [
+          "属性名称",
+          "属性值"
+        ],
+        "resultSet": [
+          "基准",
+          "翻转1",
+          "翻转2",
+          "翻转3"
+        ],
+        "excludes": [
+          "翻转4"
+        ]
+      },
+      "sourceText": "支持类型：下拉、单选、多选、文本字段",
+      "sourceNode": "I1698:6553;95:125",
+      "note": "可筛选依据：说明 I1698:6553;95:125，Xinying 2026-11-10 裁定本区块支持（设置面板帮助文字 1674:4971 写的是仅限单选、下拉、多选）。匹配方式已确认：完全一致（Xinying 2026-11-10）。",
+      "status": "已确认"
+    },
+    {
+      "id": "filter-combine-logic",
+      "checkType": "filter-oracle",
+      "checkStage": "front",
+      "status": "已确认",
+      "target": "多个筛选条件的组合规则",
+      "expected": {
+        "sameFieldMultiValue": "并集",
+        "crossField": "交集"
+      },
+      "sourceText": "设置项：筛选逻辑=交集（1674:4971）；同字段多值并集（Xinying 2026-11-10）",
+      "sourceNode": "I1698:6553;95:125",
+      "cases": {
+        "下拉=A 且 单选=A": [
+          "基准",
+          "翻转3",
+          "翻转4"
+        ],
+        "四字段都=A": [
+          "基准"
+        ],
+        "多选=A 或 B": [
+          "基准",
+          "翻转1",
+          "翻转2",
+          "翻转3",
+          "翻转4"
+        ],
+        "下拉=B 且 多选=B": []
+      }
+    },
+    {
+      "id": "filter-no-selection-baseline",
+      "checkType": "filter-oracle",
+      "checkStage": "front",
+      "viewport": "pc",
+      "target": "未选任何筛选值",
+      "expected": {
+        "resultSet": [
+          "基准",
+          "翻转1",
+          "翻转2",
+          "翻转3",
+          "翻转4"
+        ]
+      },
+      "sourceText": "（通用基线，非设计稿要求）",
+      "sourceNode": null,
+      "note": "用来证明数据范围正确，失败时先排查数据和分类范围。"
+    },
+    {
+      "id": "filter-product-count",
+      "checkType": "filter-oracle",
+      "checkStage": "front",
+      "viewport": "pc",
+      "target": "显示当前产品数量",
+      "expected": {
+        "countEqualsResultSetSize": true
+      },
+      "sourceText": "显示当前产品数量",
+      "sourceNode": "I1698:6475;101:487",
+      "note": "数量文案格式设计稿没写，只比数字。"
+    },
+    {
+      "id": "filter-pagination-follows-result",
+      "checkType": "manual",
+      "checkStage": "front",
+      "status": "unsupported",
+      "target": "筛选后的分页",
+      "expected": null,
+      "sourceText": "分页",
+      "sourceNode": "I1698:6488;101:487; I1711:6573;101:487",
+      "reason": "设计稿只标了分页位置，没写每页条数；5 个产品不足以触发分页，只记录。"
+    },
+    {
+      "id": "filter-collapse-column",
+      "checkType": "filter-interaction",
+      "checkStage": "front",
+      "viewport": "both",
+      "target": "每列底部的收起文本",
+      "expected": {
+        "clickCollapsesOnlyThatColumn": true,
+        "otherColumnUnchanged": true
+      },
+      "sourceText": "文本：点击收起当列的筛选项",
+      "sourceNode": "I1698:6527;101:487; I1711:6560;101:487"
+    },
+    {
+      "id": "filter-checked-color",
+      "checkType": "color-scope",
+      "checkStage": "front",
+      "viewport": "pc",
+      "target": "自定义筛选勾选状态",
+      "state": {
+        "kind": "selected",
+        "target": "任一筛选值"
+      },
+      "expected": {
+        "color": "#E90021",
+        "followsSetting": "区块配色1"
+      },
+      "sourceText": "配色1-红色 #E90021 产品标题、标题前方装饰色块、自定义筛选勾选的颜色",
+      "sourceNode": "1674:3936"
+    },
+    {
+      "id": "filter-mobile-layout",
+      "checkType": "mobile-layout",
+      "checkStage": "front",
+      "viewport": "mobile",
+      "target": "移动端筛选区",
+      "expected": {
+        "filtersToggleButton": true,
+        "filterGroupsSingleColumn": true,
+        "productCountShown": true,
+        "pagination": true,
+        "cardsSingleColumn": true,
+        "noHorizontalOverflowAt375": true
+      },
+      "sourceText": "移动端画板 Frame 6：顶部 Filters 按钮，筛选组单列纵向排列，Products (数量)、分页、单列卡片",
+      "sourceNode": "1712:6586",
+      "note": "Xinying 2026-11-10：移动端按设计稿。Filters 按钮点了是展开还是收起没有标注，只查按钮在不在。"
+    },
+    {
+      "id": "filter-scope-current-category",
+      "checkType": "filter-oracle",
+      "checkStage": "front",
+      "status": "暂缓",
+      "target": "筛选范围",
+      "expected": {
+        "mustNotContain": [
+          "分类B-1",
+          "分类B-2"
+        ]
+      },
+      "sourceText": "筛选范围：当前分类产品",
+      "sourceNode": "1674:4971 / 1674:4987",
+      "decision": "Xinying 2026-11-10：暂缓验证"
+    }
+  ],
+  "updatedAt": "2026-11-10T11:45+08:00"
+}

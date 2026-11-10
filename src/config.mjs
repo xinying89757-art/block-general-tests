@@ -31,11 +31,22 @@ export function accountFromEnv(env = process.env) {
 }
 
 // Also used by the login script, which does not require BLOCK_ID.
-export function loadBrowserConfig(env = process.env) {
-  const browser = firstDefined(env.BROWSER, 'chromium').trim().toLowerCase();
-  if (!['firefox', 'chromium'].includes(browser)) {
-    throw new Error('BROWSER 仅支持 firefox 或 chromium。');
+// BGT_BROWSER wins. A generic BROWSER that is not a Playwright browser name (e.g. a system
+// opener path like /usr/local/bin/box-chrome) is ignored rather than fatal.
+export function resolveBrowserName(env = process.env) {
+  const explicit = String(env.BGT_BROWSER ?? '').trim().toLowerCase();
+  if (explicit) {
+    if (!['firefox', 'chromium'].includes(explicit)) throw new Error('BGT_BROWSER 仅支持 firefox 或 chromium。');
+    return explicit;
   }
+  const generic = String(env.BROWSER ?? '').trim().toLowerCase();
+  if (['firefox', 'chromium'].includes(generic)) return generic;
+  if (generic && !generic.includes('/')) throw new Error('BROWSER 仅支持 firefox 或 chromium。');
+  return 'chromium';
+}
+
+export function loadBrowserConfig(env = process.env) {
+  const browser = resolveBrowserName(env);
   const isCI = Boolean(env.CI) && !['false', '0'].includes(String(env.CI).trim().toLowerCase());
   const headless = parseBoolean(firstDefined(env.HEADLESS, isCI || browser === 'firefox'), 'HEADLESS');
   const slowMo = Number(firstDefined(env.SLOW_MO, '0'));
