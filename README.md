@@ -33,7 +33,7 @@ npx -y playwright@1.56.1 install firefox
 cp .env.example .env
 ```
 
-默认用 Chrome（`BROWSER=chromium`，固定使用 `channel: "chrome"`，要求安装系统 Chrome，仅安装 Playwright Chromium 不满足此要求）。代理受限的机器（比如 miumiu 这台，Playwright Chromium 经出口代理访问外站失败）改设 `BROWSER=firefox`。`HEADLESS` 可设 true/false，默认 CI 为 true，非 CI 下 Firefox 为 true、Chromium 为 false；`SLOW_MO` 为非负整数毫秒，默认 0。
+默认用 Chrome（`BGT_BROWSER=chromium`，优先于通用的 `BROWSER`；系统 `BROWSER` 若是打开器路径会被忽略；固定使用 `channel: "chrome"`，要求安装系统 Chrome，仅安装 Playwright Chromium 不满足此要求）。代理受限的机器（比如 miumiu 这台，Playwright Chromium 经出口代理访问外站失败）改设 `BROWSER=firefox`。`HEADLESS` 可设 true/false，默认 CI 为 true，非 CI 下 Firefox 为 true、Chromium 为 false；`SLOW_MO` 为非负整数毫秒，默认 0。
 
 HTTP 预览兼容：默认 `HTTPS_UPGRADE=1`，浏览器 context 会把指定的领动服务域名 HTTP 请求升级到 HTTPS，覆盖预览 iframe 和弹出新标签页。默认规则为 `website.leadong.com`、`www.leadong.com`、`*.preview.leadong.com`、`*.leadongcdn.com`；可用 `HTTPS_UPGRADE_HOSTS`（逗号分隔，支持 `*.example.com`）整体覆盖。设为 `0`、`false` 或 `off` 可关闭。`ldwebsite.com`、`ldyjz.com`、`ldmfyh.com` 前台域始终排除，因为这些站点没有 HTTPS。
 

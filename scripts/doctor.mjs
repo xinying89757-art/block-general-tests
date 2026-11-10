@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import { resolveBrowserName } from '../src/config.mjs';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const loginFix = 'node scripts/explore-login.mjs --force-login';
@@ -56,7 +57,8 @@ export async function runChecks({
     detail: 'node_modules 应为已安装的依赖目录',
   }));
 
-  const browser = env.BROWSER?.trim() || 'chromium';
+  let browser;
+  try { browser = resolveBrowserName(env); } catch { browser = String(env.BGT_BROWSER || env.BROWSER).trim(); }
   const supportedBrowser = ['firefox', 'chromium'].includes(browser);
   await check('browser', `浏览器 (${browser})`, supportedBrowser
     ? `npx playwright install ${browser}` : '检查 .env，将 BROWSER 设为 firefox 或 chromium', async () => {
