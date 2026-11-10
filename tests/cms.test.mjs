@@ -41,12 +41,14 @@ function mockCmsEntry({ popup = false, entryCount = 1, loggedOut = false, siteMa
   cmsUrl = prodSpaUrls[0], passwordCount = 0, missingProdList = false } = {}) {
   const events = [];
   const pages = [];
-  const prodList = { filter: () => ({ first: () => ({ waitFor: async () => {
+  const prodList = { filter: () => prodList, or: () => prodList, first: () => ({ waitFor: async () => {
     if (missingProdList) throw new Error('missing prod_list');
-  } }) }) };
+  } }) };
+  const empty = { filter: () => empty, or: () => empty };
   const cmsPage = {
     url: () => cmsUrl, isClosed: () => false,
     locator: (selector) => selector.includes('password') ? { count: async () => passwordCount } : prodList,
+    getByText: () => empty,
     close: async () => { events.push('close-cms'); },
   };
   const entry = { filter: () => entry, count: async () => entryCount, click: async () => {
@@ -67,11 +69,14 @@ function mockCmsEntry({ popup = false, entryCount = 1, loggedOut = false, siteMa
       if (selector === '.mySiteBox') return { count: async () => 1, nth: () => card };
       if (selector.includes('password') && currentUrl === cmsUrl) return { count: async () => passwordCount };
       if (selector.includes('prod_list')) return prodList;
+      if (selector === 'body') return empty;
       return { first: () => ({ isVisible: async () => false }) };
     },
     waitForTimeout: async () => {}, close: async () => { events.push('close-entry'); },
+    getByText: () => empty,
   };
   const context = { newPage: async () => { pages.push(page); return page; }, pages: () => pages };
+  page.context = cmsPage.context = () => context;
   return { context, events, page, cmsPage };
 }
 
@@ -91,9 +96,9 @@ test('CMS entry accepts both SPA paths and trailing slashes via same-tab and pop
   }
 });
 
-test('CMS follow-on product lookup accepts both SPA paths before and after the unchanged /prod action navigation', async (t) => {
+test('legacy CMS product lookup retains /prod action navigation', async (t) => {
   const { findProduct } = await import('../src/cms.mjs');
-  for (const cmsUrl of prodSpaUrls) {
+  for (const cmsUrl of prodSpaUrls.filter((url) => new URL(url).pathname.startsWith('/prod'))) {
     await t.test(new URL(cmsUrl).pathname, async () => {
       const mock = mockCmsEntry({ cmsUrl });
       const navigations = [];
@@ -217,4 +222,120 @@ test('CMS entry timeout records sanitized open page URLs and requests screenshot
     console.error = originalError;
     if (screenshots.length) await rm(path.dirname(screenshots[0]), { recursive: true, force: true });
   }
+});
+
+// Browser fixtures are fulfilled locally; no CMS session or site data is used.
+test('phoenix CMS chrome, evidence and action-free inventory navigation', async (t) => {
+  const { chromium } = await import('playwright-core');
+  const { assertProd, listCustomFields, findProduct, findCategory } = await import('../src/cms.mjs');
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const chrome = '<nav><a href="#" onclick="return false">管理产品</a><button>添加产品</button></nav>';
+  async function fixture(html, pathname = '/phoenix/website') {
+    const context = await browser.newContext();
+    await context.route('**/*', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: html }));
+    const page = await context.newPage();
+    await page.goto(`https://website.leadong.com${pathname}`);
+    return { context, page };
+  }
+  try {
+    for (const [name, html, pathname] of [
+      ['phoenix named chrome', chrome, '/phoenix/website'],
+      ['phoenix table chrome', '<h1>管理产品</h1><table><tr><td>列表</td></tr></table>', '/phoenix/website/'],
+      ['legacy action', '<a action="prod_list">Products</a>', '/prod'],
+      ['legacy data-action', '<a data-action="prod_list">Products</a>', '/prod/'],
+    ]) {
+      await t.test(name, async () => {
+        const { context, page } = await fixture(html, pathname);
+        try { await assertProd(page, { timeoutMs: 100 }); } finally { await context.close(); }
+      });
+    }
+
+    for (const [name, html, url, expected] of [
+      ['missing chrome', '<h1>无管理入口</h1>', 'https://user:password@website.leadong.com/phoenix/website?token=secret#private', /页面结构异常/],
+      ['only management heading', '<h1>管理产品</h1>', 'https://website.leadong.com/phoenix/website', /页面结构异常/],
+      ['password form', `${chrome}<input type="password">`, 'https://website.leadong.com/prod?token=secret', /登录态\/SSO 不可用/],
+      ['non-SPA URL', chrome, 'https://user:password@website.leadong.com/login?token=secret#private', /登录态\/SSO 不可用/],
+      ['non-http URL', chrome, 'data:text/html,secret', /登录态\/SSO 不可用/],
+    ]) {
+      await t.test(`failure evidence: ${name}`, async (subtest) => {
+        const { context, page } = await fixture(html);
+        const other = await context.newPage();
+        const closed = await context.newPage();
+        await closed.close();
+        subtest.mock.method(page, 'url', () => url);
+        subtest.mock.method(other, 'url', () => 'https://user:password@other.example.test/landing?key=secret#private');
+        const screenshots = [];
+        subtest.mock.method(page, 'screenshot', async ({ path: file }) => {
+          screenshots.push(file);
+          throw new Error('secret screenshot error');
+        });
+        subtest.mock.method(other, 'screenshot', async ({ path: file }) => { screenshots.push(file); });
+        const logs = [];
+        subtest.mock.method(console, 'error', (...args) => logs.push(args.join(' ')));
+        try {
+          await assert.rejects(assertProd(page, { timeoutMs: 50 }), (error) => {
+            assert.match(error.message, expected);
+            assert.match(error.message, /page-1 \(current\):/);
+            assert.ok(error.message.includes(url.startsWith('data:') ? '[non-http URL]' : `https://website.leadong.com${new URL(url).pathname}`));
+            assert.match(error.message, /page-2 \(other\): https:\/\/other\.example\.test\/landing/);
+            assert.doesNotMatch(error.message, /secret|password|private|user:|\?|#/);
+            return true;
+          });
+          assert.equal(screenshots.length, 2);
+          assert.ok(path.isAbsolute(path.dirname(screenshots[0])));
+          assert.equal(path.basename(path.dirname(path.dirname(screenshots[0]))), 'cms-entry-timeout');
+          const output = logs.join('\n');
+          assert.match(output, /CMS assertProd failure pages:.*\(current\)/);
+          assert.match(output, /screenshot failed for page-1/);
+          assert.ok(output.includes(path.dirname(screenshots[0])));
+          assert.doesNotMatch(output, /secret|password|private|user:|\?|#|page-3/);
+        } finally {
+          await context.close();
+          if (screenshots.length) await rm(path.dirname(screenshots[0]), { recursive: true, force: true });
+        }
+      });
+    }
+
+    for (const attribute of ['', 'action', 'data-action']) {
+      await t.test(`inventory with ${attribute || 'visible names only'}`, async () => {
+        const attr = (action) => attribute ? `${attribute}="${action}"` : '';
+        const html = `${chrome}<a ${attr('prod_field_list')} href="#" onclick="document.querySelector('main').hidden=false; return false"> 管理自定义字段 </a>
+          <main hidden><button ${attr('prod_field_edit')}> 添加自定义字段 </button>
+          <table><tr><th>字段名称</th><th>类型</th><th>状态</th></tr>
+          <tr><td>AUTOTEST-fixture</td><td>文本字段</td><td>开启</td></tr></table></main>`;
+        const { context, page } = await fixture(html, attribute ? '/prod' : '/phoenix/website');
+        try {
+          // Ensure the action-bearing legacy path wins over another same-name control.
+          if (attribute) await page.locator('body').evaluate((body) => {
+            body.insertAdjacentHTML('beforeend', '<button onclick="throw new Error(\'wrong control\')">管理自定义字段</button>');
+          });
+          assert.deepEqual(await listCustomFields(page), [{ name: 'AUTOTEST-fixture', type: '文本字段', status: '开启' }]);
+          assert.equal(new URL(page.url()).pathname, attribute ? '/prod' : '/phoenix/website');
+        } finally { await context.close(); }
+      });
+    }
+
+    for (const legacy of [false, true]) {
+      await t.test(`ambiguous ${legacy ? 'action' : 'named'} inventory controls fail loudly`, async () => {
+        const control = `<button ${legacy ? 'action="prod_field_list"' : ''}>管理自定义字段</button>`;
+        const { context, page } = await fixture(`${chrome}${control}${control}`);
+        try { await assert.rejects(listCustomFields(page), /应有唯一控件，实际找到 2 个/); }
+        finally { await context.close(); }
+      });
+    }
+
+    await t.test('phoenix product and category lists stay on the authenticated page', async () => {
+      const html = `${chrome}<button onclick="document.querySelector('table').hidden=false">管理产品分类</button>
+        <table hidden><tr><td><input type="checkbox" name="dataId" value="category-fixture" groupname="AUTOTEST-category"></td></tr></table>
+        <table><tr><td><a href="?prodId=product-fixture">AUTOTEST-lookup</a></td></tr></table>`;
+      const { context, page } = await fixture(html);
+      const navigations = [];
+      page.on('framenavigated', () => navigations.push(page.url()));
+      try {
+        assert.equal(await findProduct(page, 'AUTOTEST-lookup'), 'product-fixture');
+        assert.equal((await findCategory(page, 'AUTOTEST-category')).id, 'category-fixture');
+        assert.deepEqual(navigations, []);
+      } finally { await context.close(); }
+    });
+  } finally { await browser.close(); }
 });

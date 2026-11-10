@@ -15,6 +15,21 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const quote = (value) => JSON.stringify(String(value));
 const actionLocator = (page, action) => page.locator(`[action=${quote(action)}], [data-action=${quote(action)}]`).filter({ visible: true });
 
+// Phoenix chrome does not require the legacy action attributes. Prefer those
+// attributes whenever present; only fall back to an exact visible control name.
+async function namedActionLocator(page, action, text) {
+  let legacy = actionLocator(page, action);
+  if (!text) return legacy; // Unverified save controls remain action-only.
+  const name = text instanceof RegExp ? text.source.replace(/^\^/, '').replace(/\$$/, '') : text;
+  legacy = legacy.filter({ hasText: name });
+  const byText = page.getByText(name, { exact: true }).filter({ visible: true });
+  const byRole = page.getByRole('link', { name, exact: true })
+    .or(page.getByRole('button', { name, exact: true })).filter({ visible: true });
+  await legacy.or(byRole).or(byText).first().waitFor({ state: 'visible', timeout: TIMEOUT });
+  if (await legacy.count()) return legacy;
+  return await byRole.count() ? byRole : byText;
+}
+
 async function unique(locator, step) {
   await locator.first().waitFor({ state: 'attached', timeout: TIMEOUT });
   const count = await locator.count();
@@ -22,14 +37,11 @@ async function unique(locator, step) {
   return locator;
 }
 async function clickAction(page, action, text) {
-  let locator = actionLocator(page, action);
-  // hasText with an anchored regex matches against the element's full
-  // textContent (including leading whitespace/newlines inside the anchor),
-  // so /^管理自定义字段$/ never matches. Use a plain substring instead.
-  if (text) locator = locator.filter({ hasText: text instanceof RegExp ? text.source.replace(/^\^/, '').replace(/\$$/, '') : text });
+  let locator = await namedActionLocator(page, action, text);
   // Probe shows both sidebar and content “添加产品” links with this action.
   // The sidebar has the observed void(0) href; save actions remain unique.
-  if (action === 'prod_new_add' && await locator.count() > 1) locator = locator.and(page.locator('a[href="javascript:void(0)"]'));
+  if (action === 'prod_new_add' && await locator.count() > 1
+    && await actionLocator(page, action).filter({ hasText: '添加产品' }).count() > 1) locator = locator.and(page.locator('a[href="javascript:void(0)"]'));
   const target = await unique(locator, `CMS ${action}`);
   // Playwright mouse clicks on this SPA's sidebar entries intermittently fail
   // to trigger navigation (probe: 1 of 2 attempts stayed on the product list);
@@ -45,13 +57,27 @@ function isProdSpaUrl(value) {
     return false;
   }
 }
-async function assertProd(page) {
+export async function assertProd(page, { timeoutMs = TIMEOUT } = {}) {
+  let failure;
   if (!isProdSpaUrl(page.url())
     || await page.locator('input[type="password"]:visible').count()) {
-    throw new Error('CMS 登录态/SSO 不可用：未进入产品管理 SPA；请检查登录态及站点的内容管理入口。');
+    failure = 'CMS 登录态/SSO 不可用：未进入产品管理 SPA；请检查登录态及站点的内容管理入口。';
+  } else {
+    const management = page.getByText('管理产品', { exact: true }).filter({ visible: true });
+    const listSignal = page.getByText('添加产品', { exact: true }).filter({ visible: true })
+      .or(page.locator('table:visible'));
+    const chrome = page.locator('body').filter({ has: management }).filter({ has: listSignal });
+    try {
+      await actionLocator(page, 'prod_list').or(chrome).first().waitFor({ state: 'visible', timeout: timeoutMs });
+    } catch {
+      // Never propagate locator errors: browser diagnostics can include URLs.
+      failure = 'CMS 登录态/SSO 或页面结构异常：未看到产品管理入口 prod_list 或管理产品页面标识。';
+    }
   }
-  await actionLocator(page, 'prod_list').first().waitFor({ state: 'visible', timeout: TIMEOUT })
-    .catch(() => { throw new Error('CMS 登录态/SSO 或页面结构异常：未看到产品管理入口 prod_list。'); });
+  if (failure) {
+    const summary = await captureEntryTimeout(page.context(), page, 'assertProd failure', 'current');
+    throw new Error(`${failure} 页面：${summary}`);
+  }
 }
 // Do not include URL credentials, query strings, fragments, or non-web URL payloads.
 function safePageUrl(page) {
@@ -64,17 +90,17 @@ function safePageUrl(page) {
   }
 }
 
-async function captureEntryTimeout(context, entryPage) {
+async function captureEntryTimeout(context, entryPage, reason = 'entry timeout', currentLabel = 'entry') {
   const pages = context.pages().filter((page) => !page.isClosed());
   const summary = pages.map((page, index) =>
-    `page-${index + 1} (${page === entryPage ? 'entry' : 'other'}): ${safePageUrl(page)}`).join('; ');
+    `page-${index + 1} (${page === entryPage ? currentLabel : 'other'}): ${safePageUrl(page)}`).join('; ');
   const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'reports', 'cms-entry-timeout', `${Date.now()}-${process.pid}`);
-  console.error(`CMS entry timeout pages: ${summary || '[none]'}`);
-  console.error(`CMS entry timeout screenshots: ${directory}`);
+  console.error(`CMS ${reason} pages: ${summary || '[none]'}`);
+  console.error(`CMS ${reason} screenshots: ${directory}`);
   try {
     await mkdir(directory, { recursive: true });
   } catch {
-    console.error('CMS entry timeout: could not create screenshot directory.');
+    console.error(`CMS ${reason}: could not create screenshot directory.`);
     return summary || '[none]';
   }
   for (const [index, page] of pages.entries()) {
@@ -82,7 +108,7 @@ async function captureEntryTimeout(context, entryPage) {
       await page.screenshot({ path: path.join(directory, `page-${index + 1}.png`), timeout: 5000 });
     } catch {
       // Screenshot errors can contain a URL or other sensitive browser details.
-      console.error(`CMS entry timeout: screenshot failed for page-${index + 1}.`);
+      console.error(`CMS ${reason}: screenshot failed for page-${index + 1}.`);
     }
   }
   return summary || '[none]';
@@ -139,8 +165,7 @@ export async function listCustomFields(page) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     await settleCmsNavigation(page, () => clickAction(page, 'prod_field_list', '管理自定义字段'));
     try {
-      await actionLocator(page, 'prod_field_edit').filter({ hasText: '添加自定义字段' })
-        .waitFor({ state: 'visible', timeout: TIMEOUT });
+      await unique(await namedActionLocator(page, 'prod_field_edit', '添加自定义字段'), '添加自定义字段');
       break;
     } catch (error) {
       lastError = error;
@@ -368,9 +393,10 @@ export function exactProductId(matches, name) {
 
 export async function findProduct(page, name) {
   await assertProd(page);
-  // Live probe 2026-10-30: navigating to /prod?invokeAction=prod_list_sub
+  // Legacy live probe 2026-10-30: /prod?invokeAction=prod_list_sub
   // opens the observed product table directly. The sidebar prod_list toggle
   // did not reveal its submenu when the SPA opened on the product form.
+  // Phoenix instead uses its visible 管理产品 control (see gotoAction).
   await gotoAction(page, 'prod_list_sub');
   const findOnCurrentPage = async () => exactProductId(await page.evaluate(() => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
@@ -652,6 +678,13 @@ export async function updateCustomField(page, name, { missing = [], type, enable
 // "分类数量已经达到最大限制" system alert instead of a form.
 export class CategoryLimitError extends Error { code = 'CATEGORY_LIMIT'; }
 async function gotoAction(page, action, params = {}) {
+  await assertProd(page);
+  const phoenixListNames = { prod_list_sub: '管理产品', prod_group_list: '管理产品分类' };
+  if (new URL(page.url()).pathname.replace(/\/$/, '') === '/phoenix/website' && phoenixListNames[action]) {
+    await settleCmsNavigation(page, () => clickAction(page, action, phoenixListNames[action]));
+    await assertProd(page);
+    return;
+  }
   const url = new URL(PROD_URL); url.searchParams.set('invokeAction', action);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   await page.goto(url.href, { waitUntil: 'load', timeout: 60_000 });
@@ -749,8 +782,9 @@ export async function deleteCustomField(page, name) {
   const exactName = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
   const rows = page.locator('table tr').filter({ has: page.locator('td').filter({ hasText: exactName }) }).filter({ visible: true });
   const row = await unique(rows, `删除字段“${name}”的表格行`);
-  const del = row.locator('[action="prod_field_del"], [data-action="prod_field_del"], [action="prod_field_delete"], [data-action="prod_field_delete"], a, button')
-    .filter({ hasText: /^(删除|删)$/ });
+  const legacyDelete = row.locator('[action="prod_field_del"], [data-action="prod_field_del"], [action="prod_field_delete"], [data-action="prod_field_delete"]')
+    .filter({ visible: true }).filter({ hasText: /^(删除|删)$/ });
+  const del = await legacyDelete.count() ? legacyDelete : row.locator('a, button').filter({ hasText: /^(删除|删)$/ });
   const visible = [];
   for (let i = 0; i < await del.count(); i++) if (await del.nth(i).isVisible()) visible.push(i);
   if (visible.length !== 1) throw new Error(`字段“${name}”的删除入口不唯一（${visible.length}），拒绝删除。`);
