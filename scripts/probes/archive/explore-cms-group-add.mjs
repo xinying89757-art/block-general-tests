@@ -9,7 +9,7 @@ const { browser, context, page } = await launchSession(config);
 const out = {};
 try {
   await openEditor(page, config);
-  const prod = await openProdPage(context);
+  const prod = await openProdPage(context, config);
   for (const action of ['prod_group_add', 'prod_group_list']) {
     const u = new URL(prod.url()); u.search = ''; u.searchParams.set('invokeAction', action);
     await prod.goto(u.href, { waitUntil: 'load' }); await prod.waitForTimeout(5000);

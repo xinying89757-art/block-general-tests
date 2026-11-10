@@ -1,4 +1,5 @@
 import { saveAndWait, waitForStable } from './ui-waits.mjs';
+import { SITE_LIST_URL, waitForSiteList, selectSiteCard } from './editor.mjs';
 
 const PROD_URL = 'https://website.leadong.com/prod';
 const TIMEOUT = 15_000;
@@ -36,18 +37,46 @@ async function assertProd(page) {
   const url = new URL(page.url());
   if (url.origin !== new URL(PROD_URL).origin || url.pathname !== '/prod'
     || await page.locator('input[type="password"]:visible').count()) {
-    throw new Error('CMS 登录态/SSO 不可用：未进入产品管理 SPA；请先在同一 context 经 editSite 打开编辑器，不在 CMS 内重新登录。');
+    throw new Error('CMS 登录态/SSO 不可用：未进入产品管理 SPA；请检查登录态及站点的内容管理入口。');
   }
   await actionLocator(page, 'prod_list').first().waitFor({ state: 'visible', timeout: TIMEOUT })
     .catch(() => { throw new Error('CMS 登录态/SSO 或页面结构异常：未看到产品管理入口 prod_list。'); });
 }
-export async function openProdPage(context) {
+// Use the authenticated account's site list and its 内容管理 control to
+// establish the CMS session; /prod is only used after this entry succeeds.
+export async function openProdPage(context, config, { timeoutMs = 60_000, pollMs = 250 } = {}) {
+  if (!config?.siteDomain) throw new Error('进入 CMS 需要配置 SITE_DOMAIN，以唯一匹配目标站点。');
   const page = await context.newPage();
+  const knownPages = new Set(context.pages());
   try {
-    await page.goto(PROD_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-    await assertProd(page);
-    return page;
+    await page.goto(SITE_LIST_URL, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    const state = await waitForSiteList(page);
+    if (state.status !== 'ready') throw new Error('站点列表不可用或登录态已过期，请重新运行登录脚本。');
+    const card = await selectSiteCard(page, config);
+    const entry = card.getByText('内容管理', { exact: true }).filter({ visible: true });
+    const count = await entry.count();
+    if (count !== 1) throw new Error(`目标站点的内容管理入口应唯一，实际找到 ${count} 个。`);
+    await entry.click();
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const candidates = context.pages().filter((candidate) => !candidate.isClosed()
+        && (candidate === page || !knownPages.has(candidate)));
+      for (const candidate of candidates) {
+        let url;
+        try { url = new URL(candidate.url()); } catch { continue; }
+        if (url.origin === new URL(PROD_URL).origin && url.pathname === '/prod') {
+          await assertProd(candidate);
+          if (candidate !== page) await page.close();
+          return candidate;
+        }
+      }
+      await page.waitForTimeout(pollMs);
+    }
+    throw new Error('点击内容管理后未进入产品管理 SPA，请检查登录态、站点权限和入口结构。');
   } catch (error) {
+    for (const candidate of context.pages()) {
+      if (!knownPages.has(candidate)) await candidate.close().catch(() => {});
+    }
     await page.close().catch(() => {});
     throw error;
   }

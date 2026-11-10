@@ -69,10 +69,10 @@ function isDowngradeLoop(location, sourceUrl, rules) {
   try {
     const target = new URL(location);
     const source = new URL(sourceUrl);
-    return target.protocol === 'http:' && source.protocol === 'http:'
+    return target.protocol === 'http:' && ['http:', 'https:'].includes(source.protocol)
       && matchesHttpsUpgradeHost(target.hostname, rules)
       && matchesHttpsUpgradeHost(source.hostname, rules)
-      && target.href === source.href;
+      && upgradeHttpUrl(target.href, rules) === upgradeHttpUrl(source.href, rules);
   } catch { return false; }
 }
 
@@ -80,7 +80,9 @@ export async function installHttpsUpgrade(context, rules = DEFAULT_HOSTS) {
   const hosts = parseHttpsUpgradeHosts(rules);
   if (!hosts.length) return;
   // Context routing applies to main pages, iframe requests, and popup first navigations.
-  await context.route(url => url.protocol === 'http:' && matchesHttpsUpgradeHost(url.hostname, hosts), async route => {
+  // Intercept HTTPS responses too: browser-followed redirects may bypass routing
+  // for the subsequent HTTP request, so Location must be rewritten first.
+  await context.route(url => ['http:', 'https:'].includes(url.protocol) && matchesHttpsUpgradeHost(url.hostname, hosts), async route => {
     const request = route.request();
     const headers0 = await request.allHeaders();
     const response = await context.request.fetch(upgradeHttpUrl(request.url(), hosts), {

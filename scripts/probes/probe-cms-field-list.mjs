@@ -13,7 +13,7 @@ const out = { at: new Date().toISOString(), steps: {} };
 const session = await launchSession(config);
 try {
   const { page } = await openEditor(session.page, config);
-  const cms = await openProdPage(session.context);
+  const cms = await openProdPage(session.context, config);
   try {
     try {
       await listCustomFields(cms);

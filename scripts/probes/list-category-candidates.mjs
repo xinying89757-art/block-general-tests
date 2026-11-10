@@ -9,7 +9,7 @@ const { browser, context, page } = await launchSession(config);
 const out = {};
 try {
   await openEditor(page, config);
-  const prod = await openProdPage(context);
+  const prod = await openProdPage(context, config);
   const u = new URL(prod.url()); u.search = ''; u.searchParams.set('invokeAction', 'prod_group_list');
   await prod.goto(u.href, { waitUntil: 'load' }); await prod.waitForTimeout(6000);
   out.rows = await prod.evaluate(() => {

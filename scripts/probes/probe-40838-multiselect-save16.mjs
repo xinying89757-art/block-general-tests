@@ -19,7 +19,7 @@ const PROD_ID = 'NmKqGFoHbPJy'; // 测试产品小何2
 const session = await launchSession(config);
 try {
   const { page } = await openEditor(session.page, config);
-  const cms = await openProdPage(session.context);
+  const cms = await openProdPage(session.context, config);
   await cms.addInitScript(() => {
     window.__probeLog = [];
     window.__wrapped = false;

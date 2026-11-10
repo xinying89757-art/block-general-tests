@@ -332,17 +332,10 @@ export async function discoverPublicBaseUrl(card, targetHost = '') {
   return publicBaseUrlFromCardValues(urls, { targetHost });
 }
 
-export async function enterSiteFromList(page, config) {
+export async function selectSiteCard(page, config) {
   const cards = page.locator('.mySiteBox');
   if (await cards.count() === 0) {
-    if (config.editSiteUrl) {
-      console.warn('[editor] 站点列表未找到 .mySiteBox，退回备选 EDIT_SITE_URL。');
-      await retryEnvironmentTimeout(() => page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded',
-        timeout: Number(config.navigationTimeoutMs) || 60_000 }), { stage: 'navigation' });
-      await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
-      return page;
-    }
-    throw new Error(`站点列表结构可能已变化，未找到 .mySiteBox，且未配置备选 EDIT_SITE_URL；需要重新探查选择器。当前地址：${page.url()}`);
+    throw new Error(`站点列表结构可能已变化，未找到 .mySiteBox；需要重新探查选择器。当前地址：${page.url()}`);
   }
 
   const availableCards = [];
@@ -379,6 +372,18 @@ export async function enterSiteFromList(page, config) {
   } else {
     console.warn(`[editor] 目标站卡片未找到语言“${name}”，继续使用卡片当前语言。`);
   }
+  return card;
+}
+
+export async function enterSiteFromList(page, config) {
+  if (await page.locator('.mySiteBox').count() === 0 && config.editSiteUrl) {
+    console.warn('[editor] 站点列表未找到 .mySiteBox，退回备选 EDIT_SITE_URL。');
+    await retryEnvironmentTimeout(() => page.goto(config.editSiteUrl, { waitUntil: 'domcontentloaded',
+      timeout: Number(config.navigationTimeoutMs) || 60_000 }), { stage: 'navigation' });
+    await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
+    return page;
+  }
+  const card = await selectSiteCard(page, config);
 
   const context = page.context();
   const knownPages = new Set(context.pages());

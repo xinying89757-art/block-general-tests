@@ -9,7 +9,7 @@ const session = await launchSession(config);
 const output = { at: new Date().toISOString(), page: null, inputs: [], controls: [], forms: [], tables: [] };
 try {
   await openEditor(session.page, config);
-  const page = await openProdPage(session.context);
+  const page = await openProdPage(session.context, config);
   const url = new URL(page.url());
   url.searchParams.set('invokeAction', 'prod_list_sub');
   await page.goto(url.href, { waitUntil: 'load', timeout: 60_000 });

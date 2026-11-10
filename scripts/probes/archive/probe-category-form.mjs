@@ -7,7 +7,7 @@ const config = loadConfig();
 const { browser, context, page } = await launchSession(config);
 try {
   await openEditor(page, config);
-  const prod = await openProdPage(context);
+  const prod = await openProdPage(context, config);
   const url = new URL(prod.url()); url.search = ''; url.searchParams.set('invokeAction', 'prod_group_add');
   await prod.goto(url.href, { waitUntil: 'load' }); await prod.waitForTimeout(5000);
   console.log(JSON.stringify(await prod.evaluate(() => {

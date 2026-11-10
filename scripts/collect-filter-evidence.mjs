@@ -38,6 +38,7 @@ if (new URL(loadConfig().siteDomain || `http://${target.siteHost}`).host !== tar
 }
 process.env.BLOCK_ID = target.blockId;
 const config = loadConfig();
+config.siteDomain ||= `https://${target.siteHost}`;
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const outDir = args.out || path.join('reports', `filter-evidence-${stamp}`);
 fs.mkdirSync(outDir, { recursive: true });
@@ -123,7 +124,7 @@ try {
   sessionContext = session.context;
 
   // (1) CMS read-back via checkFixtureData (never auto-repairs).
-  const cmsPage = await cms.openProdPage(session.context);
+  const cmsPage = await cms.openProdPage(session.context, config);
   try {
     const ops = createFixtureDataOps(createCmsFixtureAdapter(cmsPage, cms));
     const checked = await ops.checkFixtureData(fixtureState);

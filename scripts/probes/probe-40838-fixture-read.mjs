@@ -15,7 +15,7 @@ const FIELDS = ['测试单选按钮A', '测试下拉列表', 'AUTOTEST-多选'];
 const session = await launchSession(config);
 try {
   const { page } = await openEditor(session.page, config);
-  const cms = await openProdPage(session.context);
+  const cms = await openProdPage(session.context, config);
   for (const name of ['测试产品A', '测试产品小何1', '测试产品小何2', 'AUTOTEST-产品4']) {
     const prodId = await findProduct(cms, name);
     if (!prodId) { out.products[name] = { found: false }; continue; }
