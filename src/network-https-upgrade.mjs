@@ -83,23 +83,27 @@ export async function installHttpsUpgrade(context, rules = DEFAULT_HOSTS) {
   // Intercept HTTPS responses too: browser-followed redirects may bypass routing
   // for the subsequent HTTP request, so Location must be rewritten first.
   await context.route(url => ['http:', 'https:'].includes(url.protocol) && matchesHttpsUpgradeHost(url.hostname, hosts), async route => {
-    const request = route.request();
-    const headers0 = await request.allHeaders();
-    const response = await context.request.fetch(upgradeHttpUrl(request.url(), hosts), {
-      method: request.method(), headers: headers0, data: request.postDataBuffer() ?? undefined,
-      maxRedirects: 0, timeout: 60000, failOnStatusCode: false,
-    });
+    let response;
     try {
+      const request = route.request();
+      response = await route.fetch({
+        url: upgradeHttpUrl(request.url(), hosts), maxRedirects: 0, timeout: 60000,
+      });
       const headers = response.headers();
       if (headers.location && isDowngradeLoop(headers.location, request.url(), hosts)) {
-        const error = new Error(`HTTPS upgrade downgrade loop detected: ${request.url()} -> ${headers.location}`);
-        error.code = 'HTTPS_UPGRADE_DOWNGRADE_LOOP';
-        console.warn(`[https-upgrade] ${error.code}: ${error.message}. The HTTPS endpoint redirected back to HTTP; if plaintext HTTP is blocked (for example by Pingora), use a reachable published front or fix the network route.`);
-        await route.abort('failed').catch(() => {});
+        console.warn('[https-upgrade] HTTPS_UPGRADE_DOWNGRADE_LOOP: HTTPS upgrade downgrade loop detected. The HTTPS endpoint redirected back to HTTP; if plaintext HTTP is blocked (for example by Pingora), use a reachable published front or fix the network route.');
+        await route.abort('failed');
         return;
       }
       await route.fulfill({ response, status: response.status(), headers: rewriteUpgradeLocation(headers, hosts), body: await response.body() });
-    } finally { await response.dispose(); }
+    } catch {
+      // Requests can fail or their browser context can close while a route is in flight.
+      // Neither the exception nor request URLs are safe to log: they may contain secrets.
+      console.warn('[https-upgrade] Request failed; aborting route.');
+      await route.abort('failed').catch(() => {});
+    } finally {
+      if (response) await response.dispose().catch(() => {});
+    }
   });
 }
 
