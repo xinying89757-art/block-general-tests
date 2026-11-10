@@ -69,7 +69,6 @@ test('context route upgrades matching requests and leaves other hosts alone', as
   };
   const context = {
     route: async (match, callback) => { predicate = match; handler = callback; },
-    request: { fetch: async (url, options) => { calls.push({ url, options }); return response; } },
   };
   await installHttpsUpgrade(context);
   assert.equal(predicate(new URL('http://website.leadong.com/phoenix/pagebuilder/preview')), true);
@@ -85,11 +84,12 @@ test('context route upgrades matching requests and leaves other hosts alone', as
       method: () => 'GET', allHeaders: async () => ({ accept: 'text/html' }),
       postDataBuffer: () => null,
     }),
+    fetch: async options => { calls.push(options); return response; },
     fulfill: async options => { fulfilled = options; },
   };
   await handler(route);
   assert.equal(calls[0].url, 'https://website.leadong.com/phoenix/pagebuilder/preview');
-  assert.equal(calls[0].options.maxRedirects, 0);
+  assert.equal(calls[0].maxRedirects, 0);
   assert.equal(fulfilled.headers.location, 'https://x.preview.leadong.com/final');
   assert.equal(fulfilled.status, 302);
 });
@@ -101,24 +101,23 @@ test('rewrites a downgrade Location on the original HTTPS response before the br
   let disposed = false;
   const context = {
     route: async (_match, callback) => { handler = callback; },
-    request: { fetch: async (url, options) => {
-      fetched = { url, options };
-      return {
-        headers: () => ({ location: 'http://website.leadong.com/login', 'content-type': 'text/html' }),
-        status: () => 302, body: async () => Buffer.from('redirect'),
-        dispose: async () => { disposed = true; },
-      };
-    } },
+  };
+  const fetch = async options => {
+    fetched = options;
+    return {
+      headers: () => ({ location: 'http://website.leadong.com/login', 'content-type': 'text/html' }),
+      status: () => 302, body: async () => Buffer.from('redirect'),
+      dispose: async () => { disposed = true; },
+    };
   };
   await installHttpsUpgrade(context);
   await handler({
-    request: () => ({ url: () => 'https://website.leadong.com/prod', method: () => 'GET',
-      allHeaders: async () => ({ cookie: 'session=value' }), postDataBuffer: () => null }),
+    fetch,
+    request: () => ({ url: () => 'https://website.leadong.com/prod' }),
     fulfill: async options => { fulfilled = options; },
   });
   assert.equal(fetched.url, 'https://website.leadong.com/prod');
-  assert.equal(fetched.options.maxRedirects, 0);
-  assert.equal(fetched.options.headers.cookie, 'session=value');
+  assert.equal(fetched.maxRedirects, 0);
   assert.equal(fulfilled.status, 302);
   assert.equal(fulfilled.headers.location, 'https://website.leadong.com/login');
   assert.equal(fulfilled.body.toString(), 'redirect');
@@ -130,8 +129,6 @@ test('aborts a downgrade loop from an HTTPS request', async () => {
   let aborted;
   const context = {
     route: async (_match, callback) => { handler = callback; },
-    request: { fetch: async () => ({ headers: () => ({ location: 'http://website.leadong.com/login' }),
-      status: () => 302, dispose: async () => {} }) },
   };
   await installHttpsUpgrade(context);
   const originalWarn = console.warn;
@@ -139,6 +136,8 @@ test('aborts a downgrade loop from an HTTPS request', async () => {
   try {
     await handler({ request: () => ({ url: () => 'https://website.leadong.com/login', method: () => 'GET',
       allHeaders: async () => ({}), postDataBuffer: () => null }),
+    fetch: async () => ({ headers: () => ({ location: 'http://website.leadong.com/login' }),
+      status: () => 302, dispose: async () => {} }),
     fulfill: async () => assert.fail('loop response must not be fulfilled'),
     abort: async reason => { aborted = reason; } });
   } finally { console.warn = originalWarn; }
@@ -154,10 +153,9 @@ test('aborts (does not crash) on an HTTPS-to-HTTP redirect loop and warns with a
   };
   const context = {
     route: async (_match, callback) => { handler = callback; },
-    request: { fetch: async () => response },
   };
   await installHttpsUpgrade(context);
-  const route = { request: () => ({ url: () => source, method: () => 'GET', allHeaders: async () => ({}), postDataBuffer: () => null }),
+  const route = { fetch: async () => response, request: () => ({ url: () => source, method: () => 'GET', allHeaders: async () => ({}), postDataBuffer: () => null }),
     fulfill: async () => assert.fail('loop response must not be fulfilled'),
     abort: async (reason) => { aborted = reason; } };
   let aborted;
@@ -169,3 +167,26 @@ test('aborts (does not crash) on an HTTPS-to-HTTP redirect loop and warns with a
   assert.ok(warnings.some((message) => message.includes('HTTPS upgrade downgrade loop')));
   assert.ok(warnings.some((message) => message.includes('HTTPS_UPGRADE_DOWNGRADE_LOOP') && message.includes('Pingora')));
 });
+
+for (const failure of ['fetch', 'fulfill']) {
+  test(`aborts without rejecting when route ${failure} fails`, async () => {
+    let handler;
+    let aborted;
+    const warnings = [];
+    await installHttpsUpgrade({ route: async (_match, callback) => { handler = callback; } });
+    const response = { headers: () => ({}), status: () => 200,
+      body: async () => Buffer.alloc(0), dispose: async () => {} };
+    const route = {
+      request: () => ({ url: () => 'https://www.leadong.com/' }),
+      fetch: async () => { if (failure === 'fetch') throw new Error('sensitive detail'); return response; },
+      fulfill: async () => { if (failure === 'fulfill') throw new Error('sensitive detail'); },
+      abort: async reason => { aborted = reason; },
+    };
+    const originalWarn = console.warn;
+    console.warn = message => warnings.push(String(message));
+    try { await assert.doesNotReject(handler(route)); } finally { console.warn = originalWarn; }
+    assert.equal(aborted, 'failed');
+    assert.equal(warnings.length, 1);
+    assert.ok(!warnings[0].includes('sensitive detail'));
+  });
+}
