@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://block-general-tests.local/schemas/fixture-state.schema.json",
+  "title": "Long-lived AUTOTEST fixture-state (ids filled after baseline)",
+  "type": "object",
+  "required": ["site", "blocks", "fields", "categories", "products", "partialProducts", "expectedBySetting", "lastCheckedAt"],
+  "properties": {
+    "site": {
+      "type": "object",
+      "required": ["domain", "siteId", "credentialConfig"],
+      "properties": {
+        "domain": { "type": "string", "minLength": 1 },
+        "siteId": { "type": "string", "minLength": 1 },
+        "credentialConfig": {
+          "type": "object",
+          "description": "Pointer only; secrets are never inlined.",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "enum": ["env-file", "env", "profile"] },
+            "path": { "type": "string" },
+            "pointer": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "blocks": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["blockId", "page"],
+        "properties": {
+          "blockId": { "type": "string" },
+          "settingId": { "type": "string" },
+          "page": {
+            "type": "object",
+            "required": ["id", "url", "kind"],
+            "properties": {
+              "id": { "type": "string" },
+              "url": { "type": "string" },
+              "kind": { "type": "string" },
+              "name": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "kind"],
+        "properties": {
+          "id": { "type": ["string", "null"] },
+          "name": { "type": "string", "pattern": "^AUTOTEST-" },
+          "type": { "type": "string" },
+          "kind": { "enum": ["dropdown", "radio", "multi", "text"] },
+          "role": { "enum": ["filter", "display"] },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": ["string", "null"] },
+                "value": { "type": "string" }
+              }
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "categories": { "type": "array", "minItems": 2 },
+    "products": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "id": { "type": ["string", "null"] },
+          "name": { "type": "string", "pattern": "^AUTOTEST-" },
+          "flags": { "type": "array", "items": { "enum": ["热门产品", "新产品", "推荐产品"] } }
+        },
+        "additionalProperties": true
+      }
+    },
+    "partialProducts": { "type": "array" },
+    "expectedBySetting": { "type": "object" },
+    "filterSettingsFixed": { "type": "object" },
+    "dataSourceOptions": { "type": "array" },
+    "deferred": { "type": "array" },
+    "recordOnly": { "type": "array" },
+    "textMatch": { "type": "object" },
+    "lastCheckedAt": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}

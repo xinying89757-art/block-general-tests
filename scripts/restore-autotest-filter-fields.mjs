@@ -9,27 +9,40 @@ import { acquireFreshRunLease } from '../src/fresh-run-lease.mjs';
 import { openEditor, gotoFreshTargetPage, savePage, closeToolbarMenusBeforeAction } from '../src/editor.mjs';
 import { widgetSession, isFieldCheckbox } from '../src/capabilities/shared.mjs';
 import { choosePublishMenuItem, waitForPublishSignal } from '../src/publish-confirm.mjs';
+import { parseArgv, loadJsonFile, firstDefined } from '../src/filter-evidence.mjs';
 
-dotenv.config({ path: process.env.RUN_ENV_FILE || '/workspace/47948/codex/.run.env', quiet: true });
-const args = process.argv.slice(2);
-const arg = (key) => { const i = args.indexOf(key); return i < 0 ? null : args[i + 1]; };
-const enabling = args.includes('--enable');
-const settingId = arg('--setting-id'), pageId = arg('--page-id'), statesFile = arg('--states-file');
+dotenv.config({ path: process.env.RUN_ENV_FILE || '.run.env', quiet: true });
+const argv = parseArgv(process.argv.slice(2), { flags: ['enable', 'resume'] });
+const enabling = Boolean(argv.enable);
+const settingId = argv['setting-id'], pageId = argv['page-id'], statesFile = argv['states-file'];
 if (!settingId || !pageId || !statesFile) throw new Error('Required: --setting-id, --page-id and --states-file');
-const fields = ['AUTOTEST-下拉列表', 'AUTOTEST-单选按钮', 'AUTOTEST-多选按钮', 'AUTOTEST-文本字段'];
-const siteHost = 'en-site79106751.ldwebsite.com';
-process.env.BLOCK_ID = '47948';
+const profile = argv.profile ? loadJsonFile(argv.profile) : {};
+const fields = (argv.fields ? String(argv.fields).split(',').map((s) => s.trim()).filter(Boolean)
+  : (profile.fixture?.fields || []).filter((field) => !field.role || field.role === 'filter').map((field) => field.name));
+if (!fields.length) throw new Error('Provide --fields or a profile fixture with AUTOTEST field names.');
+if (fields.some((name) => !String(name).startsWith('AUTOTEST-'))) throw new Error('Restore fields must start with AUTOTEST-');
+const siteHost = String(firstDefined(argv['site-host'], profile.siteHost, process.env.SITE_HOST) || '').replace(/^https?:\/\//, '');
+if (!siteHost) throw new Error('Required: --site-host or SITE_HOST');
+const blockId = String(firstDefined(argv.block, argv['block-id'], profile.blockId, process.env.BLOCK_ID) || '');
+if (!blockId) throw new Error('Required: --block or BLOCK_ID');
+process.env.BLOCK_ID = blockId;
 const config = loadConfig();
 if (new URL(config.siteDomain).host !== siteHost) throw new Error('Site host mismatch; refusing to modify.');
-const target = { kind: 'system', id: pageId, url: '/products.html', name: 'Products' };
+const target = {
+  kind: firstDefined(argv['page-kind'], profile.page?.kind, profile.target?.pageKind, 'system'),
+  id: pageId,
+  url: firstDefined(argv['page-url'], profile.page?.url, profile.target?.pageUrl),
+  name: firstDefined(argv['page-name'], profile.page?.name, profile.target?.page, ''),
+};
+if (!target.url) throw new Error('Required: --page-url or profile page url');
 const lease = acquireFreshRunLease({ siteHost, runId: `filter-fields-${Date.now()}` });
 let browser, currentDialog;
-const report = { startedAt: new Date().toISOString(), siteHost, pageId, settingId, mode: enabling ? 'enable-publish' : 'restore', publishedConfirmed: false };
-const reportPath = 'reports/filter-fields-publish-47948.json';
+const report = { startedAt: new Date().toISOString(), siteHost, pageId, settingId, blockId, mode: enabling ? 'enable-publish' : 'restore', publishedConfirmed: false };
+const reportPath = argv.out || 'reports/filter-fields-publish.json';
 async function enter(context) {
   const { page } = await openEditor(await context.newPage(), config);
   const { frame } = await gotoFreshTargetPage(page, target);
-  const instances = await frame.locator('.siteblocks-setting-wrap[data-appid="47948"]').evaluateAll(nodes => nodes.map(node => {
+  const instances = await frame.locator(`.siteblocks-setting-wrap[data-appid="${blockId}"]`).evaluateAll(nodes => nodes.map(node => {
     const attrs = [...node.attributes, ...[...node.querySelectorAll('*')].flatMap(n => [...n.attributes])];
     return attrs.find(a => /setting.?id/i.test(a.name))?.value || '';
   }));
@@ -59,7 +72,7 @@ try {
     if (selected.some(c => c.disabled && !c.checked)) throw new Error('A required field is disabled.');
     states = Object.fromEntries(selected.map(c => [c.label, c.checked]));
     fs.mkdirSync(new URL('.', `file://${statesFile}`).pathname, { recursive: true });
-    if (args.includes('--resume')) {
+    if (argv.resume) {
       const snapshot = JSON.parse(fs.readFileSync(statesFile, 'utf8'));
       if (snapshot.siteHost !== siteHost || snapshot.pageId !== pageId || snapshot.settingId !== settingId || fields.some(name => typeof snapshot.previousFieldStates?.[name] !== 'boolean')) throw new Error('Snapshot identity or states mismatch.');
       states = snapshot.previousFieldStates;
@@ -80,7 +93,7 @@ try {
   if (radios.some(r => !controls.some(c => c.type === 'radio' && c.name === r.name && c.value === r.value && c.checked))) throw new Error('A previously selected radio was lost during save.');
   await currentDialog.cancel(); currentDialog = null;
   // Verify saved values through an independent browser context.
-  if (!args.includes('--resume')) {
+  if (!argv.resume) {
   const verification = await browser.newContext({ storageState: await session.context.storageState(), ignoreHTTPSErrors: config.ignoreHTTPSErrors });
   await prepareContext(verification, config);
   try {
@@ -117,12 +130,12 @@ try {
     const signal = await waitForPublishSignal({ readTexts: () => page.evaluate(() => [...document.querySelectorAll('[class*="message"],[class*="toast"],[class*="notice"],[class*="tip"],[role="alert"],.backstage-dialog')].filter(el => el.getClientRects().length).map(el => el.innerText)) });
     if (signal.status !== 'confirmed') {
       report.postPublishUi = await page.evaluate(() => [...document.querySelectorAll('[class*="message"],[class*="toast"],[class*="notice"],[class*="tip"],[role="alert"],.backstage-dialog')].filter(el => el.getClientRects().length).map(el => (el.innerText || '').replace(/\s+/g, ' ').slice(0, 300)).filter(Boolean));
-      report.screenshot = 'reports/filter-fields-publish-47948.png';
+      report.screenshot = reportPath.replace(/\.json$/, '.png');
       await page.screenshot({ path: report.screenshot });
       throw new Error('Editor did not confirm publishing.');
     }
     report.publishedConfirmed = true; report.publishSignal = signal; report.publishedAt = new Date().toISOString();
-    report.screenshot = 'reports/filter-fields-publish-47948.png';
+    report.screenshot = reportPath.replace(/\.json$/, '.png');
     await page.screenshot({ path: report.screenshot });
     report.fieldsEnabled = fields; report.frontVerification = 'Deferred to Mac: box cannot reach published front.';
   }

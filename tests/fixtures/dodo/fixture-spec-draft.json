@@ -1,0 +1,386 @@
+{
+  "kind": "fixture-spec",
+  "status": "draft",
+  "author": "Dodo",
+  "createdAt": "2026-11-10T11:30+08:00",
+  "principle": "通用基线数据，所有区块共用；区块特有需求只追加不改。测试中只改区块设置，不改这套数据。id 由 Runrun 建好后填进 fixture-state.json。",
+  "designSources": {
+    "dataSourceOptions": {
+      "node": "1674:4971（产品列表设置项截图 image 380）",
+      "values": [
+        "所有产品",
+        "使用筛选条件",
+        "选择指定产品",
+        "选择部分产品分类"
+      ],
+      "useFilterConditionsUI": {
+        "source": "Xinying 提供的编辑器截图 /workspace/47948/checklist/datasource-use-filter-conditions.png",
+        "controls": [
+          "选择产品分类（下拉）",
+          "热门产品（勾选）",
+          "新产品（勾选）",
+          "推荐产品（勾选）"
+        ]
+      }
+    },
+    "filterSettingsFixed": {
+      "node": "1674:4971（产品筛选设置项，高亮框 1674:4985/4986/4987 + 文本 1674:4988「选择的值是这3个，设置项可以不展示」）",
+      "values": {
+        "筛选逻辑": "交集",
+        "筛选方式": "更改筛选项后自动筛选",
+        "筛选范围": "当前分类产品"
+      }
+    },
+    "settingsHelpText": "支持在区块中，隐藏指定的“字段值”（仅限单选按钮、下拉列表、多选按钮类型的字段）"
+  },
+  "fields": [
+    {
+      "name": "AUTOTEST-下拉列表",
+      "type": "下拉",
+      "options": [
+        "下拉列表-A",
+        "下拉列表-B"
+      ],
+      "reuseId": "miUAfKegLmIn"
+    },
+    {
+      "name": "AUTOTEST-单选按钮",
+      "type": "单选",
+      "options": [
+        "单选按钮-A",
+        "单选按钮-B"
+      ],
+      "reuseId": "uTpKfUeBtQdI"
+    },
+    {
+      "name": "AUTOTEST-多选按钮",
+      "type": "多选",
+      "options": [
+        "多选按钮-A",
+        "多选按钮-B",
+        "多选按钮-C"
+      ],
+      "reuseId": "rPpKAfoLZvJI",
+      "note": "比现有多一个选项 C，用来测一个产品带多个值"
+    },
+    {
+      "name": "AUTOTEST-文本字段",
+      "type": "文本",
+      "reuseId": "kGKfpATBjwUd"
+    },
+    {
+      "name": "AUTOTEST-展示字段-05 … -11",
+      "type": "文本",
+      "count": 7,
+      "status": "视字段上限而定",
+      "purpose": "展示字段分带：1-4 在上方、5-10 下方两列、11 起下方一行。勾选的展示项至少要 11 个才能覆盖三段。内置属性 Brand/Product Code/Model/Brief 也算勾选项时，可以少建几个。"
+    }
+  ],
+  "categories": [
+    {
+      "name": "AUTOTEST-分类A",
+      "reuseId": "wyfAhLevYbEd",
+      "reuseName": "AUTOTEST-筛选分类",
+      "note": "复用现有分类，要不要改名由 Runrun 按上限决定"
+    },
+    {
+      "name": "AUTOTEST-分类B"
+    }
+  ],
+  "products": [
+    {
+      "name": "AUTOTEST-47948-筛选-基准",
+      "reuseId": "mkABcpfGuLjI",
+      "category": "分类A",
+      "fields": {
+        "下拉": "A",
+        "单选": "A",
+        "多选": [
+          "A",
+          "C"
+        ],
+        "文本": "A"
+      },
+      "tag": true,
+      "displayFields": "全部有值"
+    },
+    {
+      "name": "AUTOTEST-47948-筛选-翻转1",
+      "reuseId": "nGKBHAUbPtVS",
+      "category": "分类A",
+      "fields": {
+        "下拉": "B",
+        "单选": "A",
+        "多选": [
+          "A"
+        ],
+        "文本": "A"
+      },
+      "tag": false,
+      "longName": true,
+      "note": "名称超过一行，用于测试一行展示超出隐藏"
+    },
+    {
+      "name": "AUTOTEST-47948-筛选-翻转2",
+      "reuseId": "jrKgcpBqyNDd",
+      "category": "分类A",
+      "fields": {
+        "下拉": "A",
+        "单选": "B",
+        "多选": [
+          "A"
+        ],
+        "文本": "A"
+      }
+    },
+    {
+      "name": "AUTOTEST-47948-筛选-翻转3",
+      "reuseId": "tTAVmKqWgeby",
+      "category": "分类A",
+      "fields": {
+        "下拉": "A",
+        "单选": "A",
+        "多选": [
+          "B"
+        ],
+        "文本": "A"
+      }
+    },
+    {
+      "name": "AUTOTEST-47948-筛选-翻转4",
+      "reuseId": "hZKgmfBrMUcy",
+      "category": "分类A",
+      "fields": {
+        "下拉": "A",
+        "单选": "A",
+        "多选": [
+          "A"
+        ],
+        "文本": "B"
+      },
+      "displayFields": "部分为空",
+      "note": "用于测试没有数据的字段不展示"
+    },
+    {
+      "name": "AUTOTEST-分类B-1",
+      "category": "分类B",
+      "fields": {
+        "下拉": "A",
+        "单选": "A",
+        "多选": [
+          "A"
+        ],
+        "文本": "A"
+      },
+      "note": "字段值和基准一样，用于测试筛选范围有没有越出当前分类"
+    },
+    {
+      "name": "AUTOTEST-分类B-2",
+      "category": "分类B",
+      "fields": {},
+      "note": "4 个筛选字段全空"
+    }
+  ],
+  "expectedBySetting": {
+    "dataSource": {
+      "所有产品": {
+        "expected": "全站产品集合；站上只有 AUTOTEST 产品时就是这 7 个，否则以每轮开跑前读到的全站产品数为准"
+      },
+      "选择部分产品分类=[分类B]": {
+        "expected": [
+          "分类B-1",
+          "分类B-2"
+        ]
+      },
+      "选择部分产品分类=[分类A,分类B]": {
+        "expected": "全部 7 个"
+      },
+      "选择指定产品=[基准,翻转2,分类B-1]": {
+        "expected": [
+          "基准",
+          "翻转2",
+          "分类B-1"
+        ],
+        "note": "固定候选，跨两个分类；显示顺序只记录不判"
+      },
+      "使用筛选条件": {
+        "分类=分类A，不勾标记": {
+          "expected": [
+            "基准",
+            "翻转1",
+            "翻转2",
+            "翻转3",
+            "翻转4"
+          ],
+          "mustNotContain": [
+            "分类B-1",
+            "分类B-2"
+          ]
+        },
+        "分类=分类B，不勾标记": {
+          "expected": [
+            "分类B-1",
+            "分类B-2"
+          ]
+        },
+        "热门/新/推荐勾选框": {
+          "status": "暂缓",
+          "reason": "Xinying 2026-11-10：先不管"
+        }
+      }
+    },
+    "pagination": {
+      "每页产品数量=2，数据源=分类A": {
+        "expected": {
+          "pages": 3,
+          "count": 5
+        }
+      },
+      "同上，并筛选 下拉=A": {
+        "expected": {
+          "pages": 2,
+          "count": 4
+        }
+      }
+    },
+    "filter": {
+      "precondition": "数据源=选择部分产品分类[分类A]；筛选逻辑：不同字段交集，同一字段多值并集",
+      "下拉=A": [
+        "基准",
+        "翻转2",
+        "翻转3",
+        "翻转4"
+      ],
+      "下拉=B": [
+        "翻转1"
+      ],
+      "单选=A": [
+        "基准",
+        "翻转1",
+        "翻转3",
+        "翻转4"
+      ],
+      "多选=A": [
+        "基准",
+        "翻转1",
+        "翻转2",
+        "翻转4"
+      ],
+      "多选=C": [
+        "基准"
+      ],
+      "文本=A": {
+        "expected": [
+          "基准",
+          "翻转1",
+          "翻转2",
+          "翻转3"
+        ],
+        "rule": "完全一致（已确认）"
+      },
+      "下拉=A 且 单选=A": [
+        "基准",
+        "翻转3",
+        "翻转4"
+      ],
+      "下拉=A 且 单选=A 且 多选=A 且 文本=A": [
+        "基准"
+      ],
+      "多选同时选 A 和 B": {
+        "expected": [
+          "基准",
+          "翻转1",
+          "翻转2",
+          "翻转3",
+          "翻转4"
+        ],
+        "rule": "同字段并集"
+      },
+      "任意筛选": {
+        "mustNotContain": [
+          "分类B-1",
+          "分类B-2"
+        ],
+        "status": "暂缓",
+        "reason": "筛选范围=当前分类产品暂缓验证（Xinying 2026-11-10）"
+      },
+      "下拉同时选 A 和 B": {
+        "expected": [
+          "基准",
+          "翻转1",
+          "翻转2",
+          "翻转3",
+          "翻转4"
+        ],
+        "rule": "同字段并集"
+      },
+      "下拉=B 且 多选=B": {
+        "expected": [],
+        "rule": "跨字段交集，空结果"
+      }
+    }
+  },
+  "openQuestions": [
+    "字段数上限，决定能不能建满 11 个展示字段"
+  ],
+  "updatedAt": "2026-11-10T11:45+08:00",
+  "decisions": [
+    {
+      "topic": "文本字段可筛选",
+      "decision": "本区块支持，仅限本区块；通用规则：可筛选字段类型以各区块设计稿为准",
+      "decidedBy": "Xinying",
+      "date": "2026-11-10",
+      "source": "说明 I1698:6553;95:125「支持类型：下拉、单选、多选、文本字段」",
+      "note": "设置面板截图 1674:4971 的帮助文字原文是「仅限单选按钮、下拉列表、多选按钮类型的字段」，不含文本；以 Xinying 裁定为准"
+    },
+    {
+      "topic": "使用筛选条件",
+      "decision": "含义是选某个产品分类，下方另有热门/新/推荐三个勾选框",
+      "decidedBy": "Xinying",
+      "date": "2026-11-10"
+    },
+    {
+      "topic": "组合规则",
+      "decision": "同一字段多个值取并集，不同字段之间取交集",
+      "decidedBy": "Xinying",
+      "date": "2026-11-10",
+      "source": "1674:4971 筛选逻辑=交集"
+    },
+    {
+      "topic": "筛选范围=当前分类产品",
+      "decision": "暂缓验证",
+      "decidedBy": "Xinying",
+      "date": "2026-11-10"
+    },
+    {
+      "topic": "两列一方勾选另一方也勾选",
+      "decision": "暂缓验证",
+      "decidedBy": "Xinying",
+      "date": "2026-11-10"
+    },
+    {
+      "topic": "移动端",
+      "decision": "按设计稿",
+      "decidedBy": "Xinying",
+      "date": "2026-11-10",
+      "source": "1712:6586：顶部 Filters 按钮，筛选组单列纵向排列，下方 Products (数量)、分页、单列卡片"
+    },
+    {
+      "topic": "文本字段匹配",
+      "decision": "已确认：完全一致",
+      "decidedBy": "Xinying",
+      "date": "2026-11-10"
+    },
+    {
+      "topic": "使用筛选条件的热门/新/推荐勾选框",
+      "decision": "暂缓，只验证所选分类；基线产品不加这三个标记",
+      "decidedBy": "Xinying",
+      "date": "2026-11-10"
+    }
+  ],
+  "deferred": [
+    "筛选范围=当前分类产品",
+    "两列一方勾选另一方也勾选",
+    "使用筛选条件的热门/新/推荐勾选框"
+  ]
+}

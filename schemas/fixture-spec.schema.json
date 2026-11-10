@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://block-general-tests.local/schemas/fixture-spec.schema.json",
+  "title": "Shared AUTOTEST fixture spec (drafts are consumed as-is)",
+  "type": "object",
+  "required": ["kind", "fields", "categories", "products", "expectedBySetting"],
+  "properties": {
+    "kind": { "const": "fixture-spec" },
+    "status": { "type": "string" },
+    "author": { "type": "string" },
+    "createdAt": { "type": "string" },
+    "updatedAt": { "type": "string" },
+    "principle": { "type": "string" },
+    "designSources": { "type": "object" },
+    "fields": { "type": "array", "minItems": 1 },
+    "categories": { "type": "array", "minItems": 2 },
+    "products": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^AUTOTEST-" },
+          "reuseId": { "type": "string" },
+          "category": { "type": "string" },
+          "fields": { "type": "object" },
+          "tag": { "type": "boolean" },
+          "longName": { "type": "boolean" },
+          "displayFields": {},
+          "note": { "type": "string" },
+          "flags": {
+            "type": "array",
+            "items": { "enum": ["热门产品", "新产品", "推荐产品"] }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "expectedBySetting": {
+      "type": "object",
+      "required": ["dataSource", "pagination", "filter"],
+      "properties": {
+        "dataSource": { "type": "object" },
+        "pagination": { "type": "object" },
+        "filter": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "openQuestions": { "type": "array", "items": { "type": "string" } },
+    "decisions": { "type": "array" },
+    "deferred": { "type": "array", "items": { "type": "string" } },
+    "flagsNote": { "type": "string" }
+  },
+  "additionalProperties": true
+}

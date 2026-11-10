@@ -18,10 +18,10 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "checkType", "sourceText", "expected", "checkStage", "params"],
+        "required": ["id", "checkType", "sourceText", "expected", "checkStage"],
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
-          "checkType": { "enum": ["color-default", "color-scope", "typography", "module-width", "height-fit", "text-truncation", "image-ratio", "overflow-threshold", "nav-hierarchy-levels", "search-box-per-field", "default-expand", "selected-tag-behaviour", "mobile-layout", "manual"] },
+          "checkType": { "enum": ["color-default", "color-scope", "typography", "module-width", "height-fit", "text-truncation", "image-ratio", "overflow-threshold", "nav-hierarchy-levels", "search-box-per-field", "default-expand", "selected-tag-behaviour", "mobile-layout", "filter-oracle", "filter-interaction", "filter-layout", "manual"] },
           "sourceText": { "type": "string", "minLength": 1 },
           "expected": {
             "not": { "anyOf": [
@@ -40,7 +40,15 @@
             },
             "additionalProperties": false
           },
-          "params": { "type": "object", "properties": { "ratioSource": { "enum": ["natural", "rendered-content", "rendered-element", "both"] } } }
+          "params": { "type": "object", "properties": { "ratioSource": { "enum": ["natural", "rendered-content", "rendered-element", "both"] } } },
+          "viewport": { "type": "string" },
+          "target": { "type": "string" },
+          "sourceNode": { "type": ["string", "null"] },
+          "status": { "type": "string" },
+          "cases": { "type": "object" },
+          "decision": { "type": "string" },
+          "reason": { "type": "string" },
+          "note": { "type": "string" }
         },
         "allOf": [{
           "if": { "required": ["state"] },

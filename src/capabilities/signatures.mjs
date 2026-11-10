@@ -105,6 +105,12 @@ export function matchCapabilities(inventory, rules = signatures) {
 // Fixed-value requirements ({ mode: 'fixed-front', fixedValue }) keyed by
 // setting id, for front-end checks that need the expected value.
 export function fixedRequirementValues(profile) {
-  return Object.fromEntries((profile?.requirements?.capabilities || [])
+  const fromRequirements = Object.fromEntries((profile?.requirements?.capabilities || [])
     .filter(c => c?.mode === 'fixed-front' && typeof c.fixedValue === 'string').map(c => [c.id, c.fixedValue]));
+  const fixed = profile?.fixtureState?.filterSettingsFixed || profile?.fixture?.filterSettingsFixed || {};
+  const mapped = {};
+  if (fixed['筛选逻辑']) mapped['cff-logic'] = fixed['筛选逻辑'];
+  if (fixed['筛选方式']) mapped['cff-trigger'] = fixed['筛选方式'];
+  if (fixed['筛选范围']) mapped['cff-scope'] = fixed['筛选范围'];
+  return { ...mapped, ...fromRequirements };
 }

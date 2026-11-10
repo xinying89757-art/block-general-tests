@@ -644,3 +644,26 @@ export async function addProductCategory(page, prodId, categoryId, categoryName)
   if (!(await groupIds(page)).includes(categoryId)) throw new Error('分类选择后 groupIds 未包含目标分类。');
   await saveProduct(page);
 }
+
+// Read the site's maximum custom-field count from the field list page.
+// Returns { max, used, source } with max=null when the page does not state it.
+export function parseCustomFieldLimitText(text) {
+  const body = String(text || '');
+  const patterns = [
+    /最多(?:可(?:以)?)?(?:添加|创建|设置)\s*(\d+)\s*个(?:自定义)?字段/,
+    /(?:自定义)?字段(?:数量)?(?:上限|最多)[^\d]{0,6}(\d+)/,
+    /(?:已(?:添加|创建|使用))\s*(\d+)\s*\/\s*(\d+)/,
+  ];
+  for (const [index, pattern] of patterns.entries()) {
+    const match = body.match(pattern);
+    if (!match) continue;
+    if (index === 2) return { max: Number(match[2]), used: Number(match[1]), source: match[0] };
+    return { max: Number(match[1]), used: null, source: match[0] };
+  }
+  return { max: null, used: null, source: null };
+}
+export async function readCustomFieldLimit(page) {
+  const fields = await listCustomFields(page);
+  const text = await page.evaluate(() => document.body.innerText || '');
+  return { ...parseCustomFieldLimitText(text), used: fields.length, fields };
+}
