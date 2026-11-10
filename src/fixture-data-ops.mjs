@@ -79,6 +79,13 @@ export function diffFixtureState(state, observed) {
   return diff;
 }
 
+export function verifyExistingIds(state, observed) {
+  const all = diffFixtureState(state, observed);
+  const pending = all.filter((item) => String(item.kind).endsWith('missing-id'));
+  const diff = all.filter((item) => !String(item.kind).endsWith('missing-id'));
+  return { ok: diff.length === 0, diff, pending };
+}
+
 export function structuredFixtureDiffError(diff, extra = {}) {
   const error = new Error(`Fixture data drifted (${diff.length} change${diff.length === 1 ? '' : 's'}). Auto-repair is disabled.`);
   error.diff = diff;
@@ -141,23 +148,45 @@ export function createMemoryFixtureAdapter({ observed, inventory = [], limits = 
       return { ...observed, unexpectedAutotestFields: leftoverAutotestFields(inventory, state) };
     },
     async listFields() { return inventory; },
+    deleted: [],
+    created: [],
+    async createMissing(state, options = {}) {
+      if (options.delete || options.dedupe) throw new Error('createMissing must never delete.');
+      const created = [];
+      const assign = (item, prefix) => {
+        if (item.id) return item;
+        const id = `${prefix}-${created.length + 1}`;
+        item.id = id;
+        created.push({ kind: prefix, name: item.name, id });
+        return item;
+      };
+      for (const category of state.categories || []) assign(category, 'category');
+      for (const product of state.products || []) assign(product, 'product');
+      const cap = options.fieldLimit ?? limits.fieldLimit;
+      for (const field of state.fields || []) {
+        if (field.id) continue;
+        if (field.role === 'display' && cap != null && (inventory.length + created.filter((row) => row.kind === 'field').length) >= cap) continue;
+        assign(field, 'field');
+      }
+      this.created.push(...created);
+      return { ok: true, writes: created, deleted: [], state };
+    },
+    async deleteDuplicates(leftovers = []) {
+      this.deleted.push(...leftovers);
+      return { ok: true, deleted: leftovers };
+    },
     async prepare(state, options) {
       const leftovers = leftoverAutotestFields(inventory, state);
-      const report = {
+      return {
         ok: true,
         apply: Boolean(options.apply),
         dedupe: leftovers,
-        dedupeApplied: Boolean(options.apply && options.dedupe && leftovers.length),
+        dedupeApplied: false,
         fieldLimit: options.fieldLimit ?? limits.fieldLimit ?? null,
         categoryLimit: options.categoryLimit ?? limits.categoryLimit ?? null,
         writes: [],
         resume: options.resume || {},
       };
-      if (options.dedupe && leftovers.length && !options.apply) {
-        report.ok = true;
-        report.message = 'Duplicate AUTOTEST fields were reported only; pass --apply to change anything.';
-      }
-      return report;
     },
   };
 }
@@ -192,7 +221,73 @@ export function createCmsFixtureAdapter(page, cms) {
           || (category.reuseName ? await cms.findCategory(page, category.reuseName) : null);
         if (found) categories[category.id || found.id] = { id: found.id, name: found.name };
       }
-      return { fields, products, categories, unexpectedAutotestFields: leftoverAutotestFields(listed, state) };
+      for (const field of state.fields || []) {
+        const hit = listed.find((item) => item.name === field.name);
+        if (!hit || !cms.getCustomFieldIdentity) continue;
+        try {
+          const identity = await cms.getCustomFieldIdentity(page, hit.name);
+          fields[identity.id] = { id: identity.id, name: identity.name, type: identity.type, options: fields[field.id || identity.id]?.options || [] };
+        } catch {}
+      }
+      return { fields, products, categories, unexpectedAutotestFields: leftoverAutotestFields(listed, state), inventory: listed };
+    },
+    async listFields() { return cms.listCustomFields(page); },
+    async createMissing(state, options = {}) {
+      if (options.delete || options.dedupeApply) throw new Error('createMissing must never delete.');
+      const writes = [];
+      const limit = options.fieldLimit ?? null;
+      const listed = await cms.listCustomFields(page);
+      for (const category of state.categories || []) {
+        if (category.id) continue;
+        let found = await cms.findCategory(page, category.name)
+          || (category.reuseName ? await cms.findCategory(page, category.reuseName) : null);
+        if (!found) {
+          try { found = await cms.createCategory(page, category.name); writes.push({ kind: 'category', name: category.name, id: found.id, action: 'create' }); }
+          catch (error) {
+            if (error?.code === 'CATEGORY_LIMIT') { category.unavailable = error.message; continue; }
+            throw error;
+          }
+        } else writes.push({ kind: 'category', name: category.name, id: found.id, action: 'reuse' });
+        category.id = found.id;
+      }
+      const fieldUsed = () => listed.length + writes.filter((row) => row.kind === 'field' && row.action === 'create').length;
+      for (const field of state.fields || []) {
+        const existing = listed.find((item) => item.name === field.name);
+        if (existing) {
+          const identity = cms.getCustomFieldIdentity ? await cms.getCustomFieldIdentity(page, field.name) : existing;
+          field.id = identity.id || field.id;
+          writes.push({ kind: 'field', name: field.name, id: field.id, action: 'reuse' });
+          continue;
+        }
+        if (field.role === 'display' && limit != null && fieldUsed() >= limit) continue;
+        const created = await cms.createCustomField(page, { name: field.name, type: field.type, typeCode: field.kind === 'text' ? 0 : undefined, options: (field.options || []).map((option) => option.value || option) });
+        listed.push({ name: field.name, type: field.type, status: '开启' });
+        const identity = cms.getCustomFieldIdentity ? await cms.getCustomFieldIdentity(page, field.name) : created;
+        field.id = identity?.id || created?.id || null;
+        writes.push({ kind: 'field', name: field.name, id: field.id, action: 'create' });
+      }
+      for (const product of state.products || []) {
+        if (product.id) continue;
+        let id = await cms.findProduct(page, product.name);
+        if (!id) {
+          id = await cms.createProduct(page, { name: product.name });
+          writes.push({ kind: 'product', name: product.name, id, action: 'create' });
+        } else writes.push({ kind: 'product', name: product.name, id, action: 'reuse' });
+        product.id = id;
+        if (product.values && cms.setProductFieldValues) await cms.setProductFieldValues(page, id, product.values);
+        const category = (state.categories || []).find((item) => item.name === product.category);
+        if (category?.id && cms.addProductCategory) await cms.addProductCategory(page, id, category.id, category.name);
+      }
+      return { ok: true, writes, deleted: [], state };
+    },
+    async deleteDuplicates(leftovers = []) {
+      const deleted = [];
+      for (const item of leftovers) {
+        if (!String(item.name || '').startsWith('AUTOTEST-')) throw new Error(`Refusing to delete non-AUTOTEST field ${item.name}.`);
+        const result = await cms.deleteCustomField(page, item.name);
+        deleted.push({ ...item, ...result });
+      }
+      return { ok: true, deleted };
     },
   };
 }

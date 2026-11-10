@@ -9,9 +9,10 @@ import dotenv from 'dotenv';
 import { loadConfig } from '../src/config.mjs';
 import { launchSession } from '../src/browser.mjs';
 import { acquireFreshRunLease } from '../src/fresh-run-lease.mjs';
-import { openEditor, gotoFreshTargetPage, savePage, closeToolbarMenusBeforeAction } from '../src/editor.mjs';
+import { openEditor, gotoFreshTargetPage, savePage } from '../src/editor.mjs';
 import { widgetSession, isFieldCheckbox } from '../src/capabilities/shared.mjs';
-import { choosePublishMenuItem, waitForPublishSignal } from '../src/publish-confirm.mjs';
+import { publishCurrentPage } from '../src/publish-current-page.mjs';
+import { listSession } from '../src/capabilities/product-list-effects.mjs';
 import * as cms from '../src/cms.mjs';
 import { loadFixtureState } from '../src/fixture-state.mjs';
 import { createFixtureDataOps, createCmsFixtureAdapter } from '../src/fixture-data-ops.mjs';
@@ -19,6 +20,10 @@ import {
   parseArgv, loadJsonFile, resolveFilterEvidenceTarget, readInstanceFilterAttrsFn,
   canvasAttributeMissing, suggestFilterEvidenceClassification,
 } from '../src/filter-evidence.mjs';
+import {
+  resolveControlChangePlan, applyListControlPlan, assertControlPlanApplied, assertControlRestored,
+  controlChangeSnapshot, shouldRestoreControlChange,
+} from '../src/filter-evidence-control.mjs';
 
 dotenv.config({ path: process.env.RUN_ENV_FILE || '.run.env', quiet: true });
 
@@ -99,9 +104,17 @@ const restoreFieldStates = async () => {
     return { status: 'failed', error: String(error.message).slice(0, 500) };
   }
 };
-const restoreControlChange = async () => {
-  // Control changes are block settings only; restoreFieldStates covers them.
-  return { status: controlChange?.applied ? 'restored-with-settings' : 'skipped' };
+const restoreControlSettings = async ({ publish = false } = {}) => {
+  if (!controlChange?.applied || !controlChange.original) return { status: 'skipped' };
+  if (!page || !frame) return { status: 'failed', error: 'Editor session unavailable for control restore.' };
+  try { await currentDialog?.cancel(); } catch {}
+  const session = listSession({ page, canvas: frame, config });
+  const result = await applyListControlPlan(session, controlChange, { restore: true, original: controlChange.original });
+  assertControlRestored(result.after, controlChange.original);
+  await savePage(page);
+  let published;
+  if (publish) published = await publishCurrentPage(page);
+  return { status: 'ok', after: result.after, published };
 };
 
 try {
@@ -170,29 +183,24 @@ try {
   };
   write('03-preview-path.json', report.steps.canvas);
 
-  // (5) Optional harmless AUTOTEST-marked block setting change (never mutates fixture data).
+  // (5) Optional published control change: per-page product count (unrelated
+  // to data-filterfields). The new value is left in place through publish and
+  // is restored only after the front has been verified, or immediately if this
+  // box run fails.
   if (args['control-change']) {
-    const marker = `AUTOTEST-EVIDENCE-${Date.now()}`;
-    currentDialog = dialog(page, frame);
-    await currentDialog.open();
-    const name = target.fields[0];
-    const field = selectField(await currentDialog.read(), name);
-    await currentDialog.set(field, false);
-    await currentDialog.save();
+    const plan = resolveControlChangePlan({ args, profile, fixtureState });
+    const session = listSession({ page, canvas: frame, config });
+    const result = await applyListControlPlan(session, plan);
+    assertControlPlanApplied(result.after, plan);
     await savePage(page);
-    currentDialog = dialog(page, frame);
-    await currentDialog.open();
-    const verified = selectField(await currentDialog.read(), name).checked === false;
-    await currentDialog.set(selectField(await currentDialog.read(), name), true);
-    await currentDialog.save();
-    await savePage(page);
-    await currentDialog.cancel();
-    currentDialog = null;
     await shot(page, '05-control-change.png');
-    controlChange = { applied: true, kind: 'block-setting', field: name, marker, verified };
+    controlChange = controlChangeSnapshot(plan, result.original, {
+      after: result.after,
+      verifiedInEditor: true,
+    });
     write('05-control-change.json', controlChange);
-    report.steps.controlChange = { status: verified ? 'applied' : 'failed', ...controlChange };
-    if (!verified) throw new Error('Control-change setting was not verified.');
+    write('05-control-change-original.json', { siteHost: target.siteHost, pageId: target.pageId, settingId: target.settingId, ...controlChange });
+    report.steps.controlChange = { status: 'applied', restoreAfterFront: true, ...controlChange };
   } else {
     write('05-control-change.json', { applied: false, optional: true });
     report.steps.controlChange = { status: 'skipped', optional: true };
@@ -200,35 +208,10 @@ try {
 
   // (4) Publish current page only
   if (!args['skip-publish']) {
-    await closeToolbarMenusBeforeAction(page);
-    const toolbar = page.locator('.backstage-topToolbar');
-    await (await exactAction(toolbar.locator('button,a,[role="button"]'), /^(发布|发布网站)$/)).evaluate((el) => el.click());
-    const menu = toolbar.locator('.backstage-publish-type > div');
-    await menu.first().waitFor({ state: 'visible', timeout: 5000 });
-    const labels = await menu.evaluateAll((nodes) => nodes.map((n) => (n.getClientRects().length ? n.textContent : '')));
-    await menu.nth(choosePublishMenuItem(labels, 'current')).evaluate((el) => el.click());
-    const confirmDialog = page.locator('.backstage-dialog:visible').filter({ hasText: '发布前请先确认以下设置项' });
-    await confirmDialog.first().waitFor({ state: 'visible', timeout: 5000 });
-    if (await confirmDialog.count() !== 1) throw new Error('Publish confirmation dialog is not unique.');
-    const acknowledgment = confirmDialog.getByText('我已确认', { exact: true });
-    if (await acknowledgment.count() === 1) {
-      const acknowledged = await acknowledgment.evaluate((el) => {
-        const container = el.closest('label') || el.parentElement;
-        const checkbox = container?.querySelector('input[type="checkbox"]');
-        if (checkbox) return checkbox.checked;
-        return container?.getAttribute('aria-checked') === 'true' || container?.classList.contains('checked');
-      });
-      if (!acknowledged) await acknowledgment.evaluate((el) => el.click());
-    }
-    await (await exactAction(confirmDialog.locator('button,a,[role="button"]'), /^(发布|确定)$/)).evaluate((el) => el.click());
-    const signal = await waitForPublishSignal({
-      readTexts: () => page.evaluate(() => [...document.querySelectorAll('[class*="message"],[class*="toast"],[class*="notice"],[class*="tip"],[role="alert"],.backstage-dialog')]
-        .filter((el) => el.getClientRects().length).map((el) => el.innerText)),
-    });
+    const signal = await publishCurrentPage(page);
     await shot(page, '04-publish-signal.png');
     write('04-publish-signal.json', signal);
-    if (signal.status !== 'confirmed') throw new Error(`Editor did not confirm current-page publish: ${signal.status}`);
-    report.steps.publish = { status: 'confirmed', signal: signal.signal, publishedAt: new Date().toISOString(), scope: 'current' };
+    report.steps.publish = signal;
   } else {
     report.steps.publish = { status: 'skipped' };
   }
@@ -249,14 +232,27 @@ try {
   report.steps.restored = restore;
   if (restore.status === 'failed') process.exitCode = 1;
   try { await currentDialog?.cancel(); } catch {}
-  try { report.steps.controlChangeRestore = await restoreControlChange(); }
-  catch (error) { report.steps.controlChangeRestore = { status: 'failed', error: String(error.message).slice(0, 500) }; }
+  if (shouldRestoreControlChange({ runOk: report.ok })) {
+    try {
+      const published = report.steps.publish?.status === 'confirmed';
+      report.steps.controlChangeRestore = await restoreControlSettings({ publish: published });
+    } catch (error) {
+      report.steps.controlChangeRestore = { status: 'failed', error: String(error.message).slice(0, 500) };
+      process.exitCode = 1;
+    }
+  } else if (controlChange?.applied) {
+    report.steps.controlChangeRestore = { status: 'deferred-until-front-verified', snapshot: '05-control-change-original.json' };
+  }
   try { await browser?.close(); } catch {}
   try { lease.release(); report.leaseReleased = true; } catch { report.leaseReleased = false; process.exitCode = 1; }
   report.finishedAt = new Date().toISOString();
   write('00-report.json', report);
   write('filter-field-previous-states.json', {
     siteHost: target.siteHost, pageId: target.pageId, settingId: target.settingId, previousFieldStates: previousStates || {},
+  });
+  if (controlChange?.applied) write('05-control-change-original.json', {
+    siteHost: target.siteHost, pageId: target.pageId, pageUrl: target.pageUrl, pageKind: target.pageKind, pageName: target.pageName,
+    settingId: target.settingId, blockId: target.blockId, ...controlChange,
   });
   console.log(JSON.stringify({
     ok: report.ok, error: report.error, outDir, leaseReleased: report.leaseReleased,

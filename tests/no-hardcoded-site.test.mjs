@@ -16,7 +16,7 @@ test('tracked src/ and scripts/ do not hardcode the 47948 site identity', () => 
     tracked = [];
   }
   const generic = ['scripts/collect-filter-evidence.mjs', 'scripts/collect-filter-evidence-front.mjs', 'scripts/fixture-baseline.mjs',
-    'scripts/restore-autotest-filter-fields.mjs', 'src/filter-evidence.mjs', 'src/fixture-state.mjs', 'src/fixture-data-ops.mjs'];
+    'scripts/restore-autotest-filter-fields.mjs', 'scripts/restore-filter-evidence-control.mjs', 'src/filter-evidence.mjs', 'src/filter-evidence-control.mjs', 'src/fixture-baseline-run.mjs', 'src/publish-current-page.mjs', 'src/fixture-state.mjs', 'src/fixture-data-ops.mjs'];
   const files = [...new Set([...tracked, ...generic])].filter((file) => fs.existsSync(path.join(root, file)) && /\.(mjs|js|sh|json)$/.test(file));
   const hits = [];
   for (const file of files) {

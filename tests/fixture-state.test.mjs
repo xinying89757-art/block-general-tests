@@ -10,7 +10,9 @@ import {
   listFilterExpectations, assertEmptyExpectedSupported, extractRecordOnlyItems,
   expandSpecFields,
 } from '../src/fixture-state.mjs';
-import { createFixtureDataOps, createMemoryFixtureAdapter, leftoverAutotestFields, diffFixtureState } from '../src/fixture-data-ops.mjs';
+import { createFixtureDataOps, createMemoryFixtureAdapter, leftoverAutotestFields, diffFixtureState, verifyExistingIds } from '../src/fixture-data-ops.mjs';
+import { resolveBaselineMode, runFixtureBaseline } from '../src/fixture-baseline-run.mjs';
+import { resolveControlChangePlan, expectedPageCount, pageCountFromLabels, assessPublishedPageCount, shouldRestoreControlChange, listControlChanges } from '../src/filter-evidence-control.mjs';
 import { evaluateFilterRequirement, filterRequirementFlags } from '../src/filter-evidence.mjs';
 import { fixtureScenarioPolicy } from '../src/capabilities/custom-filter-fields.mjs';
 import { parseCustomFieldLimitText } from '../src/cms.mjs';
@@ -122,16 +124,19 @@ test('offline baseline command writes fixture-state from a spec and existing rec
     fixture: { records: { fields: { 'AUTOTEST-下拉列表': 'id-drop' }, products: {}, category: { name: 'AUTOTEST-筛选分类', id: 'id-cat-a' } } },
   }));
   const result = spawnSync(process.execPath, ['scripts/fixture-baseline.mjs',
-    '--spec', localSpec, '--from-existing', report, '--dedupe', '--inventory', inventory,
+    '--spec', localSpec, '--from-existing', report, '--offline', '--inventory', inventory,
+    '--progress', path.join(dir, 'progress.json'),
     '--site-host', 'example.test', '--site-id', 'site-1', '--block', 'block-1',
     '--setting-id', 'setting-1', '--page-id', 'page-1', '--page-url', '/products.html',
     '--out', out, '--field-limit', '8'], { cwd: path.join(here, '..'), encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const summary = JSON.parse(result.stdout);
+  const jsonStart = result.stdout.indexOf('{');
+  const summary = JSON.parse(jsonStart >= 0 ? result.stdout.slice(jsonStart) : result.stdout);
   assert.equal(summary.ok, true);
   assert.equal(summary.leftovers, 1);
-  assert.equal(summary.dedupeAction, 'reported-only');
-  assert.ok(summary.omittedDisplayFields.length > 0);
+  assert.equal(summary.mode, 'offline');
+  assert.equal(summary.siteWrites, false);
+  assert.ok(summary.fieldLimit.shortfall > 0);
   const state = JSON.parse(fs.readFileSync(out, 'utf8'));
   assert.equal(validateFixtureState(state).length, 0);
   assert.equal(state.fields[0].id, 'miUAfKegLmIn');
@@ -197,4 +202,95 @@ test('filter requirement evaluation covers empty sets, 暂缓, pending text matc
     pagination: true, cardsSingleColumn: true, noHorizontalOverflowAt375: true,
   } });
   assert.equal(mobileResult.status, 'pass');
+});
+
+test('resolveBaselineMode defaults to live-readonly and keeps create/delete separate', () => {
+  assert.equal(resolveBaselineMode({}), 'live-readonly');
+  assert.equal(resolveBaselineMode({ 'live-readonly': true }), 'live-readonly');
+  assert.equal(resolveBaselineMode({ 'create-missing': true }), 'create-missing');
+  assert.equal(resolveBaselineMode({ 'dedupe-apply': true }), 'dedupe-apply');
+  assert.equal(resolveBaselineMode({ offline: true }), 'offline');
+  assert.throws(() => resolveBaselineMode({ 'create-missing': true, 'dedupe-apply': true }), /single baseline mode/);
+  assert.throws(() => resolveBaselineMode({ apply: true }), /no longer a mode/);
+});
+
+test('live-readonly writes no site changes; create-missing never deletes; dedupe-apply is explicit', async () => {
+  const spec = loadFixtureSpec(localSpec);
+  const observedFromState = (state) => {
+    const pack = (items, extra = {}) => Object.fromEntries((items || []).filter((item) => item.id).map((item) => [item.id, { id: item.id, name: item.name, ...extra(item) }]));
+    return {
+      fields: pack(state.fields, (field) => ({ type: field.type, options: (field.options || []).map((option) => option.value || option) })),
+      products: pack(state.products, (product) => ({ values: product.values || {} })),
+      categories: pack(state.categories, () => ({})),
+    };
+  };
+  const adapter = createMemoryFixtureAdapter({
+    observed: observedFromState,
+    inventory: [{ id: 'dup', name: 'AUTOTEST-多选' }],
+    limits: { fieldLimit: 8 },
+  });
+  const identity = {
+    'site-host': 'example.test', 'site-id': 'site-1', block: 'block-1',
+    'setting-id': 'setting-1', 'page-id': 'page-1', 'page-url': '/products.html',
+    out: path.join(os.tmpdir(), `fixture-state-${Date.now()}.json`),
+  };
+  const readonly = await runFixtureBaseline({
+    args: { ...identity, 'live-readonly': true, 'field-limit': 8 },
+    spec, records: { fields: {}, products: {}, categories: {} }, inventory: [{ id: 'dup', name: 'AUTOTEST-多选' }], adapter,
+  });
+  assert.equal(readonly.mode, 'live-readonly');
+  assert.equal(readonly.siteWrites, false);
+  assert.deepEqual(readonly.writes, []);
+  assert.deepEqual(readonly.deleted, []);
+  assert.ok(readonly.leftovers.some((item) => item.name === 'AUTOTEST-多选'));
+
+  const created = await runFixtureBaseline({
+    args: { ...identity, 'create-missing': true, 'field-limit': 8, out: identity.out + '.create.json' },
+    spec, records: { fields: {}, products: {}, categories: {} }, inventory: [{ id: 'dup', name: 'AUTOTEST-多选' }], adapter,
+  });
+  assert.equal(created.mode, 'create-missing');
+  assert.ok(created.writes.length > 0);
+  assert.deepEqual(created.deleted, []);
+  assert.deepEqual(adapter.deleted, []);
+
+  const removed = await runFixtureBaseline({
+    args: { ...identity, 'dedupe-apply': true, 'field-limit': 8, out: identity.out + '.dedupe.json' },
+    spec, records: { fields: {}, products: {}, categories: {} }, inventory: [{ id: 'dup', name: 'AUTOTEST-多选' }], adapter,
+  });
+  assert.equal(removed.mode, 'dedupe-apply');
+  assert.ok(removed.deleted.some((item) => item.name === 'AUTOTEST-多选'));
+});
+
+test('control change plan comes from args or profile and restore waits for a failed or forced run', () => {
+  const plan = resolveControlChangePlan({
+    args: { 'control-value': '2', 'control-product-count': '5', 'control-category': 'AUTOTEST-分类A' },
+    fixtureState: { categories: [{ name: 'AUTOTEST-分类A' }] },
+  });
+  assert.equal(plan.field, '每页产品数量');
+  assert.equal(plan.value, '2');
+  assert.equal(plan.expectedPages, 3);
+  assert.equal(plan.dataSource, '选择部分产品分类');
+  assert.equal(expectedPageCount(5, 2), 3);
+  assert.equal(pageCountFromLabels(['上一页', '1', '2', '3', '下一页']), 3);
+  assert.equal(assessPublishedPageCount(3, 3).verified, true);
+  assert.equal(assessPublishedPageCount(1, 3).verified, false);
+  assert.equal(shouldRestoreControlChange({ runOk: true }), false);
+  assert.equal(shouldRestoreControlChange({ runOk: true, force: true }), true);
+  assert.equal(shouldRestoreControlChange({ runOk: false }), true);
+  const items = [
+    { type: 'radio', name: 'pagination', label: '是', checked: true },
+    { type: 'radio', name: 'pagination', label: '否', checked: false },
+    { type: 'radio', name: 'selectProdType', label: '所有产品', checked: true },
+    { type: 'radio', name: 'selectProdType', label: '选择部分产品分类', checked: false },
+    { type: 'checkbox', name: 'leafProdGroup', label: 'AUTOTEST-分类A', checked: false },
+    { type: 'text', label: '每页产品数量', value: '20' },
+  ];
+  const changes = listControlChanges(items, plan);
+  assert.ok(changes.some((change) => change.role === 'pageSize' && change.value === '2'));
+  assert.ok(changes.some((change) => change.role === 'dataSource'));
+  const restored = listControlChanges(items.map((item) => item.label === '每页产品数量' ? { ...item, value: '2' } : item), plan, {
+    restore: true, original: { pageSize: '20', pagination: '是', dataSource: '所有产品', categories: [] },
+  });
+  assert.ok(restored.some((change) => change.role === 'pageSize' && change.value === '20'));
+  assert.throws(() => resolveControlChangePlan({ args: { 'control-value': '2', 'control-field': 'AUTOTEST-下拉列表', 'control-expected-pages': '3' } }), /not a filter field|per-page/);
 });

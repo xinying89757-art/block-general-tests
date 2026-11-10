@@ -14,6 +14,7 @@ import {
   cacheBustedFrontUrl, suggestFilterEvidenceClassification,
 } from '../src/filter-evidence.mjs';
 import { loadFixtureState } from '../src/fixture-state.mjs';
+import { readFrontPaginationFn, assessPublishedPageCount } from '../src/filter-evidence-control.mjs';
 
 const args = parseArgv(process.argv.slice(2));
 const profile = args.profile ? loadJsonFile(args.profile) : {};
@@ -65,12 +66,13 @@ try {
     },
   });
   report.published = attrs;
-  if (boxReport?.steps?.controlChange?.marker) {
-    const html = fs.readFileSync(path.join(outDir, '04-published-front.html'), 'utf8');
-    const verified = html.includes(boxReport.steps.controlChange.marker)
-      || baseline.names.some((name) => name.includes(boxReport.steps.controlChange.marker));
-    report.controlChange = { ...boxReport.steps.controlChange, verified };
+  const control = boxReport?.steps?.controlChange || boxReport?.controlChange;
+  if (control?.applied && control.expectedPages != null) {
+    const pagination = await page.locator(marked.selector).evaluate(readFrontPaginationFn());
+    const assessed = assessPublishedPageCount(pagination.pageCount, control.expectedPages);
+    report.controlChange = { ...control, ...assessed, pagination };
     write('05-control-change-verified.json', report.controlChange);
+    if (!assessed.verified) throw new Error(`Published page count is ${assessed.actualPages}, expected ${assessed.expectedPages}.`);
   }
 
   if (!target.select) throw new Error('A select title and value are required (profile fixture or --select-title / --select-value).');
@@ -121,6 +123,6 @@ try {
   console.log(JSON.stringify({
     ok: report.ok, error: report.error, out: outDir,
     published: report.published && { attributePresent: report.published.attributePresent, rawFilterfields: report.published.rawFilterfields },
-    selection: report.selection, classification: report.classification,
+    selection: report.selection, controlChange: report.controlChange && { verified: report.controlChange.verified, actualPages: report.controlChange.actualPages, expectedPages: report.controlChange.expectedPages }, classification: report.classification,
   }, null, 2));
 }

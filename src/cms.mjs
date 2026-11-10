@@ -667,3 +667,24 @@ export async function readCustomFieldLimit(page) {
   const text = await page.evaluate(() => document.body.innerText || '');
   return { ...parseCustomFieldLimitText(text), used: fields.length, fields };
 }
+
+export async function deleteCustomField(page, name) {
+  requireAuto(name);
+  const before = await listCustomFields(page);
+  if (!before.some((field) => field.name === name)) return { deleted: false, reason: 'not-found' };
+  const exactName = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+  const rows = page.locator('table tr').filter({ has: page.locator('td').filter({ hasText: exactName }) }).filter({ visible: true });
+  const row = await unique(rows, `删除字段“${name}”的表格行`);
+  const del = row.locator('[action="prod_field_del"], [data-action="prod_field_del"], [action="prod_field_delete"], [data-action="prod_field_delete"], a, button')
+    .filter({ hasText: /^(删除|删)$/ });
+  const visible = [];
+  for (let i = 0; i < await del.count(); i++) if (await del.nth(i).isVisible()) visible.push(i);
+  if (visible.length !== 1) throw new Error(`字段“${name}”的删除入口不唯一（${visible.length}），拒绝删除。`);
+  await del.nth(visible[0]).evaluate((el) => el.click());
+  const confirm = page.locator('button, a, input[type="button"]').filter({ visible: true }).filter({ hasText: /^(确定|确认|确定删除)$/ });
+  if (await confirm.count() === 1) await confirm.evaluate((el) => el.click());
+  else if (await confirm.count() > 1) throw new Error('删除字段确认按钮不唯一，拒绝确认。');
+  const after = await listCustomFields(page);
+  if (after.some((field) => field.name === name)) throw new Error(`删除后字段“${name}”仍在列表中。`);
+  return { deleted: true, name };
+}
