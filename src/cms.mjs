@@ -1,3 +1,6 @@
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { saveAndWait, waitForStable } from './ui-waits.mjs';
 import { SITE_LIST_URL, waitForSiteList, selectSiteCard } from './editor.mjs';
 
@@ -42,6 +45,41 @@ async function assertProd(page) {
   await actionLocator(page, 'prod_list').first().waitFor({ state: 'visible', timeout: TIMEOUT })
     .catch(() => { throw new Error('CMS 登录态/SSO 或页面结构异常：未看到产品管理入口 prod_list。'); });
 }
+// Do not include URL credentials, query strings, fragments, or non-web URL payloads.
+function safePageUrl(page) {
+  try {
+    const url = new URL(page.url());
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return '[non-http URL]';
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return '[URL unavailable]';
+  }
+}
+
+async function captureEntryTimeout(context, entryPage) {
+  const pages = context.pages().filter((page) => !page.isClosed());
+  const summary = pages.map((page, index) =>
+    `page-${index + 1} (${page === entryPage ? 'entry' : 'other'}): ${safePageUrl(page)}`).join('; ');
+  const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'reports', 'cms-entry-timeout', `${Date.now()}-${process.pid}`);
+  console.error(`CMS entry timeout pages: ${summary || '[none]'}`);
+  console.error(`CMS entry timeout screenshots: ${directory}`);
+  try {
+    await mkdir(directory, { recursive: true });
+  } catch {
+    console.error('CMS entry timeout: could not create screenshot directory.');
+    return summary || '[none]';
+  }
+  for (const [index, page] of pages.entries()) {
+    try {
+      await page.screenshot({ path: path.join(directory, `page-${index + 1}.png`), timeout: 5000 });
+    } catch {
+      // Screenshot errors can contain a URL or other sensitive browser details.
+      console.error(`CMS entry timeout: screenshot failed for page-${index + 1}.`);
+    }
+  }
+  return summary || '[none]';
+}
+
 // Use the authenticated account's site list and its 内容管理 control to
 // establish the CMS session; /prod is only used after this entry succeeds.
 export async function openProdPage(context, config, { timeoutMs = 60_000, pollMs = 250 } = {}) {
@@ -72,7 +110,8 @@ export async function openProdPage(context, config, { timeoutMs = 60_000, pollMs
       }
       await page.waitForTimeout(pollMs);
     }
-    throw new Error('点击内容管理后未进入产品管理 SPA，请检查登录态、站点权限和入口结构。');
+    const summary = await captureEntryTimeout(context, page);
+    throw new Error(`点击内容管理后未进入产品管理 SPA，请检查登录态、站点权限和入口结构。页面：${summary}`);
   } catch (error) {
     for (const candidate of context.pages()) {
       if (!knownPages.has(candidate)) await candidate.close().catch(() => {});
