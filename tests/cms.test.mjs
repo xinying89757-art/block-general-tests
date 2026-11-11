@@ -34,6 +34,90 @@ test('product custom text field is resolved by its own title, written and read b
   } finally { await browser.close(); }
 });
 
+test('product action navigation preserves its authenticated document and waits for load', async (t) => {
+  const { chromium } = await import('playwright-core');
+  const { readProductFieldValues, readProductCategories, findCategory, createCategory, CategoryLimitError } = await import('../src/cms.mjs');
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const origin = 'https://website.leadong.com';
+  const chrome = '<a action="prod_list">管理产品</a>';
+  const shell = '<h1>Authenticated shell</h1><iframe src="/prod"></iframe>';
+  try {
+    for (const layout of ['legacy', 'phoenix', 'nested phoenix']) {
+      await t.test(layout, async (subtest) => {
+        const context = await browser.newContext();
+        const requests = [];
+        await context.route('**/*', async (route) => {
+          const url = new URL(route.request().url());
+          if (url.pathname === '/binding.js') {
+            await new Promise(resolve => setTimeout(resolve, 150));
+            await route.fulfill({ contentType: 'text/javascript', body: 'window.handlerBound = true;' });
+            return;
+          }
+          let body = chrome;
+          if (url.pathname === '/phoenix/website') body = layout === 'nested phoenix' ? '<iframe src="/shell"></iframe>' : shell;
+          if (url.pathname === '/shell') body = shell;
+          if (url.searchParams.has('invokeAction')) {
+            requests.push({ action: url.searchParams.get('invokeAction'), id: url.searchParams.get('prodId'), child: !!route.request().frame().parentFrame() });
+            body += url.searchParams.get('invokeAction') === 'prod_group_add' ? '<p>分类数量已经达到最大限制</p>'
+              : url.searchParams.get('invokeAction') === 'prod_group_list' ? '<table><tr><td><input type="checkbox" name="dataId" value="category-fixture" groupname="AUTOTEST-category"></td></tr></table>'
+                : '<input name="product.prodName" value="AUTOTEST-product"><input type="hidden" name="groupIds" value="group-a,group-b">'
+                  + '<table><tr><th>AUTOTEST-text</th><td><input type="text" value="fixture-value"></td></tr></table>';
+            body += '<script src="/binding.js"></script>';
+          }
+          await route.fulfill({ contentType: 'text/html; charset=utf-8', body });
+        });
+        const page = await context.newPage();
+        const initialUrl = `${origin}${layout === 'legacy' ? '/prod' : '/phoenix/website'}`;
+        try {
+          await page.goto(initialUrl);
+          const scope = layout === 'legacy' ? page : page.frames().find(frame => frame.url() === `${origin}/prod`);
+          assert.ok(scope);
+          const originalGoto = scope.goto.bind(scope);
+          let loaded = 0;
+          subtest.mock.method(scope, 'goto', async (url, options) => {
+            assert.deepEqual(options, { waitUntil: 'load', timeout: 60_000 });
+            const response = await originalGoto(url, options);
+            assert.equal(await scope.evaluate(() => window.handlerBound), true);
+            loaded++;
+            return response;
+          });
+          const id = 'product fixture & /?';
+          assert.deepEqual(await readProductFieldValues(page, id, ['AUTOTEST-text']), { 'AUTOTEST-text': 'fixture-value' });
+          assert.deepEqual(await readProductCategories(page, id), ['group-a', 'group-b']);
+          // Other action helpers use the same document. Opening the limit
+          // notice exercises category navigation without submitting a form.
+          await assert.rejects(createCategory(page, 'AUTOTEST-category'), CategoryLimitError);
+          if (layout === 'legacy') assert.equal((await findCategory(page, 'AUTOTEST-category')).id, 'category-fixture');
+          assert.equal(loaded, layout === 'legacy' ? 4 : 3);
+          assert.deepEqual(requests.map(item => item.action), layout === 'legacy'
+            ? ['prod_new_update', 'prod_new_update', 'prod_group_add', 'prod_group_list']
+            : ['prod_new_update', 'prod_new_update', 'prod_group_add']);
+          assert.deepEqual(requests.slice(0, 2).map(item => item.id), [id, id]);
+          assert.ok(requests.every(item => item.child === (layout !== 'legacy')));
+          if (layout !== 'legacy') {
+            assert.equal(page.url(), initialUrl);
+            assert.equal(await page.locator('input').count(), 0);
+            assert.equal(await scope.locator('p').innerText(), '分类数量已经达到最大限制');
+          }
+        } finally { await context.close(); }
+      });
+    }
+    for (const count of [0, 2]) await t.test(`reject ${count} product documents before navigation`, async () => {
+      const context = await browser.newContext();
+      await context.route('**/*', route => route.fulfill({ contentType: 'text/html; charset=utf-8', body: new URL(route.request().url()).pathname === '/prod'
+        ? chrome : `${chrome}${'<iframe src="/prod"></iframe>'.repeat(count)}` }));
+      const page = await context.newPage();
+      try {
+        await page.goto(`${origin}/phoenix/website`);
+        const navigations = [];
+        page.on('framenavigated', frame => navigations.push(frame.url()));
+        await assert.rejects(readProductFieldValues(page, 'product-fixture', []), new RegExp(`唯一已认证产品文档，实际找到 ${count} 个`));
+        assert.deepEqual(navigations, []);
+      } finally { await context.close(); }
+    });
+  } finally { await browser.close(); }
+});
+
 const prodSpaUrls = ['/prod', '/prod/', '/phoenix/website', '/phoenix/website/']
   .map((pathname) => `https://website.leadong.com${pathname}`);
 
@@ -41,12 +125,13 @@ function mockCmsEntry({ popup = false, entryCount = 1, loggedOut = false, siteMa
   cmsUrl = prodSpaUrls[0], passwordCount = 0, missingProdList = false } = {}) {
   const events = [];
   const pages = [];
-  const prodList = { filter: () => prodList, or: () => prodList, first: () => ({ waitFor: async () => {
+  const prodList = { filter: () => prodList, count: async () => {
     if (missingProdList) throw new Error('missing prod_list');
-  } }) };
-  const empty = { filter: () => empty, or: () => empty };
+    return 1;
+  } };
+  const empty = { filter: () => empty, or: () => empty, count: async () => 0 };
   const cmsPage = {
-    url: () => cmsUrl, isClosed: () => false,
+    url: () => cmsUrl, frames: () => [], isClosed: () => false,
     locator: (selector) => selector.includes('password') ? { count: async () => passwordCount } : prodList,
     getByText: () => empty,
     close: async () => { events.push('close-cms'); },
@@ -227,9 +312,10 @@ test('CMS entry timeout records sanitized open page URLs and requests screenshot
 // Browser fixtures are fulfilled locally; no CMS session or site data is used.
 test('phoenix CMS chrome, evidence and action-free inventory navigation', async (t) => {
   const { chromium } = await import('playwright-core');
-  const { assertProd, listCustomFields, findProduct, findCategory } = await import('../src/cms.mjs');
+  const { assertProd, listCustomFields, findProduct, findCategory, namedActionLocator, readCustomFieldOptions, readCustomFieldLimit, getCustomFieldIdentity } = await import('../src/cms.mjs');
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const chrome = '<nav><a href="#" onclick="return false">管理产品</a><button>添加产品</button></nav>';
+  const framed = (html) => `<iframe name="inventory" srcdoc="${html.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"></iframe>`;
   async function fixture(html, pathname = '/phoenix/website') {
     const context = await browser.newContext();
     await context.route('**/*', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: html }));
@@ -243,10 +329,18 @@ test('phoenix CMS chrome, evidence and action-free inventory navigation', async 
       ['phoenix table chrome', '<h1>管理产品</h1><table><tr><td>列表</td></tr></table>', '/phoenix/website/'],
       ['legacy action', '<a action="prod_list">Products</a>', '/prod'],
       ['legacy data-action', '<a data-action="prod_list">Products</a>', '/prod/'],
+      ['child plus chrome', framed('<h1>管理产品</h1><button>+ 添加产品</button>'), '/phoenix/website'],
+      ['nested child table chrome', framed(framed('<h1>管理产品</h1><table><tr><td>列表</td></tr></table>')), '/phoenix/website'],
+      ['child legacy action', framed('<a action="prod_list">Products</a>'), '/prod'],
+      ['child legacy data-action', framed('<a data-action="prod_list">Products</a>'), '/prod/'],
     ]) {
       await t.test(name, async () => {
         const { context, page } = await fixture(html, pathname);
-        try { await assertProd(page, { timeoutMs: 100 }); } finally { await context.close(); }
+        try {
+          const result = await assertProd(page, { timeoutMs: 1000 });
+          assert.equal(result.frameKind, name.includes('child') ? 'child' : 'main');
+          if (name.includes('child')) assert.equal(await page.getByText('管理产品').count(), 0);
+        } finally { await context.close(); }
       });
     }
 
@@ -256,6 +350,10 @@ test('phoenix CMS chrome, evidence and action-free inventory navigation', async 
       ['password form', `${chrome}<input type="password">`, 'https://website.leadong.com/prod?token=secret', /登录态\/SSO 不可用/],
       ['non-SPA URL', chrome, 'https://user:password@website.leadong.com/login?token=secret#private', /登录态\/SSO 不可用/],
       ['non-http URL', chrome, 'data:text/html,secret', /登录态\/SSO 不可用/],
+      ['signals in different frames', `<h1>管理产品</h1>${framed('<button>+ 添加产品</button>')}`, 'https://website.leadong.com/phoenix/website', /页面结构异常/],
+      ['child password', `${chrome}${framed('<input type="password">')}`, 'https://website.leadong.com/phoenix/website', /登录态\/SSO 不可用/],
+      ['hidden child chrome', framed(chrome).replace('<iframe ', '<iframe hidden '), 'https://website.leadong.com/phoenix/website', /页面结构异常/],
+      ['category label is not product management', '<h1>管理产品分类</h1><table><tr><td>分类</td></tr></table>', 'https://website.leadong.com/phoenix/website', /页面结构异常/],
     ]) {
       await t.test(`failure evidence: ${name}`, async (subtest) => {
         const { context, page } = await fixture(html);
@@ -315,6 +413,86 @@ test('phoenix CMS chrome, evidence and action-free inventory navigation', async 
       });
     }
 
+    for (const attribute of ['', 'action', 'data-action']) {
+      await t.test(`child inventory and read-only form: ${attribute || 'names'}`, async () => {
+        const attr = (action) => attribute ? `${attribute}="${action}"` : '';
+        const html = `${chrome}<button ${attr('prod_field_list')} onclick="document.querySelector('main').hidden=false; document.querySelector('form').hidden=true">管理自定义字段</button>
+          <main hidden><button ${attr('prod_field_edit')}>+ 添加自定义字段</button><p>最多添加 20 个自定义字段</p>
+          <table><tr><th>字段名称</th><th>类型</th><th>状态</th></tr>
+          <tr><td>AUTOTEST-fixture</td><td>下拉列表</td><td>开启</td><td><a action="prod_field_edit" onclick="document.querySelector('form').hidden=false">编辑</a></td></tr></table></main>
+          <form hidden><input name="field.fieldName" value="AUTOTEST-fixture"><input type="hidden" name="field.encodePkId" value="field-fixture">
+          <input type="text" value="option-fixture"><button id="submitFieldOptionJson">保存</button></form>`;
+        const { context, page } = await fixture(framed(html), attribute ? '/prod' : '/phoenix/website');
+        try {
+          if (attribute) await page.locator('body').evaluate((body) => body.insertAdjacentHTML('beforeend', '<button>管理自定义字段</button>'));
+          const fields = await listCustomFields(page);
+          assert.deepEqual(fields, [{ name: 'AUTOTEST-fixture', type: '下拉列表', status: '开启' }]);
+          assert.equal((await readCustomFieldLimit(page)).max, 20);
+          assert.deepEqual(await readCustomFieldOptions(page, 'AUTOTEST-fixture'), ['option-fixture']);
+          assert.equal((await getCustomFieldIdentity(page, 'AUTOTEST-fixture')).id, 'field-fixture');
+        } finally { await context.close(); }
+      });
+    }
+
+    await t.test('late-attached cross-origin frame is detected', async () => {
+      const { context, page } = await fixture('<main></main>');
+      try {
+        await context.route('https://frame.example.test/**', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<h1>管理产品</h1><button>+ 添加产品</button>' }));
+        await page.evaluate(() => setTimeout(() => {
+          const frame = document.createElement('iframe'); frame.src = 'https://frame.example.test/inventory'; document.body.append(frame);
+        }, 100));
+        const result = await assertProd(page, { timeoutMs: 2000 });
+        assert.deepEqual(result, { signal: 'phoenix-chrome', frameKind: 'child', frameUrl: 'https://frame.example.test/inventory' });
+      } finally { await context.close(); }
+    });
+
+    for (const inFrame of [false, true]) {
+      await t.test(`non-exact add-product control in ${inFrame ? 'child' : 'main'} document`, async () => {
+        const html = '<h1>管理产品</h1><button>+ 添加产品</button>';
+        const { context, page } = await fixture(inFrame ? framed(html) : html);
+        try {
+          await assertProd(page, { timeoutMs: 1000 });
+          assert.equal(await (await namedActionLocator(page, 'prod_new_add', '添加产品')).innerText(), '+ 添加产品');
+          if (inFrame) await page.locator('body').evaluate((body) => body.insertAdjacentHTML('beforeend', '<button>添加产品</button>'));
+          else await page.locator('body').evaluate((body) => body.insertAdjacentHTML('beforeend', '<button>+ 添加产品</button>'));
+          await assert.rejects(namedActionLocator(page, 'prod_new_add', '添加产品'), /应有唯一控件，实际找到 2 个/);
+        } finally { await context.close(); }
+      });
+    }
+
+    await t.test('ambiguous inventory controls across frames fail loudly', async () => {
+      const control = '<button>管理自定义字段</button>';
+      const { context, page } = await fixture(`${chrome}${control}${framed(control)}`);
+      try { await assert.rejects(listCustomFields(page), /应有唯一控件，实际找到 2 个/); }
+      finally { await context.close(); }
+    });
+
+    await t.test('legacy add-product sidebar disambiguation remains frame-aware', async () => {
+      const html = '<h1>管理产品</h1><a action="prod_new_add" href="javascript:void(0)">添加产品</a><button action="prod_new_add">+ 添加产品</button>'
+        + '<table><tr><td><a action="prod_new_add" href="javascript:void(0)">编辑</a><a data-action="prod_new_add" href="javascript:void(0)"><i></i></a></td></tr></table>';
+      const { context, page } = await fixture(framed(html), '/prod');
+      try { assert.equal(await (await namedActionLocator(page, 'prod_new_add', '添加产品')).getAttribute('href'), 'javascript:void(0)'); }
+      finally { await context.close(); }
+    });
+
+    await t.test('shared add-product action excludes row-edit and icon controls before disambiguation', async () => {
+      const html = '<h1>管理产品</h1><button data-action="prod_new_add">+ 添加产品</button><table>'
+        + Array.from({ length: 21 }, (_, index) => `<tr><td><a action="prod_new_add" href="javascript:void(0)">${index % 2 ? '编辑' : '<i></i>'}</a></td></tr>`).join('') + '</table>';
+      const { context, page } = await fixture(framed(html));
+      try {
+        const locator = await namedActionLocator(page, 'prod_new_add', '添加产品');
+        assert.equal(await locator.innerText(), '+ 添加产品');
+      } finally { await context.close(); }
+    });
+
+    await t.test('child product pagination reads the next page in its own frame', async () => {
+      const html = `${chrome}<table><tr><td><a href="?prodId=first">AUTOTEST-first</a></td></tr></table>
+        <span>共 2 页</span><input id="pageNumInput" type="text"><a onclick="document.querySelector('table').innerHTML='<tr><td><a href=&quot;?prodId=second&quot;>AUTOTEST-second</a></td></tr>'">确认</a>`;
+      const { context, page } = await fixture(framed(html));
+      try { assert.equal(await findProduct(page, 'AUTOTEST-second'), 'second'); }
+      finally { await context.close(); }
+    });
+
     for (const legacy of [false, true]) {
       await t.test(`ambiguous ${legacy ? 'action' : 'named'} inventory controls fail loudly`, async () => {
         const control = `<button ${legacy ? 'action="prod_field_list"' : ''}>管理自定义字段</button>`;
@@ -324,11 +502,11 @@ test('phoenix CMS chrome, evidence and action-free inventory navigation', async 
       });
     }
 
-    await t.test('phoenix product and category lists stay on the authenticated page', async () => {
+    for (const inFrame of [false, true]) await t.test(`phoenix product and category lists stay on the authenticated page (${inFrame ? 'child' : 'main'})`, async () => {
       const html = `${chrome}<button onclick="document.querySelector('table').hidden=false">管理产品分类</button>
         <table hidden><tr><td><input type="checkbox" name="dataId" value="category-fixture" groupname="AUTOTEST-category"></td></tr></table>
         <table><tr><td><a href="?prodId=product-fixture">AUTOTEST-lookup</a></td></tr></table>`;
-      const { context, page } = await fixture(html);
+      const { context, page } = await fixture(inFrame ? framed(html) : html);
       const navigations = [];
       page.on('framenavigated', () => navigations.push(page.url()));
       try {

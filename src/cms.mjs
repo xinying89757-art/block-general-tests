@@ -13,21 +13,73 @@ export const FIELD_TYPE_CODES = Object.freeze({
 const enumeration = new Set([1, 2, 3]);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const quote = (value) => JSON.stringify(String(value));
-const actionLocator = (page, action) => page.locator(`[action=${quote(action)}], [data-action=${quote(action)}]`).filter({ visible: true });
+const actionLocator = (scope, action) => scope.locator(`[action=${quote(action)}], [data-action=${quote(action)}]`).filter({ visible: true });
+// A Page locator only searches the main document. Re-snapshot the frames on
+// every poll so late-attached/nested phoenix frames in this tab are included.
+const cmsContexts = (page) => [page, ...page.frames().filter((frame) => frame.parentFrame())];
+async function readCmsContexts(page, read) {
+  return Promise.all(cmsContexts(page).map(read));
+}
+async function waitForCmsMatch(page, read, timeoutMs = TIMEOUT) {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    try {
+      const result = await read(cmsContexts(page));
+      if (result) return result;
+    } catch (error) {
+      // A frame may navigate or detach while phoenix swaps views. Retry reads
+      // only; a click is never retried here.
+      if (!/Frame was detached|Execution context was destroyed|Cannot find context/i.test(error.message)) throw error;
+    }
+    if (Date.now() >= deadline) break;
+    await delay(Math.min(100, deadline - Date.now()));
+  } while (Date.now() <= deadline);
+  throw new Error('CMS 等待页面控件超时。');
+}
+async function matchingControls(scopes, locate) {
+  const matches = await Promise.all(scopes.map(async (scope) => {
+    const locator = locate(scope);
+    return { scope, locator, count: await locator.count() };
+  }));
+  return matches.filter(({ count }) => count > 0);
+}
 
-// Phoenix chrome does not require the legacy action attributes. Prefer those
-// attributes whenever present; only fall back to an exact visible control name.
-async function namedActionLocator(page, action, text) {
-  let legacy = actionLocator(page, action);
-  if (!text) return legacy; // Unverified save controls remain action-only.
-  const name = text instanceof RegExp ? text.source.replace(/^\^/, '').replace(/\$$/, '') : text;
-  legacy = legacy.filter({ hasText: name });
-  const byText = page.getByText(name, { exact: true }).filter({ visible: true });
-  const byRole = page.getByRole('link', { name, exact: true })
-    .or(page.getByRole('button', { name, exact: true })).filter({ visible: true });
-  await legacy.or(byRole).or(byText).first().waitFor({ state: 'visible', timeout: TIMEOUT });
-  if (await legacy.count()) return legacy;
-  return await byRole.count() ? byRole : byText;
+// Prefer action attributes across the whole tab, then semantic controls, then
+// visible text. A label may have an icon/plus prefix, but must end with the
+// requested words (管理产品 must not also select 管理产品分类).
+// Count across frames before choosing a locator: never click the first of two.
+export async function namedActionLocator(page, action, text) {
+  const name = text && new RegExp(`${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
+  let legacySelected = false;
+  let matches = await waitForCmsMatch(page, async (scopes) => {
+    const legacy = await matchingControls(scopes, (scope) => {
+      const locator = actionLocator(scope, action);
+      // Keep the legacy name filter: actions can also occur on row-edit or
+      // icon controls (the live prod_new_add action matched 22 elements).
+      return name ? locator.filter({ hasText: name }) : locator;
+    });
+    if (legacy.length) { legacySelected = true; return legacy; }
+    if (!text) return null; // Unverified save controls remain action-only.
+    const byRole = await matchingControls(scopes, (scope) => scope.getByRole('link', { name })
+      .or(scope.getByRole('button', { name })).filter({ visible: true }));
+    if (byRole.length) return byRole;
+    const byText = await matchingControls(scopes, (scope) => scope.getByText(name).filter({ visible: true }));
+    return byText.length ? byText : null;
+  });
+  let count = matches.reduce((sum, match) => sum + match.count, 0);
+  // The legacy probe observed a sidebar and toolbar with this same action.
+  // Preserve its verified sidebar href; do not disambiguate named fallbacks.
+  if (legacySelected && action === 'prod_new_add' && count > 1) {
+    // Narrow the already name-filtered candidates; rebuilding from the shared
+    // action would reintroduce row-edit/icon controls excluded above.
+    const sidebar = (await Promise.all(matches.map(async ({ scope, locator }) => {
+      const candidate = locator.and(scope.locator('a[href="javascript:void(0)"]'));
+      return { scope, locator: candidate, count: await candidate.count() };
+    }))).filter(({ count }) => count > 0);
+    if (sidebar.reduce((sum, match) => sum + match.count, 0) === 1) { matches = sidebar; count = 1; }
+  }
+  if (count !== 1) throw new Error(`CMS ${action}：应有唯一控件，实际找到 ${count} 个。`);
+  return matches[0].locator;
 }
 
 async function unique(locator, step) {
@@ -37,11 +89,7 @@ async function unique(locator, step) {
   return locator;
 }
 async function clickAction(page, action, text) {
-  let locator = await namedActionLocator(page, action, text);
-  // Probe shows both sidebar and content “添加产品” links with this action.
-  // The sidebar has the observed void(0) href; save actions remain unique.
-  if (action === 'prod_new_add' && await locator.count() > 1
-    && await actionLocator(page, action).filter({ hasText: '添加产品' }).count() > 1) locator = locator.and(page.locator('a[href="javascript:void(0)"]'));
+  const locator = await namedActionLocator(page, action, text);
   const target = await unique(locator, `CMS ${action}`);
   // Playwright mouse clicks on this SPA's sidebar entries intermittently fail
   // to trigger navigation (probe: 1 of 2 attempts stayed on the product list);
@@ -59,20 +107,26 @@ function isProdSpaUrl(value) {
 }
 export async function assertProd(page, { timeoutMs = TIMEOUT } = {}) {
   let failure;
-  if (!isProdSpaUrl(page.url())
-    || await page.locator('input[type="password"]:visible').count()) {
-    failure = 'CMS 登录态/SSO 不可用：未进入产品管理 SPA；请检查登录态及站点的内容管理入口。';
-  } else {
-    const management = page.getByText('管理产品', { exact: true }).filter({ visible: true });
-    const listSignal = page.getByText('添加产品', { exact: true }).filter({ visible: true })
-      .or(page.locator('table:visible'));
-    const chrome = page.locator('body').filter({ has: management }).filter({ has: listSignal });
-    try {
-      await actionLocator(page, 'prod_list').or(chrome).first().waitFor({ state: 'visible', timeout: timeoutMs });
-    } catch {
-      // Never propagate locator errors: browser diagnostics can include URLs.
-      failure = 'CMS 登录态/SSO 或页面结构异常：未看到产品管理入口 prod_list 或管理产品页面标识。';
+  try {
+    const signal = isProdSpaUrl(page.url()) && await waitForCmsMatch(page, async (scopes) => {
+      const signals = await Promise.all(scopes.map(async (scope) => {
+        if (await scope.locator('input[type="password"]:visible').count()) return { signal: 'password' };
+        if (await actionLocator(scope, 'prod_list').count()) return { signal: 'prod_list', scope };
+        const management = scope.getByText(/管理产品\s*$/).filter({ visible: true });
+        const listSignal = scope.getByText('添加产品').filter({ visible: true }).or(scope.locator('table:visible'));
+        // Both signals must be visible in the same document; unrelated frames
+        // cannot combine into a false positive. No main-document body filter.
+        return await management.count() && await listSignal.count() ? { signal: 'phoenix-chrome', scope } : null;
+      }));
+      return signals.find((item) => item?.signal === 'password') || signals.find(Boolean);
+    }, timeoutMs);
+    if (signal && signal.signal !== 'password') {
+      return { signal: signal.signal, frameKind: signal.scope === page ? 'main' : 'child', frameUrl: safePageUrl(signal.scope) };
     }
+    failure = 'CMS 登录态/SSO 不可用：未进入产品管理 SPA；请检查登录态及站点的内容管理入口。';
+  } catch {
+    // Never propagate locator errors: browser diagnostics can include URLs.
+    failure = 'CMS 登录态/SSO 或页面结构异常：未看到产品管理入口 prod_list 或管理产品页面标识。';
   }
   if (failure) {
     const summary = await captureEntryTimeout(page.context(), page, 'assertProd failure', 'current');
@@ -94,7 +148,8 @@ async function captureEntryTimeout(context, entryPage, reason = 'entry timeout',
   const pages = context.pages().filter((page) => !page.isClosed());
   const summary = pages.map((page, index) =>
     `page-${index + 1} (${page === entryPage ? currentLabel : 'other'}): ${safePageUrl(page)}`).join('; ');
-  const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'reports', 'cms-entry-timeout', `${Date.now()}-${process.pid}`);
+  const reportRoot = process.env.REPORT_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'reports');
+  const directory = path.resolve(reportRoot, 'cms-entry-timeout', `${Date.now()}-${process.pid}`);
   console.error(`CMS ${reason} pages: ${summary || '[none]'}`);
   console.error(`CMS ${reason} screenshots: ${directory}`);
   try {
@@ -161,27 +216,26 @@ export async function listCustomFields(page) {
   // The sidebar click can also be lost while the SPA is still initializing
   // (observed live: still on the product list after the 15s wait); retry it
   // when the field list never appeared, up to 3 times.
-  let lastError;
   for (let attempt = 1; attempt <= 3; attempt++) {
     await settleCmsNavigation(page, () => clickAction(page, 'prod_field_list', '管理自定义字段'));
     try {
       await unique(await namedActionLocator(page, 'prod_field_edit', '添加自定义字段'), '添加自定义字段');
       break;
     } catch (error) {
-      lastError = error;
       if (attempt === 3) throw error;
-      const onFieldList = await page.evaluate(() => /字段名称/.test(document.body.innerText || ''));
+      const onFieldList = (await readCmsContexts(page, (scope) =>
+        scope.evaluate(() => /字段名称/.test(document.body.innerText || '')))).some(Boolean);
       if (onFieldList) throw error; // Navigated but the button is missing: a real problem, don't mask it.
     }
   }
-  return waitForStable(() => page.evaluate((types) => {
+  return waitForStable(async () => (await readCmsContexts(page, (scope) => scope.evaluate((types) => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     return [...document.querySelectorAll('table tr')].filter((row) => row.getClientRects().length)
       .map((row) => [...row.querySelectorAll(':scope > td, :scope > th')].map((cell) => norm(cell.innerText)))
       .filter((cells) => cells.length >= 3 && !/^(字段名称|状态标签[：:]?|状态信息[：:]?)$/.test(cells[0])
         && types.includes(cells[1]) && ['开启', '关闭'].includes(cells[2]))
       .map(([name, type, status]) => ({ name, type, status }));
-  }, Object.keys(FIELD_TYPE_CODES)));
+  }, Object.keys(FIELD_TYPE_CODES)))).flat());
 }
 function optionInputs(page) {
   // Probe: enum options are unnamed text inputs. Scope to the field-name form
@@ -197,17 +251,27 @@ async function readOptions(page) {
 async function openField(page, name) {
   await listCustomFields(page);
   const exactName = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
-  const rows = page.locator('table tr').filter({ has: page.locator('td').filter({ hasText: exactName }) }).filter({ visible: true });
-  // Check direct cells too: nested text matches must not select another field.
-  const row = await unique(rows, `编辑字段“${name}”的表格行`);
+  const matches = await waitForCmsMatch(page, async (scopes) => {
+    const rows = await matchingControls(scopes, (scope) => scope.locator('table tr')
+      .filter({ has: scope.locator('td').filter({ hasText: exactName }) }).filter({ visible: true }));
+    return rows.length ? rows : null;
+  });
+  if (matches.reduce((sum, match) => sum + match.count, 0) !== 1) throw new Error('编辑字段的表格行不唯一。');
+  // Keep the verified legacy row-edit action; do not guess a new edit selector.
+  const row = matches[0].locator;
   await (await unique(row.locator('[action="prod_field_edit"], [data-action="prod_field_edit"]'), `编辑字段“${name}”`)).click();
-  await page.locator('input[name="field.fieldName"]').waitFor({ state: 'visible', timeout: TIMEOUT });
-  if (await page.locator('input[name="field.fieldName"]').inputValue() !== name) throw new Error(`打开的字段不是“${name}”。`);
+  const forms = await waitForCmsMatch(page, async (scopes) => {
+    const found = await matchingControls(scopes, (scope) => scope.locator('input[name="field.fieldName"]').filter({ visible: true }));
+    return found.length ? found : null;
+  });
+  if (forms.reduce((sum, match) => sum + match.count, 0) !== 1) throw new Error('字段名称控件不唯一。');
+  if (await forms[0].locator.inputValue() !== name) throw new Error(`打开的字段不是“${name}”。`);
+  return forms[0].scope;
 }
 // Extra read-only helper: listCustomFields intentionally returns only name/type/status.
 export async function readCustomFieldOptions(page, name) {
-  await openField(page, name);
-  return readOptions(page);
+  const scope = await openField(page, name);
+  return readOptions(scope);
 }
 
 // Both native and DOM confirmation dialogs can occur after a CMS save. Only
@@ -313,7 +377,7 @@ export async function createCustomField(page, { name, type, typeCode, options = 
     if (enumeration.has(code) && (!options.length || options.some((value) => typeof value !== 'string' || !value))) throw new Error('枚举字段缺少有效选项。');
     await listCustomFields(page);
     step = '打开新增字段表单';
-    await clickAction(page, 'prod_field_edit', /^添加自定义字段$/);
+    await clickAction(page, 'prod_field_edit', '添加自定义字段');
     const nameInput = await unique(page.locator('input[name="field.fieldName"]'), step);
     await nameInput.fill(name);
     await page.locator('input[name="field.fieldStatus"][value="1"]').check();
@@ -371,7 +435,7 @@ async function settleCmsNavigation(page, action) {
     await action();
     try {
       await waitForStable(async () => ({ pending: pending.size, revision,
-        tables: await page.locator('table:visible').allTextContents() }), (state) => state.pending === 0);
+        tables: (await readCmsContexts(page, (scope) => scope.locator('table:visible').allTextContents())).flat() }), (state) => state.pending === 0);
     } catch (error) {
       const requests = [...pending].map(request => {
         try { return new URL(request.url()).pathname; } catch { return 'unknown'; }
@@ -398,33 +462,37 @@ export async function findProduct(page, name) {
   // did not reveal its submenu when the SPA opened on the product form.
   // Phoenix instead uses its visible 管理产品 control (see gotoAction).
   await gotoAction(page, 'prod_list_sub');
-  const findOnCurrentPage = async () => exactProductId(await page.evaluate(() => {
+  const findOnCurrentPage = async () => exactProductId((await readCmsContexts(page, (scope) => scope.evaluate(() => {
     const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
     const links = [...document.querySelectorAll('table tr a[href*="prodId="]')]
       .filter((link) => link.getClientRects().length)
       .map((link) => ({ productName: norm(link.innerText),
-        productId: new URL(link.getAttribute('href'), location.origin).searchParams.get('prodId') }));
+        productId: new URL(link.getAttribute('href'), document.baseURI).searchParams.get('prodId') }));
     return links;
-  }), name);
+  }))).flat(), name);
   const firstPageId = await findOnCurrentPage();
   if (firstPageId) return firstPageId;
   // The live product list has no product-name search field in the current
   // layout; its visible text input is the pagination jump control. Keep the
   // semantic search path for versions that provide one, then scan pages.
-  const inputs = page.locator('input[type="text"], input[type="search"]').filter({ visible: true });
-  const searchIndexes = await inputs.evaluateAll((nodes) => nodes.flatMap((node, index) => {
-    const labels = [node.placeholder, node.getAttribute('aria-label'), ...(node.labels || [])].map((value) => typeof value === 'string' ? value : value?.innerText || '');
-    for (let parent = node.parentElement; parent && !['BODY', 'HTML', 'FORM'].includes(parent.tagName); parent = parent.parentElement) {
-      if (parent.querySelectorAll('input:not([type="hidden"]), select, textarea').length > 1) break;
-      const text = (parent.innerText || '').replace(/\s+/g, ' ').trim();
-      if (text) { if (text.length < 40) labels.push(text); break; }
-    }
-    return /搜索|产品名|产品名称|关键词|关键字/.test(labels.join(' ')) ? [index] : [];
-  }));
-  if (searchIndexes.length > 1) throw new Error(`产品名称搜索输入框不唯一：看到 ${searchIndexes.length} 个。`);
-  if (searchIndexes.length === 1) {
-    await inputs.nth(searchIndexes[0]).fill(name);
-    const search = page.getByRole('button', { name: /搜索|查询/ }).or(page.locator('a').filter({ hasText: /搜索|查询/ })).filter({ visible: true });
+  const searches = (await readCmsContexts(page, async (scope) => {
+    const inputs = scope.locator('input[type="text"], input[type="search"]').filter({ visible: true });
+    const indexes = await inputs.evaluateAll((nodes) => nodes.flatMap((node, index) => {
+      const labels = [node.placeholder, node.getAttribute('aria-label'), ...(node.labels || [])].map((value) => typeof value === 'string' ? value : value?.innerText || '');
+      for (let parent = node.parentElement; parent && !['BODY', 'HTML', 'FORM'].includes(parent.tagName); parent = parent.parentElement) {
+        if (parent.querySelectorAll('input:not([type="hidden"]), select, textarea').length > 1) break;
+        const text = (parent.innerText || '').replace(/\s+/g, ' ').trim();
+        if (text) { if (text.length < 40) labels.push(text); break; }
+      }
+      return /搜索|产品名|产品名称|关键词|关键字/.test(labels.join(' ')) ? [index] : [];
+    }));
+    return indexes.map((index) => ({ scope, input: inputs.nth(index) }));
+  })).flat();
+  if (searches.length > 1) throw new Error(`产品名称搜索输入框不唯一：看到 ${searches.length} 个。`);
+  if (searches.length === 1) {
+    const { scope, input } = searches[0];
+    await input.fill(name);
+    const search = scope.getByRole('button', { name: /搜索|查询/ }).or(scope.locator('a').filter({ hasText: /搜索|查询/ })).filter({ visible: true });
     // Probe v20 / run 2026-10-28 10-19: a Playwright mouse click on the
     // search button timed out for 30s because #popupLayerScreenLocker
     // (the popup dimming overlay) intercepted pointer events — the locker
@@ -435,17 +503,18 @@ export async function findProduct(page, name) {
     await settleCmsNavigation(page, async () => (await unique(search, '产品名称搜索按钮')).evaluate((el) => el.click()));
     return findOnCurrentPage();
   }
-  const totalPages = await page.evaluate(() => {
+  const pagination = (await readCmsContexts(page, async (scope) => ({ scope, totalPages: await scope.evaluate(() => {
     const match = (document.body.innerText || '').match(/共\s*(\d+)\s*页/);
     return match ? Number(match[1]) : null;
-  });
-  if (!Number.isSafeInteger(totalPages) || totalPages < 1) {
+  }) }))).filter(({ totalPages }) => Number.isSafeInteger(totalPages) && totalPages >= 1);
+  if (pagination.length !== 1) {
     throw new Error('产品名称搜索不可用，且分页总数未能唯一读出；不能判定产品不存在。');
   }
+  const { scope, totalPages } = pagination[0];
   if (totalPages > 1) {
-    const pageInput = page.locator('#pageNumInput').filter({ visible: true });
+    const pageInput = scope.locator('#pageNumInput').filter({ visible: true });
     await unique(pageInput, '产品列表页码输入框');
-    const confirm = page.locator('a').filter({ visible: true });
+    const confirm = scope.locator('a').filter({ visible: true });
     for (let pageNumber = 2; pageNumber <= totalPages; pageNumber += 1) {
       await pageInput.fill(String(pageNumber));
       const confirmCount = await confirm.evaluateAll((nodes) => nodes.filter((node) => (node.innerText || '').replace(/\s+/g, ' ').trim() === '确认').length);
@@ -464,7 +533,7 @@ export async function createProduct(page, { name }) {
   // First live run MUST inspect the add form. Only a uniquely labelled
   // product-name input is filled; other required fields cause an explicit
   // save/readback failure, never guessed defaults or invented form IDs.
-  await settleCmsNavigation(page, () => clickAction(page, 'prod_new_add', /^添加产品$/));
+  await settleCmsNavigation(page, () => clickAction(page, 'prod_new_add', '添加产品'));
   const inputs = page.locator('input[type="text"], textarea').filter({ visible: true });
   // Probe v19 (2026-10-28): the add form renders ~2s after the click, and
   // its 产品名称 label is plain text, not a <label for> — the label walk
@@ -524,17 +593,34 @@ export async function createProduct(page, { name }) {
 }
 
 async function openProduct(page, prodId) {
+  return navigateProdAction(page, 'prod_new_update', { prodId });
+}
+async function navigateProdAction(page, action, params = {}) {
+  await assertProd(page);
+  // Phoenix keeps the authenticated legacy product app inside its shell.
+  // Navigate that existing document, never replace the shell with /prod.
+  // Legacy still navigates the main document. Fail before navigating when
+  // the active product document cannot be uniquely identified.
+  const scopes = cmsContexts(page).filter((scope) => {
+    try {
+      const url = new URL(scope.url()), prod = new URL(PROD_URL);
+      return url.origin === prod.origin && url.pathname.replace(/\/$/, '') === prod.pathname;
+    } catch { return false; }
+  });
+  if (scopes.length !== 1) throw new Error(`CMS 产品导航：应有唯一已认证产品文档，实际找到 ${scopes.length} 个。`);
+  const scope = scopes[0];
   const url = new URL(PROD_URL);
-  url.searchParams.set('invokeAction', 'prod_new_update');
-  url.searchParams.set('prodId', prodId);
+  url.searchParams.set('invokeAction', action);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   // Wait for 'load', not just domcontentloaded: probe v9 (2026-10-28) showed
   // the runner's save click landing before the page JS had bound the save
   // handler — verify/similarityJudge never fired and the 90s re-read timed
   // out — while the same clicks after a 3s wait (v10/v11) worked. The form
   // values are server-rendered and stable early, so waitProductFields alone
   // cannot prove the handler is ready; 'load' waits for the page scripts.
-  await page.goto(url.href, { waitUntil: 'load', timeout: 60_000 });
+  await scope.goto(url.href, { waitUntil: 'load', timeout: 60_000 });
   await assertProd(page);
+  return scope;
 }
 // Browser-side discovery/read/write uses field text, never option_<fixed ID>.
 // Container layouts and multi-checkbox markup remain first-live-run checks.
@@ -606,13 +692,13 @@ async function waitProductFields(page, names) {
   } catch (error) { throw lastError || error; }
 }
 export async function readProductFieldValues(page, prodId, fieldNames) {
-  await openProduct(page, prodId);
-  return waitProductFields(page, fieldNames);
+  const scope = await openProduct(page, prodId);
+  return waitProductFields(scope, fieldNames);
 }
 export async function setProductFieldValues(page, prodId, values) {
-  await openProduct(page, prodId);
-  await waitProductFields(page, Object.keys(values));
-  const inDom = await page.evaluate(productFields, { names: Object.keys(values), values });
+  const scope = await openProduct(page, prodId);
+  await waitProductFields(scope, Object.keys(values));
+  const inDom = await scope.evaluate(productFields, { names: Object.keys(values), values });
   // Fail fast if the DOM clicks did not take: a silent miss here used to
   // burn the 30s confirm poll plus the 90s re-read before surfacing.
   for (const [name, wanted] of Object.entries(values)) {
@@ -643,10 +729,10 @@ const autoName = name => typeof name === 'string' && name.startsWith('AUTOTEST-'
 function requireAuto(name) { if (!autoName(name)) throw new Error('拒绝操作非 AUTOTEST 数据。'); }
 export async function getCustomFieldIdentity(page, name) {
   requireAuto(name);
-  await openField(page, name);
+  const scope = await openField(page, name);
   // Live probe 2026-10-30: the edit form carries the field id in the single
   // hidden input field.encodePkId (other hidden inputs are page-level).
-  const id = await page.evaluate(() => {
+  const id = await scope.evaluate(() => {
     const ids = [...new Set([...document.querySelectorAll('input[type="hidden"][name="field.encodePkId"]')].map(x => x.value).filter(Boolean))];
     if (ids.length !== 1) throw new Error('字段 ID 隐藏控件 field.encodePkId 不唯一，需核实 CMS 表单。');
     return ids[0];
@@ -685,29 +771,30 @@ async function gotoAction(page, action, params = {}) {
     await assertProd(page);
     return;
   }
-  const url = new URL(PROD_URL); url.searchParams.set('invokeAction', action);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  await page.goto(url.href, { waitUntil: 'load', timeout: 60_000 });
-  await assertProd(page);
+  const scope = await navigateProdAction(page, action, params);
   await page.waitForTimeout(3000);
+  return scope;
 }
 export async function findCategory(page, name) {
   requireAuto(name);
   await gotoAction(page, 'prod_group_list');
-  await page.locator('input[type="checkbox"][name="dataId"]').first().waitFor({ state: 'attached', timeout: TIMEOUT }).catch(() => {});
+  await waitForCmsMatch(page, async (scopes) => (await matchingControls(scopes, (scope) =>
+    scope.locator('input[type="checkbox"][name="dataId"]'))).length > 0).catch(() => {});
   // Every row (leaf or not) carries its name in the dataId checkbox groupname.
-  return page.evaluate(wanted => {
+  const matches = (await readCmsContexts(page, (scope) => scope.evaluate(wanted => {
     const rows = [...document.querySelectorAll('input[type="checkbox"][name="dataId"]')].filter(n => (n.getAttribute('groupname') || '').trim() === wanted);
     if (rows.length > 1) throw new Error('夹具分类重名。');
     return rows.length ? { name: wanted, id: rows[0].value, parents: rows[0].closest('tr')?.getAttribute('parentgroup') ?? null } : null;
-  }, name);
+  }, name))).filter(Boolean);
+  if (matches.length > 1) throw new Error('夹具分类重名。');
+  return matches[0] || null;
 }
 export async function createCategory(page, name) {
   requireAuto(name);
-  await gotoAction(page, 'prod_group_add');
-  const limit = await page.evaluate(() => /分类数量已经达到最大限制/.test(document.body.innerText || ''));
+  const scope = await gotoAction(page, 'prod_group_add');
+  const limit = await scope.evaluate(() => /分类数量已经达到最大限制/.test(document.body.innerText || ''));
   if (limit) throw new CategoryLimitError('站点产品分类数量已达上限，无法新建 AUTOTEST 分类。');
-  const form = await unique(page.locator('form[action="/prod/group/doAdd"]'), '新增分类表单');
+  const form = await unique(scope.locator('form[action="/prod/group/doAdd"]'), '新增分类表单');
   const selected = form.locator('#treeboxbox_tree_pop .selectedTreeRow');
   if (await selected.count() !== 1 || (await selected.innerText()).trim() !== '所有分组'
       || await form.locator('#strParentGroup').inputValue() !== '') {
@@ -716,9 +803,9 @@ export async function createCategory(page, name) {
   const input = await unique(form.locator('input[name="group.groupName"]'), '分类名称');
   await input.fill(name);
   await input.blur();
-  const save = await unique(page.locator('a[action="prod_group_save_verify"][flag="list"]').filter({ visible: true }), '保存分类');
+  const save = await unique(scope.locator('a[action="prod_group_save_verify"][flag="list"]').filter({ visible: true }), '保存分类');
   // The form enables this anchor asynchronously after the input event.
-  await page.locator('a[action="prod_group_save_verify"][flag="list"]:visible:not([disabled])')
+  await scope.locator('a[action="prod_group_save_verify"][flag="list"]:visible:not([disabled])')
     .waitFor({ state: 'visible', timeout: TIMEOUT });
   await saveCms(page, async () => {
     if (await save.getAttribute('disabled') !== null) throw new Error('保存分类按钮不可用。');
@@ -729,26 +816,27 @@ export async function createCategory(page, name) {
   return created;
 }
 async function openAutoProduct(page, prodId) {
-  await openProduct(page, prodId);
-  const input = await unique(page.locator('input[name="product.prodName"]'), '产品名称');
+  const scope = await openProduct(page, prodId);
+  const input = await unique(scope.locator('input[name="product.prodName"]'), '产品名称');
   requireAuto(await input.inputValue());
+  return scope;
 }
 // Live probe 2026-10-30: the product form stores categories in the hidden
 // input groupIds (comma separated ids); productGroupSelect() opens a picker
 // with checkboxGroupIds checkboxes and confirm #popWinProdGroupConfirm.
 const groupIds = page => page.locator('input[type="hidden"][name="groupIds"]').inputValue().then(v => v.split(',').map(s => s.trim()).filter(Boolean));
 export async function readProductCategories(page, prodId) {
-  await openAutoProduct(page, prodId);
-  return groupIds(page);
+  const scope = await openAutoProduct(page, prodId);
+  return groupIds(scope);
 }
 export async function addProductCategory(page, prodId, categoryId, categoryName) {
   requireAuto(categoryName);
-  await openAutoProduct(page, prodId);
-  await page.evaluate(() => window.productGroupSelect());
-  const box = page.locator(`#popWin input[type="checkbox"][name="checkboxGroupIds"][value="${categoryId}"]`);
+  const scope = await openAutoProduct(page, prodId);
+  await scope.evaluate(() => window.productGroupSelect());
+  const box = scope.locator(`#popWin input[type="checkbox"][name="checkboxGroupIds"][value="${categoryId}"]`);
   await (await unique(box, '分类选择框')).check();
-  await (await unique(page.locator('#popWinProdGroupConfirm'), '分类确认')).click();
-  if (!(await groupIds(page)).includes(categoryId)) throw new Error('分类选择后 groupIds 未包含目标分类。');
+  await (await unique(scope.locator('#popWinProdGroupConfirm'), '分类确认')).click();
+  if (!(await groupIds(scope)).includes(categoryId)) throw new Error('分类选择后 groupIds 未包含目标分类。');
   await saveProduct(page);
 }
 
@@ -771,7 +859,7 @@ export function parseCustomFieldLimitText(text) {
 }
 export async function readCustomFieldLimit(page) {
   const fields = await listCustomFields(page);
-  const text = await page.evaluate(() => document.body.innerText || '');
+  const text = (await readCmsContexts(page, (scope) => scope.locator('body').innerText())).join('\n');
   return { ...parseCustomFieldLimitText(text), used: fields.length, fields };
 }
 
